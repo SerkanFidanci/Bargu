@@ -22,7 +22,14 @@ export class EmailWorker implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    await this.boss.work(QUEUES.email, { localConcurrency: 4 }, async ([job]) => {
+    const options = {
+      localConcurrency: 4,
+      // NOTIFY wakes the worker at once; if a notification is ever missed, a login code still
+      // leaves within two seconds instead of the 30 s default backstop.
+      pollingIntervalSeconds: 1,
+      notifyPollingIntervalSeconds: 2,
+    };
+    await this.boss.work(QUEUES.email, options, async ([job]) => {
       if (job === undefined) return;
       const email = this.jobs.open(job.data);
       const code = deriveOtpCode(this.keys.otpKey, email.challengeId);
