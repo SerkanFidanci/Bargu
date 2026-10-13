@@ -1,0 +1,12 @@
+{
+  "home": {
+    "tagline": "Konumun kilitli. Sadece arkadaşların açabilir."
+  },
+  "dev": {
+    "api": {
+      "checking": "API kontrol ediliyor…",
+      "online": "API bağlantısı hazır",
+      "offline": "API'ye ulaşılamıyor"
+    }
+  }
+}

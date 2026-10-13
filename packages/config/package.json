@@ -1,0 +1,27 @@
+{
+  "name": "@bargu/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint/index.mjs",
+    "./prettier": "./prettier/index.mjs",
+    "./tsconfig/strict.json": "./tsconfig/strict.json",
+    "./tsconfig/node.json": "./tsconfig/node.json"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings=0"
+  },
+  "dependencies": {
+    "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
+    "@eslint/js": "10.0.1",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-security": "4.2.0",
+    "globals": "17.13.0",
+    "typescript-eslint": "8.71.1"
+  },
+  "devDependencies": {
+    "eslint": "10.12.0",
+    "typescript": "6.0.3"
+  }
+}

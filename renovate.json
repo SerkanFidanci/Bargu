@@ -1,0 +1,79 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices", "helpers:pinGitHubActionDigestsToSemver"],
+  "timezone": "Europe/Istanbul",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "minimumReleaseAge": "3 days",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "One PR per week for CI actions.",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "description": "Expo SDK packages move together and are validated with `expo install --check`.",
+      "matchSourceUrls": ["https://github.com/expo/expo"],
+      "groupName": "Expo SDK",
+      "automerge": false
+    },
+    {
+      "description": "Expo SDK majors need a planned upgrade (native rebuild, release notes).",
+      "matchSourceUrls": ["https://github.com/expo/expo"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "React / React Native versions are dictated by the Expo SDK.",
+      "matchFileNames": ["apps/mobile/package.json"],
+      "matchPackageNames": [
+        "react",
+        "react-dom",
+        "react-native",
+        "@react-native/**",
+        "react-native-*",
+        "@types/react",
+        "jest",
+        "@types/jest"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "typescript-eslint does not support TypeScript 7 yet (peer: <6.1).",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6.1.0"
+    },
+    {
+      "description": "@types/node follows the Node LTS line in devEngines.runtime.",
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": "<25.0.0"
+    },
+    {
+      "description": "NestJS packages release together.",
+      "matchPackageNames": ["@nestjs/**"],
+      "groupName": "NestJS"
+    },
+    {
+      "description": "Lint toolchain.",
+      "matchPackageNames": [
+        "eslint",
+        "@eslint/**",
+        "typescript-eslint",
+        "eslint-plugin-*",
+        "@eslint-community/**",
+        "eslint-config-prettier",
+        "globals"
+      ],
+      "groupName": "ESLint"
+    },
+    {
+      "description": "Infra images are pinned by digest; group them.",
+      "matchManagers": ["docker-compose", "dockerfile"],
+      "groupName": "Container images"
+    }
+  ]
+}

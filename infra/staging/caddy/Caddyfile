@@ -1,0 +1,29 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$API_DOMAIN} {
+	tls {
+		protocols tls1.3
+	}
+
+	header {
+		# `>` overrides the value the API sets, so Caddy's own responses carry it too.
+		>Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+
+	# Dependency status is for the host (container healthcheck, deploy script), not the internet.
+	@internal path /health/ready
+	respond @internal 404
+
+	request_body {
+		max_size 1MB
+	}
+
+	encode zstd gzip
+
+	# No `log` directive on purpose: access logs would record client IPs and raw URLs.
+	reverse_proxy api:3000
+}

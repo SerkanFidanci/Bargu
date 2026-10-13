@@ -1,0 +1,88 @@
+name: Deploy staging
+
+# Runs after CI succeeds on main (or manually). Stays inert until the repository variable
+# STAGING_ENABLED is "true" — see infra/vps/README.md for the one-time setup.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build image and deploy
+    if: >-
+      vars.STAGING_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: staging
+      url: https://${{ vars.STAGING_API_DOMAIN }}/health/live
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Image name (registry paths must be lowercase)
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "IMAGE=ghcr.io/${OWNER,,}/bargu-api" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:staging
+            ${{ env.IMAGE }}:${{ github.event.workflow_run.head_sha || github.sha }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy over SSH (forced command, pinned host key)
+        env:
+          SSH_HOST: ${{ vars.STAGING_SSH_HOST }}
+          SSH_KNOWN_HOSTS: ${{ vars.STAGING_SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s' "$REGISTRY_TOKEN" | ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes -o IdentitiesOnly=yes \
+            "deploy@${SSH_HOST}" "deploy ${IMAGE}@${DIGEST}"
+          rm -f ~/.ssh/deploy_key
+
+      - name: Verify over HTTPS
+        env:
+          API_DOMAIN: ${{ vars.STAGING_API_DOMAIN }}
+        run: curl --fail --silent --show-error --retry 10 --retry-delay 3 --retry-all-errors "https://${API_DOMAIN}/health/live"

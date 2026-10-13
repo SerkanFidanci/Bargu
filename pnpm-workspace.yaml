@@ -1,0 +1,30 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Supply chain: only install versions that have been public for at least 24h.
+# Setting it explicitly makes the check strict (too-young versions fail instead of being used as a fallback).
+minimumReleaseAge: 1440
+
+# Exact versions in package.json; the lockfile is the source of truth.
+savePrefix: ''
+
+# Audit exceptions: only advisories with no patched release, reviewed and justified. Re-check on every
+# Expo SDK upgrade; remove an entry as soon as a fix ships (Renovate will propose the bump).
+audit:
+  ignore:
+    # node-forge <=1.4.0 RSA PKCS#1 v1.5 signature forgery (CVE-2026-85393). Reviewed 2026-10-13:
+    # reached only via @expo/cli (dev server / build tooling), never bundled into the app, and no
+    # Bargu flow verifies third-party RSA signatures with it. No fixed version exists yet.
+    - GHSA-86w9-cpqp-85rv
+    # braces <=3.0.3 stack exhaustion on deeply nested patterns (CVE-2026-93687). Reviewed 2026-10-13:
+    # reached only via Metro's file map (bundler, dev/build time); patterns come from our own config,
+    # not from users. No fixed version exists yet.
+    - GHSA-vfj7-8cjw-p6xm
+
+# Install scripts are deny-by-default (strictDepBuilds). Every entry here must be reviewed.
+allowBuilds:
+  # Nest CLI SWC builder; postinstall only verifies the platform binary.
+  '@swc/core': true
+  # Fallback downloader for the native binding, which already arrives via optionalDependencies.
+  unrs-resolver: false

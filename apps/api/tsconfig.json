@@ -1,0 +1,10 @@
+{
+  "extends": "@bargu/config/tsconfig/node.json",
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "outDir": "dist",
+    "noEmit": true
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}

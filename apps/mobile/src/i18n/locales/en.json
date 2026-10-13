@@ -1,0 +1,12 @@
+{
+  "home": {
+    "tagline": "Your location is locked. Only your friends hold the key."
+  },
+  "dev": {
+    "api": {
+      "checking": "Checking API…",
+      "online": "API connection ready",
+      "offline": "API unreachable"
+    }
+  }
+}

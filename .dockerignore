@@ -1,0 +1,21 @@
+# Keep the build context small and free of secrets.
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+**/.vitest
+**/.expo
+.git
+.github
+.husky
+.claude
+docs
+infra
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+
+# The API image needs only the mobile manifest (the lockfile references it), not its sources.
+apps/mobile/*
+!apps/mobile/package.json
