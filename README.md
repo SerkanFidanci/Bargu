@@ -4,6 +4,7 @@ Arkadaşlar ve aile ile canlı konum paylaşımı — **Zenly hissi, Signal güv
 uca şifrelenir; sunucu hiçbir zaman düz koordinat görmez.
 
 - Plan ve fazlar: [BARGU_PLAN.md](BARGU_PLAN.md) · Geliştirme kuralları: [CLAUDE.md](CLAUDE.md)
+- Proje durumu ve açık işler: [docs/DURUM.md](docs/DURUM.md)
 - Mimari kararlar: [docs/ADR](docs/ADR/README.md) · Staging sunucusu: [infra/vps/README.md](infra/vps/README.md)
 
 ## Klasör yapısı

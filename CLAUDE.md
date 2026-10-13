@@ -4,6 +4,8 @@ Arkadaşlar ve aile ile uçtan uca şifreli (E2EE) canlı konum paylaşımı. **
 
 Ana referans: [BARGU_PLAN.md](BARGU_PLAN.md). Fazları sırayla uygula; mimari, tehdit modeli ve faz tanımları oradadır.
 
+Güncel durum, açık riskler ve tarihli takip işleri: [docs/DURUM.md](docs/DURUM.md) — her faz sonunda güncelle.
+
 ## Kurallar (BARGU_PLAN.md Bölüm 6)
 
 - Sunucuya **ASLA** düz koordinat gitmez. Her konum `packages/crypto` üzerinden şifrelenir.
