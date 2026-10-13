@@ -7,6 +7,8 @@ import { ids, locationPayload, publicKeysOf, testDevice } from './helpers.js';
 
 // Regression guard on the Faz 1 budget (< 5 ms per encryption). The authoritative measurement runs
 // on a phone via the app's /_dev/crypto screen; Node is far faster, so this only catches big slips.
+// Runs without coverage instrumentation (see package.json): V8 precise coverage slows the BigInt-heavy
+// curve arithmetic by an order of magnitude and would make this measure the instrumentation.
 const BUDGET_MS = 5;
 
 function median(samples: number[]): number {

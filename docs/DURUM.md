@@ -7,8 +7,8 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 | Faz                              | Durum                                        |
 | -------------------------------- | -------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Tamam (tek açık madde: iPhone dev client) |
-| Faz 1 — Kripto Çekirdeği         | Başlamadı                                    |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client) |
+| Faz 1 — Kripto Çekirdeği         | 🔄 Onay bekliyor                             |
 
 ## Ortamlar
 
@@ -19,6 +19,54 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Expo / EAS projesi | hesap `otenus`, proje `bargu` (`app.config.ts`)                                         |
 | Android sürümleri  | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır) |
 | Uygulama kimliği   | `app.bargu` (mağazaya çıkınca değiştirilemez)                                           |
+
+## Faz 1 — Kripto Çekirdeği (2026-10-13)
+
+Protokol: [PROTOCOL.md](PROTOCOL.md) · Tehdit modeli: [THREAT_MODEL.md](THREAT_MODEL.md) · Kararlar:
+[ADR 0004](ADR/0004-e2ee-protocol.md)
+
+### DoD
+
+| Madde                                  | Durum | Kanıt                                                                                    |
+| -------------------------------------- | ----- | ---------------------------------------------------------------------------------------- |
+| Test vektörleri geçer                  | ✅    | RFC 7748 (X25519), 8032 (Ed25519), 8439 (ChaCha20-Poly1305), 5869 (HKDF) — RFC metninden |
+| `packages/crypto` %100 satır coverage  | ✅    | Satır, ifade, dal ve fonksiyon %100 (CI'da eşik olarak zorunlu)                          |
+| Tamper / replay / epoch testleri yeşil | ✅    | Tek bit değişikliği (property), tekrar ve eski `seq`, yanlış epoch/çember/gönderen       |
+| Cihazda şifreleme < 5 ms               | ⏳    | `/_dev/crypto` ekranı hazır; telefonda ölçüm bekleniyor (Node: medyan 0,46 ms)           |
+
+### Yapılanlar
+
+- `packages/crypto`: cihaz anahtarları (DH anahtarı kimlikle imzalı), sender key dağıtımı, mesaj başına
+  anahtar (rastgele `salt` ile), tekrar penceresi, bildirim sealed box'ı, güvenlik numarası (60 rakam +
+  QR), ızgara hassasiyeti, rekey kuralları. Yalnızca `@noble/*` 2.4 ve `@scure/base`.
+- `packages/schemas`: içerik birleşimi (`loc`, `bump`, `place_enter/exit`, `share_stop`, `status`) ve
+  kablo şemaları (zarf, dağıtım, cihaz paketi).
+- `packages/crypto/swift`: çözen taraf (bildirim eklentisi için) CryptoKit ile; TypeScript fixture'larını
+  birebir açtığı macOS CI job'u ile doğrulanıyor.
+- Mobil: `expo-crypto` ile işletim sistemi CSPRNG'si; geliştirme / önizleme sürümlerinde `/_dev/crypto`
+  hız testi ekranı.
+
+### Test sonuçları
+
+- `packages/crypto`: 78 test (RFC vektörleri, fast-check property testleri, tamper, replay, epoch,
+  çıkarılan üye, kötü niyetli gönderici, fixture, performans) — %100 kapsam.
+- `packages/schemas`: 18 test. Swift: 8 test (Linux'ta swift-crypto ile; CI'da macOS CryptoKit ile).
+
+### Testlerin bulup düzelttiği hatalar
+
+- Hassasiyet ızgarası tarih değiştirme hattında idempotent değildi (property testi buldu) → ızgara artık
+  180°/360°'yi tam bölüyor.
+- Güvenlik numarasında rakam eşitliğinde iki telefonun farklı QR üretme ihtimali → sıralama tam
+  parmak izine göre.
+- noble'ın `isValidPublicKey` fonksiyonu küçük mertebeli noktaları kabul ediyor → ek kontrol eklendi.
+
+### Açık riskler
+
+1. Telefonda hız ölçümü henüz yapılmadı; Hermes, Node'dan 10–20 kat yavaş olabilir. Bütçe aşılırsa
+   önce Ed25519 ön hesaplaması, sonra native modül değerlendirilir.
+2. Epoch içinde ileri gizlilik ve inkâr edilebilirlik yok (bilinçli tercih, THREAT_MODEL.md).
+3. Protokol henüz uygulama akışlarına bağlı değil: anahtar saklama (Faz 2), çember ve dağıtım (Faz 4),
+   konum gönderimi (Faz 5), bildirim eklentisi (Faz 7).
 
 ## Faz 0 — Temel & Güvenlik Altyapısı (2026-10-13)
 

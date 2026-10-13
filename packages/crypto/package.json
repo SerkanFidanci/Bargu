@@ -16,7 +16,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage --exclude test/performance.spec.ts && vitest run test/performance.spec.ts"
   },
   "dependencies": {
     "@bargu/schemas": "workspace:*",
