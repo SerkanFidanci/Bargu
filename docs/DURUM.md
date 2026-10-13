@@ -5,11 +5,11 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                         |
-| -------------------------------- | --------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)  |
-| Faz 1 — Kripto Çekirdeği         | ✅ Onaylandı (açık madde: cihazda hız ölçümü) |
-| Faz 2 — Auth & Cihazlar          | 🔄 Onay bekliyor (staging'de doğrulandı)      |
+| Faz                              | Durum                                        |
+| -------------------------------- | -------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client) |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                |
+| Faz 2 — Auth & Cihazlar          | 🔄 Onay bekliyor (staging'de doğrulandı)     |
 
 ## Ortamlar
 
@@ -137,12 +137,12 @@ Protokol: [PROTOCOL.md](PROTOCOL.md) · Tehdit modeli: [THREAT_MODEL.md](THREAT_
 
 ### DoD
 
-| Madde                                  | Durum | Kanıt                                                                                                |
-| -------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------- |
-| Test vektörleri geçer                  | ✅    | RFC 7748 (X25519), 8032 (Ed25519), 8439 (ChaCha20-Poly1305), 5869 (HKDF) — RFC metninden             |
-| `packages/crypto` %100 satır coverage  | ✅    | Satır, ifade, dal ve fonksiyon %100 (CI'da eşik olarak zorunlu)                                      |
-| Tamper / replay / epoch testleri yeşil | ✅    | Tek bit değişikliği (property), tekrar ve eski `seq`, yanlış epoch/çember/gönderen                   |
-| Cihazda şifreleme < 5 ms               | ⏳    | Saf JS ile Android'de p95 6,70 ms (geçmedi) → yerel eğri işlemleri (ADR 0007), yeni ölçüm bekleniyor |
+| Madde                                  | Durum | Kanıt                                                                                    |
+| -------------------------------------- | ----- | ---------------------------------------------------------------------------------------- |
+| Test vektörleri geçer                  | ✅    | RFC 7748 (X25519), 8032 (Ed25519), 8439 (ChaCha20-Poly1305), 5869 (HKDF) — RFC metninden |
+| `packages/crypto` %100 satır coverage  | ✅    | Satır, ifade, dal ve fonksiyon %100 (CI'da eşik olarak zorunlu)                          |
+| Tamper / replay / epoch testleri yeşil | ✅    | Tek bit değişikliği (property), tekrar ve eski `seq`, yanlış epoch/çember/gönderen       |
+| Cihazda şifreleme < 5 ms               | ✅    | Android'de p95 **0,96 ms** (yerel eğri işlemleri, ADR 0007); saf JS ile 6,70 ms'ydi      |
 
 ### Yapılanlar
 
@@ -184,13 +184,31 @@ Faz kapanmadan önce kripto kodu ayrı bir inceleyiciyle saldırgan gözüyle ta
   parmak izine göre.
 - noble'ın `isValidPublicKey` fonksiyonu küçük mertebeli noktaları kabul ediyor → ek kontrol eklendi.
 
+### Cihaz ölçümü (Android, 2026-10-13)
+
+| İşlem                      | Saf JS (p95) | Yerel eğri işlemleri (p95) |
+| -------------------------- | ------------ | -------------------------- |
+| Konum şifreleme            | 6,70 ms      | **0,96 ms**                |
+| Hassasiyet + şifreleme     | 6,73 ms      | 0,69 ms                    |
+| Doğrulama + çözme          | 15,09 ms     | 1,19 ms                    |
+| Anahtar dağıtımı (1 alıcı) | 22,19 ms     | 2,45 ms                    |
+| Bildirim kutusu            | 16,24 ms     | 1,57 ms                    |
+| Cihaz anahtarı üretimi     | 12,47 ms     | 4,13 ms                    |
+| Güvenlik numarası          | 363,91 ms    | 373,23 ms (eğri değil)     |
+
+Ekran "telefonun yerel kripto kodu (öz test geçti)" gösterdi: Tink, açılıştaki noble karşılaştırmasını
+geçti.
+
 ### Açık riskler
 
-1. İlk telefon ölçümü bütçeyi aştı (saf JS, Hermes): şifreleme p95 6,70 ms, doğrulama + çözme 15 ms,
-   anahtar dağıtımı 22 ms. Ed25519/X25519 artık telefonda yerel (CryptoKit / Tink, öz testli; ADR
-   0007); yeni build ile ölçülecek. iOS tarafı Apple hesabı gelene kadar derlenemiyor.
-2. Epoch içinde ileri gizlilik ve inkâr edilebilirlik yok (bilinçli tercih, THREAT_MODEL.md).
-3. Protokol henüz uygulama akışlarına bağlı değil: anahtar saklama (Faz 2), çember ve dağıtım (Faz 4),
+1. iOS'taki yerel eğri işlemleri (CryptoKit) Apple hesabı gelene kadar derlenemiyor ve ölçülmedi;
+   Android'de ölçüldü (aşağıda). Öz test başarısız olursa uygulama saf JS'e döner (daha yavaş ama
+   güvenli).
+2. **Güvenlik numarası 373 ms** sürüyor (Signal yöntemi: kişi başına 5200 tur SHA-256, saf JS). Yalnızca
+   doğrulama ekranı açılırken bir kez hesaplanıyor, ama JS iş parçacığını kilitler. Faz 4'te (ekran
+   gelirken) yerel modüle veya arka plana taşınacak.
+3. Epoch içinde ileri gizlilik ve inkâr edilebilirlik yok (bilinçli tercih, THREAT_MODEL.md).
+4. Protokol henüz uygulama akışlarına bağlı değil: anahtar saklama (Faz 2), çember ve dağıtım (Faz 4),
    konum gönderimi (Faz 5), bildirim eklentisi (Faz 7).
 
 ## Faz 0 — Temel & Güvenlik Altyapısı (2026-10-13)
@@ -270,6 +288,7 @@ Faz kapanmadan önce kripto kodu ayrı bir inceleyiciyle saldırgan gözüyle ta
   yükleniyor; Bargu kullanmıyor → sadece ilgili projeye kapsamla.
 - Geliştirme ve önizleme sürümlerinin telefonda yan yana durabilmesi için ayrı uygulama kimliği
   (`app.bargu.dev`) değerlendir.
+- **Faz 4:** güvenlik numarası (373 ms) JS iş parçacığından çıksın (yerel SHA-256 veya arka plan).
 - **Faz 4:** anahtar deposu mevcut epoch'tan eski dağıtımı reddetsin; kimlik anahtarı değişen üyeye
   sender key, kullanıcı uyarıyı onaylayana kadar otomatik dağıtılmasın.
 - **Faz 7:** iOS bildirim eklentisi tekrar korumasını (`ReplayGuard` durumu) uygulamayla uygulama
