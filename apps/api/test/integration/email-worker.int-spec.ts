@@ -1,7 +1,10 @@
+import { randomUuid } from '@bargu/crypto';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type { PgBoss } from 'pg-boss';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { EmailJobs } from '../../src/jobs/email-jobs.js';
+import { EMAIL_BATCH_SIZE } from '../../src/jobs/email.worker.js';
 import { JOB_QUEUE } from '../../src/jobs/jobs.module.js';
 import { Mailer, type OutgoingEmail } from '../../src/jobs/mailer.js';
 import { QUEUES } from '../../src/jobs/queues.js';
@@ -24,7 +27,7 @@ async function eventually(check: () => void | Promise<void>): Promise<void> {
     const queue = await boss.getQueue(QUEUES.email).catch((e: unknown) => String(e));
     const jobs = await test.admin
       .query<Record<string, unknown>>(
-        'SELECT name, state, retry_count, start_after, created_on FROM pgboss.job ORDER BY created_on DESC LIMIT 5',
+        `SELECT name, state, count(*)::int AS count FROM pgboss.job GROUP BY name, state ORDER BY name, state`,
       )
       .then((r) => r.rows)
       .catch((e: unknown) => String(e));
@@ -33,50 +36,9 @@ async function eventually(check: () => void | Promise<void>): Promise<void> {
       lastFetchedOn: w.lastFetchedOn,
       lastError: w.lastError instanceof Error ? w.lastError.message : w.lastError,
     }));
-    const fetchable = await test.admin
-      .query<Record<string, unknown>>(
-        `SELECT count(*) FILTER (WHERE NOT blocked AND start_after <= now())::int AS ready,
-                count(*) FILTER (WHERE blocked)::int AS blocked,
-                count(*) FILTER (WHERE start_after > now())::int AS future,
-                now() AS db_now
-           FROM pgboss.job_common WHERE name = 'email.send' AND state < 'active'`,
-      )
-      .then((r) => r.rows)
-      .catch((e: unknown) => String(e));
-    // What the worker's own connection sees, and what a manual fetch returns.
-    const workerView = await boss
-      .getDb()
-      .executeSql(
-        `SELECT current_database() AS db, current_user AS role, now() AS now,
-                (SELECT count(*)::int FROM pgboss.job_common WHERE state < 'active') AS visible`,
-        [],
-      )
-      .then((r) => r.rows as unknown)
-      .catch((e: unknown) => String(e));
-    const manualFetch = await boss
-      .fetch(QUEUES.email, { batchSize: 1 })
-      .then((rows) => rows.length)
-      .catch((e: unknown) => String(e));
-    const sessions = await test.admin
-      .query<Record<string, unknown>>(
-        `SELECT usename, state, xact_start, left(query, 80) AS query FROM pg_stat_activity
-          WHERE datname = current_database() AND xact_start IS NOT NULL ORDER BY xact_start`,
-      )
-      .then((r) => r.rows)
-      .catch((e: unknown) => String(e));
-    const locks = await test.admin
-      .query<Record<string, unknown>>(
-        `SELECT l.mode, l.granted, a.usename, a.state FROM pg_locks l
-           JOIN pg_stat_activity a ON a.pid = l.pid
-          WHERE l.relation = 'pgboss.job_common'::regclass`,
-      )
-      .then((r) => r.rows)
-      .catch((e: unknown) => String(e));
     throw new Error(
-      `worker did not finish the job: ${JSON.stringify({ workerView, manualFetch, events, fetchable, sessions, locks, jobs, wip, queue })}`,
-      {
-        cause: error,
-      },
+      `worker did not finish the job: ${JSON.stringify({ events, jobs, wip, queue })}`,
+      { cause: error },
     );
   }
 }
@@ -112,7 +74,19 @@ describe('email worker', () => {
     expect(message?.subject).not.toMatch(/\d{6}/);
   });
 
-  it('drops a job it can never open instead of retrying it', async () => {
+  it('drains a backlog larger than one batch', async () => {
+    const emails = Array.from({ length: EMAIL_BATCH_SIZE * 2 + 5 }, () => uniqueEmail());
+    // Queued directly: the API's request limits would refuse this many from one client.
+    const jobs = worker.get(EmailJobs);
+    await Promise.all(
+      emails.map((to) => jobs.enqueueOtp({ to, locale: 'tr', challengeId: randomUuid() })),
+    );
+    await eventually(() => {
+      expect(emails.filter((to) => !sent.some((message) => message.to === to))).toEqual([]);
+    });
+  });
+
+  it('dead-letters a job it can never open instead of retrying it', async () => {
     // Queued by an API with other keys (e.g. before a key rotation).
     const foreign = await createTestApp();
     try {
@@ -122,8 +96,13 @@ describe('email worker', () => {
           'SELECT state, retry_count FROM pgboss.job WHERE id = $1',
           [challengeId],
         );
-        expect(rows[0]).toEqual({ state: 'completed', retry_count: 0 });
+        expect(rows[0]).toEqual({ state: 'failed', retry_count: 0 });
       });
+      const { rows } = await test.admin.query<{ name: string }>(
+        'SELECT name FROM pgboss.job WHERE source_id = $1',
+        [challengeId],
+      );
+      expect(rows).toEqual([{ name: QUEUES.emailDead }]);
     } finally {
       await foreign.close();
     }

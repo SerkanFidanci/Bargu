@@ -29,7 +29,12 @@ giriş kodu e-postaları (Faz 2), push dağıtımı (Faz 7), davet süresi (Faz 
   - **Dayanıklılık**: hesap silme gibi yasal yükümlülüğü olan işler veritabanı yedeğiyle korunur;
     Redis geçici veriler (konum, presence, hız sınırı) için kalır.
   - **Gecikme**: LISTEN/NOTIFY ile işçi iş eklendiği an uyanır; yoklama yalnızca yedek.
+  - **Verim**: işçi işleri 20'lik gruplar halinde alır ve grup doluysa beklemeden sıradakine geçer;
+    her iş ayrı sonuçlanır (biri başarısız olunca diğerleri etkilenmez). Tek tek alıp her işten sonra
+    beklemek, yoğun anda kodların gecikmesine yol açıyordu (CI'da yakalandı).
   - Tekrar deneme (üstel bekleme), ölü mektup kuyruğu, saklama süreleri ve zamanlanmış işler hazır.
+    Hiçbir zaman açılamayacak bir iş (örn. anahtar değişiminden önce şifrelenmiş) tekrar denenmeden
+    doğrudan ölü mektup kuyruğuna gider.
 - **Roller**: kuyruk tabloları migration adımında sahip rolle kurulur; API ve işçi yalnızca veri
   okuyup yazabilir. API yalnızca iş ekler; işçi (ayrı container, aynı imaj) işleri çalıştırır ve kuyruk
   bakımını yapar.

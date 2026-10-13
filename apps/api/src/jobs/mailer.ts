@@ -22,6 +22,9 @@ export class Mailer implements OnApplicationShutdown {
     const implicitTls = env.SMTP_URL.startsWith('smtps:');
     this.transport = createTransport({
       url: env.SMTP_URL,
+      // A few reused connections: a batch of codes does not open one SMTP session per email.
+      pool: true,
+      maxConnections: 4,
       // Production never sends a login code over an unencrypted hop.
       requireTLS: env.APP_ENV === 'production' && !implicitTls,
       connectionTimeout: 10_000,
