@@ -5,6 +5,7 @@ uca şifrelenir; sunucu hiçbir zaman düz koordinat görmez.
 
 - Plan ve fazlar: [BARGU_PLAN.md](BARGU_PLAN.md) · Geliştirme kuralları: [CLAUDE.md](CLAUDE.md)
 - Proje durumu ve açık işler: [docs/DURUM.md](docs/DURUM.md)
+- Protokol: [docs/PROTOCOL.md](docs/PROTOCOL.md) · Tehdit modeli: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
 - Mimari kararlar: [docs/ADR](docs/ADR/README.md) · Staging sunucusu: [infra/vps/README.md](infra/vps/README.md)
 
 ## Klasör yapısı
@@ -14,6 +15,8 @@ apps/
   api/        NestJS 12 (Fastify, ESM) — Postgres (pg), Redis (node-redis)
   mobile/     Expo SDK 57, Expo Router, dev client
 packages/
+  crypto/     E2EE protokolü (saf TS, %100 test kapsamı) + swift/ (iOS CryptoKit tarafı)
+  schemas/    Ortak zod şemaları (şifreli içerik, kablo biçimleri)
   config/     Ortak ESLint, TypeScript ve Prettier ayarları
 infra/
   docker-compose.yml   Lokal Postgres, Redis, Mailpit

@@ -1,12 +1,34 @@
 {
   "home": {
-    "tagline": "Konumun kilitli. Sadece arkadaşların açabilir."
+    "tagline": "Konumun kilitli. Sadece arkadaşların açabilir.",
+    "devTools": "Geliştirici: kripto hız testi"
   },
   "status": {
     "api": {
       "checking": "Sunucu bağlantısı kontrol ediliyor…",
       "online": "Sunucu bağlantısı hazır",
       "offline": "Sunucuya ulaşılamıyor"
+    }
+  },
+  "dev": {
+    "crypto": {
+      "title": "Kripto hız testi",
+      "budget": "Hedef: konum şifreleme {{ms}} ms'nin altında (p95).",
+      "start": "Testi başlat",
+      "running": "Çalışıyor…",
+      "failed": "Test çalışırken bir hata oluştu.",
+      "passed": "Geçti: şifreleme hedefin altında.",
+      "notPassed": "Geçmedi: şifreleme hedefin üstünde.",
+      "timing": "medyan {{median}} ms · p95 {{p95}} ms · {{n}} deneme",
+      "ops": {
+        "encrypt": "Konum şifreleme",
+        "send": "Hassasiyet + şifreleme",
+        "decrypt": "Doğrulama + çözme",
+        "distribute": "Anahtar dağıtımı (1 alıcı)",
+        "seal": "Bildirim kutusu",
+        "keygen": "Cihaz anahtarı üretimi",
+        "safetyNumber": "Güvenlik numarası"
+      }
     }
   }
 }

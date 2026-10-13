@@ -1,0 +1,12 @@
+# gitleaks configuration: the default ruleset plus narrowly scoped, justified exceptions only.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """
+Deterministic TEST-ONLY cross-implementation vectors (packages/crypto/test/fixtures.spec.ts).
+`generic-api-key` matches the public keys in it (identityKey, dhKey, ephemeralKey); its secrets are
+fixed test bytes such as 0x01…01. Only this rule, only this file.
+"""
+targetRules = ["generic-api-key"]
+paths = ['''^packages/crypto/fixtures/protocol-v1\.json$''']

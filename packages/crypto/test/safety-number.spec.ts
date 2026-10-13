@@ -1,0 +1,47 @@
+import { describe, expect, it } from 'vitest';
+
+import { BarguCryptoError } from '../src/errors.js';
+import { safetyNumber, verifySafetyNumberQr } from '../src/safety-number.js';
+import { ids, testDevice } from './helpers.js';
+
+const alice = {
+  userId: ids.aliceUser,
+  identityKey: testDevice(ids.aliceDevice, 1).identity.publicKey,
+};
+const bob = { userId: ids.bobUser, identityKey: testDevice(ids.bobDevice, 3).identity.publicKey };
+
+describe('safetyNumber', () => {
+  const number = safetyNumber(alice, bob);
+
+  it('is the same 60 digits on both phones', () => {
+    expect(number.digits).toMatch(/^\d{60}$/);
+    expect(safetyNumber(bob, alice)).toEqual(number);
+    expect(number.groups).toHaveLength(12);
+    expect(number.groups.join('')).toBe(number.digits);
+  });
+
+  it('changes when either identity key changes (device change warning)', () => {
+    const bobNewDevice = { ...bob, identityKey: testDevice(ids.bobDevice, 7).identity.publicKey };
+    const changed = safetyNumber(alice, bobNewDevice);
+    expect(changed.digits).not.toBe(number.digits);
+    // Alice's half stays, Bob's half changes.
+    const aliceHalf = [number.digits.slice(0, 30), number.digits.slice(30)].filter((half) =>
+      changed.digits.includes(half),
+    );
+    expect(aliceHalf).toHaveLength(1);
+  });
+
+  it('verifies a scanned QR code', () => {
+    expect(verifySafetyNumberQr(number.qr, bob, alice)).toBe(true);
+    const mallory = { ...bob, identityKey: testDevice(ids.bobDevice, 9).identity.publicKey };
+    expect(verifySafetyNumberQr(number.qr, alice, mallory)).toBe(false);
+    expect(verifySafetyNumberQr('bargu-sn:1:garbage', alice, bob)).toBe(false);
+  });
+
+  it('rejects invalid input', () => {
+    expect(() => safetyNumber(alice, alice)).toThrow(BarguCryptoError);
+    expect(() => safetyNumber(alice, { ...bob, identityKey: new Uint8Array(31) })).toThrow(
+      BarguCryptoError,
+    );
+  });
+});

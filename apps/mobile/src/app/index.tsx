@@ -1,8 +1,9 @@
-import { useTheme } from 'expo-router';
+import { Link, useTheme } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DEV_TOOLS_ENABLED } from '@/config/env';
 import { useApiStatus } from '@/features/status/use-api-status';
 
 // Placeholder home screen for Faz 0. The map-first UI and design tokens arrive in Faz 3.
@@ -18,6 +19,11 @@ export default function HomeScreen() {
         </Text>
         <Text style={[styles.tagline, { color: colors.text }]}>{t('home.tagline')}</Text>
         <ApiStatus />
+        {DEV_TOOLS_ENABLED ? (
+          <Link href="/_dev/crypto" style={[styles.devLink, { color: colors.primary }]}>
+            {t('home.devTools')}
+          </Link>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -41,4 +47,5 @@ const styles = StyleSheet.create({
   title: { fontSize: 34, fontWeight: '700' },
   tagline: { fontSize: 17, textAlign: 'center' },
   apiStatus: { fontSize: 13, opacity: 0.6 },
+  devLink: { fontSize: 13, marginTop: 24 },
 });

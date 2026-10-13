@@ -16,7 +16,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:api": "pnpm --filter @bargu/api dev",
-    "dev:mobile": "pnpm --filter @bargu/mobile dev",
+    "dev:mobile": "pnpm --filter \"@bargu/mobile^...\" run build && pnpm --filter @bargu/mobile dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",

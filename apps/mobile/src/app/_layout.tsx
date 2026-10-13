@@ -1,3 +1,5 @@
+// Must stay first: installs the CSPRNG before any module can generate keys.
+import '@/platform/secure-random';
 import '@/i18n';
 
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';

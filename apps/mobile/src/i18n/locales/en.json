@@ -1,12 +1,34 @@
 {
   "home": {
-    "tagline": "Your location is locked. Only your friends hold the key."
+    "tagline": "Your location is locked. Only your friends hold the key.",
+    "devTools": "Developer: crypto benchmark"
   },
   "status": {
     "api": {
       "checking": "Checking server connection…",
       "online": "Server connection ready",
       "offline": "Server unreachable"
+    }
+  },
+  "dev": {
+    "crypto": {
+      "title": "Crypto benchmark",
+      "budget": "Target: encrypting a location under {{ms}} ms (p95).",
+      "start": "Run benchmark",
+      "running": "Running…",
+      "failed": "The benchmark failed.",
+      "passed": "Passed: encryption is within budget.",
+      "notPassed": "Not passed: encryption is over budget.",
+      "timing": "median {{median}} ms · p95 {{p95}} ms · {{n}} runs",
+      "ops": {
+        "encrypt": "Encrypt location",
+        "send": "Precision + encrypt",
+        "decrypt": "Verify + decrypt",
+        "distribute": "Key distribution (1 recipient)",
+        "seal": "Push sealed box",
+        "keygen": "Device key generation",
+        "safetyNumber": "Safety number"
+      }
     }
   }
 }

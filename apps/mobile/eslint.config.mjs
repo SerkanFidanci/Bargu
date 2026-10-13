@@ -5,7 +5,7 @@ import globals from 'globals';
 
 // eslint-config-expo is not used: its eslint-plugin-react / eslint-plugin-import dependencies call
 // context APIs removed in ESLint 10. The parts that matter are wired directly (see docs/ADR/0001).
-export default createConfig({
+const config = createConfig({
   tsconfigRootDir: import.meta.dirname,
   environment: 'react-native',
   extends: [
@@ -29,3 +29,12 @@ export default createConfig({
     },
   ],
 });
+
+// The one documented exception to "crypto only in packages/crypto": exposing the OS CSPRNG from
+// expo-crypto as `crypto.getRandomValues` (platform glue, no cryptography; see docs/ADR/0004).
+config.push({
+  files: ['src/platform/secure-random.ts'],
+  rules: { 'no-restricted-imports': 'off' },
+});
+
+export default config;

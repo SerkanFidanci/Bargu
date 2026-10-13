@@ -56,6 +56,21 @@ jobs:
       - name: pnpm audit (high and critical fail the build)
         run: pnpm audit --audit-level high
 
+  swift-compat:
+    name: Swift (CryptoKit) cross-implementation
+    # The iOS Notification Service Extension decrypts with Apple CryptoKit; prove it opens what the
+    # TypeScript implementation produces (packages/crypto/fixtures).
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: swift test
+        working-directory: packages/crypto/swift
+        run: swift test
+
   deploy-staging:
     name: Deploy staging
     needs: [verify, audit]

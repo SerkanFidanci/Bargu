@@ -11,3 +11,6 @@ export const env = {
     isDev: __DEV__,
   }),
 } as const;
+
+/** Developer screens (e.g. /_dev/crypto). On in development and preview builds, off in production. */
+export const DEV_TOOLS_ENABLED = __DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1';

@@ -9,7 +9,8 @@
     "ios": "expo run:ios",
     "typecheck": "expo customize tsconfig.json && tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
-    "test": "jest"
+    "test": "jest",
+    "eas-build-post-install": "pnpm --filter \"@bargu/mobile^...\" run build"
   },
   "jest": {
     "preset": "jest-expo",
@@ -21,8 +22,11 @@
     }
   },
   "dependencies": {
+    "@bargu/crypto": "workspace:*",
+    "@bargu/schemas": "workspace:*",
     "expo": "~57.0.27",
     "expo-constants": "~57.0.21",
+    "expo-crypto": "~57.0.3",
     "expo-dev-client": "~57.0.19",
     "expo-linking": "~57.0.12",
     "expo-localization": "~57.0.2",
