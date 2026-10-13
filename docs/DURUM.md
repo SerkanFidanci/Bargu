@@ -65,6 +65,10 @@ Kararlar: [ADR 0008](ADR/0008-design-system-and-map.md) · Kurallar: [MOTION.md]
 | API birim + HTTP   | 65   |                                                                                 |
 | Mobil              | 117  | kontrast, bileşenler, giriş akışı, oturum, passkey, kullanıcı adı, harita stili |
 
+Staging'de uçtan uca deneme (CI → otomatik deploy, migration 0002 dahil): giriş, kullanıcı adı
+kontrolü, profil kaydı, imzasız değişikliğin reddi, `assetlinks.json` ve harita dosyaları (aralık
+istekleriyle) — 22/22 doğru. Android build: `53ef50dd` (passkey dahil).
+
 ### Açık riskler
 
 1. Harita yalnızca Türkiye'yi kapsıyor; yurt dışında boş görünür. Genişletmek: aynı betikle daha
