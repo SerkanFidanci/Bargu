@@ -28,9 +28,38 @@ async function eventually(check: () => void | Promise<void>): Promise<void> {
       )
       .then((r) => r.rows)
       .catch((e: unknown) => String(e));
-    const wip = boss.getWipData({ includeInternal: true });
+    const wip = boss.getWipData({ includeInternal: true }).map((w) => ({
+      name: w.name,
+      lastFetchedOn: w.lastFetchedOn,
+      lastError: w.lastError instanceof Error ? w.lastError.message : w.lastError,
+    }));
+    const fetchable = await test.admin
+      .query<Record<string, unknown>>(
+        `SELECT count(*) FILTER (WHERE NOT blocked AND start_after <= now())::int AS ready,
+                count(*) FILTER (WHERE blocked)::int AS blocked,
+                count(*) FILTER (WHERE start_after > now())::int AS future,
+                now() AS db_now
+           FROM pgboss.job_common WHERE name = 'email.send' AND state < 'active'`,
+      )
+      .then((r) => r.rows)
+      .catch((e: unknown) => String(e));
+    const sessions = await test.admin
+      .query<Record<string, unknown>>(
+        `SELECT usename, state, xact_start, left(query, 80) AS query FROM pg_stat_activity
+          WHERE datname = current_database() AND xact_start IS NOT NULL ORDER BY xact_start`,
+      )
+      .then((r) => r.rows)
+      .catch((e: unknown) => String(e));
+    const locks = await test.admin
+      .query<Record<string, unknown>>(
+        `SELECT l.mode, l.granted, a.usename, a.state FROM pg_locks l
+           JOIN pg_stat_activity a ON a.pid = l.pid
+          WHERE l.relation = 'pgboss.job_common'::regclass`,
+      )
+      .then((r) => r.rows)
+      .catch((e: unknown) => String(e));
     throw new Error(
-      `worker did not finish the job: ${JSON.stringify({ events, queue, jobs, wip })}`,
+      `worker did not finish the job: ${JSON.stringify({ events, fetchable, sessions, locks, jobs, wip, queue })}`,
       {
         cause: error,
       },
