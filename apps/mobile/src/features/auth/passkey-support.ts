@@ -23,3 +23,19 @@ export function passkeyFailure(error: unknown): PasskeyFailure {
   if (code === 'CredentialAlreadyExists') return 'exists';
   return 'failed';
 }
+
+/**
+ * Technical detail of a passkey failure, appended to the message in development and preview builds
+ * only (diagnosing the platform authenticator on a tester's phone). Codes and messages, no keys.
+ */
+export function passkeyDiagnostic(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'code' in error && 'status' in error) {
+    return `${String(error.status)} ${String(error.code)}`;
+  }
+  if (typeof error === 'object' && error !== null && 'error' in error) {
+    const message = 'message' in error ? String(error.message) : '';
+    return `${String(error.error)}: ${message}`.slice(0, 160);
+  }
+  if (error instanceof Error) return `${error.name}: ${error.message}`.slice(0, 160);
+  return 'unknown';
+}

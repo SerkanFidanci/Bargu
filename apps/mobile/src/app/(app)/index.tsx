@@ -6,6 +6,7 @@ import { Dock } from '@/features/home/dock';
 import { SeersPill } from '@/features/home/seers-pill';
 import { AddSheet, CirclesSheet, MeSheet } from '@/features/home/sheets';
 import { BarguMap } from '@/features/map/bargu-map';
+import { MapCredit } from '@/features/map/map-credit';
 import { useMe } from '@/features/profile/queries';
 import { space, touchTarget } from '@/theme';
 import type { SheetRef } from '@/ui/sheet';
@@ -33,6 +34,7 @@ export default function HomeScreen() {
           bottom: insets.bottom + DOCK_HEIGHT,
         }}
       />
+      <MapCredit bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
       <View style={[styles.top, { top: insets.top + space.sm }]} pointerEvents="box-none">
         <SeersPill seers={[]} onPress={() => circles.current?.present()} />
       </View>

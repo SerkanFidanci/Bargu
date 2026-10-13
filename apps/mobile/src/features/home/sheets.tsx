@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   KeyRound,
+  Map as MapIcon,
   LogOut,
   type LucideIcon,
   Pencil,
@@ -15,12 +16,18 @@ import {
 } from 'lucide-react-native';
 import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Linking, StyleSheet, View } from 'react-native';
 
 import { DEV_TOOLS_ENABLED, env } from '@/config/env';
 import { signOut } from '@/features/auth/auth-store';
-import { addPasskey, passkeyFailure, passkeysSupported } from '@/features/auth/passkeys';
+import {
+  addPasskey,
+  passkeyDiagnostic,
+  passkeyFailure,
+  passkeysSupported,
+} from '@/features/auth/passkeys';
 import { errorMessage } from '@/features/errors';
+import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
 import { meKey } from '@/features/profile/queries';
 import { feedback } from '@/theme/haptics';
 import { radius, space, touchTarget, useTheme } from '@/theme';
@@ -28,9 +35,13 @@ import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
 import { EmptyState } from '@/ui/empty-state';
 import { PressableScale } from '@/ui/pressable-scale';
+import { Segmented } from '@/ui/segmented';
 import { Sheet, type SheetRef } from '@/ui/sheet';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
+
+/** Licence page of the map data (ODbL), linked from the Me sheet as the credit's permanent home. */
+const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
 
 export const CirclesSheet = forwardRef<SheetRef, { onAdd: () => void }>(function CirclesSheet(
   { onAdd },
@@ -80,6 +91,8 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
 ) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const appearance = useMapAppearance((state) => state.mode);
+  const setAppearance = useMapAppearance((state) => state.setMode);
   const createPasskey = async () => {
     try {
       await addPasskey();
@@ -90,13 +103,14 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
       feedback('success');
       toast.success(t('sheets.me.passkeyAdded'));
     } catch (failure) {
+      const detail = DEV_TOOLS_ENABLED ? ` (${passkeyDiagnostic(failure)})` : '';
       if (failure instanceof Error) {
-        toast.error(errorMessage(failure, t));
+        toast.error(errorMessage(failure, t) + detail);
         return;
       }
       const reason = passkeyFailure(failure);
       if (reason === 'exists') toast.info(t('sheets.me.passkeyExists'));
-      else if (reason !== 'cancelled') toast.error(t('sheets.me.passkeyFailed'));
+      else if (reason !== 'cancelled') toast.error(t('sheets.me.passkeyFailed') + detail);
     }
   };
   const confirmSignOut = () => {
@@ -143,6 +157,16 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
           onPress={() => void createPasskey()}
         />
       ) : null}
+      <Segmented
+        testID="map-appearance"
+        label={t('sheets.me.mapAppearance')}
+        value={appearance}
+        onChange={setAppearance}
+        options={MAP_APPEARANCES.map((value) => ({
+          value,
+          label: t(`sheets.me.mapAppearance_${value}`),
+        }))}
+      />
       <Row
         icon={Smartphone}
         label={t('sheets.me.device')}
@@ -170,6 +194,12 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
           />
         </>
       ) : null}
+      <Row
+        icon={MapIcon}
+        label={t('sheets.me.mapData')}
+        detail={t('sheets.me.mapDataDetail')}
+        onPress={() => void Linking.openURL(OSM_COPYRIGHT_URL)}
+      />
       <Button
         testID="sign-out"
         label={t('sheets.me.logout')}

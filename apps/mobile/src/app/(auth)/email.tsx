@@ -5,7 +5,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { requestCode, signInWithPasskey } from '@/features/auth/auth-store';
-import { passkeyFailure, passkeysSupported } from '@/features/auth/passkey-support';
+import { DEV_TOOLS_ENABLED } from '@/config/env';
+import {
+  passkeyDiagnostic,
+  passkeyFailure,
+  passkeysSupported,
+} from '@/features/auth/passkey-support';
 import { errorMessage, isApiError } from '@/features/errors';
 import { FormScreen } from '@/features/onboarding/form-screen';
 import { Button } from '@/ui/button';
@@ -26,15 +31,16 @@ export default function EmailScreen() {
       await signInWithPasskey();
       // The root layout moves on once the profile loads.
     } catch (failure) {
+      const detail = DEV_TOOLS_ENABLED ? ` (${passkeyDiagnostic(failure)})` : '';
       if (isApiError(failure)) {
-        setError(t('auth.passkey.failed'));
+        setError(t('auth.passkey.failed') + detail);
       } else if (failure instanceof Error) {
         setError(errorMessage(failure, t));
       } else {
         // The authenticator rejects with { error, message } objects, not Error instances.
         const reason = passkeyFailure(failure);
         if (reason === 'noCredential') setError(t('auth.passkey.noCredential'));
-        else if (reason !== 'cancelled') setError(t('auth.passkey.failed'));
+        else if (reason !== 'cancelled') setError(t('auth.passkey.failed') + detail);
       }
     } finally {
       setPasskeyBusy(false);

@@ -101,7 +101,8 @@
       "me": "Me"
     },
     "connecting": "Connecting…",
-    "map": "Map"
+    "map": "Map",
+    "mapCredit": "© OpenStreetMap contributors"
   },
   "sheets": {
     "circles": {
@@ -136,7 +137,13 @@
       "passkeyAdded": "Passkey added.",
       "passkeyExists": "This phone already has a Bargu passkey.",
       "passkeyFailed": "Could not add the passkey. Try again.",
-      "passkeyCount": "Saved passkeys: {{count}} · add another"
+      "passkeyCount": "Saved passkeys: {{count}} · add another",
+      "mapAppearance": "Map appearance",
+      "mapAppearance_auto": "Automatic",
+      "mapAppearance_light": "Light",
+      "mapAppearance_dark": "Dark",
+      "mapData": "Map data",
+      "mapDataDetail": "© OpenStreetMap contributors · ODbL licence"
     }
   },
   "ui": {

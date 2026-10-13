@@ -101,7 +101,8 @@
       "me": "Ben"
     },
     "connecting": "Bağlanıyor…",
-    "map": "Harita"
+    "map": "Harita",
+    "mapCredit": "© OpenStreetMap katkıcıları"
   },
   "sheets": {
     "circles": {
@@ -136,7 +137,13 @@
       "passkeyAdded": "Passkey eklendi.",
       "passkeyExists": "Bu telefonda zaten bir Bargu passkey'i var.",
       "passkeyFailed": "Passkey eklenemedi. Tekrar dene.",
-      "passkeyCount": "Kayıtlı passkey: {{count}} · bir tane daha ekle"
+      "passkeyCount": "Kayıtlı passkey: {{count}} · bir tane daha ekle",
+      "mapAppearance": "Harita görünümü",
+      "mapAppearance_auto": "Otomatik",
+      "mapAppearance_light": "Açık",
+      "mapAppearance_dark": "Koyu",
+      "mapData": "Harita verisi",
+      "mapDataDetail": "© OpenStreetMap katkıcıları · ODbL lisansı"
     }
   },
   "ui": {

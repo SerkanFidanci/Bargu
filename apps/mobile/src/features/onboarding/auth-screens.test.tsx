@@ -3,6 +3,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { ApiError } from '@/features/auth/api-client';
 import i18n from '@/i18n';
 
+jest.mock('@/config/env', () => ({
+  env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
+  DEV_TOOLS_ENABLED: false,
+}));
+
 const mockRequestCode = jest.fn();
 const mockVerifyCode = jest.fn();
 const mockPasskeySignIn = jest.fn();

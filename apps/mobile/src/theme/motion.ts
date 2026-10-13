@@ -35,6 +35,8 @@ export const ambient = {
   illustrationHold: 1400,
   /** Ghost / visible cross-fade in the onboarding illustration. */
   ghostFade: 1200,
+  /** How long the map data credit stays before it folds away (OSM attribution guidelines). */
+  mapCredit: 5000,
 } as const;
 
 /** Haptic feedback per interaction kind (expo-haptics), see haptics.ts. */

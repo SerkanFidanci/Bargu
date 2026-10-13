@@ -10,6 +10,7 @@ import { Avatar, initialOf } from './avatar';
 import { AvatarStack } from './avatar-stack';
 import { Button } from './button';
 import { CodeInput } from './code-input';
+import { Segmented } from './segmented';
 import { Text } from './text';
 import { Toggle } from './toggle';
 
@@ -113,5 +114,32 @@ describe('Avatar', () => {
     await render(<AvatarStack people={people} max={3} />);
     expect(screen.getByText('+2')).toBeTruthy();
     expect(screen.getByLabelText('5 kişi: Ayşe, Bora, Cem, Duru, Ece')).toBeTruthy();
+  });
+});
+
+describe('Segmented', () => {
+  it('reads as a radio group with the selected choice and switches on press', async () => {
+    const onChange = jest.fn();
+    await render(
+      <Segmented
+        label="Harita görünümü"
+        value="auto"
+        onChange={onChange}
+        options={[
+          { value: 'auto', label: 'Otomatik' },
+          { value: 'light', label: 'Açık' },
+          { value: 'dark', label: 'Koyu' },
+        ]}
+      />,
+    );
+    // The group itself stays non-focusable so its radios remain reachable one by one.
+    expect(screen.getByLabelText('Harita görünümü').props.accessibilityRole).toBe('radiogroup');
+    expect(screen.getByRole('radio', { name: 'Otomatik' }).props.accessibilityState).toMatchObject({
+      selected: true,
+    });
+    await fireEvent.press(screen.getByRole('radio', { name: 'Açık' }));
+    expect(onChange).toHaveBeenCalledWith('light');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Otomatik' }));
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 });

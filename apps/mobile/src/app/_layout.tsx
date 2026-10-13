@@ -15,6 +15,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { DEV_TOOLS_ENABLED } from '@/config/env';
 import { bootstrapAuth, useAuth } from '@/features/auth/auth-store';
+import { loadMapAppearance } from '@/features/map/appearance';
 import { isProfileComplete, useMe } from '@/features/profile/queries';
 import { queryClient } from '@/features/query-client';
 import { useTheme } from '@/theme';
@@ -23,6 +24,7 @@ import { ToastHost } from '@/ui/toast';
 
 void SplashScreen.preventAutoHideAsync();
 void bootstrapAuth();
+void loadMapAppearance();
 
 export default function RootLayout() {
   const theme = useTheme();
