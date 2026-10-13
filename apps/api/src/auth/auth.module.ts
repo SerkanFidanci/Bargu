@@ -9,7 +9,6 @@ import {
   createAttestationVerifiers,
 } from '../devices/attestation/attestation.service.js';
 import { DeviceRegistry } from '../devices/device-registry.js';
-import { MeController } from '../users/me.controller.js';
 import { WellKnownController } from '../well-known/well-known.controller.js';
 import { AccessTokens } from './access-tokens.js';
 import { AuthController } from './auth.controller.js';
@@ -22,7 +21,7 @@ import { RequestSignatures } from './request-signatures.js';
 import { SessionsService } from './sessions.service.js';
 
 @Module({
-  controllers: [AuthController, MeController, WellKnownController],
+  controllers: [AuthController, WellKnownController],
   providers: [
     AccessTokens,
     ClientLimits,

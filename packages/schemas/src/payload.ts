@@ -44,7 +44,7 @@ export const shareStopPayloadSchema = z
  * User-visible text: no control characters (JSON would inflate them past the fixed padded size),
  * no lone surrogates and no bidi overrides (they can visually reorder what others see).
  */
-const UNSAFE_TEXT = /[\p{Cc}\p{Cs}\u202A-\u202E\u2066-\u2069]/u;
+export const UNSAFE_TEXT = /[\p{Cc}\p{Cs}\u202A-\u202E\u2066-\u2069]/u;
 const displayText = (maxLength: number) =>
   z
     .string()

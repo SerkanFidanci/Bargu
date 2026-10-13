@@ -31,6 +31,7 @@ export type ApiErrorCode =
   | 'PASSKEY_INVALID'
   | 'REFRESH_INVALID'
   | 'ACCOUNT_UNAVAILABLE'
+  | 'USERNAME_TAKEN'
   | 'UNAVAILABLE'
   | 'INTERNAL';
 

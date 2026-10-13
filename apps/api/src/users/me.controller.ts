@@ -1,38 +1,40 @@
-import { Controller, Get } from '@nestjs/common';
-import type { Me } from '@bargu/schemas';
-import { count, eq } from 'drizzle-orm';
+import { Body, Controller, Get, Patch, Query } from '@nestjs/common';
+import {
+  type Me,
+  type ProfileUpdate,
+  profileUpdateSchema,
+  type UsernameAvailability,
+  usernameAvailabilityQuerySchema,
+} from '@bargu/schemas';
 
 import { type AuthContext, CurrentAuth } from '../auth/request-context.js';
-import { devices, passkeys, users } from '../db/schema.js';
-import { DatabaseService } from '../infra/database/database.service.js';
+import { ZodPipe } from '../common/zod.pipe.js';
+import { ProfileService } from './profile.service.js';
 
-@Controller('v1/me')
+@Controller('v1')
 export class MeController {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(private readonly profile: ProfileService) {}
 
-  /** The signed-in account and device. Row-level security scopes every query to the caller. */
-  @Get()
+  @Get('me')
   me(@CurrentAuth() auth: AuthContext): Promise<Me> {
-    return this.database.asUser(auth.userId, async (tx) => {
-      const [user] = await tx
-        .select({ username: users.username, displayName: users.displayName })
-        .from(users);
-      const [device] = await tx
-        .select({ platform: devices.platform, attestedAt: devices.attestedAt })
-        .from(devices)
-        .where(eq(devices.id, auth.deviceId));
-      const [keys] = await tx.select({ total: count() }).from(passkeys);
-      return {
-        userId: auth.userId,
-        username: user?.username ?? null,
-        displayName: user?.displayName ?? null,
-        device: {
-          id: auth.deviceId,
-          platform: device?.platform ?? 'android',
-          attested: device?.attestedAt !== null && device?.attestedAt !== undefined,
-        },
-        passkeys: keys?.total ?? 0,
-      };
-    });
+    return this.profile.me(auth);
+  }
+
+  /** Onboarding and profile edits (device-signed like every mutation). */
+  @Patch('me')
+  update(
+    @CurrentAuth() auth: AuthContext,
+    @Body(new ZodPipe(profileUpdateSchema)) body: ProfileUpdate,
+  ): Promise<Me> {
+    return this.profile.update(auth, body);
+  }
+
+  /** Live check while a name is typed (debounced by the app, rate limited per account). */
+  @Get('usernames/availability')
+  usernameAvailability(
+    @CurrentAuth() auth: AuthContext,
+    @Query(new ZodPipe(usernameAvailabilityQuerySchema)) query: { username: string },
+  ): Promise<UsernameAvailability> {
+    return this.profile.usernameAvailability(auth, query.username);
   }
 }

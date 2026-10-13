@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { deviceKeyBundleSchema } from './envelope.js';
+import { avatarSchema } from './profile.js';
 
 /** Request headers of a device-signed request (docs/PROTOCOL.md §12). */
 export const SIGNED_REQUEST_HEADERS = {
@@ -114,6 +115,7 @@ export const meSchema = z
     userId: z.uuid(),
     username: z.string().nullable(),
     displayName: z.string().nullable(),
+    avatar: avatarSchema.nullable(),
     device: z.object({ id: z.uuid(), platform: z.enum(PLATFORMS), attested: z.boolean() }).strict(),
     passkeys: z.number().int().nonnegative(),
   })

@@ -8,6 +8,7 @@ import { HealthModule } from './health/health.module.js';
 import { DatabaseModule } from './infra/database/database.module.js';
 import { RedisModule } from './infra/redis/redis.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({})
 export class AppModule {
@@ -23,6 +24,7 @@ export class AppModule {
         JobsModule.forRole({ supervise: false }),
         HealthModule,
         AuthModule,
+        UsersModule,
       ],
     };
   }

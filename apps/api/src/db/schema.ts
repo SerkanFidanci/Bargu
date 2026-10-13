@@ -1,7 +1,16 @@
 // Typed view of migrations/*.sql for Drizzle queries. The SQL files are the source of truth (they
-// carry RLS policies and grants); test/integration/schema.int-spec.ts checks the two agree.
+// carry RLS policies and grants); test/integration/migrations.int-spec.ts checks the two agree.
 import { sql } from 'drizzle-orm';
-import { bigint, boolean, customType, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  customType,
+  pgSchema,
+  smallint,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
   dataType: () => 'bytea',
@@ -30,6 +39,8 @@ export const users = app.table('users', {
   emailHmac: bytea('email_hmac').notNull(),
   username: text('username'),
   displayName: text('display_name'),
+  avatarColor: smallint('avatar_color'),
+  avatarEmoji: text('avatar_emoji'),
   createdAt: timestamptz('created_at').notNull().defaultNow(),
   deletedAt: timestamptz('deleted_at'),
 });

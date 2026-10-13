@@ -49,3 +49,20 @@ export {
   type RefreshRequest,
   type Session,
 } from './auth.js';
+export {
+  AVATAR_COLORS,
+  AVATAR_EMOJIS,
+  avatarSchema,
+  displayNameSchema,
+  isReservedUsername,
+  normalizeUsername,
+  profileUpdateSchema,
+  RESERVED_USERNAMES,
+  USERNAME_PATTERN,
+  usernameAvailabilityQuerySchema,
+  usernameAvailabilitySchema,
+  usernameSchema,
+  type Avatar,
+  type ProfileUpdate,
+  type UsernameAvailability,
+} from './profile.js';
