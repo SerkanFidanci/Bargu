@@ -91,6 +91,10 @@ cihazın imzasının reddi, istek → kabul → olayın anında gelmesi, anahtar
 davetlinin yalnızca daveti göndereni görmesi, çıkarılanın hiçbir şey görmemesi ve anahtar
 alamaması, tek kullanımlık link, arkadaşlıktan çıkınca yeniden onay — 25/25 doğru.
 
+Android build: `8fb45363`. Tek telefonla deneme için staging'de bir test arkadaşı (`@deneme.arkadas`)
+çalıştırıldı: istekleri kabul eder, anahtarını gönderir, gelen anahtarı açar (kontrol hesabıyla
+doğrulandı).
+
 ### Açık riskler
 
 1. Davet linki `bargu://i/…`: bazı mesajlaşma uygulamaları bunu tıklanabilir göstermez. Gerçek
