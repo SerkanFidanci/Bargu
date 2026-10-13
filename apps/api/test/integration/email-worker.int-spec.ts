@@ -40,4 +40,24 @@ describe('email worker', () => {
     // The subject never carries the code (lock-screen previews).
     expect(message?.subject).not.toMatch(/\d{6}/);
   });
+
+  it('drops a job it can never open instead of retrying it', async () => {
+    // Queued by an API with other keys (e.g. before a key rotation).
+    const foreign = await createTestApp();
+    try {
+      const { challengeId } = await requestCode(foreign, uniqueEmail());
+      await vi.waitFor(
+        async () => {
+          const { rows } = await test.admin.query<{ state: string; retry_count: number }>(
+            'SELECT state, retry_count FROM pgboss.job WHERE id = $1',
+            [challengeId],
+          );
+          expect(rows[0]).toEqual({ state: 'completed', retry_count: 0 });
+        },
+        { timeout: 15_000, interval: 200 },
+      );
+    } finally {
+      await foreign.close();
+    }
+  });
 });

@@ -3,7 +3,7 @@ import { deriveOtpCode } from '@bargu/crypto';
 import type { PgBoss } from 'pg-boss';
 
 import { AuthKeys } from '../auth/auth-keys.js';
-import { EmailJobs } from './email-jobs.js';
+import { type EmailJob, EmailJobs } from './email-jobs.js';
 import { Mailer } from './mailer.js';
 import { otpEmail } from './otp-email.js';
 import { QUEUES } from './queues.js';
@@ -31,7 +31,15 @@ export class EmailWorker implements OnApplicationBootstrap {
     };
     await this.boss.work(QUEUES.email, options, async ([job]) => {
       if (job === undefined) return;
-      const email = this.jobs.open(job.data);
+      let email: EmailJob;
+      try {
+        email = this.jobs.open(job.data);
+      } catch {
+        // Sealed under another key (rotated) or malformed: no retry can ever open it, and a backlog
+        // of such jobs would delay real codes. Drop it; the user simply asks for a new code.
+        this.logger.warn(`dropped ${job.id}: payload cannot be opened`);
+        return;
+      }
       const code = deriveOtpCode(this.keys.otpKey, email.challengeId);
       await this.mailer.send(otpEmail(email.to, email.locale, code));
       // Job id only: never the address or the code.
