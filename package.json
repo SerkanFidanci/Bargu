@@ -27,7 +27,8 @@
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
     "prepare": "husky",
-    "test:integration": "turbo run test:integration"
+    "test:integration": "turbo run test:integration",
+    "check:chars": "node scripts/check-invisible-chars.mjs"
   },
   "devDependencies": {
     "@bargu/config": "workspace:*",

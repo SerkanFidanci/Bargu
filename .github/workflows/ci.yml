@@ -39,6 +39,9 @@ jobs:
       - name: Format
         run: pnpm format:check
 
+      - name: No invisible or bidi-control characters (Trojan Source)
+        run: pnpm check:chars
+
       - name: Typecheck, lint, test, build
         run: pnpm exec turbo run typecheck lint test build --ui=stream
 
