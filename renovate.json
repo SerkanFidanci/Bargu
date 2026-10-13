@@ -4,12 +4,18 @@
   "timezone": "Europe/Istanbul",
   "schedule": ["before 6am on monday"],
   "labels": ["dependencies"],
-  "minimumReleaseAge": "3 days",
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 6am on monday"]
   },
   "packageRules": [
+    {
+      "description": "Supply chain: never propose a release younger than 7 days (pnpm's trustPolicyIgnoreAfter matches).",
+      "matchPackageNames": ["*"],
+      "minimumReleaseAge": "7 days"
+    },
     {
       "description": "One PR per week for CI actions.",
       "matchManagers": ["github-actions"],
@@ -40,22 +46,26 @@
         "jest",
         "@types/jest"
       ],
-      "dependencyDashboardApproval": true
+      "dependencyDashboardApproval": true,
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "typescript-eslint does not support TypeScript 7 yet (peer: <6.1).",
       "matchPackageNames": ["typescript"],
-      "allowedVersions": "<6.1.0"
+      "allowedVersions": "<6.1.0",
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "@types/node follows the Node LTS line in devEngines.runtime.",
       "matchPackageNames": ["@types/node"],
-      "allowedVersions": "<25.0.0"
+      "allowedVersions": "<25.0.0",
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "NestJS packages release together.",
       "matchPackageNames": ["@nestjs/**"],
-      "groupName": "NestJS"
+      "groupName": "NestJS",
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "Lint toolchain.",
@@ -68,7 +78,8 @@
         "eslint-config-prettier",
         "globals"
       ],
-      "groupName": "ESLint"
+      "groupName": "ESLint",
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "Infra images are pinned by digest; group them.",

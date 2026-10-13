@@ -18,8 +18,8 @@ In development the app reaches the API on the machine running Metro, port 3000.
 Run inside `apps/mobile`:
 
 ```bash
-pnpm dlx eas-cli@24.13.0 login
-pnpm dlx eas-cli@24.13.0 init
+pnpm dlx eas-cli@24.12.1 login
+pnpm dlx eas-cli@24.12.1 init
 ```
 
 `eas init` prints a project id. Add it to `app.config.ts` as `extra: { eas: { projectId: '<id>' } }`
@@ -28,7 +28,7 @@ pnpm dlx eas-cli@24.13.0 init
 ### Android dev client
 
 ```bash
-pnpm dlx eas-cli@24.13.0 build --platform android --profile development
+pnpm dlx eas-cli@24.12.1 build --platform android --profile development
 ```
 
 Install the resulting APK on the emulator or phone (EAS shows a QR code / link).
@@ -38,8 +38,8 @@ Install the resulting APK on the emulator or phone (EAS shows a QR code / link).
 Requires a paid Apple Developer Program membership; EAS manages certificates and profiles.
 
 ```bash
-pnpm dlx eas-cli@24.13.0 device:create        # register the iPhone (open the link on the phone)
-pnpm dlx eas-cli@24.13.0 build --platform ios --profile development
+pnpm dlx eas-cli@24.12.1 device:create        # register the iPhone (open the link on the phone)
+pnpm dlx eas-cli@24.12.1 build --platform ios --profile development
 ```
 
 On the iPhone, enable **Settings → Privacy & Security → Developer Mode**, then install the build

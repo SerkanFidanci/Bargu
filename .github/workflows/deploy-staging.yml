@@ -1,28 +1,21 @@
 name: Deploy staging
 
-# Runs after CI succeeds on main (or manually). Stays inert until the repository variable
-# STAGING_ENABLED is "true" — see infra/vps/README.md for the one-time setup.
+# Called by CI after all checks pass on a push to main, or run manually. Stays inert until the
+# repository variable STAGING_ENABLED is "true" — see infra/vps/README.md for the one-time setup.
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: deploy-staging
-  cancel-in-progress: false
-
 jobs:
   deploy:
     name: Build image and deploy
-    if: >-
-      vars.STAGING_ENABLED == 'true' &&
-      (github.event_name == 'workflow_dispatch' ||
-       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    if: vars.STAGING_ENABLED == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment:
@@ -34,7 +27,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
 
       - name: Image name (registry paths must be lowercase)
@@ -59,7 +51,7 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE }}:staging
-            ${{ env.IMAGE }}:${{ github.event.workflow_run.head_sha || github.sha }}
+            ${{ env.IMAGE }}:${{ github.sha }}
           provenance: mode=max
           sbom: true
           cache-from: type=gha

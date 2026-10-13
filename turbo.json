@@ -3,6 +3,7 @@
   "ui": "tui",
   "agentGuidance": false,
   "globalDependencies": ["packages/config/tsconfig/*.json"],
+  "globalPassThroughEnv": ["CI", "EXPO_NO_TELEMETRY"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
