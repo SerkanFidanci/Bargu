@@ -43,6 +43,20 @@ async function eventually(check: () => void | Promise<void>): Promise<void> {
       )
       .then((r) => r.rows)
       .catch((e: unknown) => String(e));
+    // What the worker's own connection sees, and what a manual fetch returns.
+    const workerView = await boss
+      .getDb()
+      .executeSql(
+        `SELECT current_database() AS db, current_user AS role, now() AS now,
+                (SELECT count(*)::int FROM pgboss.job_common WHERE state < 'active') AS visible`,
+        [],
+      )
+      .then((r) => r.rows as unknown)
+      .catch((e: unknown) => String(e));
+    const manualFetch = await boss
+      .fetch(QUEUES.email, { batchSize: 1 })
+      .then((rows) => rows.length)
+      .catch((e: unknown) => String(e));
     const sessions = await test.admin
       .query<Record<string, unknown>>(
         `SELECT usename, state, xact_start, left(query, 80) AS query FROM pg_stat_activity
@@ -59,7 +73,7 @@ async function eventually(check: () => void | Promise<void>): Promise<void> {
       .then((r) => r.rows)
       .catch((e: unknown) => String(e));
     throw new Error(
-      `worker did not finish the job: ${JSON.stringify({ events, fetchable, sessions, locks, jobs, wip, queue })}`,
+      `worker did not finish the job: ${JSON.stringify({ workerView, manualFetch, events, fetchable, sessions, locks, jobs, wip, queue })}`,
       {
         cause: error,
       },
