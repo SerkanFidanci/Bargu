@@ -17,6 +17,7 @@ import {
 
 import { ZodPipe } from '../common/zod.pipe.js';
 import { AttestationService } from '../devices/attestation/attestation.service.js';
+import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import { ClientLimits } from './client-limits.js';
 import { LoginService } from './login.service.js';
 import { OtpService } from './otp.service.js';
@@ -40,6 +41,7 @@ export class AuthController {
     private readonly passkeys: PasskeysService,
     private readonly attestation: AttestationService,
     private readonly clients: ClientLimits,
+    private readonly lifecycle: DeviceLifecycle,
   ) {}
 
   /** Sends a login code. Same response whether or not the address has an account. */
@@ -125,7 +127,13 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  logout(@CurrentAuth() auth: AuthContext): Promise<void> {
-    return this.sessions.logout(auth);
+  async logout(@CurrentAuth() auth: AuthContext): Promise<void> {
+    await this.sessions.logout(auth);
+    await this.lifecycle.notify({
+      userId: auth.userId,
+      kind: 'logout',
+      deviceId: auth.deviceId,
+      replacedDeviceId: null,
+    });
   }
 }

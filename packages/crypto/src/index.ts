@@ -30,7 +30,9 @@ export {
 export { REPLAY_WINDOW, ReplayGuard, type ReplayState, type ReplayVerdict } from './replay.js';
 export { openSealed, sealForDevice } from './sealed.js';
 export {
+  SAFETY_NUMBER_ROUNDS_PER_PAUSE,
   safetyNumber,
+  safetyNumberAsync,
   verifySafetyNumberQr,
   type SafetyNumber,
   type SafetyNumberParty,

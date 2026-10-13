@@ -13,6 +13,7 @@ import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
 import { devices, passkeys, users } from '../db/schema.js';
 import { isUniqueViolation } from '../devices/device-registry.js';
+import { CirclesService } from '../circles/circles.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 
@@ -32,6 +33,7 @@ export class ProfileService {
   constructor(
     private readonly database: DatabaseService,
     private readonly limiter: RateLimiter,
+    private readonly circles: CirclesService,
   ) {}
 
   /** The signed-in account and device. Row-level security scopes every query to the caller. */
@@ -59,8 +61,9 @@ export class ProfileService {
 
   async update(auth: AuthContext, update: ProfileUpdate): Promise<Me> {
     await this.limit(`profile-update:${auth.userId}`, PROFILE_LIMITS.updatesPerHour);
+    let me: Me;
     try {
-      return await this.database.asUser(auth.userId, async (tx) => {
+      me = await this.database.asUser(auth.userId, async (tx) => {
         await tx
           .update(users)
           .set({
@@ -77,6 +80,9 @@ export class ProfileService {
       if (isUniqueViolation(error)) throw new ApiError(HttpStatus.CONFLICT, 'USERNAME_TAKEN');
       throw error;
     }
+    // Friends see the new name and avatar without reloading anything.
+    await this.circles.profileChanged(auth.userId);
+    return me;
   }
 
   private async limit(key: string, budget: number): Promise<void> {

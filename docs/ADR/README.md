@@ -14,6 +14,7 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0006](0006-jobs-and-notifications.md)  | İş kuyruğu (pg-boss) ve bildirim altyapısı                       | Kabul edildi |
 | [0007](0007-native-curve-primitives.md) | Telefonda yerel eğri işlemleri (CryptoKit / Tink)                | Kabul edildi |
 | [0008](0008-design-system-and-map.md)   | Tasarım sistemi, kendi sunucumuzda harita, profil ve ekran akışı | Kabul edildi |
+| [0009](0009-circles-keys-and-events.md) | Çemberler, davetler, anahtar dağıtımı ve canlı olaylar           | Kabul edildi |
 
 ## Şablon
 

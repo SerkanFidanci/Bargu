@@ -1,0 +1,426 @@
+import { HttpStatus, Injectable, type OnModuleInit } from '@nestjs/common';
+import { REKEY_INTERVAL_MS } from '@bargu/crypto';
+import { AVATAR_EMOJIS, type Circle, type CircleCreate, type MemberCard } from '@bargu/schemas';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+
+import type { AuthContext } from '../auth/request-context.js';
+import { ApiError } from '../common/api-error.js';
+import { circleMembers, circles } from '../db/schema.js';
+import { DeviceLifecycle } from '../devices/device-lifecycle.js';
+import { EventsService } from '../events/events.service.js';
+import { DatabaseService, type Tx } from '../infra/database/database.service.js';
+import { RateLimiter } from '../infra/redis/rate-limiter.js';
+
+const HOUR = 3600;
+
+/** Per-account budgets: inviting people and requesting friends (no spam), asking for a new epoch. */
+export const CIRCLE_LIMITS = {
+  invitationsPerHour: 30,
+  rekeysPerHour: 30,
+} as const;
+
+/** Row of app.circle_member_cards (migrations/0003). */
+interface CardRow extends Record<string, unknown> {
+  user_id: string;
+  role: 'owner' | 'member';
+  status: 'invited' | 'active';
+  username: string | null;
+  display_name: string | null;
+  avatar_color: number | null;
+  avatar_emoji: string | null;
+  device_id: string | null;
+  platform: 'ios' | 'android' | null;
+  identity_key: Buffer | null;
+  dh_key: Buffer | null;
+  dh_key_signature: Buffer | null;
+}
+
+const emojis: ReadonlySet<string> = new Set(AVATAR_EMOJIS);
+const b64 = (bytes: Buffer) => bytes.toString('base64url');
+
+function card(row: CardRow): MemberCard {
+  const device =
+    row.device_id !== null &&
+    row.platform !== null &&
+    row.identity_key !== null &&
+    row.dh_key !== null &&
+    row.dh_key_signature !== null
+      ? {
+          platform: row.platform,
+          bundle: {
+            deviceId: row.device_id,
+            identityKey: b64(row.identity_key),
+            dhKey: b64(row.dh_key),
+            dhKeySignature: b64(row.dh_key_signature),
+          },
+        }
+      : null;
+  return {
+    userId: row.user_id,
+    role: row.role,
+    status: row.status,
+    username: row.username,
+    displayName: row.display_name,
+    avatar:
+      row.avatar_color === null
+        ? null
+        : {
+            color: row.avatar_color,
+            emoji:
+              row.avatar_emoji !== null && emojis.has(row.avatar_emoji) ? row.avatar_emoji : null,
+          },
+    device,
+  };
+}
+
+/** Who to tell after a change: everyone still in (or invited to) the circle. */
+const audience = (circle: Circle) => circle.members.map((member) => member.userId);
+
+/**
+ * Circles and membership (BARGU_PLAN §3.2, Faz 4). Every membership change starts a new key epoch
+ * (PROTOCOL §4: added or removed members, device changes), and everyone affected hears about it as
+ * an event once the change is committed. Row-level security limits every query to circles the
+ * caller is in; cross-user steps go through the SECURITY DEFINER functions of migration 0003.
+ */
+@Injectable()
+export class CirclesService implements OnModuleInit {
+  constructor(
+    private readonly database: DatabaseService,
+    private readonly events: EventsService,
+    private readonly limiter: RateLimiter,
+    private readonly lifecycle: DeviceLifecycle,
+  ) {}
+
+  onModuleInit(): void {
+    this.lifecycle.subscribe(async (change) => {
+      if (change.replacedDeviceId !== null) this.events.disconnectDevice(change.replacedDeviceId);
+      if (change.kind === 'logout') {
+        this.events.disconnectDevice(change.deviceId);
+        return;
+      }
+      await this.startEpochsForDevice(change.userId);
+    });
+  }
+
+  async list(auth: AuthContext): Promise<Circle[]> {
+    return this.database.asUser(auth.userId, async (tx) => {
+      const rows = await tx
+        .select({ id: circleMembers.circleId })
+        .from(circleMembers)
+        .where(
+          and(
+            eq(circleMembers.userId, auth.userId),
+            inArray(circleMembers.status, ['invited', 'active']),
+          ),
+        );
+      const found = await Promise.all(rows.map((row) => this.read(tx, row.id, auth.userId)));
+      return found.filter((circle): circle is Circle => circle !== null);
+    });
+  }
+
+  async get(auth: AuthContext, circleId: string): Promise<Circle> {
+    const circle = await this.database.asUser(auth.userId, (tx) =>
+      this.read(tx, circleId, auth.userId),
+    );
+    if (circle === null) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+    return circle;
+  }
+
+  async create(auth: AuthContext, input: CircleCreate): Promise<Circle> {
+    return this.database.asUser(auth.userId, async (tx) => {
+      const [created] = await tx
+        .insert(circles)
+        .values({ kind: input.kind, name: input.name, createdBy: auth.userId })
+        .returning({ id: circles.id });
+      if (created === undefined) throw new Error('circle insert returned nothing');
+      await tx.insert(circleMembers).values({
+        circleId: created.id,
+        userId: auth.userId,
+        role: 'owner',
+        status: 'active',
+        joinedAt: new Date(),
+      });
+      return this.mustRead(tx, created.id, auth.userId);
+    });
+  }
+
+  async rename(auth: AuthContext, circleId: string, name: string): Promise<Circle> {
+    const circle = await this.database.asUser(auth.userId, async (tx) => {
+      const before = await this.mustRead(tx, circleId, auth.userId);
+      if (before.kind === 'pair' || before.myRole !== 'owner' || before.myStatus !== 'active') {
+        throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+      }
+      await tx.update(circles).set({ name }).where(eq(circles.id, circleId));
+      return this.mustRead(tx, circleId, auth.userId);
+    });
+    await this.changed(circle);
+    return circle;
+  }
+
+  /** Joins a circle one was invited to: the circle moves to a new epoch for its new member. */
+  async accept(auth: AuthContext, circleId: string): Promise<Circle> {
+    const circle = await this.database.asUser(auth.userId, async (tx) => {
+      const updated = await tx
+        .update(circleMembers)
+        .set({ status: 'active', joinedAt: new Date() })
+        .where(
+          and(
+            eq(circleMembers.circleId, circleId),
+            eq(circleMembers.userId, auth.userId),
+            eq(circleMembers.status, 'invited'),
+          ),
+        )
+        .returning({ circleId: circleMembers.circleId });
+      if (updated.length === 0) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      await this.startEpoch(tx, circleId);
+      return this.mustRead(tx, circleId, auth.userId);
+    });
+    await this.changed(circle);
+    return circle;
+  }
+
+  async decline(auth: AuthContext, circleId: string): Promise<void> {
+    const remaining = await this.database.asUser(auth.userId, async (tx) => {
+      const before = await this.mustRead(tx, circleId, auth.userId);
+      if (before.myStatus !== 'invited') throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      await tx
+        .update(circleMembers)
+        .set({ status: 'declined', endedAt: new Date() })
+        .where(and(eq(circleMembers.circleId, circleId), eq(circleMembers.userId, auth.userId)));
+      return audience(before).filter((userId) => userId !== auth.userId);
+    });
+    await this.events.publish([auth.userId], { type: 'circle.gone', circleId });
+    await this.notifyById(remaining, circleId, auth.userId);
+  }
+
+  /**
+   * Leaves a circle (for a pair: ends the friendship). An owner leaving hands ownership to the
+   * longest-standing active member first, so a group is never left without one.
+   */
+  async leave(auth: AuthContext, circleId: string): Promise<void> {
+    const { remaining, pair } = await this.database.asUser(auth.userId, async (tx) => {
+      const before = await this.mustRead(tx, circleId, auth.userId);
+      if (before.myStatus !== 'active') throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      const others = before.members.filter((member) => member.userId !== auth.userId);
+      if (before.kind !== 'pair' && before.myRole === 'owner') {
+        const owners = others.filter((m) => m.role === 'owner' && m.status === 'active');
+        const heir = others.find((m) => m.status === 'active');
+        if (owners.length === 0 && heir !== undefined) {
+          await tx
+            .update(circleMembers)
+            .set({ role: 'owner' })
+            .where(
+              and(eq(circleMembers.circleId, circleId), eq(circleMembers.userId, heir.userId)),
+            );
+        }
+      }
+      // New epoch first (while still a member), so the one leaving never gets its keys.
+      await this.startEpoch(tx, circleId);
+      await tx
+        .update(circleMembers)
+        .set({ status: 'left', endedAt: new Date() })
+        .where(and(eq(circleMembers.circleId, circleId), eq(circleMembers.userId, auth.userId)));
+      return { remaining: others.map((m) => m.userId), pair: before.kind === 'pair' };
+    });
+    await this.events.publish([auth.userId], { type: 'circle.gone', circleId });
+    if (pair) {
+      // A friendship needs both people: it disappears for the other side too.
+      await this.events.publish(remaining, { type: 'circle.gone', circleId });
+      return;
+    }
+    await this.notifyById(remaining, circleId, auth.userId);
+  }
+
+  /** An owner removes a member (or withdraws an invitation); the rest move to a new epoch. */
+  async remove(auth: AuthContext, circleId: string, userId: string): Promise<Circle> {
+    if (userId === auth.userId) throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+    const circle = await this.database.asUser(auth.userId, async (tx) => {
+      const before = await this.mustRead(tx, circleId, auth.userId);
+      if (before.kind === 'pair' || before.myRole !== 'owner' || before.myStatus !== 'active') {
+        throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+      }
+      const target = before.members.find((member) => member.userId === userId);
+      if (target === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      await this.startEpoch(tx, circleId);
+      await tx
+        .update(circleMembers)
+        .set({ status: 'removed', endedAt: new Date() })
+        .where(and(eq(circleMembers.circleId, circleId), eq(circleMembers.userId, userId)));
+      return this.mustRead(tx, circleId, auth.userId);
+    });
+    await this.events.publish([userId], { type: 'circle.gone', circleId });
+    await this.changed(circle);
+    return circle;
+  }
+
+  /** Invites someone into a group by username; they join only if they accept. */
+  async inviteUser(auth: AuthContext, circleId: string, username: string): Promise<Circle> {
+    await this.limit(auth.userId);
+    const circle = await this.database.asUser(auth.userId, async (tx) => {
+      const result = await tx.execute<{ ok: boolean }>(
+        sql`SELECT app.invite_user(${circleId}, ${username}) AS ok`,
+      );
+      if (result.rows[0]?.ok !== true) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      return this.mustRead(tx, circleId, auth.userId);
+    });
+    await this.changed(circle);
+    return circle;
+  }
+
+  /**
+   * Friend request by username: a pair circle where the other side is invited. The answer for an
+   * unknown name and for yourself is the same 404 (no hint beyond what the name check gives).
+   */
+  async requestFriend(auth: AuthContext, username: string): Promise<Circle> {
+    await this.limit(auth.userId);
+    const circle = await this.database.asUser(auth.userId, async (tx) => {
+      const result = await tx.execute<{ id: string | null }>(
+        sql`SELECT app.request_friend(${username}) AS id`,
+      );
+      const id = result.rows[0]?.id ?? null;
+      if (id === null) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      return this.mustRead(tx, id, auth.userId);
+    });
+    await this.changed(circle);
+    return circle;
+  }
+
+  /**
+   * Starts a new epoch when the current one is older than the rekey interval (PROTOCOL §4: every
+   * 24 h). Any active member may ask; earlier asks are a no-op that return the current epoch.
+   */
+  async rekey(auth: AuthContext, circleId: string): Promise<Circle> {
+    const result = await this.limiter.hit(
+      `rekey:${auth.userId}`,
+      CIRCLE_LIMITS.rekeysPerHour,
+      HOUR,
+    );
+    if (!result.allowed) {
+      throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', result.retryAfter);
+    }
+    const { circle, started } = await this.database.asUser(auth.userId, async (tx) => {
+      const before = await this.mustRead(tx, circleId, auth.userId);
+      if (before.myStatus !== 'active') throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      if (Date.now() - before.epochStartedAt < REKEY_INTERVAL_MS) {
+        return { circle: before, started: false };
+      }
+      await this.startEpoch(tx, circleId);
+      return { circle: await this.mustRead(tx, circleId, auth.userId), started: true };
+    });
+    if (started) await this.changed(circle);
+    return circle;
+  }
+
+  /** Tells everyone in a circle that it changed, reading it as `userId` (a member). */
+  async announce(userId: string, circleId: string): Promise<void> {
+    const circle = await this.database.asUser(userId, (tx) => this.read(tx, circleId, userId));
+    if (circle !== null) await this.changed(circle);
+  }
+
+  /** Tells co-members that a profile they show changed (name, avatar). */
+  async profileChanged(userId: string): Promise<void> {
+    const circlesOfUser = await this.database.asUser(userId, async (tx) => {
+      const rows = await tx
+        .select({ id: circleMembers.circleId })
+        .from(circleMembers)
+        .where(
+          and(
+            eq(circleMembers.userId, userId),
+            inArray(circleMembers.status, ['invited', 'active']),
+          ),
+        );
+      const found = await Promise.all(rows.map((row) => this.read(tx, row.id, userId)));
+      return found.filter((circle): circle is Circle => circle !== null);
+    });
+    for (const circle of circlesOfUser) await this.changed(circle);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+
+  /** A new device for a user: every circle they are active in starts a new epoch. */
+  private async startEpochsForDevice(userId: string): Promise<void> {
+    const changedCircles = await this.database.asUser(userId, async (tx) => {
+      const rows = await tx
+        .select({ id: circleMembers.circleId })
+        .from(circleMembers)
+        .where(and(eq(circleMembers.userId, userId), eq(circleMembers.status, 'active')));
+      const result: Circle[] = [];
+      for (const row of rows) {
+        await this.startEpoch(tx, row.id);
+        const circle = await this.read(tx, row.id, userId);
+        if (circle !== null) result.push(circle);
+      }
+      return result;
+    });
+    for (const circle of changedCircles) await this.changed(circle);
+  }
+
+  /** Moves a circle to a new key epoch and drops distributions the protocol no longer accepts. */
+  async startEpoch(tx: Tx, circleId: string): Promise<void> {
+    await tx
+      .update(circles)
+      .set({ epoch: sql`${circles.epoch} + 1`, epochStartedAt: new Date() })
+      .where(eq(circles.id, circleId));
+    await tx.execute(sql`SELECT app.prune_key_envelopes(${circleId})`);
+  }
+
+  private async limit(userId: string): Promise<void> {
+    const result = await this.limiter.hit(
+      `invite:${userId}`,
+      CIRCLE_LIMITS.invitationsPerHour,
+      HOUR,
+    );
+    if (!result.allowed) {
+      throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', result.retryAfter);
+    }
+  }
+
+  private async changed(circle: Circle): Promise<void> {
+    await this.events.publish(audience(circle), {
+      type: 'circle.changed',
+      circleId: circle.id,
+      epoch: circle.epoch,
+    });
+  }
+
+  /** After the caller left a circle: the others hear the new state (read as one of them). */
+  private async notifyById(userIds: string[], circleId: string, leaver: string): Promise<void> {
+    const reader = userIds.find((userId) => userId !== leaver);
+    if (reader === undefined) return;
+    const circle = await this.database.asUser(reader, (tx) => this.read(tx, circleId, reader));
+    if (circle === null) {
+      await this.events.publish(userIds, { type: 'circle.gone', circleId });
+      return;
+    }
+    await this.changed(circle);
+  }
+
+  async mustRead(tx: Tx, circleId: string, me: string): Promise<Circle> {
+    const circle = await this.read(tx, circleId, me);
+    if (circle === null) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+    return circle;
+  }
+
+  /** The circle as `me` sees it, or null when `me` is not in it (or a pair has lost its other half). */
+  async read(tx: Tx, circleId: string, me: string): Promise<Circle | null> {
+    const [row] = await tx.select().from(circles).where(eq(circles.id, circleId));
+    if (row === undefined) return null;
+    const result = await tx.execute<CardRow>(
+      sql`SELECT * FROM app.circle_member_cards(${circleId})`,
+    );
+    const members = result.rows.map(card);
+    const mine = members.find((member) => member.userId === me);
+    if (mine === undefined) return null;
+    if (row.kind === 'pair' && members.length < 2) return null;
+    return {
+      id: row.id,
+      kind: row.kind,
+      name: row.name,
+      epoch: row.epoch,
+      epochStartedAt: row.epochStartedAt.getTime(),
+      myRole: mine.role,
+      myStatus: mine.status,
+      members,
+    };
+  }
+}

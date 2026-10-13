@@ -5,6 +5,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { ApiError } from '../common/api-error.js';
 import { securityEvents, users, type SecurityEventType } from '../db/schema.js';
 import { AttestationService } from '../devices/attestation/attestation.service.js';
+import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import {
   DeviceRegistry,
   isUniqueViolation,
@@ -36,14 +37,21 @@ export class LoginService {
     private readonly passkeys: PasskeysService,
     private readonly sessions: SessionsService,
     private readonly clients: ClientLimits,
+    private readonly lifecycle: DeviceLifecycle,
   ) {}
 
   async withOtp(body: OtpVerify, request: AuthedRequest): Promise<Session> {
     await this.otp.limitVerification(request.ip);
     const { device, attested } = await this.checkDevice(body.device, request);
     const emailHmac = await this.otp.verify(body.challengeId, body.code, device.identityKey);
-    const session = await this.loginByEmail(emailHmac, device, attested);
+    const { session, replacedDeviceId } = await this.loginByEmail(emailHmac, device, attested);
     await this.attestation.consume(body.device);
+    await this.lifecycle.notify({
+      userId: session.userId,
+      kind: 'login',
+      deviceId: device.deviceId,
+      replacedDeviceId,
+    });
     return session;
   }
 
@@ -61,7 +69,14 @@ export class LoginService {
       return this.activate(tx, userId, device, attested, 'login_passkey', false);
     });
     await this.attestation.consume(body.device);
-    return this.sessions.complete(started);
+    const session = await this.sessions.complete(started.started);
+    await this.lifecycle.notify({
+      userId,
+      kind: 'login',
+      deviceId: device.deviceId,
+      replacedDeviceId: started.replacedDeviceId,
+    });
+    return session;
   }
 
   private async checkDevice(registration: DeviceRegistration, request: AuthedRequest) {
@@ -75,7 +90,7 @@ export class LoginService {
     emailHmac: Uint8Array,
     device: VerifiedDevice,
     attested: Awaited<ReturnType<AttestationService['verify']>>,
-  ): Promise<Session> {
+  ): Promise<{ session: Session; replacedDeviceId: string | null }> {
     // Two attempts: a concurrent first login with the same address may create the account first.
     for (let attempt = 0; ; attempt++) {
       const existing = await this.database.userIdForEmail(emailHmac);
@@ -85,7 +100,10 @@ export class LoginService {
           if (existing === null) await tx.insert(users).values({ id: userId, emailHmac });
           return this.activate(tx, userId, device, attested, 'login_otp', existing === null);
         });
-        return await this.sessions.complete(started);
+        return {
+          session: await this.sessions.complete(started.started),
+          replacedDeviceId: started.replacedDeviceId,
+        };
       } catch (error) {
         if (existing === null && isUniqueViolation(error)) {
           // First time: a concurrent first login won the race, look it up again. Second time: the
@@ -106,8 +124,9 @@ export class LoginService {
     event: SecurityEventType,
     isNewUser: boolean,
   ) {
-    await this.registry.activate(tx, userId, device, attested);
+    const { replacedDeviceId } = await this.registry.activate(tx, userId, device, attested);
     await tx.insert(securityEvents).values({ userId, type: event, deviceId: device.deviceId });
-    return this.sessions.start(tx, userId, device.deviceId, isNewUser);
+    const started = await this.sessions.start(tx, userId, device.deviceId, isNewUser);
+    return { started, replacedDeviceId };
   }
 }

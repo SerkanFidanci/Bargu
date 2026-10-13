@@ -32,6 +32,11 @@ export type ApiErrorCode =
   | 'REFRESH_INVALID'
   | 'ACCOUNT_UNAVAILABLE'
   | 'USERNAME_TAKEN'
+  | 'INVITE_INVALID'
+  | 'ALREADY_MEMBER'
+  | 'CIRCLE_FULL'
+  | 'EPOCH_STALE'
+  | 'KEYS_INVALID'
   | 'UNAVAILABLE'
   | 'INTERNAL';
 
@@ -66,6 +71,8 @@ export class ApiErrorFilter implements ExceptionFilter {
   private readonly logger = new Logger('Errors');
 
   catch(exception: unknown, host: ArgumentsHost): void {
+    // WebSocket handlers answer through their acknowledgement and never throw (events.gateway.ts).
+    if (host.getType() !== 'http') return;
     const reply = host.switchToHttp().getResponse<FastifyReply>();
     let status: number = HttpStatus.INTERNAL_SERVER_ERROR;
     let code: ApiErrorCode = 'INTERNAL';

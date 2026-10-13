@@ -26,10 +26,46 @@ export class RequestSignatures {
   constructor(@Inject(REDIS) private readonly redis: RedisClient) {}
 
   async verify(request: AuthedRequest, deviceId: string, identityKey: Uint8Array): Promise<void> {
-    const signature = header(request, SIGNED_REQUEST_HEADERS.signature);
-    const timestamp = header(request, SIGNED_REQUEST_HEADERS.timestamp);
-    const nonce = header(request, SIGNED_REQUEST_HEADERS.nonce);
-    if (signature === undefined || timestamp === undefined || nonce === undefined) {
+    // A parsed body that was not captured raw would be unsigned; never accept that.
+    const unsignedBody =
+      request.rawBody === undefined && request.body !== undefined && request.body !== null;
+    if (unsignedBody) throw new ApiError(HttpStatus.UNAUTHORIZED, 'SIGNATURE_INVALID');
+    await this.verifyParts(
+      {
+        method: request.method,
+        path: request.url,
+        body: request.rawBody ?? new Uint8Array(0),
+        signature: header(request, SIGNED_REQUEST_HEADERS.signature),
+        timestamp: header(request, SIGNED_REQUEST_HEADERS.timestamp),
+        nonce: header(request, SIGNED_REQUEST_HEADERS.nonce),
+      },
+      deviceId,
+      identityKey,
+    );
+  }
+
+  /**
+   * The same check for a signature that did not arrive in HTTP headers (the WebSocket handshake
+   * carries it in its auth payload). Unknown types count as missing.
+   */
+  async verifyParts(
+    parts: {
+      method: string;
+      path: string;
+      body: Uint8Array;
+      signature: unknown;
+      timestamp: unknown;
+      nonce: unknown;
+    },
+    deviceId: string,
+    identityKey: Uint8Array,
+  ): Promise<void> {
+    const { signature, timestamp, nonce } = parts;
+    if (
+      typeof signature !== 'string' ||
+      typeof timestamp !== 'string' ||
+      typeof nonce !== 'string'
+    ) {
       throw new ApiError(HttpStatus.UNAUTHORIZED, 'SIGNATURE_REQUIRED');
     }
     const time = TIMESTAMP_PATTERN.test(timestamp) ? Number(timestamp) : Number.NaN;
@@ -37,22 +73,18 @@ export class RequestSignatures {
       // Distinct from a bad signature: the app corrects its clock from the Date header and retries.
       throw new ApiError(HttpStatus.UNAUTHORIZED, 'CLOCK_SKEW');
     }
-    // A parsed body that was not captured raw would be unsigned; never accept that.
-    const unsignedBody =
-      request.rawBody === undefined && request.body !== undefined && request.body !== null;
     if (
-      unsignedBody ||
       !NONCE_PATTERN.test(nonce) ||
       !Number.isFinite(time) ||
       !verifyRequestSignature(
         identityKey,
         {
-          method: request.method,
-          path: request.url,
+          method: parts.method,
+          path: parts.path,
           timestamp: time,
           nonce,
           deviceId,
-          body: request.rawBody ?? new Uint8Array(0),
+          body: parts.body,
         },
         signature,
       )

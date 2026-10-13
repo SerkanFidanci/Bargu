@@ -8,9 +8,11 @@ import {
   AttestationService,
   createAttestationVerifiers,
 } from '../devices/attestation/attestation.service.js';
+import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import { DeviceRegistry } from '../devices/device-registry.js';
 import { WellKnownController } from '../well-known/well-known.controller.js';
 import { AccessTokens } from './access-tokens.js';
+import { AuthContexts } from './auth-contexts.js';
 import { AuthController } from './auth.controller.js';
 import { ClientLimits } from './client-limits.js';
 import { AuthGuard, SignatureGuard } from './guards.js';
@@ -24,6 +26,7 @@ import { SessionsService } from './sessions.service.js';
   controllers: [AuthController, WellKnownController],
   providers: [
     AccessTokens,
+    AuthContexts,
     ClientLimits,
     RequestSignatures,
     OtpService,
@@ -31,6 +34,7 @@ import { SessionsService } from './sessions.service.js';
     PasskeysService,
     LoginService,
     DeviceRegistry,
+    DeviceLifecycle,
     AttestationService,
     { provide: ATTESTATION_VERIFIERS, inject: [ENV], useFactory: createAttestationVerifiers },
     // Order matters: authentication first, then the device signature it makes possible.
@@ -38,5 +42,7 @@ import { SessionsService } from './sessions.service.js';
     { provide: APP_GUARD, useClass: SignatureGuard },
     { provide: APP_FILTER, useClass: ApiErrorFilter },
   ],
+  // The WebSocket gateway authenticates connections the same way as HTTP requests.
+  exports: [AuthContexts, RequestSignatures, DeviceRegistry, DeviceLifecycle],
 })
 export class AuthModule {}

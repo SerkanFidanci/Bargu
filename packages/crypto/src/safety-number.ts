@@ -28,17 +28,28 @@ const QR_PREFIX = 'bargu-sn:1:';
  * Iterated SHA-256 over (label ‖ userId ‖ identityKey), re-mixing the key each round (as Signal
  * does with SHA-512). The work factor makes searching for a colliding key even less practical.
  */
-function fingerprint({ userId, identityKey }: SafetyNumberParty): Uint8Array {
+function* fingerprintSteps(
+  { userId, identityKey }: SafetyNumberParty,
+  roundsPerStep: number,
+): Generator<void, Uint8Array> {
   if (identityKey.length !== KEY_BYTES) {
     throw new BarguCryptoError('INVALID_KEY', 'identity key must be 32 bytes');
   }
   let hash = sha256Hash(
     concatBytes(labelBytes(LABELS.safetyNumber), uuidToBytes(userId), identityKey),
   );
-  for (let i = 0; i < SAFETY_NUMBER_ITERATIONS; i++) {
+  for (let i = 1; i <= SAFETY_NUMBER_ITERATIONS; i++) {
     hash = sha256Hash(concatBytes(hash, identityKey));
+    if (i % roundsPerStep === 0) yield;
   }
   return hash.slice(0, FINGERPRINT_BYTES);
+}
+
+function fingerprint(party: SafetyNumberParty): Uint8Array {
+  const steps = fingerprintSteps(party, SAFETY_NUMBER_ITERATIONS);
+  for (let step = steps.next(); ; step = steps.next()) {
+    if (step.done === true) return step.value;
+  }
 }
 
 /** Six 5-digit chunks: each 5-byte big-endian chunk modulo 100000. */
@@ -56,16 +67,49 @@ function toDigits(fp: Uint8Array): string {
  * changes, which the app surfaces as a "security number changed" warning in shared circles.
  */
 export function safetyNumber(a: SafetyNumberParty, b: SafetyNumberParty): SafetyNumber {
+  assertTwoUsers(a, b);
+  return combine(fingerprint(a), fingerprint(b));
+}
+
+/** Rounds of hashing between two pauses of safetyNumberAsync (about 1–2 ms each on a phone). */
+export const SAFETY_NUMBER_ROUNDS_PER_PAUSE = 200;
+
+/**
+ * The same number without blocking the app: the 2 × 5200 hash rounds run in short slices with a
+ * pause (`pause`, e.g. one animation frame) between them, so the screen keeps animating.
+ */
+export async function safetyNumberAsync(
+  a: SafetyNumberParty,
+  b: SafetyNumberParty,
+  pause: () => Promise<void>,
+): Promise<SafetyNumber> {
+  assertTwoUsers(a, b);
+  const fingerprints: Uint8Array[] = [];
+  for (const party of [a, b]) {
+    const steps = fingerprintSteps(party, SAFETY_NUMBER_ROUNDS_PER_PAUSE);
+    for (let step = steps.next(); ; step = steps.next()) {
+      if (step.done === true) {
+        fingerprints.push(step.value);
+        break;
+      }
+      await pause();
+    }
+  }
+  const [first, second] = fingerprints as [Uint8Array, Uint8Array];
+  return combine(first, second);
+}
+
+function assertTwoUsers(a: SafetyNumberParty, b: SafetyNumberParty): void {
   if (a.userId === b.userId) {
     throw new BarguCryptoError('MALFORMED', 'a safety number needs two different users');
   }
+}
+
+function combine(fpA: Uint8Array, fpB: Uint8Array): SafetyNumber {
   // Order by the full fingerprint so both phones agree on the order even in the (astronomically
   // unlikely) case of equal digits. Fingerprints of different user ids never coincide.
-  const parts = [a, b]
-    .map((party) => {
-      const fp = fingerprint(party);
-      return { fp, hex: bytesToHex(fp), digits: toDigits(fp) };
-    })
+  const parts = [fpA, fpB]
+    .map((fp) => ({ fp, hex: bytesToHex(fp), digits: toDigits(fp) }))
     .sort((x, y) => (x.hex < y.hex ? -1 : 1));
   const [first, second] = parts as [(typeof parts)[number], (typeof parts)[number]];
   const digits = first.digits + second.digits;

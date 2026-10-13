@@ -1,7 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { BarguCryptoError } from '../src/errors.js';
-import { safetyNumber, verifySafetyNumberQr } from '../src/safety-number.js';
+import { SAFETY_NUMBER_ITERATIONS } from '../src/constants.js';
+import {
+  SAFETY_NUMBER_ROUNDS_PER_PAUSE,
+  safetyNumber,
+  safetyNumberAsync,
+  verifySafetyNumberQr,
+} from '../src/safety-number.js';
 import { ids, testDevice } from './helpers.js';
 
 const alice = {
@@ -43,5 +49,23 @@ describe('safetyNumber', () => {
     expect(() => safetyNumber(alice, { ...bob, identityKey: new Uint8Array(31) })).toThrow(
       BarguCryptoError,
     );
+  });
+});
+
+describe('safetyNumberAsync', () => {
+  it('gives the same number while pausing between short slices (the screen keeps animating)', async () => {
+    let pauses = 0;
+    const result = await safetyNumberAsync(alice, bob, () => {
+      pauses += 1;
+      return Promise.resolve();
+    });
+    expect(result).toEqual(safetyNumber(alice, bob));
+    expect(pauses).toBe((2 * SAFETY_NUMBER_ITERATIONS) / SAFETY_NUMBER_ROUNDS_PER_PAUSE);
+  });
+
+  it('refuses the same user twice, before any work', async () => {
+    const pause = vi.fn(() => Promise.resolve());
+    await expect(safetyNumberAsync(alice, alice, pause)).rejects.toThrow(BarguCryptoError);
+    expect(pause).not.toHaveBeenCalled();
   });
 });

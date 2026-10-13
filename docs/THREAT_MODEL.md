@@ -65,6 +65,8 @@ Sunucu içerik görmez ama şunları görür; belgeleniyor ve kabul ediliyor:
 | IP adresleri                    | Yaklaşık konum (ağ seviyesi)                  | Log'lanmaz; kullanıcı VPN kullanabilir             |
 | Kullanıcı adının varlığı        | Bir adın kayıtlı olduğu                       | Ad zaten bulunmak için; hesap başına saatlik sınır |
 | Görünen ad ve avatar (sunucuda) | Ad, renk ve emoji                             | Fotoğraf yok; şifreli profil ileriki faz           |
+| Çember adları                   | Ailenin / grubun adı                          | Davetli anahtar almadan önce görmeli (ADR 0009)    |
+| Olay zamanları (canlı kanal)    | Çember değişikliklerinin ne zaman olduğu      | İçerik yok; yalnızca tür ve çember kimliği         |
 | Bildirim zamanlaması (APNs/FCM) | Olayların zamanı                              | İçerik sealed box ile gizli                        |
 
 ## Gözden geçirme

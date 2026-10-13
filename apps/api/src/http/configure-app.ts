@@ -1,4 +1,5 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 const JSON_CONTENT_TYPE = /^application\/json(;|$)/i;
 
@@ -9,6 +10,8 @@ export function configureApp(app: NestFastifyApplication): NestFastifyApplicatio
   // Rejects cross-site browser requests; native clients send no Sec-Fetch-Site/Origin and pass.
   app.enableCsrfProtection();
   app.enableShutdownHooks();
+  // Socket.io on the same HTTP server (events gateway at /v1/events).
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // CORS stays disabled: the only client is the native app.
   const fastify = app.getHttpAdapter().getInstance();

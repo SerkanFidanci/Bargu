@@ -5,6 +5,8 @@ import {
   bigint,
   boolean,
   customType,
+  integer,
+  jsonb,
   pgSchema,
   smallint,
   text,
@@ -103,4 +105,72 @@ export const securityEvents = app.table('security_events', {
   createdAt: timestamptz('created_at').notNull().defaultNow(),
 });
 
-export const schema = { users, devices, passkeys, refreshTokens, securityEvents };
+export const circleKind = app.enum('circle_kind', ['pair', 'friends', 'family', 'event']);
+export const memberRole = app.enum('member_role', ['owner', 'member']);
+export const memberStatus = app.enum('member_status', [
+  'invited',
+  'active',
+  'declined',
+  'left',
+  'removed',
+]);
+export const inviteKind = app.enum('invite_kind', ['circle', 'friend']);
+
+export const circles = app.table('circles', {
+  id: uuid('id').primaryKey().default(uuidv7),
+  kind: circleKind('kind').notNull(),
+  name: text('name'),
+  pairKey: text('pair_key'),
+  epoch: integer('epoch').notNull().default(1),
+  epochStartedAt: timestamptz('epoch_started_at').notNull().defaultNow(),
+  expiresAt: timestamptz('expires_at'),
+  createdBy: uuid('created_by'),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
+});
+
+export const circleMembers = app.table('circle_members', {
+  circleId: uuid('circle_id').notNull(),
+  userId: uuid('user_id').notNull(),
+  role: memberRole('role').notNull().default('member'),
+  status: memberStatus('status').notNull(),
+  invitedBy: uuid('invited_by'),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
+  joinedAt: timestamptz('joined_at'),
+  endedAt: timestamptz('ended_at'),
+});
+
+export const invites = app.table('invites', {
+  id: uuid('id').primaryKey().default(uuidv7),
+  kind: inviteKind('kind').notNull(),
+  circleId: uuid('circle_id'),
+  tokenHash: bytea('token_hash').notNull(),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
+  expiresAt: timestamptz('expires_at').notNull(),
+  maxUses: integer('max_uses').notNull().default(1),
+  usedCount: integer('used_count').notNull().default(0),
+  revokedAt: timestamptz('revoked_at'),
+});
+
+export const keyEnvelopes = app.table('key_envelopes', {
+  circleId: uuid('circle_id').notNull(),
+  epoch: integer('epoch').notNull(),
+  senderDeviceId: uuid('sender_device_id').notNull(),
+  recipientDeviceId: uuid('recipient_device_id').notNull(),
+  senderUserId: uuid('sender_user_id').notNull(),
+  recipientUserId: uuid('recipient_user_id').notNull(),
+  envelope: jsonb('envelope').notNull(),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
+});
+
+export const schema = {
+  users,
+  devices,
+  passkeys,
+  refreshTokens,
+  securityEvents,
+  circles,
+  circleMembers,
+  invites,
+  keyEnvelopes,
+};
