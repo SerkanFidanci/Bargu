@@ -9,7 +9,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | -------------------------------- | --------------------------------------------- |
 | Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)  |
 | Faz 1 — Kripto Çekirdeği         | ✅ Onaylandı (açık madde: cihazda hız ölçümü) |
-| Faz 2 — Auth & Cihazlar          | 🔄 Onay bekliyor                              |
+| Faz 2 — Auth & Cihazlar          | 🔄 Onay bekliyor (staging'de doğrulandı)      |
 
 ## Ortamlar
 
@@ -32,7 +32,7 @@ Kararlar: [ADR 0005](ADR/0005-auth-and-devices.md) (giriş, cihaz, RLS) ·
 
 | Madde                                           | Durum | Kanıt                                                                                             |
 | ----------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------- |
-| Auth e2e testleri                               | ✅    | 54 entegrasyon testi, gerçek Postgres + Redis + kuyruk (CI'da ayrı görev)                         |
+| Auth e2e testleri                               | ✅    | 56 entegrasyon testi, gerçek Postgres + Redis + kuyruk (CI'da ayrı görev)                         |
 | Brute-force testi                               | ✅    | 8 haneli kod, cihaza bağlı; 5 yanlışta kod ölür; cihaz ve adres sınırları; eşzamanlı tahmin testi |
 | Refresh reuse testi                             | ✅    | Dönmüş token tekrar kullanılınca bütün oturum ailesi iptal + güvenlik olayı                       |
 | `app.user_id` set edilmeden sorgu 0 satır döner | ✅    | Her tabloda test; ayrıca `app` şemasında zorlanmış RLS'i olmayan tablo kalırsa test kırılıyor     |
@@ -61,10 +61,10 @@ Kararlar: [ADR 0005](ADR/0005-auth-and-devices.md) (giriş, cihaz, RLS) ·
 
 | Paket                   | Test | Not                                                              |
 | ----------------------- | ---- | ---------------------------------------------------------------- |
-| `packages/crypto`       | 118  | %100 satır, ifade, dal, fonksiyon                                |
+| `packages/crypto`       | 127  | %100 satır, ifade, dal, fonksiyon                                |
 | `packages/schemas`      | 31   |                                                                  |
 | API birim + HTTP        | 65   | env kuralları, hata biçimi, App Attest (test CA), Play Integrity |
-| API entegrasyon         | 54   | giriş, brute-force, oturum, tek cihaz, RLS, passkey, onay, işçi  |
+| API entegrasyon         | 56   | giriş, brute-force, oturum, tek cihaz, RLS, passkey, onay, işçi  |
 | Mobil                   | 21   | anahtar deposu, imzalı istemci, token yenileme, saat düzeltme    |
 | Swift (CryptoKit uyumu) | 10   |                                                                  |
 
@@ -75,6 +75,14 @@ Ek doğrulamalar:
   kırıldı.
 - Derlenmiş API + işçi ile uçtan uca deneme: kod isteği → kuyruk → işçi → Mailpit'e e-posta. İlk
   denemede yanlış SMTP portu yüzünden gitmeyen iş, tekrar denemeyle teslim edildi.
+- **Staging'de uçtan uca deneme** (CI → otomatik deploy sonrası, herkese açık HTTPS adresi ve nginx
+  üzerinden): kod e-postası 0,6 sn'de geldi (konu satırında kod yok); yanlış kod, imzasız istek ve
+  kodu başka cihazdan kullanma reddedildi; doğru kodla yeni hesap açıldı; kod ikinci kez
+  kullanılamadı; `/v1/me` doğru hesap ve cihazı döndü; refresh token döndü, başka cihazın imzasıyla
+  reddedildi; çıkıştan sonra erişim token'ı geçersiz. `/health/ready` internete kapalı (404), sunucu
+  içinden açık. API ve işçi loglarında e-posta adresi yok.
+- CI'da bulunan verim sorunu: işçi işleri tek tek alıp her işten sonra bekliyordu; yoğun anda kodlar
+  gecikirdi. Artık 20'lik gruplarla ve beklemeden çalışıyor (ADR 0006).
 
 ### Bağımsız güvenlik incelemesi (kapanış kontrolü)
 
