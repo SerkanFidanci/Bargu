@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUuid } from '@bargu/crypto';
 import type { PasskeyLoginVerify, PasskeyRegisterVerify } from '@bargu/schemas';
 import {
@@ -39,6 +39,19 @@ function userIdFromHandle(handle: string | undefined): string | null {
  * WebAuthn user handle is the account id, so a login resolves the account without any lookup
  * across users. Challenges are single use and live 5 minutes in Redis.
  */
+
+const logger = new Logger('Passkeys');
+
+/**
+ * Refuses a passkey operation with the one public code, and logs why for diagnosis. The reason and
+ * the verifier's message (format, origin, RP ID, challenge) carry no account data or key material.
+ */
+function rejected(status: HttpStatus, reason: string, error?: unknown): ApiError {
+  const detail = error instanceof Error ? `: ${error.message.slice(0, 200)}` : '';
+  logger.warn(`passkey rejected (${reason})${detail}`);
+  return new ApiError(status, 'PASSKEY_INVALID');
+}
+
 @Injectable()
 export class PasskeysService {
   constructor(
@@ -77,7 +90,10 @@ export class PasskeysService {
     const stored = await this.takeChallenge('reg', body.challengeId);
     const [owner, challenge] = stored?.split(':') ?? [];
     if (owner !== auth.userId || challenge === undefined) {
-      throw new ApiError(HttpStatus.BAD_REQUEST, 'PASSKEY_INVALID');
+      throw rejected(
+        HttpStatus.BAD_REQUEST,
+        'registration challenge unknown, expired or not yours',
+      );
     }
     let verified;
     try {
@@ -88,10 +104,10 @@ export class PasskeysService {
         expectedRPID: this.env.WEBAUTHN_RP_ID,
         requireUserVerification: true,
       });
-    } catch {
-      throw new ApiError(HttpStatus.BAD_REQUEST, 'PASSKEY_INVALID');
+    } catch (error) {
+      throw rejected(HttpStatus.BAD_REQUEST, 'registration response invalid', error);
     }
-    if (!verified.verified) throw new ApiError(HttpStatus.BAD_REQUEST, 'PASSKEY_INVALID');
+    if (!verified.verified) throw rejected(HttpStatus.BAD_REQUEST, 'registration not verified');
     const { credential, credentialBackedUp } = verified.registrationInfo;
     try {
       await this.database.asUser(auth.userId, async (tx) => {
@@ -109,7 +125,8 @@ export class PasskeysService {
       });
     } catch (error) {
       // The authenticator already registered this credential (here or for another account).
-      if (isUniqueViolation(error)) throw new ApiError(HttpStatus.CONFLICT, 'PASSKEY_INVALID');
+      if (isUniqueViolation(error))
+        throw rejected(HttpStatus.CONFLICT, 'credential already registered');
       throw error;
     }
   }
@@ -135,7 +152,7 @@ export class PasskeysService {
     const response = body.response as unknown as AuthenticationResponseJSON;
     const credentialId = new Uint8Array(Buffer.from(response.id, 'base64url'));
     const [row] = await tx.select().from(passkeys).where(eq(passkeys.credentialId, credentialId));
-    if (row === undefined) throw new ApiError(HttpStatus.UNAUTHORIZED, 'PASSKEY_INVALID');
+    if (row === undefined) throw rejected(HttpStatus.UNAUTHORIZED, 'credential not registered');
     let verified;
     try {
       verified = await verifyAuthenticationResponse({
@@ -151,10 +168,10 @@ export class PasskeysService {
         },
         requireUserVerification: true,
       });
-    } catch {
-      throw new ApiError(HttpStatus.UNAUTHORIZED, 'PASSKEY_INVALID');
+    } catch (error) {
+      throw rejected(HttpStatus.UNAUTHORIZED, 'assertion invalid', error);
     }
-    if (!verified.verified) throw new ApiError(HttpStatus.UNAUTHORIZED, 'PASSKEY_INVALID');
+    if (!verified.verified) throw rejected(HttpStatus.UNAUTHORIZED, 'assertion not verified');
     await tx
       .update(passkeys)
       .set({ counter: verified.authenticationInfo.newCounter, lastUsedAt: new Date() })
@@ -169,7 +186,7 @@ export class PasskeysService {
     const handle = (body.response.response as { userHandle?: unknown }).userHandle;
     const userId = userIdFromHandle(typeof handle === 'string' ? handle : undefined);
     if (challenge === null || userId === null) {
-      throw new ApiError(HttpStatus.UNAUTHORIZED, 'PASSKEY_INVALID');
+      throw rejected(HttpStatus.UNAUTHORIZED, 'login challenge unknown or user handle unreadable');
     }
     return { userId, challenge };
   }
