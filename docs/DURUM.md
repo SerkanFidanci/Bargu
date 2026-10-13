@@ -55,15 +55,29 @@ Kararlar: [ADR 0008](ADR/0008-design-system-and-map.md) · Kurallar: [MOTION.md]
   fonksiyon, hesap başına hız sınırı); migration 0002.
 - **Güvenlik**: görünmez / yön değiştiren karakterler (Trojan Source) CI'da ve commit'te
   reddediliyor.
+- **Hareket ve görünüm** (proje sahibinin isteğiyle zenginleştirildi, [MOTION.md](MOTION.md)):
+  yaylanan butonlar ve ışık süzülmesi, sırayla gelen ekran öğeleri, zıplayan kod kutuları ve yanlış
+  kodda titreme + hata titreşimi, canlı ✓/✕ kullanıcı adı işareti, büyüyen seçimler, paralaks
+  tanıtım kartları, üstten inen bildirimler, + → × dönen alt menü düğmesi, kayıt sonunda konfeti.
+  Hepsi UI iş parçacığında ve "hareketi azalt"a uyuyor.
+- **Harita görünümü**: gündüz açık, gece (20:00–07:00) koyu; Ben panelinden Otomatik / Açık / Koyu.
+  Koyu tema gece mavisi (ilk sürüm çok karanlık bulundu). OpenStreetMap yazısı açılışta görünür,
+  5 sn sonra kaybolur; lisans Ben → Harita verisi'nde.
+- **Marka**: menekşe üzerinde beyaz iğne + mercan nokta simgesi ve marka renginde açılış ekranı
+  (geçici logo, `scripts/build-icons.mjs`).
+- **Passkey düzeltmesi**: telefondaki ilk denemede passkey oluşturulamadı. Sunucu, Android'in reddettiği
+  iki şey gönderiyordu: boş görünen ad ve tanınmayan bir algoritma (ML-DSA). İkisi düzeltildi
+  ve testle sabitlendi; sunucu artık reddetme nedenini (kişisel veri olmadan) kaydediyor,
+  önizleme sürümü hata kodunu mesajda gösteriyor.
 
 ### Test sonuçları
 
-| Paket              | Test | Not                                                                             |
-| ------------------ | ---- | ------------------------------------------------------------------------------- |
-| `packages/schemas` | 67   | kullanıcı adı, görünen ad (görünmez karakter), avatar                           |
-| API entegrasyon    | 71   | +15 profil: yarış, yasak ad, imzasız istek, başkasının profili, hız sınırı      |
-| API birim + HTTP   | 65   |                                                                                 |
-| Mobil              | 117  | kontrast, bileşenler, giriş akışı, oturum, passkey, kullanıcı adı, harita stili |
+| Paket              | Test | Not                                                                                                         |
+| ------------------ | ---- | ----------------------------------------------------------------------------------------------------------- |
+| `packages/schemas` | 67   | kullanıcı adı, görünen ad (görünmez karakter), avatar                                                       |
+| API entegrasyon    | 72   | +15 profil: yarış, yasak ad, imzasız istek, başkasının profili, hız sınırı; passkey seçenekleri             |
+| API birim + HTTP   | 65   |                                                                                                             |
+| Mobil              | 125  | kontrast, bileşenler, giriş akışı, oturum, passkey, kullanıcı adı, harita stili ve görünümü, hata titreşimi |
 
 Staging'de uçtan uca deneme (CI → otomatik deploy, migration 0002 dahil): giriş, kullanıcı adı
 kontrolü, profil kaydı, imzasız değişikliğin reddi, `assetlinks.json` ve harita dosyaları (aralık
