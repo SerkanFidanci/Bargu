@@ -36,7 +36,7 @@ sunucudaki nginx'i (certbot ile) 80/443 portlarını kullanıyor. Henüz bir Bar
     config'e verilir ve iş bitince silinir;
   - `docker compose up --wait` sağlık kontrollerini bekler, başarısız olursa önceki digest'e döner.
 - Deploy, CI tüm kontrolleri geçtikten sonra `main`'e push'ta çağrılan reusable workflow'dur
-  (`workflow_run` yok); secret'lar `secrets: inherit` ile geçirilir; `STAGING_ENABLED=true`
+  (`workflow_run` yok); sadece gereken `STAGING_SSH_KEY` secret'ı adıyla geçirilir; `STAGING_ENABLED=true`
   olmadıkça çalışmaz.
 
 ## Sonuçlar

@@ -4,6 +4,9 @@ name: Deploy staging
 # repository variable STAGING_ENABLED is "true" — see infra/vps/README.md for the one-time setup.
 on:
   workflow_call:
+    secrets:
+      STAGING_SSH_KEY:
+        required: true
   workflow_dispatch:
 
 permissions:
