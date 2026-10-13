@@ -9,7 +9,8 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | -------------------------------- | -------------------------------------------- |
 | Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client) |
 | Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                |
-| Faz 2 — Auth & Cihazlar          | 🔄 Onay bekliyor (staging'de doğrulandı)     |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                 |
+| Faz 3 — Tasarım Sistemi & Harita | 🔄 Telefonda deneme bekliyor                 |
 
 ## Ortamlar
 
@@ -21,6 +22,60 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Expo / EAS projesi | hesap `otenus`, proje `bargu` (`app.config.ts`)                                          |
 | Android sürümleri  | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır)  |
 | Uygulama kimliği   | `app.bargu` (mağazaya çıkınca değiştirilemez)                                            |
+| Harita dosyaları   | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)    |
+
+## Faz 3 — Tasarım Sistemi & Harita İskeleti (2026-10-13)
+
+Kararlar: [ADR 0008](ADR/0008-design-system-and-map.md) · Kurallar: [MOTION.md](MOTION.md)
+
+### DoD
+
+| Madde                        | Durum | Kanıt                                                                                                       |
+| ---------------------------- | ----- | ----------------------------------------------------------------------------------------------------------- |
+| Tüm geçişler 60 fps          | ⏳    | Uygulamadaki kare hızı ölçeri (Ben → bileşen galerisi) ile telefonda ölçülecek                              |
+| Hareketi azalt çalışır       | ⏳    | Kodda her animasyon sistem ayarına bağlı (yaylar anında biter, kaymalar solmaya döner); telefonda denenecek |
+| iPhone SE + büyük yazı testi | ⏳    | iPhone yok: Android'de en büyük yazı boyutuyla denenecek; yazı ölçekleri sınırlı, ekranlar kayıyor          |
+
+### Yapılanlar
+
+- **Tasarım sistemi**: renk (açık/koyu, WCAG AA testle zorunlu), yazı (Bricolage Grotesque + Inter,
+  gömülü), 4'lük boşluk, köşe, gölge ve hareket değişkenleri; 15 bileşen; geliştirici galerisi ve
+  kare hızı ölçer. ESLint, hareket değişkenleri dışında animasyon sayısını ve JS iş parçacığı
+  animasyonunu reddediyor.
+- **Harita**: MapLibre 11.5; Türkiye haritası, etiket yazı tipleri ve simgeler **kendi
+  sunucumuzda** (tek PMTiles dosyası, nginx). Türkçe etiketli açık/koyu stil. Başka adrese istek
+  gitmediği testle zorunlu.
+- **Ekranlar**: 3 tanıtım kartı (çizim animasyonlu) → e-posta → 8 haneli kod (e-postadan otomatik
+  doldurma, 60 sn sonra yeniden gönder) → kullanıcı adı (yazarken müsaitlik) → ad + renk + emoji
+  (harita işaretçisi önizlemesiyle) → harita. Ana ekran: "Seni kimse görmüyor" balonu, alt menü
+  (Çemberler · Ekle · Ben), paneller. Profil düzenleme, çıkış.
+- **Passkey**: e-posta ekranında "Passkey ile giriş yap", Ben panelinde "Passkey ekle". Sunucuda
+  Android imza parmak izi ve uygulama kaynağı tanımlı (`assetlinks.json` yayında).
+- **Sunucu**: profil güncelleme ve kullanıcı adı müsaitliği uçları (RLS'i aşan tek boolean
+  fonksiyon, hesap başına hız sınırı); migration 0002.
+- **Güvenlik**: görünmez / yön değiştiren karakterler (Trojan Source) CI'da ve commit'te
+  reddediliyor.
+
+### Test sonuçları
+
+| Paket              | Test | Not                                                                             |
+| ------------------ | ---- | ------------------------------------------------------------------------------- |
+| `packages/schemas` | 67   | kullanıcı adı, görünen ad (görünmez karakter), avatar                           |
+| API entegrasyon    | 71   | +15 profil: yarış, yasak ad, imzasız istek, başkasının profili, hız sınırı      |
+| API birim + HTTP   | 65   |                                                                                 |
+| Mobil              | 117  | kontrast, bileşenler, giriş akışı, oturum, passkey, kullanıcı adı, harita stili |
+
+### Açık riskler
+
+1. Harita yalnızca Türkiye'yi kapsıyor; yurt dışında boş görünür. Genişletmek: aynı betikle daha
+   büyük bölge (disk ve bant genişliği maliyeti).
+2. Görsel ayrıntı: OpenStreetMap şehirlerde iyi, kırsalda adres ve işletme bilgisi Google'dan
+   zayıf; uydu görüntüsü yok. Bargu için bilinçli tercih (gizlilik, avatarlar öne çıksın).
+3. iOS tarafı derlenemiyor (Apple hesabı); iPhone SE testi ve iOS passkey'i bekliyor.
+4. Passkey'ler geçici alan adına bağlı; gerçek alan adına geçince yeniden oluşturulacak. Google
+   Play'e çıkınca Play imza anahtarı da `ANDROID_CERT_SHA256`'ya eklenecek.
+5. Logo ve uygulama simgesi henüz Expo varsayılanı.
+6. Plan §4.1: her UI fazında 3 kişiyle 5 dakikalık kullanılabilirlik testi (proje sahibi).
 
 ## Faz 2 — Auth & Cihazlar (2026-10-13)
 
@@ -123,12 +178,12 @@ testiyle doğrulandı. Kritik bulgu yok; token, RLS, oturum dönüşümü ve tek
 
 ### Kalan işler
 
-| İş                                            | Kim                              | Ne zaman                 |
-| --------------------------------------------- | -------------------------------- | ------------------------ |
-| Gerçek domain                                 | Proje sahibi alır, bağlama bizde | Faz 3 (passkey ekranı)   |
-| E-posta aktarıcısı hesabı (Scaleway TEM)      | Proje sahibi (ödeme/kimlik)      | Domain ile birlikte      |
-| Apple Developer Program / Google Play Console | Proje sahibi                     | En geç Faz 5             |
-| Android imza parmak izini staging'e ekle      | Bizde                            | Faz 3, passkey ekranında |
+| İş                                            | Kim                              | Ne zaman               |
+| --------------------------------------------- | -------------------------------- | ---------------------- |
+| Gerçek domain                                 | Proje sahibi alır, bağlama bizde | Faz 3 (passkey ekranı) |
+| E-posta aktarıcısı hesabı (Scaleway TEM)      | Proje sahibi (ödeme/kimlik)      | Domain ile birlikte    |
+| Apple Developer Program / Google Play Console | Proje sahibi                     | En geç Faz 5           |
+| ~~Android imza parmak izini staging'e ekle~~  | ✅ 2026-10-13                    | Faz 3                  |
 
 ## Faz 1 — Kripto Çekirdeği (2026-10-13)
 
