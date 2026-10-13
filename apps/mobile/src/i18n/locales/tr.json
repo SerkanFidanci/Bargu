@@ -92,9 +92,8 @@
   "main": {
     "seers": {
       "none": "Seni kimse görmüyor",
-      "count_one": "{{count}} kişi seni görüyor",
-      "count_other": "{{count}} kişi seni görüyor",
-      "hint": "Kimlerin seni gördüğünü açar"
+      "hint": "Kimlerin seni gördüğünü açar",
+      "count": "{{count}} kişi seni görüyor"
     },
     "dock": {
       "circles": "Çemberler",
@@ -134,11 +133,10 @@
       "version": "Sürüm {{version}}",
       "passkey": "Passkey",
       "passkeyAdd": "Ekle: e-posta kodu olmadan hızlı ve güvenli giriş",
-      "passkeyCount_one": "{{count}} passkey kayıtlı · bir tane daha ekle",
-      "passkeyCount_other": "{{count}} passkey kayıtlı · bir tane daha ekle",
       "passkeyAdded": "Passkey eklendi.",
       "passkeyExists": "Bu telefonda zaten bir Bargu passkey'i var.",
-      "passkeyFailed": "Passkey eklenemedi. Tekrar dene."
+      "passkeyFailed": "Passkey eklenemedi. Tekrar dene.",
+      "passkeyCount": "Kayıtlı passkey: {{count}} · bir tane daha ekle"
     }
   },
   "ui": {

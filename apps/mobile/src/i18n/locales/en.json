@@ -92,9 +92,8 @@
   "main": {
     "seers": {
       "none": "Nobody can see you",
-      "count_one": "{{count}} person can see you",
-      "count_other": "{{count}} people can see you",
-      "hint": "Shows who can see you"
+      "hint": "Shows who can see you",
+      "count": "Seen by {{count}}"
     },
     "dock": {
       "circles": "Circles",
@@ -134,11 +133,10 @@
       "version": "Version {{version}}",
       "passkey": "Passkey",
       "passkeyAdd": "Add one: fast, secure sign-in without email codes",
-      "passkeyCount_one": "{{count}} passkey saved · add another",
-      "passkeyCount_other": "{{count}} passkeys saved · add another",
       "passkeyAdded": "Passkey added.",
       "passkeyExists": "This phone already has a Bargu passkey.",
-      "passkeyFailed": "Could not add the passkey. Try again."
+      "passkeyFailed": "Could not add the passkey. Try again.",
+      "passkeyCount": "Saved passkeys: {{count}} · add another"
     }
   },
   "ui": {

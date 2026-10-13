@@ -24,6 +24,17 @@ describe('i18n', () => {
     expect(english).toEqual(turkish);
   });
 
+  // Hermes may lack Intl.PluralRules: texts are phrased so one form fits every count.
+  it('uses no plural forms', () => {
+    for (const language of Object.values(resources)) {
+      expect(
+        keyPaths(language.translation).filter((path) =>
+          /_(zero|one|two|few|many|other)$/.test(path),
+        ),
+      ).toEqual([]);
+    }
+  });
+
   it('has no empty translations', () => {
     for (const language of Object.values(resources)) {
       const values = keyPaths(language.translation).map((path) =>
