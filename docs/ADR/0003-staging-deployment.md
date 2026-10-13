@@ -7,7 +7,7 @@
 
 BARGU_PLAN §3.5: one VPS (Hetzner, EU), Docker Compose, Caddy with automatic TLS, staging deploys
 from GitHub Actions on `main`. The repository is public. The VPS already exists and **also hosts
-another project (rastamen)**, which must not be affected.
+another project**, which must not be affected.
 
 ## Decision
 

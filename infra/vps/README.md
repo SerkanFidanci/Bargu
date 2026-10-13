@@ -1,6 +1,6 @@
 # Staging server runbook
 
-Staging runs on an **existing server that also hosts another project (rastamen)**. Ground rule:
+Staging runs on an **existing server that also hosts another project**. Ground rule:
 Bargu changes are additive and confined to its own paths. Nothing server-wide (sshd, firewall,
 Docker daemon, other containers/networks/volumes) is modified without an explicit decision.
 
@@ -10,7 +10,7 @@ Decision record: [ADR 0003](../../docs/ADR/0003-staging-deployment.md).
 
 ## Prerequisites
 
-- DNS: `A` record `api.<domain>` → `157.180.41.161`.
+- DNS: `A` record `api.<domain>` → `<server-ip>`.
 - Ports 80/443: Caddy in this stack binds them. If another service on the host already owns 80/443,
   Bargu must be routed through that proxy instead — decide before step 2.
 - A CI-only deploy key pair (no passphrase), created locally:
@@ -40,7 +40,7 @@ and never overwrites `.env`.
 ## 3. Pin the host key
 
 ```bash
-ssh-keyscan -t ed25519 157.180.41.161
+ssh-keyscan -t ed25519 <server-ip>
 ```
 
 Compare its fingerprint (`| ssh-keygen -lf -`) with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
@@ -54,7 +54,7 @@ is recommended):
 | Kind     | Name                      | Value                       |
 | -------- | ------------------------- | --------------------------- |
 | Secret   | `STAGING_SSH_KEY`         | private `bargu-deploy` key  |
-| Variable | `STAGING_SSH_HOST`        | `157.180.41.161`            |
+| Variable | `STAGING_SSH_HOST`        | `<server-ip>`               |
 | Variable | `STAGING_SSH_KNOWN_HOSTS` | verified `ssh-keyscan` line |
 | Variable | `STAGING_API_DOMAIN`      | e.g. `api.bargu.app`        |
 
