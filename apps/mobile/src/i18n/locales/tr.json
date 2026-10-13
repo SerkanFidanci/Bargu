@@ -55,6 +55,12 @@
       "expired": "Bu kodun süresi doldu. Yeni bir kod iste.",
       "locked": "Çok fazla yanlış deneme. Yeni bir kod iste.",
       "unavailable": "Bu hesap kullanılamıyor."
+    },
+    "passkey": {
+      "signIn": "Passkey ile giriş yap",
+      "or": "ya da",
+      "noCredential": "Bu telefonda Bargu için kayıtlı passkey yok. E-posta koduyla gir, sonra \"Ben\" bölümünden passkey ekle.",
+      "failed": "Passkey ile giriş olmadı. E-posta koduyla dene."
     }
   },
   "onboarding": {
@@ -125,7 +131,14 @@
       "logout": "Çıkış yap",
       "logoutTitle": "Çıkış yapılsın mı?",
       "logoutBody": "Bu telefondaki şifreleme anahtarların silinir. Tekrar girdiğinde yeni anahtar oluşur ve arkadaşların cihazının değiştiğini görür.",
-      "version": "Sürüm {{version}}"
+      "version": "Sürüm {{version}}",
+      "passkey": "Passkey",
+      "passkeyAdd": "Ekle: e-posta kodu olmadan hızlı ve güvenli giriş",
+      "passkeyCount_one": "{{count}} passkey kayıtlı · bir tane daha ekle",
+      "passkeyCount_other": "{{count}} passkey kayıtlı · bir tane daha ekle",
+      "passkeyAdded": "Passkey eklendi.",
+      "passkeyExists": "Bu telefonda zaten bir Bargu passkey'i var.",
+      "passkeyFailed": "Passkey eklenemedi. Tekrar dene."
     }
   },
   "ui": {

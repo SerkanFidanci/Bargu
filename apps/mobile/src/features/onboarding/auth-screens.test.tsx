@@ -5,9 +5,15 @@ import i18n from '@/i18n';
 
 const mockRequestCode = jest.fn();
 const mockVerifyCode = jest.fn();
+const mockPasskeySignIn = jest.fn();
 jest.mock('@/features/auth/auth-store', () => ({
   requestCode: (...args: unknown[]) => mockRequestCode(...args) as unknown,
   verifyCode: (...args: unknown[]) => mockVerifyCode(...args) as unknown,
+  signInWithPasskey: () => mockPasskeySignIn() as unknown,
+}));
+jest.mock('@/features/auth/passkeys', () => ({
+  ...jest.requireActual<Record<string, unknown>>('@/features/auth/passkeys'),
+  passkeysSupported: () => true,
 }));
 
 const mockPush = jest.fn();
@@ -79,6 +85,35 @@ describe('email step', () => {
     expect(
       await screen.findByText('Bağlantı yok. İnternetini kontrol edip tekrar dene.'),
     ).toBeTruthy();
+  });
+});
+
+describe('passkey sign-in', () => {
+  it('signs in with the passkey when the phone has one', async () => {
+    mockPasskeySignIn.mockResolvedValue({});
+    await render(<EmailScreen />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Passkey ile giriş yap' }));
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('points to the email code when there is no passkey on this phone', async () => {
+    mockPasskeySignIn.mockRejectedValue({ error: 'NoCredentials', message: 'none' });
+    await render(<EmailScreen />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Passkey ile giriş yap' }));
+    expect(await screen.findByText(/kayıtlı passkey yok/)).toBeTruthy();
+  });
+
+  it('says nothing when the user cancels the system prompt', async () => {
+    mockPasskeySignIn.mockRejectedValue({ error: 'UserCancelled', message: 'cancelled' });
+    await render(<EmailScreen />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Passkey ile giriş yap' }));
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalled();
+    });
+    expect(screen.queryByText(/passkey/i, { exact: false })).toBeTruthy();
+    expect(screen.queryByText('Passkey ile giriş olmadı. E-posta koduyla dene.')).toBeNull();
   });
 });
 

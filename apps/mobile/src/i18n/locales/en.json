@@ -55,6 +55,12 @@
       "expired": "This code has expired. Ask for a new one.",
       "locked": "Too many wrong attempts. Ask for a new code.",
       "unavailable": "This account can't be used."
+    },
+    "passkey": {
+      "signIn": "Sign in with a passkey",
+      "or": "or",
+      "noCredential": "There is no Bargu passkey on this phone. Sign in with an email code, then add one under \"Me\".",
+      "failed": "Passkey sign-in did not work. Try an email code."
     }
   },
   "onboarding": {
@@ -125,7 +131,14 @@
       "logout": "Sign out",
       "logoutTitle": "Sign out?",
       "logoutBody": "The encryption keys on this phone are deleted. When you sign in again, new keys are created and your friends see that your device changed.",
-      "version": "Version {{version}}"
+      "version": "Version {{version}}",
+      "passkey": "Passkey",
+      "passkeyAdd": "Add one: fast, secure sign-in without email codes",
+      "passkeyCount_one": "{{count}} passkey saved · add another",
+      "passkeyCount_other": "{{count}} passkeys saved · add another",
+      "passkeyAdded": "Passkey added.",
+      "passkeyExists": "This phone already has a Bargu passkey.",
+      "passkeyFailed": "Could not add the passkey. Try again."
     }
   },
   "ui": {

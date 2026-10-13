@@ -1,6 +1,8 @@
 import type { Me } from '@bargu/schemas';
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import {
+  KeyRound,
   LogOut,
   type LucideIcon,
   Pencil,
@@ -17,6 +19,10 @@ import { Alert, StyleSheet, View } from 'react-native';
 
 import { DEV_TOOLS_ENABLED, env } from '@/config/env';
 import { signOut } from '@/features/auth/auth-store';
+import { addPasskey, passkeyFailure, passkeysSupported } from '@/features/auth/passkeys';
+import { errorMessage } from '@/features/errors';
+import { meKey } from '@/features/profile/queries';
+import { feedback } from '@/theme/haptics';
 import { radius, space, touchTarget, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
@@ -73,6 +79,26 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
   ref,
 ) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const createPasskey = async () => {
+    try {
+      await addPasskey();
+      // The count shown here comes from the cache: update it from the result, no refetch.
+      queryClient.setQueryData<Me>(meKey, (current) =>
+        current === undefined ? current : { ...current, passkeys: current.passkeys + 1 },
+      );
+      feedback('success');
+      toast.success(t('sheets.me.passkeyAdded'));
+    } catch (failure) {
+      if (failure instanceof Error) {
+        toast.error(errorMessage(failure, t));
+        return;
+      }
+      const reason = passkeyFailure(failure);
+      if (reason === 'exists') toast.info(t('sheets.me.passkeyExists'));
+      else if (reason !== 'cancelled') toast.error(t('sheets.me.passkeyFailed'));
+    }
+  };
   const confirmSignOut = () => {
     Alert.alert(t('sheets.me.logoutTitle'), t('sheets.me.logoutBody'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -105,6 +131,18 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
           router.push('/edit-profile');
         }}
       />
+      {passkeysSupported() ? (
+        <Row
+          icon={KeyRound}
+          label={t('sheets.me.passkey')}
+          detail={
+            me.passkeys > 0
+              ? t('sheets.me.passkeyCount', { count: me.passkeys })
+              : t('sheets.me.passkeyAdd')
+          }
+          onPress={() => void createPasskey()}
+        />
+      ) : null}
       <Row
         icon={Smartphone}
         label={t('sheets.me.device')}

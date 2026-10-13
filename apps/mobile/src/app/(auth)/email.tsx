@@ -1,10 +1,12 @@
 import { emailSchema } from '@bargu/schemas';
 import { router } from 'expo-router';
+import { KeyRound } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { requestCode } from '@/features/auth/auth-store';
-import { errorMessage } from '@/features/errors';
+import { requestCode, signInWithPasskey } from '@/features/auth/auth-store';
+import { passkeyFailure, passkeysSupported } from '@/features/auth/passkeys';
+import { errorMessage, isApiError } from '@/features/errors';
 import { FormScreen } from '@/features/onboarding/form-screen';
 import { Button } from '@/ui/button';
 import { TextField } from '@/ui/text-field';
@@ -14,6 +16,30 @@ export default function EmailScreen() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const canUsePasskey = passkeysSupported();
+
+  const passkey = async () => {
+    setError(null);
+    setPasskeyBusy(true);
+    try {
+      await signInWithPasskey();
+      // The root layout moves on once the profile loads.
+    } catch (failure) {
+      if (isApiError(failure)) {
+        setError(t('auth.passkey.failed'));
+      } else if (failure instanceof Error) {
+        setError(errorMessage(failure, t));
+      } else {
+        // The authenticator rejects with { error, message } objects, not Error instances.
+        const reason = passkeyFailure(failure);
+        if (reason === 'noCredential') setError(t('auth.passkey.noCredential'));
+        else if (reason !== 'cancelled') setError(t('auth.passkey.failed'));
+      }
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
 
   const submit = async () => {
     const parsed = emailSchema.safeParse(email.trim());
@@ -45,13 +71,26 @@ export default function EmailScreen() {
       title={t('auth.email.title')}
       body={t('auth.email.body')}
       footer={
-        <Button
-          label={t('auth.email.submit')}
-          onPress={() => void submit()}
-          loading={sending}
-          disabled={email.trim().length === 0}
-          testID="email-submit"
-        />
+        <>
+          <Button
+            label={t('auth.email.submit')}
+            onPress={() => void submit()}
+            loading={sending}
+            disabled={email.trim().length === 0 || passkeyBusy}
+            testID="email-submit"
+          />
+          {canUsePasskey ? (
+            <Button
+              label={t('auth.passkey.signIn')}
+              icon={KeyRound}
+              variant="secondary"
+              onPress={() => void passkey()}
+              loading={passkeyBusy}
+              disabled={sending}
+              testID="passkey-sign-in"
+            />
+          ) : null}
+        </>
       }
     >
       <TextField
