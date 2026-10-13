@@ -13,17 +13,16 @@ pnpm dev:mobile   # Metro only, with Expo's keyboard shortcuts
 Open the dev client on the phone and connect to Metro (same Wi-Fi, or `pnpm dev:mobile -- --tunnel`).
 In development the app reaches the API on the machine running Metro, port 3000.
 
-## One-time EAS setup
+## EAS
 
-Run inside `apps/mobile`:
+The EAS project is linked (`owner` and `extra.eas.projectId` in `app.config.ts`; identifiers, not
+secrets). Each developer logs in once:
 
 ```bash
 pnpm dlx eas-cli@24.12.1 login
-pnpm dlx eas-cli@24.12.1 init
 ```
 
-`eas init` prints a project id. Add it to `app.config.ts` as `extra: { eas: { projectId: '<id>' } }`
-(it is not a secret).
+Android signing credentials are generated and stored by EAS (remote credentials).
 
 ### Android dev client
 
