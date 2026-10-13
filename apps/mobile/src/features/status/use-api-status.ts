@@ -7,7 +7,7 @@ export type ApiStatus = 'checking' | 'online' | 'offline';
 const TIMEOUT_MS = 3_000;
 
 /**
- * Development aid: checks once, on mount, that this device can reach the API.
+ * Faz 0 connectivity indicator: checks once, on mount, that this device can reach the API.
  * Not polling (CLAUDE.md); live state will arrive over the WebSocket from Faz 5 on.
  */
 export function useApiStatus(): ApiStatus {

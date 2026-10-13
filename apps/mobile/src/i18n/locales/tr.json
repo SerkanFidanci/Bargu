@@ -2,11 +2,11 @@
   "home": {
     "tagline": "Konumun kilitli. Sadece arkadaşların açabilir."
   },
-  "dev": {
+  "status": {
     "api": {
-      "checking": "API kontrol ediliyor…",
-      "online": "API bağlantısı hazır",
-      "offline": "API'ye ulaşılamıyor"
+      "checking": "Sunucu bağlantısı kontrol ediliyor…",
+      "online": "Sunucu bağlantısı hazır",
+      "offline": "Sunucuya ulaşılamıyor"
     }
   }
 }

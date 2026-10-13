@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useApiStatus } from '@/features/dev/use-api-status';
+import { useApiStatus } from '@/features/status/use-api-status';
 
 // Placeholder home screen for Faz 0. The map-first UI and design tokens arrive in Faz 3.
 export default function HomeScreen() {
@@ -17,20 +17,20 @@ export default function HomeScreen() {
           Bargu
         </Text>
         <Text style={[styles.tagline, { color: colors.text }]}>{t('home.tagline')}</Text>
-        {__DEV__ ? <DevApiStatus /> : null}
+        <ApiStatus />
       </View>
     </SafeAreaView>
   );
 }
 
-function DevApiStatus() {
+function ApiStatus() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const status = useApiStatus();
 
   return (
-    <Text accessibilityLiveRegion="polite" style={[styles.devStatus, { color: colors.text }]}>
-      {t(`dev.api.${status}`)}
+    <Text accessibilityLiveRegion="polite" style={[styles.apiStatus, { color: colors.text }]}>
+      {t(`status.api.${status}`)}
     </Text>
   );
 }
@@ -40,5 +40,5 @@ const styles = StyleSheet.create({
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   title: { fontSize: 34, fontWeight: '700' },
   tagline: { fontSize: 17, textAlign: 'center' },
-  devStatus: { fontSize: 13, opacity: 0.6 },
+  apiStatus: { fontSize: 13, opacity: 0.6 },
 });

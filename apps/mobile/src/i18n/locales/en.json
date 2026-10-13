@@ -2,11 +2,11 @@
   "home": {
     "tagline": "Your location is locked. Only your friends hold the key."
   },
-  "dev": {
+  "status": {
     "api": {
-      "checking": "Checking API…",
-      "online": "API connection ready",
-      "offline": "API unreachable"
+      "checking": "Checking server connection…",
+      "online": "Server connection ready",
+      "offline": "Server unreachable"
     }
   }
 }
