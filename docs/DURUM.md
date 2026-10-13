@@ -11,6 +11,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                    |
 | Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                     |
 | Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (açık madde: telefonda fps ve büyük yazı ölçümü, passkey denemesi) |
+| Faz 4 — Çemberler & Anahtarlar   | 🟡 Kod ve testler tamam, staging'de doğrulandı; telefonda deneme bekliyor        |
 
 ## Ortamlar
 
@@ -23,6 +24,86 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Android sürümleri  | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır)  |
 | Uygulama kimliği   | `app.bargu` (mağazaya çıkınca değiştirilemez)                                            |
 | Harita dosyaları   | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)    |
+
+## Faz 4 — Çemberler & Anahtar Dağıtımı (2026-10-14)
+
+Kararlar: [ADR 0009](ADR/0009-circles-keys-and-events.md)
+
+### DoD
+
+| Ölçüt                                       | Durum                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------- |
+| Çıkarılan üye yeni epoch'u çözemez          | ✅ Gerçek kriptoyla API testi; staging'de de denendi                |
+| Davet linki tekrar kullanılamaz             | ✅ Aynı anda iki kişi denese bile tek kişi girer (test + staging)   |
+| Yetkisiz kullanıcı çember verisine erişemez | ✅ HTTP'den ve doğrudan veritabanından denendi (RLS), staging'de de |
+| Kabul etmeden hiçbir şey paylaşılmaz        | ✅ Davetliye anahtar gitmez; davetli diğer üyeleri bile görmez      |
+
+### Yapılanlar
+
+- **Arkadaş ve çember**: kullanıcı adıyla istek (önce kişinin kartı görünür), QR kodumu göster
+  (okutan anında arkadaş olur; ekran görüntüsü engelli, 24 saat ve tek kullanımlık), QR tara, davet
+  linki paylaş. Aile/arkadaş grubu kur, kişi davet et, adını değiştir, üye çıkar, ayrıl.
+  Arkadaşlıktan çıkınca iki taraf için de biter; yeniden arkadaş olmak yeni onay ister.
+- **Uçtan uca anahtarlar**: her çemberde her epoch için telefon kendi anahtarını üretir, yalnızca
+  güvendiği aktif üyelere şifreli gönderir; sunucu içeriği göremez. Üyelik veya cihaz değişince ve
+  24 saatte bir yeni epoch. Anahtarlar telefonda şifreli kasada (MMKV, AES-256), çıkışta silinir.
+- **Güvenlik numarası**: 60 hane + QR; yan yana gelip karşıdakinin kodunu okutunca "Doğrulandı".
+  Hesap ekranı dondurmadan, kare kare yapılıyor (Faz 1'deki 373 ms donma riski kapandı).
+- **Anahtar değişince uyarı**: bir arkadaşın anahtarı değişirse (yeni telefon ya da araya giren
+  biri) ona konum gitmez ve ondan anahtar alınmaz; kullanıcı QR ile doğrular ya da onaylar.
+- **Canlı güncelleme**: yenileme butonu yok. Telefon tek bir şifreli WebSocket bağlantısı tutar;
+  istek gelmesi, kabul, çıkarma, yeni anahtar anında ekrana düşer. Bağlantı koparsa kaçırdıklarını
+  sırayla alır; uygulama arka plana gidince kapanır, öne gelince devam eder.
+- **Görünüm**: çemberler paneli (istekler, arkadaşlar, gruplar, şifreleme rozetleri), çember ekranı,
+  davet ekranı, QR kartı (hale animasyonu), tarayıcı (tarama çizgisi), güvenlik numarası (haneler
+  sırayla zıplar), kabul ve doğrulamada konfeti + titreşim ([MOTION.md](MOTION.md)).
+
+### Bağımsız güvenlik incelemesi (yayından önce)
+
+Sunucu kodu yayına çıkmadan ayrı bir inceleyiciyle saldırgan gözüyle tarandı; bulguların hepsi
+yayından önce kapatıldı ve her biri testle korunuyor:
+
+| Bulgu                                                                             | Önem   | Durum                                                        |
+| --------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------ |
+| Arkadaşlıktan çıkan, karşı taraf onaylamadan arkadaşlığı geri açabiliyordu        | Yüksek | ✅ Bitiş iki taraf için; yeniden istek yeni onay ister       |
+| Veritabanında elle sahte arkadaşlık / epoch geri alma / üyelik sorgulama mümkündü | Orta   | ✅ Kurallar veritabanında kapatıldı                          |
+| Canlı bağlantı, oturum iptal edilse de açık kalabiliyordu                         | Orta   | ✅ Anahtar süresi kadar yaşar; iptalde hemen kapanır         |
+| Eski sahip geri dönünce sahiplik geri geliyordu                                   | Düşük  | ✅ Üye olarak döner                                          |
+| Sahipsiz grup kalabiliyordu                                                       | Düşük  | ✅ En eski üye sahip olur, kimse yoksa davetler geri çekilir |
+| Arkadaşlık bittikten önce yapılmış QR hâlâ çalışıyordu                            | Düşük  | ✅ Geçersiz                                                  |
+| 50 kişi sınırı aynı anda katılımlarda aşılabiliyordu                              | Düşük  | ✅ Çember başına kilit                                       |
+| Her girişte gereksiz anahtar yenileme; çıkışta yenileme yoktu                     | Düşük  | ✅ Yalnızca yeni cihaz, çıkış ve iptalde                     |
+| Cihaz başına bağlantı ve `resume` sınırı yoktu                                    | Düşük  | ✅ Telefon başına tek bağlantı, sınırlı `resume`             |
+| Davetli kabul etmeden tüm üyeleri görüyordu                                       | Bilgi  | ✅ Yalnızca daveti göndereni görür                           |
+
+### Test sonuçları
+
+| Paket              | Test | Not                                                                                   |
+| ------------------ | ---- | ------------------------------------------------------------------------------------- |
+| `packages/crypto`  | 130  | + tarama karşılaştırması                                                              |
+| `packages/schemas` | 72   | çember, davet, anahtar, olay şemaları                                                 |
+| API entegrasyon    | 109  | +37: çemberler, arkadaşlık, davet linkleri, anahtarlar (gerçek kripto), canlı olaylar |
+| API birim + HTTP   | 65   |                                                                                       |
+| Mobil              | 158  | +33: anahtar kasası kuralları, olay akışı, çember senkronu, davet linki, QR, panel    |
+
+Staging'de uçtan uca (nginx dahil, gerçek WebSocket): üç hesap, imzalı canlı bağlantı, başka
+cihazın imzasının reddi, istek → kabul → olayın anında gelmesi, anahtarın uçtan uca açılması,
+davetlinin yalnızca daveti göndereni görmesi, çıkarılanın hiçbir şey görmemesi ve anahtar
+alamaması, tek kullanımlık link, arkadaşlıktan çıkınca yeniden onay — 25/25 doğru.
+
+### Açık riskler
+
+1. Davet linki `bargu://i/…`: bazı mesajlaşma uygulamaları bunu tıklanabilir göstermez. Gerçek
+   alan adı gelince https link (App Links / Universal Links) olacak.
+2. Uygulamadan çıkış yapılmışken açılan davet linki, giriş sonrası kendiliğinden açılmaz (linke
+   yeniden dokunmak gerekir).
+3. Arkadaşın uygulaması hiç açılmazsa şifreleme "hazırlanıyor" kalır; uygulamayı açınca kendiliğinden
+   tamamlanır. Kapalı uygulamayı uyandıran bildirim Faz 7'de.
+4. Canlı bağlantı yalnızca uygulama açıkken; arka planda konum Faz 5/7.
+5. Tek sunucu: olay yayını tek süreçte (Faz 10'da Redis adaptörü).
+6. Kullanıcı kimlikleri (UUIDv7) hesabın açılış zamanını kabaca ele verir; yalnızca aynı
+   çemberdekiler görür (THREAT_MODEL).
+7. iOS derlenemiyor (Apple hesabı); iPhone denemesi bekliyor.
 
 ## Faz 3 — Tasarım Sistemi & Harita İskeleti (2026-10-13)
 
@@ -280,9 +361,8 @@ geçti.
 1. iOS'taki yerel eğri işlemleri (CryptoKit) Apple hesabı gelene kadar derlenemiyor ve ölçülmedi;
    Android'de ölçüldü (aşağıda). Öz test başarısız olursa uygulama saf JS'e döner (daha yavaş ama
    güvenli).
-2. **Güvenlik numarası 373 ms** sürüyor (Signal yöntemi: kişi başına 5200 tur SHA-256, saf JS). Yalnızca
-   doğrulama ekranı açılırken bir kez hesaplanıyor, ama JS iş parçacığını kilitler. Faz 4'te (ekran
-   gelirken) yerel modüle veya arka plana taşınacak.
+2. ~~**Güvenlik numarası 373 ms** sürüyor ve JS iş parçacığını kilitler.~~ Faz 4'te kapandı: hesap
+   kısa dilimlerle, her dilim arasında bir kare beklenerek yapılıyor; ekran donmuyor.
 3. Epoch içinde ileri gizlilik ve inkâr edilebilirlik yok (bilinçli tercih, THREAT_MODEL.md).
 4. Protokol henüz uygulama akışlarına bağlı değil: anahtar saklama (Faz 2), çember ve dağıtım (Faz 4),
    konum gönderimi (Faz 5), bildirim eklentisi (Faz 7).
