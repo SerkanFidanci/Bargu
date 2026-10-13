@@ -5,12 +5,12 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                        |
-| -------------------------------- | -------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client) |
-| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                |
-| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                 |
-| Faz 3 — Tasarım Sistemi & Harita | 🔄 Telefonda deneme bekliyor                 |
+| Faz                              | Durum                                                                            |
+| -------------------------------- | -------------------------------------------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                     |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                    |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                     |
+| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (açık madde: telefonda fps ve büyük yazı ölçümü, passkey denemesi) |
 
 ## Ortamlar
 
@@ -78,6 +78,9 @@ Kararlar: [ADR 0008](ADR/0008-design-system-and-map.md) · Kurallar: [MOTION.md]
 | API entegrasyon    | 72   | +15 profil: yarış, yasak ad, imzasız istek, başkasının profili, hız sınırı; passkey seçenekleri             |
 | API birim + HTTP   | 65   |                                                                                                             |
 | Mobil              | 125  | kontrast, bileşenler, giriş akışı, oturum, passkey, kullanıcı adı, harita stili ve görünümü, hata titreşimi |
+
+Son Android build: `ba9f1f6d` (animasyonlar, simge, harita görünümü, passkey teşhisi). Faz, proje
+sahibinin isteğiyle otomatik testlerden sonra kapatıldı; DoD'deki üç telefon ölçümü açık madde.
 
 Staging'de uçtan uca deneme (CI → otomatik deploy, migration 0002 dahil): giriş, kullanıcı adı
 kontrolü, profil kaydı, imzasız değişikliğin reddi, `assetlinks.json` ve harita dosyaları (aralık
