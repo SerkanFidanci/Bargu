@@ -38,7 +38,7 @@ export async function migrate(options: MigrateOptions): Promise<string[]> {
   await client.connect();
   try {
     await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_ID]);
-    await bootstrapRoles(client, options.appPassword);
+    await bootstrapRoles(client, options.adminUrl, options.appPassword);
     const applied = await applyMigrations(client, options.migrationsDir, log);
     await installJobs(client);
     log(applied.length > 0 ? `applied: ${applied.join(', ')}` : 'schema up to date');
@@ -49,7 +49,27 @@ export async function migrate(options: MigrateOptions): Promise<string[]> {
   }
 }
 
-async function bootstrapRoles(client: Client, appPassword: string): Promise<void> {
+/** True when the runtime role can already log in with this password. */
+async function appRoleAccepts(adminUrl: string, password: string): Promise<boolean> {
+  const url = new URL(adminUrl);
+  url.username = APP_ROLE;
+  url.password = password;
+  const probe = new Client({ connectionString: url.toString(), connectionTimeoutMillis: 5_000 });
+  try {
+    await probe.connect();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    await probe.end().catch(() => undefined);
+  }
+}
+
+async function bootstrapRoles(
+  client: Client,
+  adminUrl: string,
+  appPassword: string,
+): Promise<void> {
   if (appPassword.length < 16) throw new Error('DB_APP_PASSWORD must be at least 16 characters');
   const owner = client.escapeIdentifier(OWNER_ROLE);
   const app = client.escapeIdentifier(APP_ROLE);
@@ -66,7 +86,7 @@ async function bootstrapRoles(client: Client, appPassword: string): Promise<void
   await client.query(`ALTER ROLE ${owner} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE BYPASSRLS`);
   await client.query(
     `ALTER ROLE ${app} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT ` +
-      `CONNECTION LIMIT 40 PASSWORD ${client.escapeLiteral(appPassword)}`,
+      'CONNECTION LIMIT 40',
   );
   const { rows } = await client.query<{ db: string }>('SELECT current_database() AS db');
   const database = client.escapeIdentifier(rows[0]?.db ?? '');
@@ -84,6 +104,11 @@ async function bootstrapRoles(client: Client, appPassword: string): Promise<void
      )`,
   );
   await client.query(`ALTER TABLE app.schema_migrations OWNER TO ${owner}`);
+  // The password is sent only when it has to change (first run, rotation), so it does not land in
+  // the server log on every deploy if statement logging is ever turned on.
+  if (!(await appRoleAccepts(adminUrl, appPassword))) {
+    await client.query(`ALTER ROLE ${app} PASSWORD ${client.escapeLiteral(appPassword)}`);
+  }
 }
 
 async function applyMigrations(

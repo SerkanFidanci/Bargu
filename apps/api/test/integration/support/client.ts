@@ -5,6 +5,7 @@ import {
   generateRequestNonce,
   randomUuid,
   signRequest,
+  toBase64url,
   type DeviceKeys,
 } from '@bargu/crypto';
 import { SIGNED_REQUEST_HEADERS, type OtpChallenge, type Session } from '@bargu/schemas';
@@ -71,19 +72,34 @@ export async function call(app: NestFastifyApplication, options: CallOptions): P
   });
 }
 
+/** Asks for a login code for `device` (the challenge is bound to its identity key). */
 export async function requestCode(
   test: TestApp,
   email: string,
+  device: DeviceKeys = newDevice(),
   ip = nextIp(),
 ): Promise<OtpChallenge> {
-  const response = await call(test.app, {
-    url: '/v1/auth/otp/request',
-    body: { email, locale: 'tr' },
-    ip,
-  });
+  const response = await requestCodeRaw(test, email, device, ip);
   if (response.statusCode !== 202) throw new Error(`otp request: ${response.body}`);
   return response.json<OtpChallenge>();
 }
+
+export function requestCodeRaw(
+  test: TestApp,
+  email: string,
+  device: DeviceKeys,
+  ip = nextIp(),
+): Promise<Response> {
+  return call(test.app, {
+    url: '/v1/auth/otp/request',
+    body: { email, locale: 'tr', identityKey: toBase64url(device.identity.publicKey) },
+    ip,
+  });
+}
+
+/** A valid-looking code that is not the right one. */
+export const wrongCode = (code: string) =>
+  String((Number(code) + 1) % 100_000_000).padStart(code.length, '0');
 
 /** The code the worker would email: tests hold the OTP key, so they derive it like the worker. */
 export function codeFor(test: TestApp, challengeId: string): string {
@@ -95,7 +111,7 @@ export async function login(
   email: string,
   device: DeviceKeys = newDevice(),
 ): Promise<{ session: Session; device: DeviceKeys }> {
-  const { challengeId } = await requestCode(test, email);
+  const { challengeId } = await requestCode(test, email, device);
   const response = await call(test.app, {
     url: '/v1/auth/otp/verify',
     body: { challengeId, code: codeFor(test, challengeId), device: registration(device) },

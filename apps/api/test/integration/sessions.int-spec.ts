@@ -139,6 +139,17 @@ describe('one active device per account', () => {
   });
 });
 
+describe('accounts awaiting deletion', () => {
+  it('cannot be logged into or re-created with the same address', async () => {
+    const email = uniqueEmail();
+    const { session } = await login(test, email);
+    await test.admin.query('UPDATE app.users SET deleted_at = now() WHERE id = $1', [
+      session.userId,
+    ]);
+    await expect(login(test, email)).rejects.toThrow(/ACCOUNT_UNAVAILABLE/);
+  });
+});
+
 describe('logout', () => {
   it('ends the session and retires the device', async () => {
     const { session, device } = await login(test, uniqueEmail());

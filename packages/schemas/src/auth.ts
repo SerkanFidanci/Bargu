@@ -17,7 +17,21 @@ export const localeSchema = z.enum(LOCALES);
 /** RFC 5321 limits the address to 254 octets; anything longer cannot be delivered. */
 export const emailSchema = z.email().max(254);
 
-export const otpRequestSchema = z.object({ email: emailSchema, locale: localeSchema }).strict();
+/**
+ * Asking for a login code. The challenge is bound to the identity key of the device that will log
+ * in: only that key can redeem it, and wrong-code limits are counted per key, so a stranger cannot
+ * burn a user's attempts (docs/ADR/0005).
+ */
+export const otpRequestSchema = z
+  .object({
+    email: emailSchema,
+    locale: localeSchema,
+    identityKey: z
+      .string()
+      .length(43)
+      .regex(/^[A-Za-z0-9_-]*$/),
+  })
+  .strict();
 export type OtpRequest = z.infer<typeof otpRequestSchema>;
 
 export const otpChallengeSchema = z
@@ -66,7 +80,7 @@ export type DeviceRegistration = z.infer<typeof deviceRegistrationSchema>;
 export const otpVerifySchema = z
   .object({
     challengeId: z.uuid(),
-    code: z.string().regex(/^\d{6}$/),
+    code: z.string().regex(/^\d{8}$/),
     device: deviceRegistrationSchema,
   })
   .strict();

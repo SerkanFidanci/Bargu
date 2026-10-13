@@ -240,13 +240,14 @@ bu bilinçli bir kapıdır.
 Mesaj formatının parçası değildir; aynı kütüphaneler ve etiket kuralıyla `packages/crypto/src/auth.ts`
 ve `at-rest.ts`'te tanımlıdır. Kararlar: [ADR 0005](ADR/0005-auth-and-devices.md).
 
-| Etiket             | Kullanım                                      |
-| ------------------ | --------------------------------------------- |
-| `bargu/v1/req-sig` | Cihaz imzalı API isteği                       |
-| `bargu/v1/otp`     | Giriş kodunun türetilmesi                     |
-| `bargu/v1/email`   | E-posta adresinin anahtarlı özeti             |
-| `bargu/v1/token`   | Refresh token özeti                           |
-| `bargu/v1/at-rest` | Sunucuda saklanan hassas verinin şifrelenmesi |
+| Etiket               | Kullanım                                       |
+| -------------------- | ---------------------------------------------- |
+| `bargu/v1/req-sig`   | Cihaz imzalı API isteği                        |
+| `bargu/v1/otp`       | Giriş kodunun türetilmesi                      |
+| `bargu/v1/email`     | E-posta adresinin anahtarlı özeti              |
+| `bargu/v1/token`     | Refresh token özeti                            |
+| `bargu/v1/at-rest`   | Sunucuda saklanan hassas verinin şifrelenmesi  |
+| `bargu/v1/pseudonym` | Hız sınırı anahtarları için anahtarlı takma ad |
 
 **İstek imzası** (başlıklar `x-bargu-sig`, `x-bargu-ts`, `x-bargu-nonce`):
 
@@ -260,8 +261,12 @@ Sunucu: saat farkı ≤ 60 sn, her `(cihaz, nonce)` bir kez (Redis, 130 sn), imz
 anahtarıyla. Girişte henüz kayıtlı anahtar yoktur: istek, gönderilen anahtar paketindeki kimlik
 anahtarıyla imzalanır (anahtara sahip olma kanıtı).
 
-**Giriş kodu**: `kod = (ilk 48 bit HMAC-SHA256(OTP_KEY, "bargu/v1/otp\0" ‖ challengeId(16))) mod 10⁶`,
-6 haneye sıfırla doldurulur. Kod veya özeti hiçbir yerde saklanmaz.
+**Giriş kodu**: `kod = (ilk 48 bit HMAC-SHA256(OTP_KEY, "bargu/v1/otp\0" ‖ challengeId(16))) mod 10⁸`,
+8 haneye sıfırla doldurulur. Kod veya özeti hiçbir yerde saklanmaz. Meydan okuma, kodu isteyen cihazın
+kimlik anahtarına bağlıdır; yalnızca o anahtarla imzalı giriş kodu kullanabilir.
+
+**Takma ad** (ör. hız sınırı anahtarındaki istemci ağı): ilk 16 baytı hex olarak
+`HMAC-SHA256(EMAIL_LOOKUP_KEY, "bargu/v1/pseudonym\0" ‖ amaç\0 ‖ değer)`.
 
 **E-posta özeti**: `HMAC-SHA256(EMAIL_LOOKUP_KEY, "bargu/v1/email\0" ‖ UTF-8(normalize(adres)))`;
 normalize = boşluk kırp, Unicode NFC, küçük harf.

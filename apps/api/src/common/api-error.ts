@@ -15,6 +15,8 @@ export type ApiErrorCode =
   | 'TOKEN_EXPIRED'
   | 'SIGNATURE_REQUIRED'
   | 'SIGNATURE_INVALID'
+  /** The request time is outside the accepted window; see the Date response header. */
+  | 'CLOCK_SKEW'
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'RATE_LIMITED'

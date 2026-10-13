@@ -12,6 +12,7 @@ import {
   type VerifiedDevice,
 } from '../devices/device-registry.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
+import { ClientLimits } from './client-limits.js';
 import { OtpService } from './otp.service.js';
 import { PasskeysService } from './passkeys.service.js';
 import type { AuthedRequest } from './request-context.js';
@@ -34,17 +35,20 @@ export class LoginService {
     private readonly otp: OtpService,
     private readonly passkeys: PasskeysService,
     private readonly sessions: SessionsService,
+    private readonly clients: ClientLimits,
   ) {}
 
   async withOtp(body: OtpVerify, request: AuthedRequest): Promise<Session> {
+    await this.otp.limitVerification(request.ip);
     const { device, attested } = await this.checkDevice(body.device, request);
-    const emailHmac = await this.otp.verify(body.challengeId, body.code, request.ip);
+    const emailHmac = await this.otp.verify(body.challengeId, body.code, device.identityKey);
     const session = await this.loginByEmail(emailHmac, device, attested);
     await this.attestation.consume(body.device);
     return session;
   }
 
   async withPasskey(body: PasskeyLoginVerify, request: AuthedRequest): Promise<Session> {
+    await this.clients.enforce('passkeyVerify', request.ip);
     const { device, attested } = await this.checkDevice(body.device, request);
     const { userId, challenge } = await this.passkeys.takeLoginChallenge(body);
     const started = await this.database.asUser(userId, async (tx) => {
@@ -83,7 +87,12 @@ export class LoginService {
         });
         return await this.sessions.complete(started);
       } catch (error) {
-        if (existing === null && attempt === 0 && isUniqueViolation(error)) continue;
+        if (existing === null && isUniqueViolation(error)) {
+          // First time: a concurrent first login won the race, look it up again. Second time: the
+          // address belongs to an account awaiting deletion (invisible to the lookup).
+          if (attempt === 0) continue;
+          throw new ApiError(HttpStatus.CONFLICT, 'ACCOUNT_UNAVAILABLE');
+        }
         throw error;
       }
     }

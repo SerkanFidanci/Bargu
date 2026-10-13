@@ -41,6 +41,7 @@ export const LABELS = {
   emailLookup: 'bargu/v1/email',
   tokenHash: 'bargu/v1/token',
   atRest: 'bargu/v1/at-rest',
+  pseudonym: 'bargu/v1/pseudonym',
 } as const;
 
 export type Label = (typeof LABELS)[keyof typeof LABELS];

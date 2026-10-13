@@ -27,6 +27,8 @@ const verdictSchema = z.object({
   }),
 });
 
+export type PlayIntegrityResult = 'valid' | 'invalid' | 'unavailable';
+
 export interface PlayIntegrityConfig {
   packageName: string;
   /** Upper-case `AA:BB:…` SHA-256 fingerprints of the app signing certificates. */
@@ -59,10 +61,14 @@ export class PlayIntegrityVerifier {
     this.now = config.now ?? Date.now;
   }
 
-  async verify(token: string, expectedRequestHash: string): Promise<boolean> {
-    let verdict: z.infer<typeof verdictSchema>;
+  /**
+   * `unavailable` when Google cannot be asked (network, outage, our OAuth token): the caller answers
+   * 503 instead of calling a genuine device invalid.
+   */
+  async verify(token: string, expectedRequestHash: string): Promise<PlayIntegrityResult> {
+    let response: Response;
     try {
-      const response = await this.fetch(
+      response = await this.fetch(
         `https://playintegrity.googleapis.com/v1/${encodeURIComponent(this.config.packageName)}:decodeIntegrityToken`,
         {
           method: 'POST',
@@ -74,16 +80,22 @@ export class PlayIntegrityVerifier {
           signal: AbortSignal.timeout(5_000),
         },
       );
-      if (!response.ok) return false;
+    } catch {
+      return 'unavailable';
+    }
+    if (response.status >= 500 || response.status === 429) return 'unavailable';
+    if (!response.ok) return 'invalid';
+    let verdict: z.infer<typeof verdictSchema>;
+    try {
       verdict = verdictSchema.parse(await response.json());
     } catch {
-      return false;
+      return 'invalid';
     }
 
     const { requestDetails, appIntegrity, deviceIntegrity } = verdict.tokenPayloadExternal;
     const allowed = new Set(this.config.certificateFingerprints.map(fingerprintToBase64url));
     const age = this.now() - requestDetails.timestampMillis;
-    return (
+    const valid =
       requestDetails.requestPackageName === this.config.packageName &&
       requestDetails.requestHash === expectedRequestHash &&
       age >= -60_000 &&
@@ -93,8 +105,8 @@ export class PlayIntegrityVerifier {
       (appIntegrity.certificateSha256Digest ?? []).some((digest) =>
         allowed.has(digest.replace(/=+$/, '').replaceAll('+', '-').replaceAll('/', '_')),
       ) &&
-      (deviceIntegrity.deviceRecognitionVerdict ?? []).includes('MEETS_DEVICE_INTEGRITY')
-    );
+      (deviceIntegrity.deviceRecognitionVerdict ?? []).includes('MEETS_DEVICE_INTEGRITY');
+    return valid ? 'valid' : 'invalid';
   }
 
   /** OAuth 2.0 JWT bearer grant (RFC 7523) for the service account, cached until near expiry. */

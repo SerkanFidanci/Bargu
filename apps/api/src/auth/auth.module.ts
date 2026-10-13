@@ -13,6 +13,7 @@ import { MeController } from '../users/me.controller.js';
 import { WellKnownController } from '../well-known/well-known.controller.js';
 import { AccessTokens } from './access-tokens.js';
 import { AuthController } from './auth.controller.js';
+import { ClientLimits } from './client-limits.js';
 import { AuthGuard, SignatureGuard } from './guards.js';
 import { LoginService } from './login.service.js';
 import { OtpService } from './otp.service.js';
@@ -24,6 +25,7 @@ import { SessionsService } from './sessions.service.js';
   controllers: [AuthController, MeController, WellKnownController],
   providers: [
     AccessTokens,
+    ClientLimits,
     RequestSignatures,
     OtpService,
     SessionsService,

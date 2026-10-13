@@ -14,6 +14,7 @@ import {
 import { eq } from 'drizzle-orm';
 
 import { ApiError } from '../common/api-error.js';
+import { isUniqueViolation } from '../devices/device-registry.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { passkeys, securityEvents, users } from '../db/schema.js';
@@ -92,19 +93,25 @@ export class PasskeysService {
     }
     if (!verified.verified) throw new ApiError(HttpStatus.BAD_REQUEST, 'PASSKEY_INVALID');
     const { credential, credentialBackedUp } = verified.registrationInfo;
-    await this.database.asUser(auth.userId, async (tx) => {
-      await tx.insert(passkeys).values({
-        credentialId: new Uint8Array(Buffer.from(credential.id, 'base64url')),
-        userId: auth.userId,
-        publicKey: credential.publicKey,
-        counter: credential.counter,
-        transports: credential.transports ?? [],
-        backedUp: credentialBackedUp,
+    try {
+      await this.database.asUser(auth.userId, async (tx) => {
+        await tx.insert(passkeys).values({
+          credentialId: new Uint8Array(Buffer.from(credential.id, 'base64url')),
+          userId: auth.userId,
+          publicKey: credential.publicKey,
+          counter: credential.counter,
+          transports: credential.transports ?? [],
+          backedUp: credentialBackedUp,
+        });
+        await tx
+          .insert(securityEvents)
+          .values({ userId: auth.userId, type: 'passkey_added', deviceId: auth.deviceId });
       });
-      await tx
-        .insert(securityEvents)
-        .values({ userId: auth.userId, type: 'passkey_added', deviceId: auth.deviceId });
-    });
+    } catch (error) {
+      // The authenticator already registered this credential (here or for another account).
+      if (isUniqueViolation(error)) throw new ApiError(HttpStatus.CONFLICT, 'PASSKEY_INVALID');
+      throw error;
+    }
   }
 
   async loginOptions(): Promise<{

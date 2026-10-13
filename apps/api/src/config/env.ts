@@ -102,6 +102,14 @@ export const envSchema = z
     PLAY_INTEGRITY_SERVICE_ACCOUNT: z.string().optional(),
   })
   .superRefine((env, ctx) => {
+    // A production build without an explicit APP_ENV would silently get development shortcuts.
+    if (
+      env.NODE_ENV === 'production' &&
+      env.APP_ENV !== 'staging' &&
+      env.APP_ENV !== 'production'
+    ) {
+      ctx.addIssue({ code: 'custom', path: ['APP_ENV'], message: 'must be staging or production' });
+    }
     if (env.APP_ENV !== 'production') return;
     const need = (ok: boolean, path: string, message: string) => {
       if (!ok) ctx.addIssue({ code: 'custom', path: [path], message });

@@ -11,6 +11,7 @@ import {
   newDevice,
   registration,
   requestCode,
+  wrongCode,
   uniqueEmail,
 } from './support/client.js';
 
@@ -25,7 +26,12 @@ beforeAll(async () => {
     verifiers: {
       appAttest: { appId: APP_ID, environment: 'production', rootPem: ca.rootPem },
       // Stands in for Google's decode API: accepts only the expected request hash.
-      playIntegrity: { verify: (token, hash) => Promise.resolve(token === `good:${hash}`) },
+      playIntegrity: {
+        verify: (token, hash) =>
+          Promise.resolve(
+            token === 'outage' ? 'unavailable' : token === `good:${hash}` ? 'valid' : 'invalid',
+          ),
+      },
     },
   });
 });
@@ -50,7 +56,7 @@ async function appAttest(device: DeviceKeys) {
 }
 
 async function verify(device: DeviceKeys, device_: object, code?: string, challengeId?: string) {
-  const otp = challengeId ?? (await requestCode(test, uniqueEmail())).challengeId;
+  const otp = challengeId ?? (await requestCode(test, uniqueEmail(), device)).challengeId;
   return call(test.app, {
     url: '/v1/auth/otp/verify',
     body: { challengeId: otp, code: code ?? codeFor(test, otp), device: device_ },
@@ -102,9 +108,9 @@ describe('device attestation (DEVICE_ATTESTATION=required)', () => {
     const device = newDevice();
     const attestation = await appAttest(device);
     const reg = { ...registration(device, 'ios'), attestation };
-    const { challengeId } = await requestCode(test, uniqueEmail());
+    const { challengeId } = await requestCode(test, uniqueEmail(), device);
     const right = codeFor(test, challengeId);
-    const wrong = String((Number(right) + 1) % 1_000_000).padStart(6, '0');
+    const wrong = wrongCode(right);
     expect((await verify(device, reg, wrong, challengeId)).json()).toMatchObject({
       code: 'OTP_INVALID',
     });
@@ -134,5 +140,16 @@ describe('device attestation (DEVICE_ATTESTATION=required)', () => {
       attestation: { type: 'play_integrity', challengeId: second, token: 'forged' },
     });
     expect(bad.json()).toMatchObject({ code: 'ATTESTATION_INVALID' });
+  });
+
+  it('answers 503, not "invalid device", when Google cannot be reached', async () => {
+    const device = newDevice();
+    const { challengeId } = await challenge();
+    const response = await verify(device, {
+      ...registration(device, 'android'),
+      attestation: { type: 'play_integrity', challengeId, token: 'outage' },
+    });
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ code: 'UNAVAILABLE' });
   });
 });

@@ -39,7 +39,13 @@ describe('parseEnv', () => {
   });
 
   it('coerces and validates values', () => {
-    const env = parseEnv({ ...base, PORT: '8080', HOST: '0.0.0.0', NODE_ENV: 'production' });
+    const env = parseEnv({
+      ...base,
+      PORT: '8080',
+      HOST: '0.0.0.0',
+      NODE_ENV: 'production',
+      APP_ENV: 'staging',
+    });
     expect(env.PORT).toBe(8080);
     expect(env.HOST).toBe('0.0.0.0');
     expect(env.NODE_ENV).toBe('production');
@@ -77,6 +83,8 @@ describe('parseEnv', () => {
       { ...production, WEBAUTHN_ORIGINS: 'http://localhost:8081' },
     ],
     ['production outside NODE_ENV=production', { ...production, NODE_ENV: 'development' }],
+    // A production build must say where it runs, or it would silently get development shortcuts.
+    ['NODE_ENV=production without APP_ENV', { ...base, NODE_ENV: 'production' }],
   ])('rejects %s', (_, source) => {
     expect(() => parseEnv(source)).toThrow(InvalidEnvError);
   });

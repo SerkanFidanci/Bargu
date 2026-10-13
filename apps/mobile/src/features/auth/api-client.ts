@@ -31,6 +31,8 @@ export class ApiError extends Error {
 }
 
 const UNSIGNED_METHODS = new Set(['GET', 'HEAD']);
+/** Refusals that mean the session is really over; anything else (network, clock) keeps it. */
+const SESSION_ENDED = new Set(['REFRESH_INVALID', 'DEVICE_REVOKED', 'UNAUTHENTICATED']);
 
 /**
  * Talks to the Bargu API the way it requires (docs/ADR/0005): bearer access token, every
@@ -42,11 +44,13 @@ export function createApiClient(options: ApiClientOptions) {
   const fetchImpl = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
   let refreshing: Promise<Session> | null = null;
+  /** Server time minus local time, learned from the Date header when the server reports skew. */
+  let clockOffset = 0;
 
   function signedHeaders(method: string, path: string, body: string): Record<string, string> {
     const device = options.device();
     if (device === null) return {};
-    const timestamp = now();
+    const timestamp = now() + clockOffset;
     const nonce = generateRequestNonce();
     return {
       [SIGNED_REQUEST_HEADERS.signature]: signRequest(device.identity.secretKey, {
@@ -62,7 +66,12 @@ export function createApiClient(options: ApiClientOptions) {
     };
   }
 
-  async function send(path: string, request: RequestOptions, accessToken?: string) {
+  async function send(
+    path: string,
+    request: RequestOptions,
+    accessToken?: string,
+    retriedSkew = false,
+  ): Promise<unknown> {
     const method = request.method ?? 'GET';
     const body = request.body === undefined ? '' : JSON.stringify(request.body);
     const headers: Record<string, string> = {
@@ -79,7 +88,14 @@ export function createApiClient(options: ApiClientOptions) {
       return response.status === 204 ? undefined : ((await response.json()) as unknown);
     }
     const error = (await response.json().catch(() => ({}))) as { code?: unknown };
-    throw new ApiError(response.status, typeof error.code === 'string' ? error.code : 'UNKNOWN');
+    const code = typeof error.code === 'string' ? error.code : 'UNKNOWN';
+    const serverTime = Date.parse(response.headers.get('date') ?? '');
+    if (code === 'CLOCK_SKEW' && !retriedSkew && Number.isFinite(serverTime)) {
+      // The phone's clock is off by more than the signature window: adopt the server's and retry.
+      clockOffset = serverTime - now();
+      return send(path, request, accessToken, true);
+    }
+    throw new ApiError(response.status, code);
   }
 
   function refresh(): Promise<Session> {
@@ -94,8 +110,10 @@ export function createApiClient(options: ApiClientOptions) {
         await options.session.set(next);
         return next;
       } catch (error) {
-        // A rejected refresh means the session is over (logout, device change, reuse detected).
-        if (error instanceof ApiError && error.status === 401) await options.session.set(null);
+        // Only a definitive refusal ends the session (logout, device change, reuse detected).
+        if (error instanceof ApiError && SESSION_ENDED.has(error.code)) {
+          await options.session.set(null);
+        }
         throw error;
       }
     })().finally(() => {

@@ -45,6 +45,7 @@ export {
   hashToken,
   normalizeEmail,
   OTP_DIGITS,
+  pseudonym,
   REQUEST_MAX_SKEW_MS,
   REQUEST_NONCE_BYTES,
   signRequest,

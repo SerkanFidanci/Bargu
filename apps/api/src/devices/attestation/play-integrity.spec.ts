@@ -78,8 +78,8 @@ describe('Play Integrity verification', () => {
   it('accepts a fresh verdict for our signed app on a genuine device', async () => {
     const fetch = fakeGoogle(verdict({}));
     const subject = verifier(fetch);
-    expect(await subject.verify('integrity-token', 'expected-hash')).toBe(true);
-    expect(await subject.verify('integrity-token', 'expected-hash')).toBe(true);
+    expect(await subject.verify('integrity-token', 'expected-hash')).toBe('valid');
+    expect(await subject.verify('integrity-token', 'expected-hash')).toBe('valid');
     // The OAuth token is fetched once and reused until it nears expiry.
     const tokenCalls = fetch.mock.calls.filter(([url]) => targetOf(url).includes('oauth2'));
     expect(tokenCalls).toHaveLength(1);
@@ -98,15 +98,27 @@ describe('Play Integrity verification', () => {
     ['another signing certificate', { digests: [Buffer.alloc(32).toString('base64url')] }],
     ['a device without integrity', { device: ['MEETS_BASIC_INTEGRITY'] }],
   ])('rejects %s', async (_, overrides) => {
-    expect(await verifier(fakeGoogle(verdict(overrides))).verify('t', 'expected-hash')).toBe(false);
+    expect(await verifier(fakeGoogle(verdict(overrides))).verify('t', 'expected-hash')).toBe(
+      'invalid',
+    );
   });
 
-  it('fails closed when Google refuses or answers nonsense', async () => {
-    expect(await verifier(fakeGoogle(verdict({}), 400)).verify('t', 'expected-hash')).toBe(false);
+  it('fails closed when Google rejects the token or answers nonsense', async () => {
+    expect(await verifier(fakeGoogle(verdict({}), 400)).verify('t', 'expected-hash')).toBe(
+      'invalid',
+    );
     expect(await verifier(fakeGoogle({ unexpected: true })).verify('t', 'expected-hash')).toBe(
-      false,
+      'invalid',
+    );
+  });
+
+  it('reports an outage as unavailable, not as an invalid device', async () => {
+    expect(await verifier(fakeGoogle(verdict({}), 503)).verify('t', 'expected-hash')).toBe(
+      'unavailable',
     );
     const tokenFails = vi.fn(() => Promise.resolve(new Response('denied', { status: 401 })));
-    expect(await verifier(tokenFails).verify('t', 'expected-hash')).toBe(false);
+    expect(await verifier(tokenFails).verify('t', 'expected-hash')).toBe('unavailable');
+    const offline = vi.fn(() => Promise.reject(new TypeError('fetch failed')));
+    expect(await verifier(offline).verify('t', 'expected-hash')).toBe('unavailable');
   });
 });

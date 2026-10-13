@@ -17,6 +17,7 @@ import {
 
 import { ZodPipe } from '../common/zod.pipe.js';
 import { AttestationService } from '../devices/attestation/attestation.service.js';
+import { ClientLimits } from './client-limits.js';
 import { LoginService } from './login.service.js';
 import { OtpService } from './otp.service.js';
 import { PasskeysService } from './passkeys.service.js';
@@ -38,6 +39,7 @@ export class AuthController {
     private readonly sessions: SessionsService,
     private readonly passkeys: PasskeysService,
     private readonly attestation: AttestationService,
+    private readonly clients: ClientLimits,
   ) {}
 
   /** Sends a login code. Same response whether or not the address has an account. */
@@ -69,7 +71,8 @@ export class AuthController {
   @Public()
   @Unsigned()
   @HttpCode(HttpStatus.OK)
-  attestationChallenge(): Promise<AttestationChallenge> {
+  async attestationChallenge(@Req() request: AuthedRequest): Promise<AttestationChallenge> {
+    await this.clients.enforce('attestationChallenge', request.ip);
     return this.attestation.createChallenge();
   }
 
@@ -77,7 +80,8 @@ export class AuthController {
   @Public()
   @Unsigned()
   @HttpCode(HttpStatus.OK)
-  passkeyOptions() {
+  async passkeyOptions(@Req() request: AuthedRequest) {
+    await this.clients.enforce('passkeyOptions', request.ip);
     return this.passkeys.loginOptions();
   }
 

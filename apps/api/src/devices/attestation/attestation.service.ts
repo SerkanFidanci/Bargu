@@ -124,7 +124,11 @@ export class AttestationService {
     const verifier = this.verifiers.playIntegrity;
     if (platform !== 'android' || verifier === undefined) throw invalid;
     const requestHash = Buffer.from(dataHash).toString('base64url');
-    if (!(await verifier.verify(attestation.token, requestHash))) throw invalid;
+    const result = await verifier.verify(attestation.token, requestHash);
+    if (result === 'unavailable') {
+      throw new ApiError(HttpStatus.SERVICE_UNAVAILABLE, 'UNAVAILABLE');
+    }
+    if (result !== 'valid') throw invalid;
     return 'play_integrity';
   }
 

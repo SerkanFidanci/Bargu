@@ -19,14 +19,27 @@ alternatifler uygulama sırasında netleştirildi.
   veritabanından adres çıkmaz (veri minimizasyonu, KVKK). Bedeli: sunucu kullanıcıya kendiliğinden
   e-posta atamaz (gerekmiyor; bildirimler push ile).
 - **OTP kodu türetilir, saklanmaz.** Plan "argon2 hash" diyordu. Kod, meydan okuma kimliğinden sunucu
-  anahtarıyla türetilir (HOTP benzeri: HMAC-SHA256, 48 bit mod 10⁶). Veritabanında, Redis'te ve iş
-  kuyruğunda ne kod ne kodun özeti bulunur; 6 haneli bir kodun argon2 özeti bile çevrimdışı denemeyle
+  anahtarıyla türetilir (HOTP benzeri: HMAC-SHA256, 48 bit mod 10⁸). Veritabanında, Redis'te ve iş
+  kuyruğunda ne kod ne kodun özeti bulunur; kısa bir kodun argon2 özeti bile çevrimdışı denemeyle
   kırılabilirdi, anahtarsız türetme kırılamaz. Ayrıca her doğrulamada pahalı argon2 hesabı olmadığı
   için CPU tüketme saldırısına açık değil.
-- Meydan okuma Redis'te 10 dakika yaşar; 5 yanlış denemede ölür; aynı adrese saatte 10 yanlış
-  denemede adres 1 saat kilitlenir; adres ve IP başına istek sınırları var. Yanıt, hesap var da olsa
-  yok da olsa aynıdır (hesap avı yapılamaz). Kod tek kullanımlıktır (eşzamanlı iki doğru denemeden
-  yalnızca biri kazanır).
+- **Kod 8 hane** (plan 6 diyordu). Bağımsız inceleme, sınırlara rağmen hedefli bir saldırganın 6
+  haneyle yılda kayda değer bir tahmin şansı olduğunu gösterdi; 8 hane bu şansı 100 kat düşürür.
+  iOS/Android kodu e-postadan otomatik önerdiği için kullanıcıya maliyeti küçük.
+- **Kod, isteyen cihaza bağlı.** Kod isteğinde cihazın kimlik anahtarı gönderilir; kodu yalnızca o
+  anahtarla imzalanmış giriş kullanabilir. Yanlış kod sınırları (adres, cihaz) çifti için sayılır:
+  başkası bir kullanıcının denemelerini harcayıp onu kilitleyemez.
+- Sınırlar (ADR'deki sayılar `OTP_LIMITS` ve `CLIENT_LIMITS` ile aynı): meydan okuma 10 dk yaşar ve 5
+  yanlış denemede ölür; (adres, cihaz) başına saatte 3 kod isteği ve 10 yanlış deneme; adres başına
+  günde 20 kod ve 50 yanlış deneme (sonra adres herkes için 24 saat kilitli; NIST SP 800-63B ≤ 100
+  ister); istemci ağı başına saatte 20 kod isteği ve 60 doğrulama. Yanlış deneme hakkı kod
+  karşılaştırılmadan **önce** ve tek adımda ayrılır (eşzamanlı isteklerle aşılamaz); doğru kod
+  hakkını geri verir.
+- **İstemci ağı**: IPv4 adresi veya IPv6 /64 ağı (bir abone genelde koca bir /64'e sahip); Redis
+  anahtarında yalnızca anahtarlı takma adı bulunur.
+- Yanıt, hesap var da olsa yok da olsa aynıdır (hesap avı yapılamaz). Kod tek kullanımlıktır
+  (eşzamanlı iki doğru denemeden yalnızca biri kazanır). Silinmekte olan bir hesabın adresiyle giriş
+  `ACCOUNT_UNAVAILABLE` döner.
 
 ### Cihaz, imza ve oturum
 
@@ -40,6 +53,10 @@ alternatifler uygulama sırasında netleştirildi.
   nonce** var ve sunucu her nonce'u bir kez kabul eder; böylece ±60 sn pencere içinde bile yakalanan
   bir istek tekrar oynatılamaz. Durum değiştiren **her** istek imzalıdır; imzasız olabilecek az
   sayıdaki herkese açık uç açıkça işaretlenir, işaretlenmemiş olan reddedilir (güvenli varsayılan).
+  API yalnızca JSON gövde kabul eder (başka türler 415): imza her zaman işleyicinin gördüğü gövdeyi
+  kapsar. Saat farkı ayrı bir kodla bildirilir (`CLOCK_SKEW`, `Date` başlığıyla); uygulama saatini
+  düzeltip bir kez tekrar dener, oturumu kapatmaz. Okuma (GET) istekleri planda olduğu gibi imzasız;
+  hassas bir okuma eklendiğinde imza ona da uygulanacak.
 - **Erişim token'ı**: EdDSA JWT, 10 dk, `kid` ile anahtar değişimi (önceki açık anahtar geçiş
   süresince kabul edilir). Token tek başına yetmez: her istekte cihazın ve oturumun hâlâ geçerli
   olduğu veritabanından kontrol edilir; çıkış, cihaz değişimi veya hırsızlık tespiti bir sonraki

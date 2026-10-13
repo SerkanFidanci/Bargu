@@ -128,6 +128,30 @@ describe('passkeys', () => {
     expect(stolen.json()).toMatchObject({ code: 'PASSKEY_INVALID' });
   });
 
+  it('refuses to register the same credential twice', async () => {
+    const { session, device } = await login(test, uniqueEmail());
+    const authenticator = await SoftwareAuthenticator.create();
+    const register = async () => {
+      const start = await call(test.app, {
+        url: '/v1/auth/passkey/register/options',
+        accessToken: session.accessToken,
+        device,
+      });
+      const { challengeId, options } =
+        start.json<Options<{ challenge: string; rp: { id: string } }>>();
+      return call(test.app, {
+        url: '/v1/auth/passkey/register',
+        body: { challengeId, response: await authenticator.register(options, ORIGIN) },
+        accessToken: session.accessToken,
+        device,
+      });
+    };
+    expect((await register()).statusCode).toBe(204);
+    const again = await register();
+    expect(again.statusCode).toBe(409);
+    expect(again.json()).toMatchObject({ code: 'PASSKEY_INVALID' });
+  });
+
   it('refuses a registration made for another origin', async () => {
     const { session, device } = await login(test, uniqueEmail());
     const start = await call(test.app, {

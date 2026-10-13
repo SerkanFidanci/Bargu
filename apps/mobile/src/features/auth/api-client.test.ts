@@ -107,6 +107,36 @@ describe('api client', () => {
     await expect(api.authed('/v1/me')).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
   });
 
+  it('corrects a wrong phone clock from the server Date header and retries once', async () => {
+    const serverNow = Date.now() + 5 * 60 * 1000;
+    const timestamps: number[] = [];
+    const { api } = client(memoryStore(session('a')), (_url, init) => {
+      const ts = Number((init.headers as Record<string, string>)['x-bargu-ts']);
+      timestamps.push(ts);
+      if (Math.abs(ts - serverNow) > 60_000) {
+        return new Response(JSON.stringify({ code: 'CLOCK_SKEW' }), {
+          status: 401,
+          headers: { date: new Date(serverNow).toUTCString() },
+        });
+      }
+      return new Response(null, { status: 204 });
+    });
+    await api.authed('/v1/auth/logout', { method: 'POST' });
+    expect(timestamps).toHaveLength(2);
+    expect(Math.abs((timestamps[1] ?? 0) - serverNow)).toBeLessThan(2_000);
+  });
+
+  it('keeps the session when a refresh fails for a transient reason', async () => {
+    const store = memoryStore(session('old'));
+    const { api } = client(store, (url) =>
+      url.endsWith('/v1/auth/refresh')
+        ? json(503, { code: 'UNAVAILABLE' })
+        : json(401, { code: 'TOKEN_EXPIRED' }),
+    );
+    await expect(api.authed('/v1/me')).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    expect(store.current?.refreshToken).toBe('refresh-old');
+  });
+
   it('surfaces API error codes', async () => {
     const { api } = client(memoryStore(null), () => json(429, { code: 'RATE_LIMITED' }));
     await expect(

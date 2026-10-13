@@ -11,6 +11,7 @@ import {
   generateToken,
   hashToken,
   normalizeEmail,
+  pseudonym,
   signRequest,
   verifyOtpCode,
   verifyRequestSignature,
@@ -124,15 +125,15 @@ describe('one-time codes', () => {
     const mac = createHmac('sha256', key)
       .update(Buffer.concat([Buffer.from('bargu/v1/otp\0'), uuidToBytes(challenge)]))
       .digest();
-    const expected = String(mac.readUIntBE(0, 6) % 1_000_000).padStart(6, '0');
+    const expected = String(mac.readUIntBE(0, 6) % 100_000_000).padStart(8, '0');
     expect(deriveOtpCode(key, challenge)).toBe(expected);
   });
 
-  it('are six digits and differ per challenge and key (property)', () => {
+  it('are eight digits and differ per challenge and key (property)', () => {
     fc.assert(
       fc.property(fc.uuid({ version: 7 }), (id) => {
         const code = deriveOtpCode(key, id);
-        expect(code).toMatch(/^\d{6}$/);
+        expect(code).toMatch(/^\d{8}$/);
         expect(verifyOtpCode(key, id, code)).toBe(true);
       }),
       { numRuns: 100 },
@@ -145,7 +146,7 @@ describe('one-time codes', () => {
 
   it('verify only the exact code', () => {
     const code = deriveOtpCode(key, challenge);
-    const wrong = String((Number(code) + 1) % 1_000_000).padStart(6, '0');
+    const wrong = String((Number(code) + 1) % 100_000_000).padStart(8, '0');
     expect(verifyOtpCode(key, challenge, wrong)).toBe(false);
     expect(verifyOtpCode(key, challenge, `${code}0`)).toBe(false);
     expect(verifyOtpCode(key, challenge, '')).toBe(false);
@@ -171,6 +172,21 @@ describe('email lookup keys', () => {
       emailLookupKey(key, 'ali@example.com'),
     );
     expect(codeOf(() => emailLookupKey(new Uint8Array(31), 'a@b.c'))).toBe('INVALID_KEY');
+  });
+});
+
+describe('pseudonyms', () => {
+  it('are keyed, separated by purpose and match an independent HMAC', () => {
+    const value = pseudonym(key, 'ip', '203.0.113.7');
+    const expected = createHmac('sha256', key)
+      .update(Buffer.from('bargu/v1/pseudonym\x00ip\x00203.0.113.7'))
+      .digest()
+      .subarray(0, 16)
+      .toString('hex');
+    expect(value).toBe(expected);
+    expect(pseudonym(key, 'device', '203.0.113.7')).not.toBe(value);
+    expect(pseudonym(new Uint8Array(32).fill(1), 'ip', '203.0.113.7')).not.toBe(value);
+    expect(codeOf(() => pseudonym(new Uint8Array(8), 'ip', 'x'))).toBe('INVALID_KEY');
   });
 });
 

@@ -30,12 +30,12 @@ Kararlar: [ADR 0005](ADR/0005-auth-and-devices.md) (giriş, cihaz, RLS) ·
 
 ### DoD
 
-| Madde                                           | Durum | Kanıt                                                                                         |
-| ----------------------------------------------- | ----- | --------------------------------------------------------------------------------------------- |
-| Auth e2e testleri                               | ✅    | 43 entegrasyon testi, gerçek Postgres + Redis + kuyruk (CI'da ayrı görev)                     |
-| Brute-force testi                               | ✅    | 5 yanlış kodda kod ölür; adrese saatte 10 hatada kilit; adres ve IP sınırları, `Retry-After`  |
-| Refresh reuse testi                             | ✅    | Dönmüş token tekrar kullanılınca bütün oturum ailesi iptal + güvenlik olayı                   |
-| `app.user_id` set edilmeden sorgu 0 satır döner | ✅    | Her tabloda test; ayrıca `app` şemasında zorlanmış RLS'i olmayan tablo kalırsa test kırılıyor |
+| Madde                                           | Durum | Kanıt                                                                                             |
+| ----------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------- |
+| Auth e2e testleri                               | ✅    | 54 entegrasyon testi, gerçek Postgres + Redis + kuyruk (CI'da ayrı görev)                         |
+| Brute-force testi                               | ✅    | 8 haneli kod, cihaza bağlı; 5 yanlışta kod ölür; cihaz ve adres sınırları; eşzamanlı tahmin testi |
+| Refresh reuse testi                             | ✅    | Dönmüş token tekrar kullanılınca bütün oturum ailesi iptal + güvenlik olayı                       |
+| `app.user_id` set edilmeden sorgu 0 satır döner | ✅    | Her tabloda test; ayrıca `app` şemasında zorlanmış RLS'i olmayan tablo kalırsa test kırılıyor     |
 
 ### Yapılanlar
 
@@ -61,19 +61,37 @@ Kararlar: [ADR 0005](ADR/0005-auth-and-devices.md) (giriş, cihaz, RLS) ·
 
 | Paket                   | Test | Not                                                              |
 | ----------------------- | ---- | ---------------------------------------------------------------- |
-| `packages/crypto`       | 117  | %100 satır, ifade, dal, fonksiyon                                |
-| `packages/schemas`      | 30   |                                                                  |
-| API birim + HTTP        | 61   | env kuralları, hata biçimi, App Attest (test CA), Play Integrity |
-| API entegrasyon         | 43   | giriş, brute-force, oturum, tek cihaz, RLS, passkey, onay, işçi  |
-| Mobil                   | 19   | anahtar deposu, imzalı istemci, tek seferlik token yenileme      |
+| `packages/crypto`       | 118  | %100 satır, ifade, dal, fonksiyon                                |
+| `packages/schemas`      | 31   |                                                                  |
+| API birim + HTTP        | 65   | env kuralları, hata biçimi, App Attest (test CA), Play Integrity |
+| API entegrasyon         | 54   | giriş, brute-force, oturum, tek cihaz, RLS, passkey, onay, işçi  |
+| Mobil                   | 21   | anahtar deposu, imzalı istemci, token yenileme, saat düzeltme    |
 | Swift (CryptoKit uyumu) | 10   |                                                                  |
 
 Ek doğrulamalar:
 
 - Semgrep (CI kural setleriyle) temiz.
-- Mutasyon testi: imza doğrulaması bilerek kapatılınca testler kırıldı.
+- Mutasyon testleri: imza doğrulaması ve yanlış deneme hakkı ayırma bilerek kapatılınca testler
+  kırıldı.
 - Derlenmiş API + işçi ile uçtan uca deneme: kod isteği → kuyruk → işçi → Mailpit'e e-posta. İlk
   denemede yanlış SMTP portu yüzünden gitmeyen iş, tekrar denemeyle teslim edildi.
+
+### Bağımsız güvenlik incelemesi (kapanış kontrolü)
+
+Kod, ayrı bir inceleyiciyle saldırgan gözüyle tarandı; iki bulgu canlı test sunucusuna karşı deneme
+testiyle doğrulandı. Kritik bulgu yok; token, RLS, oturum dönüşümü ve tek cihaz kuralı sağlam çıktı.
+
+| Bulgu                                                                                     | Önem  | Durum                                                                               |
+| ----------------------------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------- |
+| Eşzamanlı yanlış kodlarla kilit aşılabiliyordu; IPv6'da her adres ayrı sayılıyordu        | Orta  | ✅ Hak, kod karşılaştırılmadan önce tek adımda ayrılıyor; IPv6 /64; 8 hane          |
+| Herkes bir adresin yanlış deneme hakkını harcayıp sahibini kilitleyebiliyordu             | Orta  | ✅ Kod isteyen cihaza bağlı; hak (adres, cihaz) başına; adres için günlük üst sınır |
+| Giriş öncesi bazı uçlarda istek sınırı yoktu (Redis doldurma, Google kotası)              | Orta  | ✅ İstemci ağı başına sınır; doğrulama sınırı pahalı kontrollerden önce             |
+| JSON dışı gövdeler imzanın dışında kalabiliyordu                                          | Düşük | ✅ Yalnızca JSON (415) + imzasız gövde reddi                                        |
+| `NODE_ENV=production` ama `APP_ENV` yoksa geliştirme ayarları devreye giriyordu           | Düşük | ✅ Production'da `APP_ENV` zorunlu                                                  |
+| Silinmekte olan hesabın adresiyle giriş 500 dönüyordu                                     | Düşük | ✅ `ACCOUNT_UNAVAILABLE`                                                            |
+| Deploy betiği çekilemeyen imajı geri dönüş hedefi yapabiliyordu                           | Düşük | ✅ İmaj ancak çekilip migration geçince kaydediliyor                                |
+| Saat farkı "geçersiz imza" görünüp oturumu kapatıyordu; Google kesintisi "geçersiz cihaz" | Bilgi | ✅ `CLOCK_SKEW` + istemci düzeltmesi; kesintide 503                                 |
+| IP özeti anahtarsızdı; migration şifreyi her çalışmada gönderiyordu; aynı passkey 500     | Bilgi | ✅ Anahtarlı takma ad; şifre yalnızca gerektiğinde; 409                             |
 
 ### Açık riskler
 
@@ -86,7 +104,13 @@ Ek doğrulamalar:
    kullanıcı yok). Android'de passkey için `assetlinks.json`'a uygulamanın imza parmak izi
    eklenmeli (`ANDROID_CERT_SHA256`).
 4. **İşçinin sağlık kontrolü yok** (HTTP sunucusu yok); kuyruk metrikleri ve alarmlar Faz 10'da.
-5. Mobil bağımlılıklarda 2 orta seviye bulgu (`uuid` Expo derleme araçlarında, `decode-uri-component`
+5. **E-posta ile girişte kasıtlı engelleme hâlâ mümkün**: çok sayıda cihaz anahtarıyla bir adrese günde 50 yanlış
+   kod denenirse adres 24 saat kilitlenir (tahmini sınırlamanın bedeli). Production'da her cihaz
+   anahtarı gerçek bir telefonla onaylanmak zorunda; passkey'li kullanıcılar etkilenmez.
+6. **Yoğun saldırıda Redis belleği** (staging 256 MB, `noeviction`): dağıtık bir saldırı giriş öncesi
+   uçlarla belleği doldurabilir; CDN/WAF ve ölçekli sınırlar Faz 10'da.
+7. İşçi container'ı kullanmadığı bazı anahtarları da alıyor (aynı ortam dosyası); Faz 10'da ayrılacak.
+8. Mobil bağımlılıklarda 2 orta seviye bulgu (`uuid` Expo derleme araçlarında, `decode-uri-component`
    `expo-router` içinde); yüksek/kritik yok. Expo güncellemelerinde tekrar bakılacak.
 
 ### Kalan işler

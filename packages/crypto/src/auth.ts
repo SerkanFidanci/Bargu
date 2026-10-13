@@ -104,7 +104,8 @@ export function verifyRequestSignature(
   }
 }
 
-export const OTP_DIGITS = 6;
+/** 8 digits: 10^8 codes keep guessing infeasible within the attempt limits (docs/ADR/0005). */
+export const OTP_DIGITS = 8;
 const OTP_MODULUS = 10 ** OTP_DIGITS;
 
 function requireKey(key: Uint8Array): void {
@@ -115,7 +116,7 @@ function requireKey(key: Uint8Array): void {
  * The one-time code for a login challenge, derived instead of stored (HOTP-style, RFC 4226, with
  * HMAC-SHA256 and the challenge id as the moving factor). Neither the database nor the job queue
  * ever holds a code or a hash of one; without the server key a leaked challenge reveals nothing.
- * 48 bits reduced mod 10^6: bias below 10^-8.
+ * 48 bits reduced mod 10^8: bias below 10^-6.
  */
 export function deriveOtpCode(otpKey: Uint8Array, challengeId: string): string {
   requireKey(otpKey);
@@ -145,6 +146,21 @@ export function normalizeEmail(email: string): string {
 export function emailLookupKey(lookupKey: Uint8Array, email: string): Uint8Array {
   requireKey(lookupKey);
   return hmacWithLabel(lookupKey, LABELS.emailLookup, utf8Encode(normalizeEmail(email)));
+}
+
+/**
+ * Stable pseudonym for a value that must not be stored in clear, such as a client IP in a rate-limit
+ * key: keyed (a plain hash of an IPv4 address is reversible by enumeration) and separated by
+ * purpose. 128 bits, hex.
+ */
+export function pseudonym(key: Uint8Array, purpose: string, value: string): string {
+  requireKey(key);
+  const mac = hmacWithLabel(
+    key,
+    LABELS.pseudonym,
+    concatBytes(labelBytes(purpose), utf8Encode(value)),
+  );
+  return Array.from(mac.subarray(0, 16), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /** 256-bit random bearer secret (refresh tokens), base64url. */

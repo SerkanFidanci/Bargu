@@ -18,8 +18,10 @@ const device = {
 
 describe('auth schemas', () => {
   it('accept well-formed requests', () => {
-    expect(otpRequestSchema.parse({ email: 'ali@example.com', locale: 'tr' })).toBeTruthy();
-    expect(otpVerifySchema.parse({ challengeId: uuid, code: '012345', device })).toBeTruthy();
+    expect(
+      otpRequestSchema.parse({ email: 'ali@example.com', locale: 'tr', identityKey: b64(32) }),
+    ).toBeTruthy();
+    expect(otpVerifySchema.parse({ challengeId: uuid, code: '01234567', device })).toBeTruthy();
     expect(
       deviceRegistrationSchema.parse({
         ...device,
@@ -37,11 +39,16 @@ describe('auth schemas', () => {
   });
 
   it.each([
-    ['an invalid email', otpRequestSchema, { email: 'not-an-email', locale: 'tr' }],
+    [
+      'an invalid email',
+      otpRequestSchema,
+      { email: 'not-an-email', locale: 'tr', identityKey: b64(32) },
+    ],
+    ['a request without a device key', otpRequestSchema, { email: 'a@b.co', locale: 'tr' }],
     ['an over-long email', otpRequestSchema, { email: `${'a'.repeat(250)}@x.co`, locale: 'tr' }],
     ['an unknown locale', otpRequestSchema, { email: 'a@b.co', locale: 'de' }],
-    ['a five-digit code', otpVerifySchema, { challengeId: uuid, code: '12345', device }],
-    ['a non-numeric code', otpVerifySchema, { challengeId: uuid, code: '12345a', device }],
+    ['a six-digit code', otpVerifySchema, { challengeId: uuid, code: '123456', device }],
+    ['a non-numeric code', otpVerifySchema, { challengeId: uuid, code: '1234567a', device }],
     ['an unknown platform', deviceRegistrationSchema, { ...device, platform: 'web' }],
     ['an extra field', refreshRequestSchema, { refreshToken: 'a', userId: uuid }],
     ['an unknown attestation', attestationSchema, { type: 'safetynet', challengeId: uuid }],

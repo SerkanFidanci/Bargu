@@ -33,9 +33,17 @@ export class RequestSignatures {
       throw new ApiError(HttpStatus.UNAUTHORIZED, 'SIGNATURE_REQUIRED');
     }
     const time = TIMESTAMP_PATTERN.test(timestamp) ? Number(timestamp) : Number.NaN;
+    if (Number.isFinite(time) && Math.abs(Date.now() - time) > REQUEST_MAX_SKEW_MS) {
+      // Distinct from a bad signature: the app corrects its clock from the Date header and retries.
+      throw new ApiError(HttpStatus.UNAUTHORIZED, 'CLOCK_SKEW');
+    }
+    // A parsed body that was not captured raw would be unsigned; never accept that.
+    const unsignedBody =
+      request.rawBody === undefined && request.body !== undefined && request.body !== null;
     if (
+      unsignedBody ||
       !NONCE_PATTERN.test(nonce) ||
-      !(Math.abs(Date.now() - time) <= REQUEST_MAX_SKEW_MS) ||
+      !Number.isFinite(time) ||
       !verifyRequestSignature(
         identityKey,
         {
