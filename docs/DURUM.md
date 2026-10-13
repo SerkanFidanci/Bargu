@@ -129,12 +129,12 @@ Protokol: [PROTOCOL.md](PROTOCOL.md) · Tehdit modeli: [THREAT_MODEL.md](THREAT_
 
 ### DoD
 
-| Madde                                  | Durum | Kanıt                                                                                    |
-| -------------------------------------- | ----- | ---------------------------------------------------------------------------------------- |
-| Test vektörleri geçer                  | ✅    | RFC 7748 (X25519), 8032 (Ed25519), 8439 (ChaCha20-Poly1305), 5869 (HKDF) — RFC metninden |
-| `packages/crypto` %100 satır coverage  | ✅    | Satır, ifade, dal ve fonksiyon %100 (CI'da eşik olarak zorunlu)                          |
-| Tamper / replay / epoch testleri yeşil | ✅    | Tek bit değişikliği (property), tekrar ve eski `seq`, yanlış epoch/çember/gönderen       |
-| Cihazda şifreleme < 5 ms               | ⏳    | `/_dev/crypto` ekranı hazır; telefonda ölçüm bekleniyor (Node: medyan 0,46 ms)           |
+| Madde                                  | Durum | Kanıt                                                                                                |
+| -------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------- |
+| Test vektörleri geçer                  | ✅    | RFC 7748 (X25519), 8032 (Ed25519), 8439 (ChaCha20-Poly1305), 5869 (HKDF) — RFC metninden             |
+| `packages/crypto` %100 satır coverage  | ✅    | Satır, ifade, dal ve fonksiyon %100 (CI'da eşik olarak zorunlu)                                      |
+| Tamper / replay / epoch testleri yeşil | ✅    | Tek bit değişikliği (property), tekrar ve eski `seq`, yanlış epoch/çember/gönderen                   |
+| Cihazda şifreleme < 5 ms               | ⏳    | Saf JS ile Android'de p95 6,70 ms (geçmedi) → yerel eğri işlemleri (ADR 0007), yeni ölçüm bekleniyor |
 
 ### Yapılanlar
 
@@ -178,8 +178,9 @@ Faz kapanmadan önce kripto kodu ayrı bir inceleyiciyle saldırgan gözüyle ta
 
 ### Açık riskler
 
-1. Telefonda hız ölçümü henüz yapılmadı; Hermes, Node'dan 10–20 kat yavaş olabilir. Bütçe aşılırsa
-   önce Ed25519 ön hesaplaması, sonra native modül değerlendirilir.
+1. İlk telefon ölçümü bütçeyi aştı (saf JS, Hermes): şifreleme p95 6,70 ms, doğrulama + çözme 15 ms,
+   anahtar dağıtımı 22 ms. Ed25519/X25519 artık telefonda yerel (CryptoKit / Tink, öz testli; ADR
+   0007); yeni build ile ölçülecek. iOS tarafı Apple hesabı gelene kadar derlenemiyor.
 2. Epoch içinde ileri gizlilik ve inkâr edilebilirlik yok (bilinçli tercih, THREAT_MODEL.md).
 3. Protokol henüz uygulama akışlarına bağlı değil: anahtar saklama (Faz 2), çember ve dağıtım (Faz 4),
    konum gönderimi (Faz 5), bildirim eklentisi (Faz 7).
