@@ -137,6 +137,42 @@ describe('api client', () => {
     expect(store.current?.refreshToken).toBe('refresh-old');
   });
 
+  it('ends the session when the server says this device was replaced or signed out', async () => {
+    const store = memoryStore(session('a'));
+    const { api } = client(store, () => json(401, { code: 'DEVICE_REVOKED' }));
+    await expect(api.authed('/v1/me')).rejects.toMatchObject({ code: 'DEVICE_REVOKED' });
+    expect(store.current).toBeNull();
+  });
+
+  it('signs the event socket handshake with a fresh token', async () => {
+    const store = memoryStore({ ...session('old'), accessTokenExpiresAt: Date.now() + 5_000 });
+    const { api } = client(store, (url) =>
+      url.endsWith('/v1/auth/refresh')
+        ? json(200, { ...session('new'), accessTokenExpiresAt: Date.now() + 600_000 })
+        : json(404, {}),
+    );
+    const handshake = await api.socketHandshake('/v1/events');
+    // Expiring within half a minute: refreshed first, so the server does not refuse it.
+    expect(handshake.token).toBe('access-new');
+    expect(
+      verifyRequestSignature(
+        device.identity.publicKey,
+        {
+          method: 'GET',
+          path: '/v1/events',
+          timestamp: Number(handshake.ts),
+          nonce: handshake.nonce,
+          deviceId: device.deviceId,
+          body: new Uint8Array(0),
+        },
+        handshake.sig,
+      ),
+    ).toBe(true);
+    const again = await api.socketHandshake('/v1/events');
+    expect(again.token).toBe('access-new');
+    expect(again.nonce).not.toBe(handshake.nonce);
+  });
+
   it('surfaces API error codes', async () => {
     const { api } = client(memoryStore(null), () => json(429, { code: 'RATE_LIMITED' }));
     await expect(

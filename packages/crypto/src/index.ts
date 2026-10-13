@@ -33,6 +33,7 @@ export {
   SAFETY_NUMBER_ROUNDS_PER_PAUSE,
   safetyNumber,
   safetyNumberAsync,
+  safetyNumberQrMatches,
   verifySafetyNumberQr,
   type SafetyNumber,
   type SafetyNumberParty,

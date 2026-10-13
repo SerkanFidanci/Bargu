@@ -5,7 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Dock } from '@/features/home/dock';
 import { SeersPill } from '@/features/home/seers-pill';
-import { AddSheet, CirclesSheet, MeSheet } from '@/features/home/sheets';
+import { AddSheet } from '@/features/circles/add-sheet';
+import { CirclesSheet } from '@/features/circles/circles-sheet';
+import { MeSheet } from '@/features/home/sheets';
 import { BarguMap } from '@/features/map/bargu-map';
 import { MapCredit } from '@/features/map/map-credit';
 import { useMe } from '@/features/profile/queries';
@@ -77,12 +79,14 @@ export default function HomeScreen() {
           add.current?.present();
           setAddOpen(true);
         }}
+        onClose={() => circles.current?.dismiss()}
       />
       <AddSheet
         ref={add}
         onDismiss={() => {
           setAddOpen(false);
         }}
+        onClose={() => add.current?.dismiss()}
       />
       <MeSheet ref={meSheet} me={me.data} onClose={() => meSheet.current?.dismiss()} />
       {celebrating ? <Confetti onDone={celebrated} /> : null}

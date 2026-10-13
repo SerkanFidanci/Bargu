@@ -6,7 +6,10 @@
     "continue": "Continue",
     "cancel": "Cancel",
     "done": "Done",
-    "soon": "Coming soon"
+    "soon": "Coming soon",
+    "back": "Back",
+    "close": "Close",
+    "save": "Save"
   },
   "errors": {
     "network": "No connection. Check your internet and try again.",
@@ -193,5 +196,143 @@
       "showToast": "Show a sample toast",
       "toastText": "This is a sample toast."
     }
+  },
+  "scan": {
+    "permissionTitle": "The camera is only used for QR codes",
+    "permissionBody": "Bargu needs the camera to read your friend's code. Nothing is recorded or sent anywhere.",
+    "allow": "Allow camera",
+    "openSettings": "Allow in Settings",
+    "viewfinder": "QR code scanner"
+  },
+  "add": {
+    "byUsernameHint": "Type your friend's Bargu username",
+    "showQrHint": "Fastest when you're together: they scan it",
+    "scan": "Scan a QR code",
+    "scanHint": "Scan the code on your friend's screen",
+    "scanBody": "Fit your friend's Bargu QR code inside the frame.",
+    "shareLinkHint": "Single use, valid for 24 hours",
+    "shareMessage": "Let's be friends on Bargu: {{link}}",
+    "notBargu": "This isn't a Bargu code.",
+    "username": {
+      "inviteTitle": "Invite to circle",
+      "helper": "You see their card first, then the request goes out.",
+      "send": "Send friend request",
+      "invite": "Invite",
+      "sent": "Request sent to {{name}}. We'll let you know when they accept.",
+      "invited": "{{name}} was invited.",
+      "notFound": "Nobody has this username. Check the spelling."
+    },
+    "qr": {
+      "label": "Add-a-friend QR code",
+      "body": "Your friend taps \"Scan a QR code\" in Bargu and scans this; you become friends right away. Single use, valid for 24 hours. Screenshots are blocked for your safety.",
+      "circleTitle": "Invite with QR",
+      "circleBody": "Whoever scans this code can join the circle. Single use, valid for 24 hours.",
+      "share": "Share as a link",
+      "renew": "New code",
+      "connected": "You and {{name}} are now friends!"
+    }
+  },
+  "invite": {
+    "title": "Invitation",
+    "friendTitle": "{{name}} wants to be your friend",
+    "circleTitle": "{{name}} invites you to “{{circle}}”",
+    "body": "If you accept, you can share your locations with each other, end-to-end encrypted. You can leave any time.",
+    "befriend": "Become friends",
+    "join": "Join",
+    "invalid": "This invitation is invalid or has expired",
+    "invalidBody": "Invite links work once and for 24 hours. Ask your friend for a new one.",
+    "already": "You're already in this circle."
+  },
+  "circles": {
+    "kinds": {
+      "pair": "Friend",
+      "friends": "Friends",
+      "family": "Family",
+      "event": "Event"
+    },
+    "errors": {
+      "full": "This circle is full (50 people at most).",
+      "gone": "This circle no longer exists or you're not in it."
+    },
+    "sheet": {
+      "requests": "Requests",
+      "friends": "Friends",
+      "groups": "Circles",
+      "friendRequest": "Wants to add you as a friend",
+      "groupInvite": "Invites you to “{{name}}”",
+      "accept": "Accept",
+      "decline": "Decline",
+      "pending": "Pending",
+      "memberCount": "People: {{count}}",
+      "addFriend": "Add a friend",
+      "newCircle": "Create a circle"
+    },
+    "keys": {
+      "ready": "Encrypted",
+      "waiting": "Waiting for keys",
+      "check": "Check"
+    },
+    "trust": {
+      "verified": "Verified",
+      "unverified": "Not verified",
+      "changed": "Key changed"
+    },
+    "new": {
+      "title": "New circle",
+      "body": "Set up a circle for your family or friends, then invite people. Anyone who hasn't accepted sees nothing.",
+      "kind": "Kind of circle",
+      "name": "Circle name",
+      "placeholder_family": "e.g. Family",
+      "placeholder_friends": "e.g. Campus crew",
+      "create": "Create"
+    },
+    "detail": {
+      "goneTitle": "Circle not found",
+      "goneBody": "You may have left it or been removed.",
+      "rename": "Rename",
+      "members": "Members ({{count}})",
+      "owner": "Owner",
+      "invited": "Invited",
+      "you": "You",
+      "encrypted": "End-to-end encrypted",
+      "encryptedBody": "Locations open only on the phones of the people here. Not even Bargu's server can see them.",
+      "waitingTitle": "Setting up encryption",
+      "waitingBody": "Keys still to arrive: {{count}}. It completes by itself once they open the app.",
+      "pendingTitle": "Request sent",
+      "pendingBody": "You'll see {{name}} here once they accept. Nothing is shared until then.",
+      "keyChangedTitle": "{{name}}'s safety number changed",
+      "keyChangedBody": "It may be a new phone. Until you're sure, your location isn't sent to them and their key isn't used.",
+      "compare": "Compare",
+      "acceptKey": "Accept",
+      "acceptKeyTitle": "Accept the new key?",
+      "acceptKeyBody": "If {{name}} changed phones, you can accept. Safest is to meet and compare with the QR code.",
+      "invite": "Add people",
+      "inviteUsername": "Invite by username",
+      "inviteQr": "QR",
+      "inviteLink": "Link",
+      "shareMessage": "Join “{{name}}” on Bargu: {{link}}",
+      "removeTitle": "Remove {{name}}?",
+      "removeBody": "They won't see any further locations; new keys go only to those who stay.",
+      "remove": "Remove",
+      "leave": "Leave circle",
+      "leaveTitle": "Leave this circle?",
+      "leaveBody": "People in this circle won't see your location any more, and you won't see theirs.",
+      "unfriend": "Unfriend",
+      "unfriendTitle": "Unfriend {{name}}?",
+      "unfriendBody": "Neither of you will see the other's location. Becoming friends again needs a new request.",
+      "withdraw": "Withdraw request"
+    }
+  },
+  "verify": {
+    "title": "Safety number",
+    "body": "Meet in person: one of you taps \"Scan their code\" and scans the other's screen. Or compare the 60 digits together; if they match, nobody is in between.",
+    "scanTheirs": "Scan their code",
+    "showMine": "Show my code",
+    "matched": "{{name}} is verified. Nobody is in between.",
+    "mismatch": "The codes don't match",
+    "mismatchBody": "Make sure you scanned the right person's code. If it still doesn't match, don't share your location with them.",
+    "codeLabel": "Safety number QR code with {{name}}",
+    "computing": "Calculating the safety number",
+    "digitsLabel": "Safety number: {{digits}}"
   }
 }

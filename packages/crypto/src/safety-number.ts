@@ -128,3 +128,11 @@ export function verifySafetyNumberQr(
 ): boolean {
   return equalBytes(utf8Encode(scanned), utf8Encode(safetyNumber(a, b).qr));
 }
+
+/**
+ * Compares a scanned QR payload with a safety number already computed (e.g. by safetyNumberAsync),
+ * in constant time, without hashing everything again on the UI thread.
+ */
+export function safetyNumberQrMatches(scanned: string, number: SafetyNumber): boolean {
+  return equalBytes(utf8Encode(scanned), utf8Encode(number.qr));
+}

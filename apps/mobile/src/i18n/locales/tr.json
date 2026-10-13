@@ -6,7 +6,10 @@
     "continue": "Devam",
     "cancel": "Vazgeç",
     "done": "Bitti",
-    "soon": "Yakında"
+    "soon": "Yakında",
+    "back": "Geri",
+    "close": "Kapat",
+    "save": "Kaydet"
   },
   "errors": {
     "network": "Bağlantı yok. İnternetini kontrol edip tekrar dene.",
@@ -193,5 +196,143 @@
       "showToast": "Örnek bildirim göster",
       "toastText": "Bu bir örnek bildirim."
     }
+  },
+  "scan": {
+    "permissionTitle": "Kamerayı yalnızca QR için kullanırız",
+    "permissionBody": "Arkadaşının kodunu okumak için kamera izni gerekiyor. Görüntü kaydedilmez, hiçbir yere gönderilmez.",
+    "allow": "Kameraya izin ver",
+    "openSettings": "Ayarlardan izin ver",
+    "viewfinder": "QR kod tarayıcı"
+  },
+  "add": {
+    "byUsernameHint": "Arkadaşının Bargu kullanıcı adını yaz",
+    "showQrHint": "Yan yanaysanız en hızlısı: o tarasın",
+    "scan": "QR kod tara",
+    "scanHint": "Arkadaşının ekranındaki kodu okut",
+    "scanBody": "Arkadaşının Bargu QR kodunu çerçevenin içine getir.",
+    "shareLinkHint": "Tek kullanımlık, 24 saat geçerli",
+    "shareMessage": "Bargu'da arkadaş olalım: {{link}}",
+    "notBargu": "Bu bir Bargu kodu değil.",
+    "username": {
+      "inviteTitle": "Çembere davet et",
+      "helper": "Önce kartını görürsün, sonra istek gider.",
+      "send": "Arkadaşlık isteği gönder",
+      "invite": "Davet et",
+      "sent": "{{name}} kişisine istek gitti. Kabul edince haber vereceğiz.",
+      "invited": "{{name}} davet edildi.",
+      "notFound": "Bu kullanıcı adıyla kimse yok. Yazımı kontrol et."
+    },
+    "qr": {
+      "label": "Arkadaş ekleme QR kodu",
+      "body": "Arkadaşın Bargu'da \"QR kod tara\"ya dokunup bu kodu okutsun; anında arkadaş olursunuz. Kod tek kullanımlık ve 24 saat geçerli. Güvenliğin için ekran görüntüsü alınamaz.",
+      "circleTitle": "QR ile davet",
+      "circleBody": "Bu kodu okutan kişi çembere katılabilir. Tek kullanımlık, 24 saat geçerli.",
+      "share": "Link olarak paylaş",
+      "renew": "Yeni kod",
+      "connected": "{{name}} ile artık arkadaşsınız!"
+    }
+  },
+  "invite": {
+    "title": "Davet",
+    "friendTitle": "{{name}} seninle arkadaş olmak istiyor",
+    "circleTitle": "{{name}} seni “{{circle}}” çemberine çağırıyor",
+    "body": "Kabul edersen konumlarınızı birbirinizle paylaşabilirsiniz; her şey uçtan uca şifreli. İstediğin an ayrılabilirsin.",
+    "befriend": "Arkadaş ol",
+    "join": "Katıl",
+    "invalid": "Bu davet geçersiz ya da süresi dolmuş",
+    "invalidBody": "Davet linkleri tek kullanımlık ve 24 saat geçerli. Arkadaşından yenisini iste.",
+    "already": "Zaten bu çemberdesin."
+  },
+  "circles": {
+    "kinds": {
+      "pair": "Arkadaş",
+      "friends": "Arkadaşlar",
+      "family": "Aile",
+      "event": "Etkinlik"
+    },
+    "errors": {
+      "full": "Bu çember dolu (en fazla 50 kişi).",
+      "gone": "Bu çember artık yok ya da içinde değilsin."
+    },
+    "sheet": {
+      "requests": "İstekler",
+      "friends": "Arkadaşlar",
+      "groups": "Çemberler",
+      "friendRequest": "Seni arkadaş olarak eklemek istiyor",
+      "groupInvite": "Seni “{{name}}” çemberine davet ediyor",
+      "accept": "Kabul et",
+      "decline": "Reddet",
+      "pending": "Bekliyor",
+      "memberCount": "{{count}} kişi",
+      "addFriend": "Arkadaş ekle",
+      "newCircle": "Çember oluştur"
+    },
+    "keys": {
+      "ready": "Şifreli",
+      "waiting": "Anahtar bekleniyor",
+      "check": "Kontrol et"
+    },
+    "trust": {
+      "verified": "Doğrulandı",
+      "unverified": "Doğrulanmadı",
+      "changed": "Anahtar değişti"
+    },
+    "new": {
+      "title": "Yeni çember",
+      "body": "Ailen ya da arkadaş grubun için bir çember kur. Sonra kişileri davet edersin; kabul etmeyen hiçbir şey görmez.",
+      "kind": "Çember türü",
+      "name": "Çemberin adı",
+      "placeholder_family": "Örn. Aile",
+      "placeholder_friends": "Örn. Kampüs ekibi",
+      "create": "Oluştur"
+    },
+    "detail": {
+      "goneTitle": "Çember bulunamadı",
+      "goneBody": "Bu çemberden ayrılmış ya da çıkarılmış olabilirsin.",
+      "rename": "Adını değiştir",
+      "members": "Üyeler ({{count}})",
+      "owner": "Sahip",
+      "invited": "Davet edildi",
+      "you": "Sen",
+      "encrypted": "Uçtan uca şifreli",
+      "encryptedBody": "Konumlar yalnızca buradakilerin telefonunda açılır. Bargu sunucusu bile göremez.",
+      "waitingTitle": "Şifreleme hazırlanıyor",
+      "waitingBody": "{{count}} kişinin anahtarı bekleniyor. Uygulamaları açılınca kendiliğinden tamamlanır.",
+      "pendingTitle": "İstek gönderildi",
+      "pendingBody": "{{name}} kabul edince burada göreceksin. O zamana kadar hiçbir şey paylaşılmaz.",
+      "keyChangedTitle": "{{name}} için güvenlik numarası değişti",
+      "keyChangedBody": "Yeni telefon olabilir. Emin olana kadar ona konumun gitmez ve ondan gelen anahtar kullanılmaz.",
+      "compare": "Karşılaştır",
+      "acceptKey": "Onayla",
+      "acceptKeyTitle": "Yeni anahtarı onaylıyor musun?",
+      "acceptKeyBody": "{{name}} telefon değiştirdiyse onaylayabilirsin. En güvenlisi yan yana gelip QR ile karşılaştırmak.",
+      "invite": "Kişi ekle",
+      "inviteUsername": "Kullanıcı adıyla davet et",
+      "inviteQr": "QR",
+      "inviteLink": "Link",
+      "shareMessage": "Bargu'da “{{name}}” çemberine katıl: {{link}}",
+      "removeTitle": "{{name}} çıkarılsın mı?",
+      "removeBody": "Çıkarılan kişi bundan sonraki konumları göremez; yeni anahtarlar yalnızca kalanlara gider.",
+      "remove": "Çıkar",
+      "leave": "Çemberden ayrıl",
+      "leaveTitle": "Çemberden ayrılmak istiyor musun?",
+      "leaveBody": "Bu çemberdekiler artık konumunu göremez, sen de onlarınkini göremezsin.",
+      "unfriend": "Arkadaşlıktan çıkar",
+      "unfriendTitle": "{{name}} arkadaşlıktan çıkarılsın mı?",
+      "unfriendBody": "İkiniz de birbirinizin konumunu artık göremezsiniz. Yeniden arkadaş olmak için yeni bir istek gerekir.",
+      "withdraw": "İsteği geri çek"
+    }
+  },
+  "verify": {
+    "title": "Güvenlik numarası",
+    "body": "Yan yana gelin: biriniz \"Onun kodunu tara\"ya dokunsun ve diğerinin ekranındaki kodu okutsun. Ya da 60 haneyi birlikte karşılaştırın; aynıysa aranızda kimse yok.",
+    "scanTheirs": "Onun kodunu tara",
+    "showMine": "Kendi kodumu göster",
+    "matched": "{{name}} doğrulandı. Aranızda kimse yok.",
+    "mismatch": "Kodlar eşleşmedi",
+    "mismatchBody": "Doğru kişinin kodunu okuttuğundan emin ol. Yine eşleşmezse bu kişiyle konum paylaşma.",
+    "codeLabel": "{{name}} ile güvenlik numarası QR kodu",
+    "computing": "Güvenlik numarası hesaplanıyor",
+    "digitsLabel": "Güvenlik numarası: {{digits}}"
   }
 }

@@ -7,11 +7,7 @@ import {
   LogOut,
   type LucideIcon,
   Pencil,
-  QrCode,
-  Search,
-  Share2,
   Smartphone,
-  Users,
   Wrench,
 } from 'lucide-react-native';
 import { forwardRef } from 'react';
@@ -34,7 +30,6 @@ import { radius, space, touchTarget, useTheme } from '@/theme';
 import { Appear } from '@/ui/appear';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
-import { EmptyState } from '@/ui/empty-state';
 import { PressableScale } from '@/ui/pressable-scale';
 import { Segmented } from '@/ui/segmented';
 import { Sheet, type SheetRef } from '@/ui/sheet';
@@ -43,48 +38,6 @@ import { toast } from '@/ui/toast';
 
 /** Licence page of the map data (ODbL), linked from the Me sheet as the credit's permanent home. */
 const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
-
-export const CirclesSheet = forwardRef<SheetRef, { onAdd: () => void }>(function CirclesSheet(
-  { onAdd },
-  ref,
-) {
-  const { t } = useTranslation();
-  return (
-    <Sheet ref={ref} title={t('sheets.circles.title')} testID="circles-sheet">
-      <EmptyState
-        icon={Users}
-        title={t('sheets.circles.emptyTitle')}
-        body={t('sheets.circles.emptyBody')}
-        action={{ label: t('sheets.circles.emptyAction'), onPress: onAdd }}
-      />
-    </Sheet>
-  );
-});
-
-/** Friend-adding entry points; the flows themselves arrive with circles and invites (Faz 4). */
-export const AddSheet = forwardRef<SheetRef, { onDismiss: () => void }>(function AddSheet(
-  { onDismiss },
-  ref,
-) {
-  const { t } = useTranslation();
-  const soon = () => {
-    toast.info(t('sheets.add.soon'));
-  };
-  const options = [
-    { icon: Search, label: t('sheets.add.byUsername') },
-    { icon: QrCode, label: t('sheets.add.showQr') },
-    { icon: Share2, label: t('sheets.add.shareLink') },
-  ];
-  return (
-    <Sheet ref={ref} title={t('sheets.add.title')} testID="add-sheet" onDismiss={onDismiss}>
-      {options.map((option, index) => (
-        <Appear key={option.label} index={index}>
-          <Row icon={option.icon} label={option.label} detail={t('common.soon')} onPress={soon} />
-        </Appear>
-      ))}
-    </Sheet>
-  );
-});
 
 export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(function MeSheet(
   { me, onClose },

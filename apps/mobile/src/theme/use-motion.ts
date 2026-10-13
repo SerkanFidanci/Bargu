@@ -53,6 +53,13 @@ export function useMotion() {
     pop: reduced
       ? fade
       : springy(ZoomIn.springify(), spring.bouncy).reduceMotion(ReduceMotion.System),
+    /** The n-th of many small pieces popping in quickly one after another (digit groups). */
+    popAt: (index: number) =>
+      reduced
+        ? fade
+        : springy(ZoomIn.springify(), spring.bouncy)
+            .delay(index * choreography.digitStagger)
+            .reduceMotion(ReduceMotion.System),
     fadeIn: FadeIn.duration(duration.base),
     fadeOut: FadeOut.duration(duration.fast),
   };

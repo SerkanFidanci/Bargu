@@ -6,6 +6,7 @@ import {
   SAFETY_NUMBER_ROUNDS_PER_PAUSE,
   safetyNumber,
   safetyNumberAsync,
+  safetyNumberQrMatches,
   verifySafetyNumberQr,
 } from '../src/safety-number.js';
 import { ids, testDevice } from './helpers.js';
@@ -61,6 +62,17 @@ describe('safetyNumberAsync', () => {
     });
     expect(result).toEqual(safetyNumber(alice, bob));
     expect(pauses).toBe((2 * SAFETY_NUMBER_ITERATIONS) / SAFETY_NUMBER_ROUNDS_PER_PAUSE);
+  });
+
+  it('matches a scanned code against the computed number, and nothing else', async () => {
+    const result = await safetyNumberAsync(alice, bob, () => Promise.resolve());
+    expect(safetyNumberQrMatches(safetyNumber(bob, alice).qr, result)).toBe(true);
+    const carol = {
+      userId: ids.aliceUser,
+      identityKey: testDevice(ids.aliceDevice, 2).identity.publicKey,
+    };
+    expect(safetyNumberQrMatches(safetyNumber(carol, bob).qr, result)).toBe(false);
+    expect(safetyNumberQrMatches('', result)).toBe(false);
   });
 
   it('refuses the same user twice, before any work', async () => {

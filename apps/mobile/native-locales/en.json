@@ -1,0 +1,5 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Bargu uses the camera to read your friend's QR code. Nothing is recorded."
+  }
+}

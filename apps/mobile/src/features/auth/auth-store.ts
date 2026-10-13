@@ -62,6 +62,11 @@ sessions.subscribe((session) => {
   void endLocally();
 });
 
+/** The server says this device's session is over (e.g. the event socket was refused). */
+export async function sessionRevoked(): Promise<void> {
+  await sessions.set(null);
+}
+
 async function endLocally(): Promise<void> {
   useAuth.setState({ status: 'signedOut', device: null, userId: null });
   await deleteDeviceKeys();

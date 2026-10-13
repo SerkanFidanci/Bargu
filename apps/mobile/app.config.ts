@@ -41,7 +41,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     bundleIdentifier: APP_ID,
     supportsTablet: false,
+    // Permission texts follow the phone's language (native-locales/*.json).
+    infoPlist: { CFBundleAllowMixedLocalizations: true },
   },
+  locales: { tr: './native-locales/tr.json', en: './native-locales/en.json' },
   android: {
     package: APP_ID,
     adaptiveIcon: {
@@ -87,6 +90,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     // MapLibre Native; Android keeps its own location engine (no Google Play services).
     '@maplibre/maplibre-react-native',
+    // QR codes only (adding friends, comparing safety numbers): camera, never the microphone.
+    [
+      'expo-camera',
+      {
+        // Turkish devices get native-locales/tr.json (see `locales` below).
+        cameraPermission:
+          "Bargu uses the camera to read your friend's QR code. Nothing is recorded.",
+        microphonePermission: false,
+        recordAudioAndroid: false,
+        barcodeScannerEnabled: true,
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

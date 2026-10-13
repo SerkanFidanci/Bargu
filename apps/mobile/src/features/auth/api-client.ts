@@ -123,7 +123,39 @@ export function createApiClient(options: ApiClientOptions) {
     return refreshing;
   }
 
+  /** Refreshes a little before expiry, so a token handed to the event socket is still valid. */
+  const FRESH_MARGIN_MS = 30_000;
+
   return {
+    /**
+     * Credentials for the event socket (apps/api events.gateway): a current access token (refreshed
+     * first when it expires within half a minute) and a one-time device signature over
+     * "GET <path>", timed with the server's clock like every signed request.
+     */
+    async socketHandshake(
+      path: string,
+    ): Promise<{ token: string; ts: string; nonce: string; sig: string }> {
+      const device = options.device();
+      let session = options.session.get();
+      if (session === null || device === null) throw new ApiError(401, 'UNAUTHENTICATED');
+      if (session.accessTokenExpiresAt - now() < FRESH_MARGIN_MS) session = await refresh();
+      const timestamp = now() + clockOffset;
+      const nonce = generateRequestNonce();
+      return {
+        token: session.accessToken,
+        ts: String(timestamp),
+        nonce,
+        sig: signRequest(device.identity.secretKey, {
+          method: 'GET',
+          path,
+          timestamp,
+          nonce,
+          deviceId: device.deviceId,
+          body: new Uint8Array(0),
+        }),
+      };
+    },
+
     /** Unauthenticated call (login, code request). */
     public(path: string, request: RequestOptions = {}): Promise<unknown> {
       return send(path, request);
@@ -135,6 +167,10 @@ export function createApiClient(options: ApiClientOptions) {
       try {
         return await send(path, request, session.accessToken);
       } catch (error) {
+        if (error instanceof ApiError && error.code === 'DEVICE_REVOKED') {
+          // Signed out elsewhere or replaced by a new phone: definitive, end the session here too.
+          await options.session.set(null);
+        }
         if (!(error instanceof ApiError && error.code === 'TOKEN_EXPIRED')) throw error;
         const next = await refresh();
         return send(path, request, next.accessToken);

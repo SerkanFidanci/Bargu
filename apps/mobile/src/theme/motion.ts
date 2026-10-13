@@ -43,6 +43,12 @@ export const ambient = {
   float: { duration: 2200, distance: 4 },
   /** Celebration when onboarding completes (over the map, never blocking it). */
   confetti: { duration: 1600, count: 18, rise: 260, spread: 300 },
+  /** How long a short inline notice stays before it goes (e.g. "not a Bargu code"). */
+  noticeHold: 1600,
+  /** The line sweeping over the QR scanner's frame, top to bottom and back. */
+  scanLine: 1800,
+  /** A QR code's halo slowly grows and fades, inviting the other phone to scan it. */
+  qrHalo: { duration: 2000, scale: 1.08 },
 } as const;
 
 /** Sequencing of several elements: how they enter one after another and how they react. */
@@ -57,6 +63,8 @@ export const choreography = {
   parallax: { illustration: 0.45, text: 0.15 },
   /** The dock's add button turns into a close cross while its sheet is open. */
   addTurn: 45,
+  /** Safety number groups appear one after another, faster than rows. */
+  digitStagger: 35,
 } as const;
 
 /** Haptic feedback per interaction kind (expo-haptics), see haptics.ts. */

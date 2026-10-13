@@ -1,0 +1,5 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Bargu, arkadaşının QR kodunu okumak için kamerayı kullanır. Görüntü kaydedilmez."
+  }
+}

@@ -96,3 +96,6 @@ export const avatarText = '#FFFFFF';
 if (avatarPalette.length !== AVATAR_COLORS) {
   throw new Error('avatar palette must match AVATAR_COLORS');
 }
+
+/** QR codes are always dark on white, in both themes: scanners expect that contrast. */
+export const qrColors = { dark: '#16151C', light: '#FFFFFF' } as const;
