@@ -17,7 +17,8 @@ import { DEV_TOOLS_ENABLED } from '@/config/env';
 import { bootstrapAuth, useAuth } from '@/features/auth/auth-store';
 import { isProfileComplete, useMe } from '@/features/profile/queries';
 import { queryClient } from '@/features/query-client';
-import { navigationTheme, useTheme } from '@/theme';
+import { useTheme } from '@/theme';
+import { navigationTheme } from '@/theme/navigation';
 import { ToastHost } from '@/ui/toast';
 
 void SplashScreen.preventAutoHideAsync();

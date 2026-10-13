@@ -1,8 +1,4 @@
-jest.mock('@/config/env', () => ({
-  env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
-}));
-
-import { passkeyFailure } from './passkeys';
+import { passkeyFailure } from './passkey-support';
 
 describe('passkeyFailure', () => {
   it.each([

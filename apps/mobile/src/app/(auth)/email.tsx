@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { requestCode, signInWithPasskey } from '@/features/auth/auth-store';
-import { passkeyFailure, passkeysSupported } from '@/features/auth/passkeys';
+import { passkeyFailure, passkeysSupported } from '@/features/auth/passkey-support';
 import { errorMessage, isApiError } from '@/features/errors';
 import { FormScreen } from '@/features/onboarding/form-screen';
 import { Button } from '@/ui/button';

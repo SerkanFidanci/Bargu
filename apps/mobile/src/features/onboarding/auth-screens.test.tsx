@@ -11,8 +11,8 @@ jest.mock('@/features/auth/auth-store', () => ({
   verifyCode: (...args: unknown[]) => mockVerifyCode(...args) as unknown,
   signInWithPasskey: () => mockPasskeySignIn() as unknown,
 }));
-jest.mock('@/features/auth/passkeys', () => ({
-  ...jest.requireActual<Record<string, unknown>>('@/features/auth/passkeys'),
+jest.mock('@/features/auth/passkey-support', () => ({
+  ...jest.requireActual<Record<string, unknown>>('@/features/auth/passkey-support'),
   passkeysSupported: () => true,
 }));
 
