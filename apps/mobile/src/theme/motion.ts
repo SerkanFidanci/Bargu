@@ -37,10 +37,35 @@ export const ambient = {
   ghostFade: 1200,
   /** How long the map data credit stays before it folds away (OSM attribution guidelines). */
   mapCredit: 5000,
+  /** Light sweeping across a primary button when pressed. */
+  shine: 650,
+  /** Empty-state icons bob gently. */
+  float: { duration: 2200, distance: 4 },
+  /** Celebration when onboarding completes (over the map, never blocking it). */
+  confetti: { duration: 1600, count: 18, rise: 260, spread: 300 },
+} as const;
+
+/** Sequencing of several elements: how they enter one after another and how they react. */
+export const choreography = {
+  /** Delay between consecutive elements entering (titles, fields, rows). */
+  stagger: 60,
+  /** A filled code box or chosen swatch briefly grows to this scale. */
+  pop: 1.14,
+  /** Wrong code: the boxes shake sideways this far, this many times. */
+  shake: { distance: 8, step: 45, times: 3 },
+  /** Intro cards: how much slower than the swipe each layer moves (0 = with the page). */
+  parallax: { illustration: 0.45, text: 0.15 },
+  /** The dock's add button turns into a close cross while its sheet is open. */
+  addTurn: 45,
 } as const;
 
 /** Haptic feedback per interaction kind (expo-haptics), see haptics.ts. */
-export const haptic = { select: 'selection', success: 'success', bump: 'heavy' } as const;
+export const haptic = {
+  select: 'selection',
+  success: 'success',
+  error: 'error',
+  bump: 'heavy',
+} as const;
 export type HapticKind = keyof typeof haptic;
 
 /** Press feedback: how far a pressed control shrinks and dims. */

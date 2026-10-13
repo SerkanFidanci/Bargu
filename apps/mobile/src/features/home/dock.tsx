@@ -1,9 +1,11 @@
 import type { Me } from '@bargu/schemas';
 import { Plus, Users } from 'lucide-react-native';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-import { elevation, radius, space, touchTarget, useTheme } from '@/theme';
+import { choreography, elevation, radius, space, spring, touchTarget, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
 import { IconButton } from '@/ui/icon-button';
 import { PressableScale } from '@/ui/pressable-scale';
@@ -14,12 +16,19 @@ export interface DockProps {
   onCircles: () => void;
   onAdd: () => void;
   onMe: () => void;
+  /** The add sheet is open: the + turns into a close cross. */
+  addOpen: boolean;
 }
 
 /** The three-item bar at the bottom of the map: Circles · Add · Me (BARGU_PLAN §4.3). */
-export function Dock({ me, onCircles, onAdd, onMe }: DockProps) {
+export function Dock({ me, onCircles, onAdd, onMe, addOpen }: DockProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const turn = useSharedValue(0);
+  useEffect(() => {
+    turn.set(withSpring(addOpen ? choreography.addTurn : 0, spring.bouncy));
+  }, [addOpen, turn]);
+  const turned = useAnimatedStyle(() => ({ transform: [{ rotate: `${String(turn.get())}deg` }] }));
   return (
     <View
       style={[
@@ -30,14 +39,16 @@ export function Dock({ me, onCircles, onAdd, onMe }: DockProps) {
       <DockItem label={t('main.dock.circles')} onPress={onCircles} testID="dock-circles">
         <Users color={colors.text} size={24} strokeWidth={2.25} />
       </DockItem>
-      <IconButton
-        testID="dock-add"
-        icon={Plus}
-        label={t('main.dock.add')}
-        tone="primary"
-        size={touchTarget + space.md}
-        onPress={onAdd}
-      />
+      <Animated.View style={turned}>
+        <IconButton
+          testID="dock-add"
+          icon={Plus}
+          label={addOpen ? t('ui.sheet.close') : t('main.dock.add')}
+          tone="primary"
+          size={touchTarget + space.md}
+          onPress={onAdd}
+        />
+      </Animated.View>
       <DockItem label={t('main.dock.me')} onPress={onMe} testID="dock-me">
         <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="sm" />
       </DockItem>

@@ -5,10 +5,13 @@ import {
   displayNameSchema,
 } from '@bargu/schemas';
 import { Check } from 'lucide-react-native';
+import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-import { avatarPalette, radius, space, touchTarget, useTheme } from '@/theme';
+import { avatarPalette, choreography, radius, space, spring, touchTarget, useTheme } from '@/theme';
+import { useMotion } from '@/theme/use-motion';
 import { AvatarMarker } from '@/ui/avatar-marker';
 import { PressableScale } from '@/ui/pressable-scale';
 import { Text } from '@/ui/text';
@@ -34,6 +37,7 @@ export function isValidDisplayName(name: string): boolean {
 export function ProfileForm({ draft, onChange, nameError }: ProfileFormProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const motion = useMotion();
   const set = (patch: Partial<ProfileDraft>) => {
     onChange({ ...draft, ...patch });
   };
@@ -48,7 +52,13 @@ export function ProfileForm({ draft, onChange, nameError }: ProfileFormProps) {
         accessible
         accessibilityLabel={t('onboarding.profile.preview')}
       >
-        <AvatarMarker name={draft.displayName || '?'} avatar={draft.avatar} />
+        {/* Re-mounted on every avatar change, so the preview pops with the new look. */}
+        <Animated.View
+          key={`${String(draft.avatar.color)}-${draft.avatar.emoji ?? ''}`}
+          entering={motion.pop}
+        >
+          <AvatarMarker name={draft.displayName || '?'} avatar={draft.avatar} />
+        </Animated.View>
         <Text variant="footnote" color="textMuted" importantForAccessibility="no">
           {t('onboarding.profile.preview')}
         </Text>
@@ -75,25 +85,24 @@ export function ProfileForm({ draft, onChange, nameError }: ProfileFormProps) {
         {Array.from({ length: AVATAR_COLORS }, (_, color) => {
           const selected = draft.avatar.color === color;
           return (
-            <PressableScale
+            <Choice
               key={color}
-              haptic="select"
-              accessibilityRole="radio"
-              accessibilityLabel={t('onboarding.profile.colorOption', { number: color + 1 })}
-              accessibilityState={{ selected }}
+              label={t('onboarding.profile.colorOption', { number: color + 1 })}
+              selected={selected}
               onPress={() => {
                 setAvatar({ color });
               }}
-              style={[
-                styles.swatch,
-                {
-                  backgroundColor: avatarPalette[color],
-                  borderColor: selected ? colors.text : 'transparent',
-                },
-              ]}
+              style={{
+                backgroundColor: avatarPalette[color],
+                borderColor: selected ? colors.text : 'transparent',
+              }}
             >
-              {selected ? <Check color={colors.onPrimary} size={20} strokeWidth={3} /> : null}
-            </PressableScale>
+              {selected ? (
+                <Animated.View entering={motion.pop}>
+                  <Check color={colors.onPrimary} size={20} strokeWidth={3} />
+                </Animated.View>
+              ) : null}
+            </Choice>
           );
         })}
       </View>
@@ -126,6 +135,38 @@ export function ProfileForm({ draft, onChange, nameError }: ProfileFormProps) {
   );
 }
 
+/** A round radio choice that grows a little while selected. */
+function Choice({
+  label,
+  selected,
+  onPress,
+  style,
+  children,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  style: StyleProp<ViewStyle>;
+  children: ReactNode;
+}) {
+  const scale = useSharedValue(selected ? choreography.pop : 1);
+  useEffect(() => {
+    scale.set(withSpring(selected ? choreography.pop : 1, spring.bouncy));
+  }, [scale, selected]);
+  const grow = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
+  return (
+    <PressableScale
+      haptic="select"
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+    >
+      <Animated.View style={[styles.swatch, style, grow]}>{children}</Animated.View>
+    </PressableScale>
+  );
+}
+
 function EmojiChoice({
   label,
   glyph,
@@ -139,24 +180,19 @@ function EmojiChoice({
 }) {
   const { colors } = useTheme();
   return (
-    <PressableScale
-      haptic="select"
-      accessibilityRole="radio"
-      accessibilityLabel={label}
-      accessibilityState={{ selected }}
+    <Choice
+      label={label}
+      selected={selected}
       onPress={onPress}
-      style={[
-        styles.swatch,
-        {
-          backgroundColor: selected ? colors.primarySoft : colors.surface,
-          borderColor: selected ? colors.primary : 'transparent',
-        },
-      ]}
+      style={{
+        backgroundColor: selected ? colors.primarySoft : colors.surface,
+        borderColor: selected ? colors.primary : 'transparent',
+      }}
     >
       <Text variant="headline" allowFontScaling={false} importantForAccessibility="no">
         {glyph}
       </Text>
-    </PressableScale>
+    </Choice>
   );
 }
 

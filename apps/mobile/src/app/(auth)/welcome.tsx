@@ -7,6 +7,7 @@ import Animated, {
   useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -17,7 +18,7 @@ import {
   LockedIllustration,
   PrecisionIllustration,
 } from '@/features/onboarding/intro-illustrations';
-import { radius, space, useTheme } from '@/theme';
+import { choreography, radius, space, useTheme } from '@/theme';
 import { Button } from '@/ui/button';
 import { Text } from '@/ui/text';
 
@@ -83,13 +84,27 @@ export default function WelcomeScreen() {
             accessibilityLabel={`${t(`intro.${key}.title`)}. ${t(`intro.${key}.body`)}`}
             accessibilityHint={t('intro.page', { current: index + 1, total: PAGES.length })}
           >
-            <Illustration active={index === page} />
-            <Text variant="title1" align="center" accessibilityRole="header">
-              {t(`intro.${key}.title`)}
-            </Text>
-            <Text variant="callout" color="textMuted" align="center">
-              {t(`intro.${key}.body`)}
-            </Text>
+            <Parallax
+              index={index}
+              offset={offset}
+              width={width}
+              depth={choreography.parallax.illustration}
+            >
+              <Illustration active={index === page} />
+            </Parallax>
+            <Parallax
+              index={index}
+              offset={offset}
+              width={width}
+              depth={choreography.parallax.text}
+            >
+              <Text variant="title1" align="center" accessibilityRole="header">
+                {t(`intro.${key}.title`)}
+              </Text>
+              <Text variant="callout" color="textMuted" align="center">
+                {t(`intro.${key}.body`)}
+              </Text>
+            </Parallax>
           </View>
         ))}
       </Animated.ScrollView>
@@ -103,6 +118,32 @@ export default function WelcomeScreen() {
       </View>
     </SafeAreaView>
   );
+}
+
+/** A layer of an intro page that drifts behind the swipe and fades with distance. */
+function Parallax({
+  index,
+  offset,
+  width,
+  depth,
+  children,
+}: {
+  index: number;
+  offset: SharedValue<number>;
+  width: number;
+  depth: number;
+  children: React.ReactNode;
+}) {
+  const reduced = useReducedMotion();
+  const style = useAnimatedStyle(() => {
+    const distance = offset.get() - index * width;
+    const progress = Math.abs(distance) / Math.max(width, 1);
+    return {
+      opacity: interpolate(progress, [0, 0.8], [1, 0], 'clamp'),
+      transform: [{ translateX: reduced ? 0 : distance * depth }],
+    };
+  });
+  return <Animated.View style={[styles.layer, style]}>{children}</Animated.View>;
 }
 
 function Dot({
@@ -138,4 +179,5 @@ const styles = StyleSheet.create({
   footer: { paddingHorizontal: space.xl, paddingBottom: space.lg, gap: space.xl },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: space.sm },
   dot: { height: DOT, borderRadius: radius.pill },
+  layer: { alignItems: 'center', gap: space.lg },
 });

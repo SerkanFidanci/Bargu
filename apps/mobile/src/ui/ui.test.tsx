@@ -10,6 +10,7 @@ import { Avatar, initialOf } from './avatar';
 import { AvatarStack } from './avatar-stack';
 import { Button } from './button';
 import { CodeInput } from './code-input';
+import { Confetti, useCelebration } from './confetti';
 import { Segmented } from './segmented';
 import { Text } from './text';
 import { Toggle } from './toggle';
@@ -141,5 +142,31 @@ describe('Segmented', () => {
     expect(onChange).toHaveBeenCalledWith('light');
     await fireEvent.press(screen.getByRole('radio', { name: 'Otomatik' }));
     expect(onChange).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('CodeInput feedback', () => {
+  it('plays the error haptic when a code is rejected', async () => {
+    const { rerender } = await render(
+      <CodeInput label="Giriş kodu" length={8} value="" onChange={jest.fn()} />,
+    );
+    expect(Haptics.notificationAsync).not.toHaveBeenCalledWith('error');
+    await rerender(<CodeInput label="Giriş kodu" length={8} value="" onChange={jest.fn()} error />);
+    expect(Haptics.notificationAsync).toHaveBeenCalledWith('error');
+  });
+});
+
+describe('celebration', () => {
+  it('is requested once, played by the map, then cleared', () => {
+    expect(useCelebration.getState().pending).toBe(false);
+    useCelebration.getState().celebrate();
+    expect(useCelebration.getState().pending).toBe(true);
+    useCelebration.getState().done();
+    expect(useCelebration.getState().pending).toBe(false);
+  });
+
+  it('never blocks touches on the map', async () => {
+    const { toJSON } = await render(<Confetti onDone={jest.fn()} />);
+    expect(toJSON()).toMatchObject({ props: { pointerEvents: 'none' } });
   });
 });

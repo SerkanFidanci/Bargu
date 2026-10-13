@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { space, useTheme } from '@/theme';
+import { Appear } from '@/ui/appear';
 import { Text } from '@/ui/text';
 
 export interface FormScreenProps {
@@ -32,22 +33,33 @@ export function FormScreen({ title, body, eyebrow, children, footer }: FormScree
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
         >
+          {/* Title, text, fields and actions slide in one after another. */}
           {eyebrow === undefined ? null : (
-            <Text variant="caption" color="textMuted">
-              {eyebrow}
-            </Text>
+            <Appear index={0}>
+              <Text variant="caption" color="textMuted">
+                {eyebrow}
+              </Text>
+            </Appear>
           )}
-          <Text variant="title1" accessibilityRole="header">
-            {title}
-          </Text>
+          <Appear index={1}>
+            <Text variant="title1" accessibilityRole="header">
+              {title}
+            </Text>
+          </Appear>
           {body === undefined ? null : (
-            <Text variant="callout" color="textMuted">
-              {body}
-            </Text>
+            <Appear index={2}>
+              <Text variant="callout" color="textMuted">
+                {body}
+              </Text>
+            </Appear>
           )}
-          <View style={styles.fields}>{children}</View>
+          <Appear index={3} style={styles.fields}>
+            {children}
+          </Appear>
         </ScrollView>
-        <View style={styles.footer}>{footer}</View>
+        <Appear index={4} style={styles.footer}>
+          {footer}
+        </Appear>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

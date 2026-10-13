@@ -1,5 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Dock } from '@/features/home/dock';
@@ -9,6 +10,8 @@ import { BarguMap } from '@/features/map/bargu-map';
 import { MapCredit } from '@/features/map/map-credit';
 import { useMe } from '@/features/profile/queries';
 import { space, touchTarget } from '@/theme';
+import { useMotion } from '@/theme/use-motion';
+import { Confetti, useCelebration } from '@/ui/confetti';
 import type { SheetRef } from '@/ui/sheet';
 
 /** Height the dock and pill cover, so the map keeps its centre and credits in the open area. */
@@ -22,6 +25,18 @@ export default function HomeScreen() {
   const circles = useRef<SheetRef>(null);
   const add = useRef<SheetRef>(null);
   const meSheet = useRef<SheetRef>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const motion = useMotion();
+  const celebrating = useCelebration((state) => state.pending);
+  const celebrated = useCelebration((state) => state.done);
+  const toggleAdd = () => {
+    if (addOpen) {
+      add.current?.dismiss();
+      return;
+    }
+    add.current?.present();
+    setAddOpen(true);
+  };
 
   // The root layout only shows this group once the profile is loaded and complete.
   if (me.data === undefined) return null;
@@ -35,26 +50,42 @@ export default function HomeScreen() {
         }}
       />
       <MapCredit bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
-      <View style={[styles.top, { top: insets.top + space.sm }]} pointerEvents="box-none">
+      <Animated.View
+        entering={motion.enterDown}
+        style={[styles.top, { top: insets.top + space.sm }]}
+        pointerEvents="box-none"
+      >
         <SeersPill seers={[]} onPress={() => circles.current?.present()} />
-      </View>
-      <View style={[styles.bottom, { bottom: insets.bottom + space.md }]} pointerEvents="box-none">
+      </Animated.View>
+      <Animated.View
+        entering={motion.enterUpAt(1)}
+        style={[styles.bottom, { bottom: insets.bottom + space.md }]}
+        pointerEvents="box-none"
+      >
         <Dock
           me={me.data}
+          addOpen={addOpen}
           onCircles={() => circles.current?.present()}
-          onAdd={() => add.current?.present()}
+          onAdd={toggleAdd}
           onMe={() => meSheet.current?.present()}
         />
-      </View>
+      </Animated.View>
       <CirclesSheet
         ref={circles}
         onAdd={() => {
           circles.current?.dismiss();
           add.current?.present();
+          setAddOpen(true);
         }}
       />
-      <AddSheet ref={add} />
+      <AddSheet
+        ref={add}
+        onDismiss={() => {
+          setAddOpen(false);
+        }}
+      />
       <MeSheet ref={meSheet} me={me.data} onClose={() => meSheet.current?.dismiss()} />
+      {celebrating ? <Confetti onDone={celebrated} /> : null}
     </View>
   );
 }

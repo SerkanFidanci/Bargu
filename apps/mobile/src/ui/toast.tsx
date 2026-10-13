@@ -84,7 +84,7 @@ export function ToastHost() {
   const Icon = tone.icon;
   return (
     <View pointerEvents="box-none" style={[styles.host, { top: insets.top + space.sm }]}>
-      <Animated.View key={current.id} entering={motion.fadeIn} exiting={motion.fadeOut}>
+      <Animated.View key={current.id} entering={motion.enterDown} exiting={motion.exitUp}>
         <Pressable
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"

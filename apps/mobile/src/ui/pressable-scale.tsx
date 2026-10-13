@@ -42,7 +42,8 @@ export function PressableScale({
         onPressIn?.(event);
       }}
       onPressOut={(event) => {
-        pressed.set(withSpring(0, spring.snappy));
+        // A slightly bouncy release makes presses feel alive (settles instantly with Reduce Motion).
+        pressed.set(withSpring(0, spring.bouncy));
         onPressOut?.(event);
       }}
       onPress={(event) => {

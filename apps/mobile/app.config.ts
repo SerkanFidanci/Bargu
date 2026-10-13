@@ -12,6 +12,9 @@ const EAS_PROJECT_ID = '56c64a85-3555-4469-a686-4af1c67aa9ce';
  * display. See src/theme/typography.ts for how each weight is selected per platform.
  */
 const FONT_DIR = 'node_modules/@expo-google-fonts';
+
+/** Brand violet (src/theme/colors.ts lightColors.primary), for the icon background and splash. */
+const BRAND_VIOLET = '#5B34F2';
 const FONTS = {
   Inter: [
     [400, 'inter/400Regular/Inter_400Regular.ttf'],
@@ -38,14 +41,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     bundleIdentifier: APP_ID,
     supportsTablet: false,
-    icon: './assets/expo.icon',
   },
   android: {
     package: APP_ID,
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
+      // Brand violet behind the pin (scripts/build-icons.mjs renders the layers).
+      backgroundColor: BRAND_VIOLET,
       foregroundImage: './assets/images/android-icon-foreground.png',
-      backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
@@ -55,7 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#208AEF',
+        backgroundColor: BRAND_VIOLET,
         image: './assets/images/splash-icon.png',
         imageWidth: 76,
       },

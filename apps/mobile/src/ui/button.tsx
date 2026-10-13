@@ -1,8 +1,18 @@
 import type { LucideIcon } from 'lucide-react-native';
+import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { type ColorTokens, radius, space, touchTarget, useTheme } from '@/theme';
+import { ambient, type ColorTokens, radius, space, touchTarget, useTheme } from '@/theme';
 import type { HapticKind } from '@/theme/motion';
+import { useMotion } from '@/theme/use-motion';
 
 import { PressableScale } from './pressable-scale';
 import { Text } from './text';
@@ -11,13 +21,16 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 const PALETTE: Record<
   ButtonVariant,
-  { background: keyof ColorTokens | null; text: keyof ColorTokens }
+  { background: keyof ColorTokens | null; text: keyof ColorTokens; shine: boolean }
 > = {
-  primary: { background: 'primary', text: 'onPrimary' },
-  secondary: { background: 'surface', text: 'text' },
-  ghost: { background: null, text: 'primary' },
-  danger: { background: 'danger', text: 'onDanger' },
+  primary: { background: 'primary', text: 'onPrimary', shine: true },
+  secondary: { background: 'surface', text: 'text', shine: false },
+  ghost: { background: null, text: 'primary', shine: false },
+  danger: { background: 'danger', text: 'onDanger', shine: true },
 };
+
+/** Width of the light band sweeping across a pressed button, relative to the button. */
+const SHINE_WIDTH = 0.35;
 
 export interface ButtonProps {
   label: string;
@@ -47,20 +60,40 @@ export function Button({
   testID,
 }: ButtonProps) {
   const { colors } = useTheme();
+  const motion = useMotion();
+  const reduced = useReducedMotion();
   const palette = PALETTE[variant];
   const inactive = disabled || loading;
   const textColor = colors[palette.text];
+  const [width, setWidth] = useState(0);
+  const shine = useSharedValue(0);
+
+  const shineStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(shine.get(), [0, 0.15, 0.85, 1], [0, 1, 1, 0]),
+    transform: [
+      { translateX: interpolate(shine.get(), [0, 1], [-width * SHINE_WIDTH, width]) },
+      { skewX: '-20deg' },
+    ],
+  }));
 
   return (
     <PressableScale
       testID={testID}
       onPress={onPress}
+      onPressIn={() => {
+        if (!palette.shine || reduced) return;
+        shine.set(0);
+        shine.set(withTiming(1, { duration: ambient.shine, easing: Easing.out(Easing.quad) }));
+      }}
       disabled={inactive}
       haptic={haptic}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: inactive, busy: loading }}
+      onLayout={(event) => {
+        setWidth(event.nativeEvent.layout.width);
+      }}
       style={[
         styles.base,
         fill ? styles.fill : styles.hug,
@@ -68,9 +101,17 @@ export function Button({
         inactive ? styles.inactive : null,
       ]}
     >
+      {palette.shine ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.shine, { width: width * SHINE_WIDTH }, shineStyle]}
+        />
+      ) : null}
       <View style={styles.content}>
         {loading ? (
-          <ActivityIndicator color={textColor} />
+          <Animated.View key="loading" entering={motion.pop}>
+            <ActivityIndicator color={textColor} />
+          </Animated.View>
         ) : Icon === undefined ? null : (
           <Icon color={textColor} size={20} strokeWidth={2.25} />
         )}
@@ -89,10 +130,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xl,
     paddingVertical: space.md,
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   fill: { alignSelf: 'stretch' },
   hug: { alignSelf: 'flex-start' },
   inactive: { opacity: 0.5 },
+  shine: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+  },
   content: {
     flexDirection: 'row',
     alignItems: 'center',

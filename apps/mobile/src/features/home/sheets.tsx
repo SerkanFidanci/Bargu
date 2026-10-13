@@ -31,6 +31,7 @@ import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
 import { meKey } from '@/features/profile/queries';
 import { feedback } from '@/theme/haptics';
 import { radius, space, touchTarget, useTheme } from '@/theme';
+import { Appear } from '@/ui/appear';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
 import { EmptyState } from '@/ui/empty-state';
@@ -61,26 +62,26 @@ export const CirclesSheet = forwardRef<SheetRef, { onAdd: () => void }>(function
 });
 
 /** Friend-adding entry points; the flows themselves arrive with circles and invites (Faz 4). */
-export const AddSheet = forwardRef<SheetRef>(function AddSheet(_props, ref) {
+export const AddSheet = forwardRef<SheetRef, { onDismiss: () => void }>(function AddSheet(
+  { onDismiss },
+  ref,
+) {
   const { t } = useTranslation();
   const soon = () => {
     toast.info(t('sheets.add.soon'));
   };
+  const options = [
+    { icon: Search, label: t('sheets.add.byUsername') },
+    { icon: QrCode, label: t('sheets.add.showQr') },
+    { icon: Share2, label: t('sheets.add.shareLink') },
+  ];
   return (
-    <Sheet ref={ref} title={t('sheets.add.title')} testID="add-sheet">
-      <Row
-        icon={Search}
-        label={t('sheets.add.byUsername')}
-        detail={t('common.soon')}
-        onPress={soon}
-      />
-      <Row icon={QrCode} label={t('sheets.add.showQr')} detail={t('common.soon')} onPress={soon} />
-      <Row
-        icon={Share2}
-        label={t('sheets.add.shareLink')}
-        detail={t('common.soon')}
-        onPress={soon}
-      />
+    <Sheet ref={ref} title={t('sheets.add.title')} testID="add-sheet" onDismiss={onDismiss}>
+      {options.map((option, index) => (
+        <Appear key={option.label} index={index}>
+          <Row icon={option.icon} label={option.label} detail={t('common.soon')} onPress={soon} />
+        </Appear>
+      ))}
     </Sheet>
   );
 });
@@ -129,13 +130,13 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
 
   return (
     <Sheet ref={ref} title={t('sheets.me.title')} testID="me-sheet">
-      <View style={styles.profile}>
+      <Appear style={styles.profile}>
         <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="lg" />
         <View style={styles.profileText}>
           <Text variant="title2">{me.displayName}</Text>
           <Text variant="callout" color="textMuted">{`@${me.username ?? ''}`}</Text>
         </View>
-      </View>
+      </Appear>
       <Button
         label={t('sheets.me.editProfile')}
         icon={Pencil}

@@ -1,4 +1,4 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef, type ReactNode, useState } from 'react';
 import { StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
 
 import { radius, space, touchTarget, typography, useTheme } from '@/theme';
@@ -14,10 +14,12 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style' | 'placehol
   helperTone?: 'muted' | 'success';
   /** Element at the start of the field (e.g. "@"). */
   prefix?: string;
+  /** Element at the end of the field (e.g. a live status icon). */
+  trailing?: ReactNode;
 }
 
 export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
-  { label, error, helper, helperTone = 'muted', prefix, onFocus, onBlur, ...props },
+  { label, error, helper, helperTone = 'muted', prefix, trailing, onFocus, onBlur, ...props },
   ref,
 ) {
   const { colors } = useTheme();
@@ -55,6 +57,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
           {...props}
           style={[typography.body.style, styles.input, { color: colors.text }]}
         />
+        {trailing}
       </View>
       {message === null ? null : (
         <Text

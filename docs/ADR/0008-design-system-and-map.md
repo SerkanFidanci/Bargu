@@ -19,7 +19,9 @@ marka kararı (renk, yazı tipi) ve bazı kütüphane seçimleri burada netleşt
 - **Yazı tipi**: başlıklar **Bricolage Grotesque**, metin **Inter**. İkisi de Türkçe harflerin
   hepsini (ğ ş ı İ ç ö ü) ve ₺ işaretini içeriyor (dosyalardan doğrulandı). Uygulamanın içine
   gömülü; çalışırken internetten yazı tipi indirilmez.
-- Logo ve uygulama simgesi henüz yok (Expo varsayılanı); marka netleşince değişecek.
+- **Simge**: menekşe zemin üzerinde beyaz konum iğnesi, ortasında mercan nokta (bir arkadaş).
+  `scripts/build-icons.mjs` kodla çiziyor; açılış ekranı da marka renginde. Gerçek logo gelince aynı
+  betikle ya da dosyaları değiştirerek yenilenir.
 
 ### Hareket
 
@@ -59,7 +61,12 @@ marka kararı (renk, yazı tipi) ve bazı kütüphane seçimleri burada netleşt
   (sürümler sabit, indirilen araç SHA-256 ile doğrulanıyor).
 - Stil: Protomaps katmanları, Türkçe etiketler, açık/koyu tema için marka renkleriyle
   (`apps/mobile/scripts/build-map-styles.mjs` üretir, çıktı depoda).
-- OpenStreetMap lisansı gereği "© OpenStreetMap" yazısı haritada hep görünür.
+- **Görünüm**: harita gündüz açık, 20:00–07:00 arası koyu (plan §4.3 "gece otomatik koyu"); "Ben"
+  panelinden Otomatik / Açık / Koyu seçilebilir (yalnızca telefonda saklanır). Koyu tema siyah
+  değil, okunur bir gece mavisi.
+- **Kaynak gösterimi**: "© OpenStreetMap katkıcıları" harita açılınca altta görünür ve 5 saniye
+  sonra kaybolur; lisans bağlantısı "Ben → Harita verisi"nde hep durur. OSMF kaynak gösterimi
+  kuralları bu kullanıma izin veriyor (5 saniye sonra katlanma + bulunabilir lisans bilgisi).
 
 ### Profil ve kullanıcı adı
 

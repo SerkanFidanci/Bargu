@@ -5,6 +5,7 @@ import { haptic, type HapticKind } from './motion';
 const play: Record<(typeof haptic)[HapticKind], () => Promise<void>> = {
   selection: () => Haptics.selectionAsync(),
   success: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
+  error: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
   heavy: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
 };
 

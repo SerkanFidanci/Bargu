@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/features/errors';
 import { FormScreen } from '@/features/onboarding/form-screen';
 import { useMe, useUpdateProfile, useUsernameCheck } from '@/features/profile/queries';
+import { UsernameStatus } from '@/features/profile/username-status';
 import { Button } from '@/ui/button';
 import { TextField } from '@/ui/text-field';
 
@@ -64,6 +65,7 @@ export default function UsernameScreen() {
         testID="username-input"
         label={t('onboarding.username.label')}
         prefix="@"
+        trailing={<UsernameStatus check={check} />}
         value={input}
         onChangeText={setInput}
         error={'error' in status ? status.error : null}

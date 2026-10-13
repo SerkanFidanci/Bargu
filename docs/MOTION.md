@@ -4,14 +4,15 @@ Kaynak: BARGU_PLAN §4. Kod: `apps/mobile/src/theme/`. Kararlar: [ADR 0008](ADR/
 
 ## Hareket değişkenleri (`motion.ts`)
 
-| Ad              | Değer                               | Nerede                                             |
-| --------------- | ----------------------------------- | -------------------------------------------------- |
-| `spring.snappy` | damping 20, stiffness 300, mass 0.8 | Basma geri bildirimi, anahtar, kaydırıcı, paneller |
-| `spring.bouncy` | damping 12, stiffness 180, mass 1   | Oyuncu anlar (kilit kapanması, dürtme)             |
-| `spring.gentle` | damping 26, stiffness 120, mass 1   | Büyük ve sakin geçişler (hassasiyet halkası)       |
-| `duration`      | fast 150 · base 250 · slow 400 ms   | Solma ve kısa geçişler; hiçbiri 400 ms'yi aşmaz    |
-| `ambient`       | nefes 2400 ms · titreşim 900 ms · … | Kendi kendine dönen süsler (kullanıcıyı bekletmez) |
-| `haptic`        | select · success · bump             | Seçim, başarı, dürtme                              |
+| Ad              | Değer                                                                                | Nerede                                                                        |
+| --------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `spring.snappy` | damping 20, stiffness 300, mass 0.8                                                  | Basma geri bildirimi, anahtar, kaydırıcı, paneller                            |
+| `spring.bouncy` | damping 12, stiffness 180, mass 1                                                    | Oyuncu anlar (kilit kapanması, dürtme)                                        |
+| `spring.gentle` | damping 26, stiffness 120, mass 1                                                    | Büyük ve sakin geçişler (hassasiyet halkası)                                  |
+| `duration`      | fast 150 · base 250 · slow 400 ms                                                    | Solma ve kısa geçişler; hiçbiri 400 ms'yi aşmaz                               |
+| `ambient`       | nefes 2400 ms · titreşim 900 ms · …                                                  | Kendi kendine dönen süsler (kullanıcıyı bekletmez)                            |
+| `choreography`  | sıra arası 60 ms · büyüme 1,14 · titreme 3×8 pt · paralaks 0,45/0,15 · + düğmesi 45° | Sırayla giriş, kod kutuları, seçimler, yanlış kod, tanıtım kartları, alt menü |
+| `haptic`        | select · success · bump                                                              | Seçim, başarı, dürtme                                                         |
 
 Kurallar:
 
@@ -23,6 +24,25 @@ Kurallar:
 4. **Hareketi azalt**: tüm yay ve süreler `ReduceMotion.System` taşır (anında biter); içeri giren
    öğeler `useMotion()` ile kaymak yerine solar; döngüler durur.
 5. Her dokunulabilir öğenin bir basma geri bildirimi (hafif küçülme) ve gerektiğinde titreşimi var.
+
+## Nerede ne hareket ediyor
+
+| Yer              | Hareket                                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| Butonlar         | Basınca küçülür, bırakınca yaylanır; birincil butonda ışık süzülür; yükleniyor işareti zıplayarak gelir |
+| Form ekranları   | Başlık, metin, alanlar ve buton sırayla aşağıdan kayarak gelir                                          |
+| Tanıtım kartları | Çizimler animasyonlu; kaydırırken resim ve yazı farklı hızda kayar (paralaks), uzaklaşınca solar        |
+| Kod girişi       | Her rakamla kutu zıplar; yanlış kodda satır titrer ve hata titreşimi                                    |
+| Kullanıcı adı    | Kontrol sırasında dönen işaret, sonra zıplayan ✓ / ✕                                                    |
+| Avatar seçimi    | Seçilen renk/emoji büyür, önizleme işaretçisi her değişiklikte zıplar                                   |
+| Harita ekranı    | Üst balon yukarıdan, alt menü aşağıdan gelir; + düğmesi panel açıkken ×'e döner; avatar "nefes alır"    |
+| Paneller         | Yay ile açılır; satırlar sırayla gelir                                                                  |
+| Bildirimler      | Üstten yaylanarak iner, yukarı çıkarak kaybolur                                                         |
+| Boş durum        | Simge zıplayarak gelir ve hafifçe süzülür                                                               |
+| Kayıt bitişi     | Harita açılırken kısa bir konfeti (dokunmayı engellemez)                                                |
+
+Gösterişli harita animasyonları (hız izi, sıvı gibi birleşen avatarlar, radyal menü, dürtme, buluşma
+efekti) plana göre Faz 6'da.
 
 ## Tasarım değişkenleri
 

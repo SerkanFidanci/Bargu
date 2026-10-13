@@ -11,6 +11,7 @@ import {
   type ProfileDraft,
 } from '@/features/profile/profile-form';
 import { useMe, useUpdateProfile, useUsernameCheck } from '@/features/profile/queries';
+import { UsernameStatus } from '@/features/profile/username-status';
 import { Button } from '@/ui/button';
 import { TextField } from '@/ui/text-field';
 
@@ -77,6 +78,7 @@ export default function EditProfileScreen() {
       <TextField
         label={t('onboarding.username.label')}
         prefix="@"
+        trailing={usernameChanged ? <UsernameStatus check={check} /> : null}
         value={username}
         onChangeText={setUsername}
         error={usernameError}

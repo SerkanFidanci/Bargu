@@ -4,7 +4,16 @@ import { type ColorTokens, darkColors, lightColors } from './colors';
 
 export { avatarPalette, avatarText, type ColorTokens } from './colors';
 export { avatarSize, elevation, radius, space, touchTarget } from './layout';
-export { ambient, duration, haptic, press, spring, timing, typingDebounceMs } from './motion';
+export {
+  ambient,
+  choreography,
+  duration,
+  haptic,
+  press,
+  spring,
+  timing,
+  typingDebounceMs,
+} from './motion';
 export { font, typography, type TypographyVariant } from './typography';
 
 export type ColorScheme = 'light' | 'dark';
