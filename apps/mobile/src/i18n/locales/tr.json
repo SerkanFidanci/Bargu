@@ -1,13 +1,142 @@
 {
   "home": {
-    "tagline": "Konumun kilitli. Sadece arkadaşların açabilir.",
     "devTools": "Geliştirici: kripto hız testi"
   },
-  "status": {
-    "api": {
-      "checking": "Sunucu bağlantısı kontrol ediliyor…",
-      "online": "Sunucu bağlantısı hazır",
-      "offline": "Sunucuya ulaşılamıyor"
+  "common": {
+    "continue": "Devam",
+    "cancel": "Vazgeç",
+    "done": "Bitti",
+    "soon": "Yakında"
+  },
+  "errors": {
+    "network": "Bağlantı yok. İnternetini kontrol edip tekrar dene.",
+    "rateLimited": "Çok fazla deneme oldu. Biraz bekleyip tekrar dene.",
+    "unknown": "Bir şeyler ters gitti. Tekrar dene.",
+    "sessionEnded": "Oturumun kapandı. Tekrar giriş yap."
+  },
+  "intro": {
+    "skip": "Geç",
+    "next": "Devam",
+    "start": "Başla",
+    "page": "{{current}} / {{total}}",
+    "locked": {
+      "title": "Konumun kilitli",
+      "body": "Konumunu sadece arkadaşlarının telefonu açabilir. Bizim sunucumuz bile göremez."
+    },
+    "precision": {
+      "title": "Ne kadar görüneceğini sen seç",
+      "body": "Her çember için ayrı: tam konum, mahalle ya da sadece şehir."
+    },
+    "ghost": {
+      "title": "İstediğin an kaybol",
+      "body": "Hayalet moduna geç, kimse nerede olduğunu görmesin. Tek dokunuş."
+    }
+  },
+  "auth": {
+    "email": {
+      "title": "E-posta adresin",
+      "body": "Sana 8 haneli bir giriş kodu göndereceğiz. Şifre yok, telefon numarası yok.",
+      "label": "E-posta",
+      "placeholder": "ornek@eposta.com",
+      "submit": "Kod gönder",
+      "invalid": "Geçerli bir e-posta adresi yaz."
+    },
+    "code": {
+      "title": "Kodu yaz",
+      "body": "{{email}} adresine 8 haneli bir kod gönderdik. Gelen kutunu kontrol et.",
+      "label": "Giriş kodu, 8 hane",
+      "verifying": "Kontrol ediliyor…",
+      "resend": "Kodu tekrar gönder",
+      "resendIn": "{{seconds}} sn sonra tekrar gönderebilirsin",
+      "resent": "Yeni kod gönderildi.",
+      "changeEmail": "E-postayı değiştir",
+      "oneDevice": "Bargu aynı anda tek telefonda açık olur. Başka bir telefonda açıksa oradan çıkış yapılır.",
+      "invalid": "Kod yanlış. Tekrar dene.",
+      "expired": "Bu kodun süresi doldu. Yeni bir kod iste.",
+      "locked": "Çok fazla yanlış deneme. Yeni bir kod iste.",
+      "unavailable": "Bu hesap kullanılamıyor."
+    }
+  },
+  "onboarding": {
+    "step": "Adım {{current}} / {{total}}",
+    "username": {
+      "title": "Kullanıcı adını seç",
+      "body": "Arkadaşların seni bu adla bulur. Telefon numaran veya rehberin gerekmez.",
+      "label": "Kullanıcı adı",
+      "rules": "3–20 karakter: küçük harf, rakam, nokta ve alt çizgi.",
+      "checking": "Kontrol ediliyor…",
+      "available": "@{{username}} senin olabilir",
+      "taken": "Bu ad alınmış, başka bir tane dene.",
+      "reserved": "Bu ad kullanılamaz.",
+      "invalid": "3–20 karakter: küçük harf, rakam, nokta ve alt çizgi (Türkçe harf yok)."
+    },
+    "profile": {
+      "title": "Seni nasıl görsünler?",
+      "nameLabel": "Adın",
+      "namePlaceholder": "Adın ya da takma adın",
+      "nameInvalid": "1–40 karakter, görünen bir harf veya simge olsun.",
+      "color": "Rengin",
+      "colorOption": "Renk {{number}}",
+      "emoji": "Simgen",
+      "noEmoji": "Simge yok",
+      "preview": "Haritada böyle görüneceksin",
+      "finish": "Bitir"
+    }
+  },
+  "main": {
+    "seers": {
+      "none": "Seni kimse görmüyor",
+      "count_one": "{{count}} kişi seni görüyor",
+      "count_other": "{{count}} kişi seni görüyor",
+      "hint": "Kimlerin seni gördüğünü açar"
+    },
+    "dock": {
+      "circles": "Çemberler",
+      "add": "Ekle",
+      "me": "Ben"
+    },
+    "connecting": "Bağlanıyor…",
+    "map": "Harita"
+  },
+  "sheets": {
+    "circles": {
+      "title": "Çemberler",
+      "emptyTitle": "Henüz çemberin yok",
+      "emptyBody": "Arkadaşlarını ekleyince burada görünecekler. Kabul etmedikleri sürece hiçbir şey paylaşılmaz.",
+      "emptyAction": "Arkadaş ekle"
+    },
+    "add": {
+      "title": "Arkadaş ekle",
+      "byUsername": "Kullanıcı adıyla ara",
+      "showQr": "QR kodumu göster",
+      "shareLink": "Davet linki paylaş",
+      "soon": "Arkadaş ekleme bir sonraki güncellemede geliyor."
+    },
+    "me": {
+      "title": "Ben",
+      "precision": "Konum hassasiyeti (varsayılan)",
+      "precisionExact": "Tam",
+      "precisionNeighbourhood": "Mahalle",
+      "precisionCity": "Şehir",
+      "device": "Bu telefon",
+      "deviceAttested": "Doğrulanmış cihaz",
+      "deviceNotAttested": "Cihaz doğrulaması yok (test sürümü)",
+      "editProfile": "Profili düzenle",
+      "logout": "Çıkış yap",
+      "logoutTitle": "Çıkış yapılsın mı?",
+      "logoutBody": "Bu telefondaki şifreleme anahtarların silinir. Tekrar girdiğinde yeni anahtar oluşur ve arkadaşların cihazının değiştiğini görür.",
+      "version": "Sürüm {{version}}"
+    }
+  },
+  "ui": {
+    "avatarStack": "{{count}} kişi: {{names}}",
+    "marker": {
+      "live": "{{name}}, canlı konum",
+      "stale": "{{name}}, {{minutes}} dakika önceki konum",
+      "age": "{{minutes}} dk"
+    },
+    "sheet": {
+      "close": "Kapat"
     }
   },
   "dev": {
@@ -31,6 +160,20 @@
       },
       "backendNative": "Eğri işlemleri: telefonun yerel kripto kodu (öz test geçti)",
       "backendReference": "Eğri işlemleri: JavaScript yedeği ({{reason}})"
+    },
+    "ui": {
+      "title": "Bileşenler",
+      "link": "Geliştirici: bileşen galerisi",
+      "fps": "Kare hızı ölçümü",
+      "fpsStart": "Ölçümü başlat (5 sn)",
+      "fpsResult": "Ortalama {{avg}} fps · en kötü kare {{worst}} ms · {{dropped}} kare kaçtı",
+      "reduceMotion": "Hareketi azalt: {{state}}",
+      "on": "açık",
+      "off": "kapalı",
+      "sample": "Örnek metin",
+      "openSheet": "Örnek paneli aç",
+      "showToast": "Örnek bildirim göster",
+      "toastText": "Bu bir örnek bildirim."
     }
   }
 }

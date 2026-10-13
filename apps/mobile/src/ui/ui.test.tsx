@@ -1,0 +1,117 @@
+import i18n from '@/i18n';
+
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import * as Haptics from 'expo-haptics';
+import { useState } from 'react';
+
+import { typography } from '@/theme';
+
+import { Avatar, initialOf } from './avatar';
+import { AvatarStack } from './avatar-stack';
+import { Button } from './button';
+import { CodeInput } from './code-input';
+import { Text } from './text';
+import { Toggle } from './toggle';
+
+beforeAll(async () => {
+  await i18n.changeLanguage('tr');
+});
+
+describe('Text', () => {
+  it('follows the system text size up to the cap of its variant', async () => {
+    await render(<Text variant="display">Bargu</Text>);
+    expect(screen.getByText('Bargu').props.maxFontSizeMultiplier).toBe(typography.display.maxScale);
+  });
+});
+
+describe('Button', () => {
+  it('is a labelled button that reacts to presses (with the requested haptic)', async () => {
+    const onPress = jest.fn();
+    await render(<Button label="Devam" onPress={onPress} haptic="select" />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Devam' }));
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(Haptics.selectionAsync).toHaveBeenCalled();
+  });
+
+  it('ignores presses and says it is busy while loading', async () => {
+    const onPress = jest.fn();
+    await render(<Button label="Kod gönder" onPress={onPress} loading />);
+    const button = screen.getByRole('button', { name: 'Kod gönder' });
+    expect(button.props.accessibilityState).toMatchObject({ busy: true, disabled: true });
+    await fireEvent.press(button);
+    expect(onPress).not.toHaveBeenCalled();
+  });
+});
+
+describe('CodeInput', () => {
+  function Harness({ onComplete }: { onComplete: (code: string) => void }) {
+    const [value, setValue] = useState('');
+    return (
+      <CodeInput
+        label="Giriş kodu"
+        length={8}
+        value={value}
+        onChange={setValue}
+        onComplete={onComplete}
+      />
+    );
+  }
+
+  it('accepts a pasted code with spaces or dashes and completes with the digits', async () => {
+    const onComplete = jest.fn();
+    await render(<Harness onComplete={onComplete} />);
+    await fireEvent.changeText(screen.getByLabelText('Giriş kodu'), '1234-5678 ');
+    expect(onComplete).toHaveBeenCalledWith('12345678');
+  });
+
+  it('does not complete early and ignores letters', async () => {
+    const onComplete = jest.fn();
+    await render(<Harness onComplete={onComplete} />);
+    await fireEvent.changeText(screen.getByLabelText('Giriş kodu'), '12ab34');
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Giriş kodu').props.value).toBe('1234');
+  });
+
+  it('offers the OS one-time-code autofill', async () => {
+    await render(<Harness onComplete={jest.fn()} />);
+    const field = screen.getByLabelText('Giriş kodu');
+    expect(field.props.autoComplete).toBe('one-time-code');
+    expect(field.props.textContentType).toBe('oneTimeCode');
+  });
+});
+
+describe('Toggle', () => {
+  it('reads as a switch with its state and flips on press', async () => {
+    const onChange = jest.fn();
+    await render(<Toggle label="Hayalet modu" value={false} onChange={onChange} />);
+    const toggle = screen.getByRole('switch', { name: 'Hayalet modu' });
+    expect(toggle.props.accessibilityState).toMatchObject({ checked: false });
+    await fireEvent.press(toggle);
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+});
+
+describe('Avatar', () => {
+  it('uses Turkish casing for initials', () => {
+    expect(initialOf('ilker')).toBe('İ');
+    expect(initialOf('  ömer')).toBe('Ö');
+    expect(initialOf('')).toBe('?');
+  });
+
+  it('shows the emoji when there is one, else the initial, and is named for screen readers', async () => {
+    await render(<Avatar name="Can" avatar={{ color: 3, emoji: '🎸' }} />);
+    expect(screen.getByRole('image', { name: 'Can' })).toBeTruthy();
+    expect(screen.getByText('🎸')).toBeTruthy();
+  });
+
+  it('collapses a long stack into "+N" and reads everyone out', async () => {
+    const people = ['Ayşe', 'Bora', 'Cem', 'Duru', 'Ece'].map((name, index) => ({
+      id: String(index),
+      name,
+      avatar: null,
+    }));
+    await render(<AvatarStack people={people} max={3} />);
+    expect(screen.getByText('+2')).toBeTruthy();
+    expect(screen.getByLabelText('5 kişi: Ayşe, Bora, Cem, Duru, Ece')).toBeTruthy();
+  });
+});

@@ -8,6 +8,15 @@ import globals from 'globals';
 const config = createConfig({
   tsconfigRootDir: import.meta.dirname,
   environment: 'react-native',
+  // Animations run as Reanimated worklets on the UI thread (CLAUDE.md); the JS-thread APIs are banned.
+  restrictedImports: [
+    {
+      name: 'react-native',
+      importNames: ['Animated', 'LayoutAnimation'],
+      message:
+        'Animate with react-native-reanimated (UI thread) and tokens from src/theme/motion.ts.',
+    },
+  ],
   extends: [
     // Rules of Hooks plus the React Compiler rules (the app enables `experiments.reactCompiler`).
     reactHooks.configs.flat['recommended-latest'],
@@ -35,6 +44,34 @@ const config = createConfig({
 config.push({
   files: ['src/platform/secure-random.ts'],
   rules: { 'no-restricted-imports': 'off' },
+});
+
+// "No animation numbers outside the motion tokens" (CLAUDE.md): springs, durations and delays come
+// from src/theme/motion.ts. Target values (opacity 0 → 1, a translation) are data, not tokens.
+const MOTION_ONLY =
+  'Use the motion tokens from @/theme (spring, timing, duration) instead of a literal.';
+config.push({
+  files: ['src/**/*.{ts,tsx}'],
+  ignores: ['src/theme/motion.ts'],
+  rules: {
+    'no-restricted-syntax': [
+      'error',
+      {
+        selector:
+          'Property[key.name=/^(duration|delay|damping|dampingRatio|stiffness|mass|velocity)$/] > Literal',
+        message: MOTION_ONLY,
+      },
+      {
+        selector: "CallExpression[callee.name='withDelay'] > Literal.arguments:first-child",
+        message: MOTION_ONLY,
+      },
+      {
+        selector:
+          'CallExpression[callee.property.name=/^(duration|delay|damping|dampingRatio|stiffness|mass)$/] > Literal',
+        message: MOTION_ONLY,
+      },
+    ],
+  },
 });
 
 export default config;

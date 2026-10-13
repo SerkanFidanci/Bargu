@@ -38,3 +38,27 @@ export function resolveApiUrl({ configuredUrl, hostUri, isDev }: ApiUrlInput): s
   }
   throw new Error('EXPO_PUBLIC_API_URL is required');
 }
+
+export interface MapUrlInput {
+  /** `EXPO_PUBLIC_MAP_URL`, if set. */
+  configuredUrl: string | undefined;
+  apiUrl: string;
+  isDev: boolean;
+}
+
+/**
+ * Base URL of the self-hosted map files (vector tiles, label fonts, icons). Defaults to `/map` on
+ * the API host, so the phone talks to no third party while showing the map (BARGU_PLAN §1).
+ */
+export function resolveMapUrl({ configuredUrl, apiUrl, isDev }: MapUrlInput): string {
+  if (!configuredUrl) return `${apiUrl}/map`;
+  const parsed = (isDev ? httpOrHttpsUrl : httpsUrl).safeParse(configuredUrl);
+  if (!parsed.success) {
+    throw new Error(
+      isDev
+        ? 'EXPO_PUBLIC_MAP_URL must be an http(s) URL'
+        : 'EXPO_PUBLIC_MAP_URL must be an https URL in release builds',
+    );
+  }
+  return parsed.data.replace(/\/+$/, '');
+}

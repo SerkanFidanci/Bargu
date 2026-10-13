@@ -41,7 +41,8 @@ const SESSION_ENDED = new Set(['REFRESH_INVALID', 'DEVICE_REVOKED', 'UNAUTHENTIC
  * otherwise turn the second refresh into a reuse and end the session).
  */
 export function createApiClient(options: ApiClientOptions) {
-  const fetchImpl = options.fetch ?? fetch;
+  // Looked up per call, not captured at creation: the app-wide client is created at import time.
+  const fetchImpl: typeof fetch = options.fetch ?? ((input, init) => fetch(input, init));
   const now = options.now ?? Date.now;
   let refreshing: Promise<Session> | null = null;
   /** Server time minus local time, learned from the Date header when the server reports skew. */

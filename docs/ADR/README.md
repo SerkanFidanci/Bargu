@@ -13,6 +13,7 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0005](0005-auth-and-devices.md)        | Giriş, cihazlar ve satır bazlı yetki                             | Kabul edildi |
 | [0006](0006-jobs-and-notifications.md)  | İş kuyruğu (pg-boss) ve bildirim altyapısı                       | Kabul edildi |
 | [0007](0007-native-curve-primitives.md) | Telefonda yerel eğri işlemleri (CryptoKit / Tink)                | Kabul edildi |
+| [0008](0008-design-system-and-map.md)   | Tasarım sistemi, kendi sunucumuzda harita, profil ve ekran akışı | Kabul edildi |
 
 ## Şablon
 

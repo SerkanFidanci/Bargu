@@ -17,12 +17,15 @@ const CRYPTO_ONLY =
  * @param {'node' | 'react-native'} [options.environment]
  * @param {boolean} [options.allowCrypto] Only `packages/crypto` may set this.
  * @param {import('eslint').Linter.Config[]} [options.extends] Framework presets applied before Bargu rules.
+ * @param {{ name: string, importNames?: string[], message: string }[]} [options.restrictedImports]
+ *   Package-specific import bans, merged with the crypto rule (one rule cannot be configured twice).
  */
 export function createConfig({
   tsconfigRootDir,
   environment = 'node',
   allowCrypto = false,
   extends: presets = [],
+  restrictedImports = [],
 }) {
   return defineConfig([
     globalIgnores([
@@ -69,9 +72,12 @@ export function createConfig({
           : [
               'error',
               {
-                paths: ['crypto', 'node:crypto', 'expo-crypto', 'crypto-js', 'tweetnacl'].map(
-                  (name) => ({ name, message: CRYPTO_ONLY }),
-                ),
+                paths: [
+                  ...['crypto', 'node:crypto', 'expo-crypto', 'crypto-js', 'tweetnacl'].map(
+                    (name) => ({ name, message: CRYPTO_ONLY }),
+                  ),
+                  ...restrictedImports,
+                ],
                 patterns: [{ group: ['@noble/*', 'libsodium*'], message: CRYPTO_ONLY }],
               },
             ],

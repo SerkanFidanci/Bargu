@@ -1,4 +1,4 @@
-import { DEV_API_PORT, resolveApiUrl } from './api-url';
+import { DEV_API_PORT, resolveApiUrl, resolveMapUrl } from './api-url';
 
 describe('resolveApiUrl', () => {
   it('uses the configured URL and trims trailing slashes', () => {
@@ -39,5 +39,33 @@ describe('resolveApiUrl', () => {
     expect(() =>
       resolveApiUrl({ configuredUrl: 'javascript:alert(1)', hostUri: undefined, isDev: true }),
     ).toThrow();
+  });
+});
+
+describe('resolveMapUrl', () => {
+  it('serves the map from the API host by default', () => {
+    expect(
+      resolveMapUrl({ configuredUrl: undefined, apiUrl: 'https://api.example.com', isDev: false }),
+    ).toBe('https://api.example.com/map');
+  });
+
+  it('uses a configured map host and trims trailing slashes', () => {
+    expect(
+      resolveMapUrl({
+        configuredUrl: 'https://tiles.example.com/',
+        apiUrl: 'https://api.example.com',
+        isDev: false,
+      }),
+    ).toBe('https://tiles.example.com');
+  });
+
+  it('requires HTTPS for the map in release builds', () => {
+    expect(() =>
+      resolveMapUrl({
+        configuredUrl: 'http://tiles.example.com',
+        apiUrl: 'https://api.example.com',
+        isDev: false,
+      }),
+    ).toThrow('https');
   });
 });

@@ -1,13 +1,142 @@
 {
   "home": {
-    "tagline": "Your location is locked. Only your friends hold the key.",
     "devTools": "Developer: crypto benchmark"
   },
-  "status": {
-    "api": {
-      "checking": "Checking server connection…",
-      "online": "Server connection ready",
-      "offline": "Server unreachable"
+  "common": {
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "done": "Done",
+    "soon": "Coming soon"
+  },
+  "errors": {
+    "network": "No connection. Check your internet and try again.",
+    "rateLimited": "Too many attempts. Wait a little and try again.",
+    "unknown": "Something went wrong. Try again.",
+    "sessionEnded": "You were signed out. Sign in again."
+  },
+  "intro": {
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Get started",
+    "page": "{{current}} of {{total}}",
+    "locked": {
+      "title": "Your location is locked",
+      "body": "Only your friends' phones can open it. Not even our server can see it."
+    },
+    "precision": {
+      "title": "You choose how much they see",
+      "body": "Per circle: your exact spot, your neighbourhood or just the city."
+    },
+    "ghost": {
+      "title": "Disappear any time",
+      "body": "Turn on ghost mode and nobody sees where you are. One tap."
+    }
+  },
+  "auth": {
+    "email": {
+      "title": "Your email",
+      "body": "We'll send you an 8-digit sign-in code. No password, no phone number.",
+      "label": "Email",
+      "placeholder": "you@example.com",
+      "submit": "Send code",
+      "invalid": "Enter a valid email address."
+    },
+    "code": {
+      "title": "Enter the code",
+      "body": "We sent an 8-digit code to {{email}}. Check your inbox.",
+      "label": "Sign-in code, 8 digits",
+      "verifying": "Checking…",
+      "resend": "Send the code again",
+      "resendIn": "You can resend in {{seconds}} s",
+      "resent": "A new code is on its way.",
+      "changeEmail": "Change email",
+      "oneDevice": "Bargu is open on one phone at a time. If it's open on another phone, that one is signed out.",
+      "invalid": "Wrong code. Try again.",
+      "expired": "This code has expired. Ask for a new one.",
+      "locked": "Too many wrong attempts. Ask for a new code.",
+      "unavailable": "This account can't be used."
+    }
+  },
+  "onboarding": {
+    "step": "Step {{current}} of {{total}}",
+    "username": {
+      "title": "Pick a username",
+      "body": "Friends find you by this name. No phone number or contacts needed.",
+      "label": "Username",
+      "rules": "3–20 characters: lowercase letters, digits, dot and underscore.",
+      "checking": "Checking…",
+      "available": "@{{username}} can be yours",
+      "taken": "That name is taken, try another.",
+      "reserved": "That name can't be used.",
+      "invalid": "3–20 characters: lowercase letters, digits, dot and underscore."
+    },
+    "profile": {
+      "title": "How should friends see you?",
+      "nameLabel": "Your name",
+      "namePlaceholder": "Your name or nickname",
+      "nameInvalid": "1–40 characters, with at least one visible letter or emoji.",
+      "color": "Your colour",
+      "colorOption": "Colour {{number}}",
+      "emoji": "Your emoji",
+      "noEmoji": "No emoji",
+      "preview": "This is how you'll look on the map",
+      "finish": "Finish"
+    }
+  },
+  "main": {
+    "seers": {
+      "none": "Nobody can see you",
+      "count_one": "{{count}} person can see you",
+      "count_other": "{{count}} people can see you",
+      "hint": "Shows who can see you"
+    },
+    "dock": {
+      "circles": "Circles",
+      "add": "Add",
+      "me": "Me"
+    },
+    "connecting": "Connecting…",
+    "map": "Map"
+  },
+  "sheets": {
+    "circles": {
+      "title": "Circles",
+      "emptyTitle": "No circles yet",
+      "emptyBody": "Friends you add show up here. Nothing is shared until they accept.",
+      "emptyAction": "Add a friend"
+    },
+    "add": {
+      "title": "Add a friend",
+      "byUsername": "Search by username",
+      "showQr": "Show my QR code",
+      "shareLink": "Share an invite link",
+      "soon": "Adding friends arrives in the next update."
+    },
+    "me": {
+      "title": "Me",
+      "precision": "Location precision (default)",
+      "precisionExact": "Exact",
+      "precisionNeighbourhood": "Neighbourhood",
+      "precisionCity": "City",
+      "device": "This phone",
+      "deviceAttested": "Verified device",
+      "deviceNotAttested": "No device verification (test build)",
+      "editProfile": "Edit profile",
+      "logout": "Sign out",
+      "logoutTitle": "Sign out?",
+      "logoutBody": "The encryption keys on this phone are deleted. When you sign in again, new keys are created and your friends see that your device changed.",
+      "version": "Version {{version}}"
+    }
+  },
+  "ui": {
+    "avatarStack": "{{count}} people: {{names}}",
+    "marker": {
+      "live": "{{name}}, live location",
+      "stale": "{{name}}, location from {{minutes}} minutes ago",
+      "age": "{{minutes}} min"
+    },
+    "sheet": {
+      "close": "Close"
     }
   },
   "dev": {
@@ -31,6 +160,20 @@
       },
       "backendNative": "Curve operations: the phone's native crypto (self-test passed)",
       "backendReference": "Curve operations: JavaScript fallback ({{reason}})"
+    },
+    "ui": {
+      "title": "Components",
+      "link": "Developer: component gallery",
+      "fps": "Frame rate",
+      "fpsStart": "Measure (5 s)",
+      "fpsResult": "Average {{avg}} fps · worst frame {{worst}} ms · {{dropped}} frames dropped",
+      "reduceMotion": "Reduce motion: {{state}}",
+      "on": "on",
+      "off": "off",
+      "sample": "Sample text",
+      "openSheet": "Open a sample sheet",
+      "showToast": "Show a sample toast",
+      "toastText": "This is a sample toast."
     }
   }
 }
