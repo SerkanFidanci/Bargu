@@ -5,8 +5,9 @@
 # 2. Turkey extract of the Protomaps daily basemap (one PMTiles file, read by the app with range
 #    requests). Daily builds are kept for 7 days, so the date defaults to today (UTC).
 # 3. Label fonts and icons from protomaps/basemaps-assets at a pinned commit (OFL / BSD licences).
-# Additive: writes only /opt/bargu/map. nginx serves /opt/bargu/map/public at /map/
-# (infra/staging/nginx/bargu-staging.conf). Files are swapped in atomically when complete.
+# Additive: writes only /srv/bargu-map (outside /opt/bargu, which holds secrets and stays closed to
+# nginx). nginx serves /srv/bargu-map/public at /map/ (infra/staging/nginx/bargu-staging.conf).
+# Files are swapped in atomically when complete.
 set -eu
 
 PMTILES_VERSION=1.31.2
@@ -15,7 +16,7 @@ ASSETS_COMMIT=028c18f713baecad011301ff7a69acc39bcc2ae7
 # Turkey with a small margin for the islands and border areas (west, south, east, north).
 BBOX=25.6,35.7,44.9,42.2
 MAXZOOM=15
-ROOT=/opt/bargu/map
+ROOT=/srv/bargu-map
 
 dry_run=false
 if [ "${1:-}" = "--dry-run" ]; then dry_run=true; shift; fi
