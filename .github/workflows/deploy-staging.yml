@@ -65,6 +65,10 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$SSH_HOST" ] || [ -z "$SSH_KNOWN_HOSTS" ]; then
+            echo "::error::staging SSH settings are missing (check the staging environment)"
+            exit 1
+          fi
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key

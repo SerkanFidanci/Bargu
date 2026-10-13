@@ -64,3 +64,6 @@ jobs:
       contents: read
       packages: write
     uses: ./.github/workflows/deploy-staging.yml
+    # Reusable workflows only receive secrets the caller passes; the staging environment secret
+    # (STAGING_SSH_KEY) is resolved inside the called job. The repo has no other secrets.
+    secrets: inherit
