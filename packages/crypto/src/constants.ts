@@ -35,6 +35,12 @@ export const LABELS = {
   messageSignature: 'bargu/v1/msg-sig',
   pushKdf: 'bargu/v1/push',
   safetyNumber: 'bargu/v1/safety',
+  // Account and server-side helpers (not part of the message wire format).
+  requestSignature: 'bargu/v1/req-sig',
+  otpCode: 'bargu/v1/otp',
+  emailLookup: 'bargu/v1/email',
+  tokenHash: 'bargu/v1/token',
+  atRest: 'bargu/v1/at-rest',
 } as const;
 
 export type Label = (typeof LABELS)[keyof typeof LABELS];

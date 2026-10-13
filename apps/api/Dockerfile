@@ -35,9 +35,12 @@ WORKDIR /app
 COPY --from=build /out/package.json ./package.json
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/dist ./dist
+# SQL migrations, applied by the one-shot `migrate` service (dist/db/migrate-cli.js).
+COPY --from=build /out/migrations ./migrations
 
 USER nonroot
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=3 \
   CMD ["/nodejs/bin/node", "dist/healthcheck.js"]
+# Same image, three entry points: dist/main.js (API, default), dist/worker.js, dist/db/migrate-cli.js.
 CMD ["dist/main.js"]

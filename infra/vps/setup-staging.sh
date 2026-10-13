@@ -1,6 +1,6 @@
 #!/bin/sh
 # Prepares Bargu staging on an EXISTING, SHARED server. Run as root on the server:
-#   sh setup-staging.sh "<deploy public key>"
+#   BARGU_API_DOMAIN=api.example.com sh setup-staging.sh "<deploy public key>"
 # Strictly additive and idempotent. It never touches other projects' containers, volumes, networks
 # or files. It only creates:
 #   - the `deploy` user, whose SSH key may run nothing but /usr/local/bin/bargu-deploy
@@ -56,6 +56,26 @@ if [ ! -f "$stack_dir/.env" ]; then
   chown deploy:deploy "$stack_dir/.env"
   chmod 0600 "$stack_dir/.env"
   echo "setup-staging: generated $stack_dir/.env"
+fi
+
+# 5. Settings added in later phases: appended once, existing values are never changed.
+b64key() { openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n'; }
+add_setting() {
+  if ! grep -q "^$1=." "$stack_dir/.env"; then
+    sed -i "/^$1=/d" "$stack_dir/.env"
+    printf '%s=%s\n' "$1" "$2" >> "$stack_dir/.env"
+    echo "setup-staging: added $1"
+  fi
+}
+add_setting DB_APP_PASSWORD "$(openssl rand -hex 32)"
+add_setting JWT_SIGNING_KEY "$(b64key)"
+add_setting OTP_KEY "$(b64key)"
+add_setting EMAIL_LOOKUP_KEY "$(b64key)"
+add_setting JOB_PAYLOAD_KEY "$(b64key)"
+domain="${BARGU_API_DOMAIN:-}"
+if [ -n "$domain" ]; then
+  add_setting WEBAUTHN_RP_ID "$domain"
+  add_setting WEBAUTHN_ORIGINS "https://$domain"
 fi
 
 echo "setup-staging: done. Nothing outside the paths listed above was changed."

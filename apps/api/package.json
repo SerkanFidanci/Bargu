@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "scripts": {
     "dev": "nest start --watch",
@@ -13,13 +14,24 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "db:migrate": "node --env-file-if-exists=.env dist/db/migrate-cli.js",
+    "worker": "node dist/worker.js"
   },
   "dependencies": {
+    "@bargu/crypto": "workspace:*",
+    "@bargu/schemas": "workspace:*",
     "@nestjs/common": "12.1.2",
     "@nestjs/core": "12.1.2",
     "@nestjs/platform-fastify": "12.1.2",
+    "@peculiar/x509": "2.1.0",
+    "@simplewebauthn/server": "14.0.3",
+    "drizzle-orm": "0.45.3",
+    "jose": "6.2.12",
+    "nodemailer": "10.0.15",
     "pg": "8.23.1",
+    "pg-boss": "12.37.0",
     "redis": "6.3.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
@@ -35,6 +47,8 @@
     "@types/pg": "8.23.1",
     "@vitest/coverage-v8": "5.0.3",
     "eslint": "10.12.0",
+    "fastify": "5.12.5",
+    "light-my-request": "6.6.0",
     "typescript": "6.0.3",
     "unplugin-swc": "2.0.0",
     "vite": "8.3.4",

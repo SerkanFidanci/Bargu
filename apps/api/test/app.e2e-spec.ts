@@ -7,25 +7,52 @@ import type { Pool } from 'pg';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../src/app.module.js';
+import { Public, Unsigned } from '../src/auth/request-context.js';
 import { parseEnv } from '../src/config/env.js';
 import { configureApp } from '../src/http/configure-app.js';
 import { BODY_LIMIT_BYTES, createHttpAdapter } from '../src/http/http-adapter.js';
 import { PG_POOL } from '../src/infra/database/database.module.js';
 import { REDIS, type RedisClient } from '../src/infra/redis/redis.module.js';
+import { JOB_QUEUE } from '../src/jobs/jobs.module.js';
 
 const env = parseEnv({
   NODE_ENV: 'test',
   LOG_LEVEL: 'info',
   DATABASE_URL: 'postgres://test:test@127.0.0.1:1/test',
   REDIS_URL: 'redis://127.0.0.1:1',
+  JWT_SIGNING_KEY: 'a'.repeat(43),
+  OTP_KEY: 'b'.repeat(43),
+  EMAIL_LOOKUP_KEY: 'c'.repeat(43),
+  JOB_PAYLOAD_KEY: 'd'.repeat(43),
+  SMTP_URL: 'smtp://127.0.0.1:1',
+  MAIL_FROM: 'Bargu <no-reply@bargu.test>',
+  WEBAUTHN_RP_ID: 'bargu.test',
+  WEBAUTHN_ORIGINS: 'https://bargu.test',
+  ANDROID_CERT_SHA256: 'ab'.repeat(32),
+  IOS_APP_ID: 'ABCDE12345.app.bargu',
 });
 
-/** Test-only route: the app has no mutation endpoints yet, but hardening must cover them. */
+/** The queue needs Postgres; these tests cover HTTP behaviour only. */
+const fakeQueue = { start: () => Promise.resolve(), stop: () => Promise.resolve() };
+
+/** Test-only public route: hardening must cover mutation endpoints that need no login. */
 @Controller('echo')
+@Public()
+@Unsigned()
 class EchoController {
   @Post()
   echo(@Body() body: unknown): unknown {
     return body;
+  }
+}
+
+/** A public mutating route that forgot its signature policy: must fail closed. */
+@Controller('forgotten')
+@Public()
+class ForgottenPolicyController {
+  @Post()
+  change(): string {
+    return 'changed';
   }
 }
 
@@ -68,20 +95,20 @@ describe('API (e2e)', () => {
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule.forRoot(env)],
-      controllers: [EchoController],
+      controllers: [EchoController, ForgottenPolicyController],
     })
       .overrideProvider(PG_POOL)
       .useValue(fakePool(deps))
       .overrideProvider(REDIS)
       .useValue(fakeRedis(deps))
+      .overrideProvider(JOB_QUEUE)
+      .useValue(fakeQueue)
       .compile();
 
     app = configureApp(
       moduleRef.createNestApplication<NestFastifyApplication>(
         createHttpAdapter(env, { logStream }),
-        {
-          logger: false,
-        },
+        { logger: false, rawBody: true },
       ),
     );
     await app.init();
@@ -170,6 +197,65 @@ describe('API (e2e)', () => {
         payload: JSON.stringify({ blob: 'x'.repeat(BODY_LIMIT_BYTES) }),
       });
       expect(response.statusCode).toBe(413);
+    });
+  });
+
+  describe('errors', () => {
+    it('answer with a stable code and nothing else', async () => {
+      const missing = await app.inject({ method: 'GET', url: '/nope' });
+      expect(missing.statusCode).toBe(404);
+      expect(missing.json()).toEqual({ statusCode: 404, error: 'NOT_FOUND', code: 'NOT_FOUND' });
+
+      const invalid = await app.inject({
+        method: 'POST',
+        url: '/v1/auth/otp/request',
+        headers: { 'content-type': 'application/json' },
+        payload: '{"email":"not-an-email","locale":"tr"}',
+      });
+      expect(invalid.statusCode).toBe(400);
+      expect(invalid.json()).toEqual({
+        statusCode: 400,
+        error: 'BAD_REQUEST',
+        code: 'VALIDATION_FAILED',
+      });
+    });
+
+    it('refuses a public mutating route that declares no signature policy', async () => {
+      const response = await app.inject({ method: 'POST', url: '/forgotten' });
+      expect(response.statusCode).toBe(500);
+      expect(response.json()).toMatchObject({ code: 'INTERNAL' });
+      expect(response.body).not.toContain('signature policy');
+    });
+  });
+
+  describe('well-known association files', () => {
+    it('vouch for the Android app (passkeys and links)', async () => {
+      const response = await app.inject({ method: 'GET', url: '/.well-known/assetlinks.json' });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual([
+        {
+          relation: [
+            'delegate_permission/common.handle_all_urls',
+            'delegate_permission/common.get_login_creds',
+          ],
+          target: {
+            namespace: 'android_app',
+            package_name: 'app.bargu',
+            sha256_cert_fingerprints: [Array(32).fill('AB').join(':')],
+          },
+        },
+      ]);
+    });
+
+    it('vouch for the iOS app', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/.well-known/apple-app-site-association',
+      });
+      expect(response.headers['content-type']).toContain('application/json');
+      expect(response.json()).toMatchObject({
+        webcredentials: { apps: ['ABCDE12345.app.bargu'] },
+      });
     });
   });
 

@@ -9,17 +9,94 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | -------------------------------- | --------------------------------------------- |
 | Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)  |
 | Faz 1 — Kripto Çekirdeği         | ✅ Onaylandı (açık madde: cihazda hız ölçümü) |
-| Faz 2 — Auth & Cihazlar          | 🔄 Devam ediyor                               |
+| Faz 2 — Auth & Cihazlar          | 🔄 Onay bekliyor                              |
 
 ## Ortamlar
 
-| Ne                 | Nerede                                                                                  |
-| ------------------ | --------------------------------------------------------------------------------------- |
-| Staging API        | `https://api.46-62-162-70.sslip.io` (geçici ücretsiz domain; bkz. ADR 0003)             |
-| Staging deploy     | `main`'e her yeşil CI → GHCR imajı → sunucu (otomatik, sağlık kontrollü)                |
-| Expo / EAS projesi | hesap `otenus`, proje `bargu` (`app.config.ts`)                                         |
-| Android sürümleri  | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır) |
-| Uygulama kimliği   | `app.bargu` (mağazaya çıkınca değiştirilemez)                                           |
+| Ne                 | Nerede                                                                                   |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| Staging API        | `https://api.46-62-162-70.sslip.io` (geçici ücretsiz domain; bkz. ADR 0003)              |
+| Staging deploy     | `main`'e her yeşil CI → GHCR imajı → migration → API + işçi (otomatik, sağlık kontrollü) |
+| Staging e-posta    | İç ağdaki Mailpit (dışarı açık değil); gerçek aktarıcı domain ile gelecek (ADR 0006)     |
+| Expo / EAS projesi | hesap `otenus`, proje `bargu` (`app.config.ts`)                                          |
+| Android sürümleri  | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır)  |
+| Uygulama kimliği   | `app.bargu` (mağazaya çıkınca değiştirilemez)                                            |
+
+## Faz 2 — Auth & Cihazlar (2026-10-13)
+
+Kararlar: [ADR 0005](ADR/0005-auth-and-devices.md) (giriş, cihaz, RLS) ·
+[ADR 0006](ADR/0006-jobs-and-notifications.md) (kuyruk ve bildirim) · Protokol eki:
+[PROTOCOL.md §12](PROTOCOL.md#12-hesap-yardımcıları-faz-2)
+
+### DoD
+
+| Madde                                           | Durum | Kanıt                                                                                         |
+| ----------------------------------------------- | ----- | --------------------------------------------------------------------------------------------- |
+| Auth e2e testleri                               | ✅    | 43 entegrasyon testi, gerçek Postgres + Redis + kuyruk (CI'da ayrı görev)                     |
+| Brute-force testi                               | ✅    | 5 yanlış kodda kod ölür; adrese saatte 10 hatada kilit; adres ve IP sınırları, `Retry-After`  |
+| Refresh reuse testi                             | ✅    | Dönmüş token tekrar kullanılınca bütün oturum ailesi iptal + güvenlik olayı                   |
+| `app.user_id` set edilmeden sorgu 0 satır döner | ✅    | Her tabloda test; ayrıca `app` şemasında zorlanmış RLS'i olmayan tablo kalırsa test kırılıyor |
+
+### Yapılanlar
+
+- **Giriş**: e-posta kodu (türetilir, hiçbir yerde saklanmaz), passkey (kayıt + giriş), EdDSA erişim
+  token'ı (10 dk), cihaza bağlı ve her kullanımda dönen refresh token.
+- **Cihaz**: girişte anahtar paketi + cihazın kendi imzası; hesap başına tek aktif cihaz veritabanında
+  zorunlu; yeni cihaz eskisini ve oturumlarını anında iptal ediyor; App Attest ve Play Integrity
+  doğrulaması (staging'de isteğe bağlı, production'da zorunlu).
+- **İstek imzalama**: durum değiştiren her istek cihaz anahtarıyla imzalı ve tek kullanımlık; imza
+  politikası belirtilmemiş bir uç kendiliğinden reddediliyor.
+- **Veri minimizasyonu**: e-posta adresi saklanmıyor (anahtarlı özet); IP saklanmıyor; kuyruktaki
+  e-posta adresi şifreli.
+- **Veritabanı**: sahip rol / uygulama rolü ayrımı, her tabloda zorlanmış RLS, SQL migration'lar
+  (değiştirilirse durur), migration adımı ayrı container'da.
+- **Kuyruk ve bildirim**: Kafka/RabbitMQ yerine pg-boss (Postgres): iş, veriyle aynı işlemde
+  ekleniyor; ayrı işçi container'ı; e-posta SMTP ile (staging'de iç ağdaki Mailpit).
+- **Mobil**: cihaz anahtarları güvenli depoda (`AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY`, yedeğe gitmez);
+  istekleri imzalayan ve token'ı tek seferde yenileyen API istemcisi. Ekranlar Faz 3'te.
+- **Kripto paketi**: istek imzası, kod türetme, e-posta özeti, token özeti, sunucuda şifreleme ve JWT
+  anahtarı eklendi; API'de `node:crypto` kullanımı lint ile yasak.
+
+### Test sonuçları
+
+| Paket                   | Test | Not                                                              |
+| ----------------------- | ---- | ---------------------------------------------------------------- |
+| `packages/crypto`       | 117  | %100 satır, ifade, dal, fonksiyon                                |
+| `packages/schemas`      | 30   |                                                                  |
+| API birim + HTTP        | 61   | env kuralları, hata biçimi, App Attest (test CA), Play Integrity |
+| API entegrasyon         | 43   | giriş, brute-force, oturum, tek cihaz, RLS, passkey, onay, işçi  |
+| Mobil                   | 19   | anahtar deposu, imzalı istemci, tek seferlik token yenileme      |
+| Swift (CryptoKit uyumu) | 10   |                                                                  |
+
+Ek doğrulamalar:
+
+- Semgrep (CI kural setleriyle) temiz.
+- Mutasyon testi: imza doğrulaması bilerek kapatılınca testler kırıldı.
+- Derlenmiş API + işçi ile uçtan uca deneme: kod isteği → kuyruk → işçi → Mailpit'e e-posta. İlk
+  denemede yanlış SMTP portu yüzünden gitmeyen iş, tekrar denemeyle teslim edildi.
+
+### Açık riskler
+
+1. **Platform doğrulaması gerçek cihazla denenmedi**: Apple Developer ve Google Play Console hesabı
+   yok. Doğrulayıcılar Apple'ın belgelenen biçimiyle üretilmiş test zinciri ve sahte Google
+   yanıtlarıyla test edildi; staging'de `optional`.
+2. **Gerçek e-posta teslimi yok**: domain ve aktarıcı (Scaleway önerisi) gelene kadar staging kodları
+   sunucudaki Mailpit'e gidiyor; telefondan giriş ancak kodu oradan okuyarak denenebilir.
+3. **Passkey alan adı geçici** (sslip.io). Gerçek domainde passkey'ler yeniden oluşturulacak (henüz
+   kullanıcı yok). Android'de passkey için `assetlinks.json`'a uygulamanın imza parmak izi
+   eklenmeli (`ANDROID_CERT_SHA256`).
+4. **İşçinin sağlık kontrolü yok** (HTTP sunucusu yok); kuyruk metrikleri ve alarmlar Faz 10'da.
+5. Mobil bağımlılıklarda 2 orta seviye bulgu (`uuid` Expo derleme araçlarında, `decode-uri-component`
+   `expo-router` içinde); yüksek/kritik yok. Expo güncellemelerinde tekrar bakılacak.
+
+### Kalan işler
+
+| İş                                            | Kim                              | Ne zaman                 |
+| --------------------------------------------- | -------------------------------- | ------------------------ |
+| Gerçek domain                                 | Proje sahibi alır, bağlama bizde | Faz 3 (passkey ekranı)   |
+| E-posta aktarıcısı hesabı (Scaleway TEM)      | Proje sahibi (ödeme/kimlik)      | Domain ile birlikte      |
+| Apple Developer Program / Google Play Console | Proje sahibi                     | En geç Faz 5             |
+| Android imza parmak izini staging'e ekle      | Bizde                            | Faz 3, passkey ekranında |
 
 ## Faz 1 — Kripto Çekirdeği (2026-10-13)
 

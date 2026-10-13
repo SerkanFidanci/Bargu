@@ -3,8 +3,10 @@ import { Pool } from 'pg';
 
 import { ENV } from '../../config/config.module.js';
 import type { Env } from '../../config/env.js';
+import { DatabaseService } from './database.service.js';
+import { PG_POOL } from './tokens.js';
 
-export const PG_POOL = Symbol('PG_POOL');
+export { PG_POOL };
 
 function createPool(env: Env): Pool {
   const logger = new Logger('Postgres');
@@ -27,8 +29,8 @@ function createPool(env: Env): Pool {
 
 @Global()
 @Module({
-  providers: [{ provide: PG_POOL, inject: [ENV], useFactory: createPool }],
-  exports: [PG_POOL],
+  providers: [{ provide: PG_POOL, inject: [ENV], useFactory: createPool }, DatabaseService],
+  exports: [PG_POOL, DatabaseService],
 })
 export class DatabaseModule implements OnApplicationShutdown {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}

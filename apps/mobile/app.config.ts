@@ -43,6 +43,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     ['expo-localization', { supportedLocales: { ios: ['tr', 'en'], android: ['tr', 'en'] } }],
+    // Device keys never leave the phone: excluded from Android auto backup (and iCloud by the
+    // *_THIS_DEVICE_ONLY keychain class used in src/features/auth/device-key-store.ts).
+    ['expo-secure-store', { configureAndroidBackup: true }],
   ],
   experiments: {
     typedRoutes: true,

@@ -44,6 +44,15 @@ compose() {
 
 printf 'API_IMAGE=%s\n' "$image_ref" > image.env
 compose pull --quiet api
+
+# Schema first. Migrations only add (expand/contract), so the running release keeps working on
+# the migrated schema; if they fail, nothing else has changed yet.
+if ! compose run --rm migrate; then
+  echo "deploy: migration failed; the running release is untouched" >&2
+  if [ -n "$previous_ref" ]; then printf 'API_IMAGE=%s\n' "$previous_ref" > image.env; fi
+  exit 1
+fi
+
 if compose up -d --wait --wait-timeout 120; then
   echo "deploy: staging is running ${image_ref}"
   docker image prune --force --filter "until=168h" >/dev/null
@@ -51,7 +60,7 @@ if compose up -d --wait --wait-timeout 120; then
 fi
 
 echo "deploy: new release failed its health check" >&2
-compose logs --tail 50 api >&2 || true
+compose logs --tail 50 api worker >&2 || true
 if [ -n "$previous_ref" ]; then
   echo "deploy: rolling back to ${previous_ref}" >&2
   printf 'API_IMAGE=%s\n' "$previous_ref" > image.env

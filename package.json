@@ -26,7 +26,8 @@
     "infra:up": "docker compose -f infra/docker-compose.yml up -d --wait",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:integration": "turbo run test:integration"
   },
   "devDependencies": {
     "@bargu/config": "workspace:*",

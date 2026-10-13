@@ -234,3 +234,43 @@ zarfından gelir.
 Her başlık `0x01` ile başlar ve JSON'da `v: 1` taşır. Uyumsuz değişiklik yeni sürüm + yeni etiketler
 (`bargu/v2/…`) + yeni fixture dosyası demektir. Sabitler ve etiketler değişirse fixture testi kırılır;
 bu bilinçli bir kapıdır.
+
+## 12. Hesap yardımcıları (Faz 2)
+
+Mesaj formatının parçası değildir; aynı kütüphaneler ve etiket kuralıyla `packages/crypto/src/auth.ts`
+ve `at-rest.ts`'te tanımlıdır. Kararlar: [ADR 0005](ADR/0005-auth-and-devices.md).
+
+| Etiket             | Kullanım                                      |
+| ------------------ | --------------------------------------------- |
+| `bargu/v1/req-sig` | Cihaz imzalı API isteği                       |
+| `bargu/v1/otp`     | Giriş kodunun türetilmesi                     |
+| `bargu/v1/email`   | E-posta adresinin anahtarlı özeti             |
+| `bargu/v1/token`   | Refresh token özeti                           |
+| `bargu/v1/at-rest` | Sunucuda saklanan hassas verinin şifrelenmesi |
+
+**İstek imzası** (başlıklar `x-bargu-sig`, `x-bargu-ts`, `x-bargu-nonce`):
+
+```
+m = len(method)(1) ‖ method(ASCII) ‖ len(path)(2, BE) ‖ path+query(UTF-8, ≤2048)
+    ‖ ts(8, BE, ms) ‖ nonce(16) ‖ deviceId(16) ‖ SHA-256(gövde)
+sig = Ed25519.sign(device.identity, "bargu/v1/req-sig\0" ‖ m)
+```
+
+Sunucu: saat farkı ≤ 60 sn, her `(cihaz, nonce)` bir kez (Redis, 130 sn), imza cihazın kayıtlı kimlik
+anahtarıyla. Girişte henüz kayıtlı anahtar yoktur: istek, gönderilen anahtar paketindeki kimlik
+anahtarıyla imzalanır (anahtara sahip olma kanıtı).
+
+**Giriş kodu**: `kod = (ilk 48 bit HMAC-SHA256(OTP_KEY, "bargu/v1/otp\0" ‖ challengeId(16))) mod 10⁶`,
+6 haneye sıfırla doldurulur. Kod veya özeti hiçbir yerde saklanmaz.
+
+**E-posta özeti**: `HMAC-SHA256(EMAIL_LOOKUP_KEY, "bargu/v1/email\0" ‖ UTF-8(normalize(adres)))`;
+normalize = boşluk kırp, Unicode NFC, küçük harf.
+
+**Refresh token**: `rt1.<userId>.<tokenId>.<base64url(32 rastgele bayt)>`; saklanan değer
+`SHA-256("bargu/v1/token\0" ‖ token)`.
+
+**Sunucuda saklanan veri** (ör. kuyruktaki e-posta adresi): `0x01 ‖ nonce(24) ‖
+XChaCha20-Poly1305(JOB_PAYLOAD_KEY, nonce, aad = "bargu/v1/at-rest\0" ‖ amaç\0, veri)`, base64url.
+
+**Platform doğrulaması**: App Attest ve Play Integrity, `SHA-256(meydan okuma(32) ‖ kimlik
+anahtarı(32))` değerini onaylar; onay bu cihaz anahtarına bağlıdır.

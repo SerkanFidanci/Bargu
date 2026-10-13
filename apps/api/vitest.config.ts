@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
     environment: 'node',
+    // Nest and @peculiar/x509 rely on the metadata polyfill, which entry points load first.
+    setupFiles: ['reflect-metadata'],
     include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
     coverage: {
       provider: 'v8',

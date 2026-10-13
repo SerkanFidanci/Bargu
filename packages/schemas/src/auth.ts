@@ -1,0 +1,139 @@
+import { z } from 'zod';
+
+import { deviceKeyBundleSchema } from './envelope.js';
+
+/** Request headers of a device-signed request (docs/PROTOCOL.md §12). */
+export const SIGNED_REQUEST_HEADERS = {
+  signature: 'x-bargu-sig',
+  timestamp: 'x-bargu-ts',
+  nonce: 'x-bargu-nonce',
+  /** Only on requests without an access token (login), which carries the device otherwise. */
+  device: 'x-bargu-device',
+} as const;
+
+export const LOCALES = ['tr', 'en'] as const;
+export const localeSchema = z.enum(LOCALES);
+
+/** RFC 5321 limits the address to 254 octets; anything longer cannot be delivered. */
+export const emailSchema = z.email().max(254);
+
+export const otpRequestSchema = z.object({ email: emailSchema, locale: localeSchema }).strict();
+export type OtpRequest = z.infer<typeof otpRequestSchema>;
+
+export const otpChallengeSchema = z
+  .object({
+    challengeId: z.uuid(),
+    /** Seconds until the code expires. */
+    expiresIn: z.number().int().positive(),
+  })
+  .strict();
+export type OtpChallenge = z.infer<typeof otpChallengeSchema>;
+
+export const PLATFORMS = ['ios', 'android'] as const;
+
+/** Platform attestation of the app instance (App Attest / Play Integrity), bound to a challenge. */
+export const attestationSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      type: z.literal('app_attest'),
+      challengeId: z.uuid(),
+      /** App Attest key id (base64). */
+      keyId: z.string().min(1).max(128),
+      /** CBOR attestation object (base64). */
+      attestation: z.string().min(1).max(16_384),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('play_integrity'),
+      challengeId: z.uuid(),
+      token: z.string().min(1).max(16_384),
+    })
+    .strict(),
+]);
+export type Attestation = z.infer<typeof attestationSchema>;
+
+/** A new device presenting its keys at login (one active device per account). */
+export const deviceRegistrationSchema = z
+  .object({
+    platform: z.enum(PLATFORMS),
+    bundle: deviceKeyBundleSchema,
+    attestation: attestationSchema.optional(),
+  })
+  .strict();
+export type DeviceRegistration = z.infer<typeof deviceRegistrationSchema>;
+
+export const otpVerifySchema = z
+  .object({
+    challengeId: z.uuid(),
+    code: z.string().regex(/^\d{6}$/),
+    device: deviceRegistrationSchema,
+  })
+  .strict();
+export type OtpVerify = z.infer<typeof otpVerifySchema>;
+
+export const refreshRequestSchema = z.object({ refreshToken: z.string().min(1).max(128) }).strict();
+export type RefreshRequest = z.infer<typeof refreshRequestSchema>;
+
+export const sessionSchema = z
+  .object({
+    userId: z.uuid(),
+    deviceId: z.uuid(),
+    accessToken: z.string(),
+    /** Unix epoch milliseconds. */
+    accessTokenExpiresAt: z.number().int(),
+    refreshToken: z.string(),
+    refreshTokenExpiresAt: z.number().int(),
+    /** True when this login created the account (onboarding continues with a username). */
+    isNewUser: z.boolean(),
+  })
+  .strict();
+export type Session = z.infer<typeof sessionSchema>;
+
+export const attestationChallengeSchema = z
+  .object({ challengeId: z.uuid(), challenge: z.string(), expiresIn: z.number().int() })
+  .strict();
+export type AttestationChallenge = z.infer<typeof attestationChallengeSchema>;
+
+export const meSchema = z
+  .object({
+    userId: z.uuid(),
+    username: z.string().nullable(),
+    displayName: z.string().nullable(),
+    device: z.object({ id: z.uuid(), platform: z.enum(PLATFORMS), attested: z.boolean() }).strict(),
+    passkeys: z.number().int().nonnegative(),
+  })
+  .strict();
+export type Me = z.infer<typeof meSchema>;
+
+/** WebAuthn JSON from the platform authenticator; verified field by field by the server library. */
+const webAuthnResponseSchema = z
+  .object({
+    id: z.string().min(1).max(1024),
+    rawId: z.string().min(1).max(1024),
+    type: z.literal('public-key'),
+    response: z.record(z.string(), z.unknown()),
+    clientExtensionResults: z.record(z.string(), z.unknown()).default({}),
+    authenticatorAttachment: z.enum(['platform', 'cross-platform']).optional(),
+  })
+  .loose();
+
+export const passkeyRegisterVerifySchema = z
+  .object({ challengeId: z.uuid(), response: webAuthnResponseSchema })
+  .strict();
+export type PasskeyRegisterVerify = z.infer<typeof passkeyRegisterVerifySchema>;
+
+export const passkeyLoginVerifySchema = z
+  .object({
+    challengeId: z.uuid(),
+    response: webAuthnResponseSchema,
+    device: deviceRegistrationSchema,
+  })
+  .strict();
+export type PasskeyLoginVerify = z.infer<typeof passkeyLoginVerifySchema>;
+
+/** Error body of every non-2xx response: a stable machine-readable code, no internals. */
+export const apiErrorSchema = z
+  .object({ statusCode: z.number().int(), error: z.string(), code: z.string() })
+  .strict();
+export type ApiError = z.infer<typeof apiErrorSchema>;

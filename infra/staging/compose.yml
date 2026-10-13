@@ -1,7 +1,8 @@
 # Staging stack on the shared server (see infra/vps/README.md). Deployed by infra/staging/deploy.sh:
+#   docker compose --env-file .env --env-file image.env run --rm migrate
 #   docker compose --env-file .env --env-file image.env up -d --wait
 # TLS and the public ports belong to the host's nginx (infra/staging/nginx/bargu-staging.conf).
-# The API is published on 127.0.0.1 only; Postgres and Redis sit on an internal network.
+# The API is published on 127.0.0.1 only; everything else sits on an internal network.
 name: bargu-staging
 
 x-logging: &logging
@@ -16,32 +17,93 @@ x-hardening: &hardening
     - no-new-privileges:true
   logging: *logging
 
+# The API image runs as three processes: API (default command), worker, one-shot migration.
+x-app: &app
+  <<: *hardening
+  image: ${API_IMAGE:?set by deploy.sh in image.env}
+  cap_drop: [ALL]
+  read_only: true
+  tmpfs: [/tmp]
+  pids_limit: 256
+
+# Shared by API and worker. The runtime role bargu_app owns nothing and cannot bypass RLS; the
+# superuser credentials are given to the migrate service only.
+x-app-env: &app-env
+  NODE_ENV: production
+  APP_ENV: staging
+  LOG_LEVEL: info
+  DATABASE_URL: postgres://bargu_app:${DB_APP_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
+  REDIS_URL: redis://default:${REDIS_PASSWORD:?}@redis:6379
+  JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:?}
+  OTP_KEY: ${OTP_KEY:?}
+  EMAIL_LOOKUP_KEY: ${EMAIL_LOOKUP_KEY:?}
+  JOB_PAYLOAD_KEY: ${JOB_PAYLOAD_KEY:?}
+  # Mailpit (internal) until a real relay and domain exist: docs/ADR/0006.
+  SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
+  MAIL_FROM: ${MAIL_FROM:-Bargu <no-reply@bargu.invalid>}
+  WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?}
+  WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:?}
+  ANDROID_CERT_SHA256: ${ANDROID_CERT_SHA256:-}
+  # Store accounts (Apple, Google Play) do not exist yet; production requires attestation.
+  DEVICE_ATTESTATION: optional
+
 services:
-  api:
-    <<: *hardening
-    image: ${API_IMAGE:?set by deploy.sh in image.env}
+  migrate:
+    <<: *app
+    restart: 'no'
+    # Only run on demand by deploy.sh, never by `up`.
+    profiles: [tools]
+    command: ['dist/db/migrate-cli.js']
     environment:
-      NODE_ENV: production
+      DATABASE_ADMIN_URL: postgres://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?}
+    healthcheck:
+      disable: true
+    mem_limit: 256m
+    networks: [backend]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    environment:
+      <<: *app-env
       HOST: 0.0.0.0
       PORT: '3000'
-      LOG_LEVEL: info
-      DATABASE_URL: postgres://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
-      REDIS_URL: redis://default:${REDIS_PASSWORD:?}@redis:6379
       # Host nginx reaches the published port through Docker's proxy, i.e. from the ingress gateway.
       TRUST_PROXY: 10.89.10.1
     ports:
       - 127.0.0.1:${API_HOST_PORT:-3100}:3000
-    cap_drop: [ALL]
-    read_only: true
-    tmpfs: [/tmp]
     mem_limit: 512m
-    pids_limit: 256
     networks: [ingress, backend]
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  worker:
+    <<: *app
+    command: ['dist/worker.js']
+    environment: *app-env
+    # No HTTP server: the image's API health check does not apply.
+    healthcheck:
+      disable: true
+    mem_limit: 384m
+    networks: [backend]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mailpit:
+    <<: *hardening
+    image: axllent/mailpit:v1.31.5@sha256:94f6b70c1436defae6799d9ac7ff0eeff9540465b842026d5cdb018f1c0234ea
+    environment:
+      MP_MAX_MESSAGES: 200
+    mem_limit: 128m
+    # Internal only: read messages with `docker exec` on the server, nothing is published.
+    networks: [backend]
 
   postgres:
     <<: *hardening

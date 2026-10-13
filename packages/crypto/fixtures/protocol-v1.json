@@ -8,7 +8,12 @@
     "messageKdf": "bargu/v1/msg",
     "messageSignature": "bargu/v1/msg-sig",
     "pushKdf": "bargu/v1/push",
-    "safetyNumber": "bargu/v1/safety"
+    "safetyNumber": "bargu/v1/safety",
+    "requestSignature": "bargu/v1/req-sig",
+    "otpCode": "bargu/v1/otp",
+    "emailLookup": "bargu/v1/email",
+    "tokenHash": "bargu/v1/token",
+    "atRest": "bargu/v1/at-rest"
   },
   "safetyNumberIterations": 5200,
   "devices": {

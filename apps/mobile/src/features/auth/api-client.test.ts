@@ -1,0 +1,116 @@
+import { generateDeviceKeys, randomUuid, verifyRequestSignature } from '@bargu/crypto';
+import type { Session } from '@bargu/schemas';
+
+import { ApiError, createApiClient, type SessionStore } from './api-client';
+
+const device = generateDeviceKeys(randomUuid());
+
+function session(token: string): Session {
+  return {
+    userId: randomUuid(),
+    deviceId: device.deviceId,
+    accessToken: `access-${token}`,
+    accessTokenExpiresAt: 0,
+    refreshToken: `refresh-${token}`,
+    refreshTokenExpiresAt: 0,
+    isNewUser: false,
+  };
+}
+
+function memoryStore(initial: Session | null): SessionStore & { current: Session | null } {
+  const store = {
+    current: initial,
+    get: () => store.current,
+    set: (next: Session | null) => {
+      store.current = next;
+      return Promise.resolve();
+    },
+  };
+  return store;
+}
+
+type Handler = (url: string, init: RequestInit) => Response;
+
+function client(store: SessionStore, handler: Handler) {
+  const fetch = jest.fn((url: string, init: RequestInit) => Promise.resolve(handler(url, init)));
+  const api = createApiClient({
+    baseUrl: 'https://api.test',
+    device: () => device,
+    session: store,
+    fetch: fetch as unknown as typeof globalThis.fetch,
+  });
+  return { api, fetch };
+}
+
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+describe('api client', () => {
+  it('signs state-changing requests so the server can verify them', async () => {
+    const store = memoryStore(session('a'));
+    const { api, fetch } = client(store, () => new Response(null, { status: 204 }));
+    await api.authed('/v1/auth/logout', { method: 'POST', body: { reason: 'test' } });
+
+    const [, init] = fetch.mock.calls[0] ?? [];
+    const headers = (init?.headers ?? {}) as Record<string, string>;
+    expect(headers.authorization).toBe('Bearer access-a');
+    const valid = verifyRequestSignature(
+      device.identity.publicKey,
+      {
+        method: 'POST',
+        path: '/v1/auth/logout',
+        timestamp: Number(headers['x-bargu-ts']),
+        nonce: headers['x-bargu-nonce'] ?? '',
+        deviceId: device.deviceId,
+        body: new TextEncoder().encode('{"reason":"test"}'),
+      },
+      headers['x-bargu-sig'] ?? '',
+    );
+    expect(valid).toBe(true);
+  });
+
+  it('does not sign reads', async () => {
+    const { api, fetch } = client(memoryStore(session('a')), () => json(200, { ok: true }));
+    expect(await api.authed('/v1/me')).toEqual({ ok: true });
+    const headers = (fetch.mock.calls[0]?.[1]?.headers ?? {}) as Record<string, string>;
+    expect(headers['x-bargu-sig']).toBeUndefined();
+  });
+
+  it('refreshes an expired access token once, even for concurrent requests', async () => {
+    const store = memoryStore(session('old'));
+    let refreshes = 0;
+    const { api } = client(store, (url, init) => {
+      if (url.endsWith('/v1/auth/refresh')) {
+        refreshes += 1;
+        return json(200, session('new'));
+      }
+      const auth = (init.headers as Record<string, string>).authorization;
+      return auth === 'Bearer access-new'
+        ? json(200, { ok: true })
+        : json(401, { code: 'TOKEN_EXPIRED' });
+    });
+    const results = await Promise.all([api.authed('/v1/me'), api.authed('/v1/me')]);
+    expect(results).toEqual([{ ok: true }, { ok: true }]);
+    expect(refreshes).toBe(1);
+    expect(store.current?.refreshToken).toBe('refresh-new');
+  });
+
+  it('ends the session when the refresh is refused', async () => {
+    const store = memoryStore(session('old'));
+    const { api } = client(store, (url) =>
+      url.endsWith('/v1/auth/refresh')
+        ? json(401, { code: 'REFRESH_INVALID' })
+        : json(401, { code: 'TOKEN_EXPIRED' }),
+    );
+    await expect(api.authed('/v1/me')).rejects.toEqual(new ApiError(401, 'REFRESH_INVALID'));
+    expect(store.current).toBeNull();
+    await expect(api.authed('/v1/me')).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+  });
+
+  it('surfaces API error codes', async () => {
+    const { api } = client(memoryStore(null), () => json(429, { code: 'RATE_LIMITED' }));
+    await expect(
+      api.public('/v1/auth/otp/request', { method: 'POST', body: {} }),
+    ).rejects.toMatchObject({ status: 429, code: 'RATE_LIMITED' });
+  });
+});

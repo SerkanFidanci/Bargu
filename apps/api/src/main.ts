@@ -12,7 +12,8 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule.forRoot(env),
     createHttpAdapter(env),
-    { logger: createNestLogger(env) },
+    // rawBody: request signatures cover the exact bytes sent (src/auth/request-signatures.ts).
+    { logger: createNestLogger(env), rawBody: true },
   );
   configureApp(app);
   await app.listen({ port: env.PORT, host: env.HOST });

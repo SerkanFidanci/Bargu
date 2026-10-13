@@ -1,7 +1,8 @@
 // Thin, audited-library-only wrappers (@noble/*). No primitive is implemented here.
-import { chacha20poly1305 } from '@noble/ciphers/chacha.js';
+import { chacha20poly1305, xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { ed25519, x25519 } from '@noble/curves/ed25519.js';
 import { hkdf } from '@noble/hashes/hkdf.js';
+import { hmac } from '@noble/hashes/hmac.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { randomBytes as cryptoRandomBytes } from '@noble/hashes/utils.js';
 
@@ -19,6 +20,34 @@ export function randomBytes(length: number): Uint8Array {
 
 export function sha256Hash(data: Uint8Array): Uint8Array {
   return sha256(data);
+}
+
+/** HMAC-SHA256 (RFC 2104) over `label || message`. */
+export function hmacWithLabel(key: Uint8Array, label: Label, message: Uint8Array): Uint8Array {
+  return hmac(sha256, key, concatBytes(labelBytes(label), message));
+}
+
+/** XChaCha20-Poly1305: 24-byte nonces are safe to pick at random (server-side data at rest). */
+export function xaeadSeal(
+  key: Uint8Array,
+  nonce: Uint8Array,
+  plaintext: Uint8Array,
+  aad: Uint8Array,
+): Uint8Array {
+  return xchacha20poly1305(key, nonce, aad).encrypt(plaintext);
+}
+
+export function xaeadOpen(
+  key: Uint8Array,
+  nonce: Uint8Array,
+  ciphertext: Uint8Array,
+  aad: Uint8Array,
+): Uint8Array {
+  try {
+    return xchacha20poly1305(key, nonce, aad).decrypt(ciphertext);
+  } catch {
+    throw new BarguCryptoError('DECRYPT_FAILED', 'authentication failed');
+  }
 }
 
 export interface KeyAndNonce {
