@@ -1,6 +1,7 @@
-# Staging stack on the VPS (see infra/vps/README.md). Deployed by infra/staging/deploy.sh:
+# Staging stack on the shared server (see infra/vps/README.md). Deployed by infra/staging/deploy.sh:
 #   docker compose --env-file .env --env-file image.env up -d --wait
-# Only Caddy publishes ports. Postgres and Redis sit on an internal network with no route out.
+# TLS and the public ports belong to the host's nginx (infra/staging/nginx/bargu-staging.conf).
+# The API is published on 127.0.0.1 only; Postgres and Redis sit on an internal network.
 name: bargu-staging
 
 x-logging: &logging
@@ -16,30 +17,6 @@ x-hardening: &hardening
   logging: *logging
 
 services:
-  caddy:
-    <<: *hardening
-    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
-    environment:
-      API_DOMAIN: ${API_DOMAIN:?set in .env}
-      ACME_EMAIL: ${ACME_EMAIL:?set in .env}
-    ports:
-      # Explicit 0.0.0.0: the daemon default binds published ports to 127.0.0.1 (cloud-init).
-      - 0.0.0.0:80:80
-      - 0.0.0.0:443:443
-      - 0.0.0.0:443:443/udp
-    volumes:
-      - ./caddy:/etc/caddy:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    cap_drop: [ALL]
-    cap_add: [NET_BIND_SERVICE]
-    read_only: true
-    tmpfs: [/tmp]
-    networks: [edge]
-    depends_on:
-      api:
-        condition: service_healthy
-
   api:
     <<: *hardening
     image: ${API_IMAGE:?set by deploy.sh in image.env}
@@ -50,14 +27,16 @@ services:
       LOG_LEVEL: info
       DATABASE_URL: postgres://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
       REDIS_URL: redis://default:${REDIS_PASSWORD:?}@redis:6379
-      # Only Caddy (on the edge network) may set X-Forwarded-For.
-      TRUST_PROXY: 172.30.10.0/24
+      # Host nginx reaches the published port through Docker's proxy, i.e. from the ingress gateway.
+      TRUST_PROXY: 10.89.10.1
+    ports:
+      - 127.0.0.1:${API_HOST_PORT:-3100}:3000
     cap_drop: [ALL]
     read_only: true
     tmpfs: [/tmp]
     mem_limit: 512m
     pids_limit: 256
-    networks: [edge, backend]
+    networks: [ingress, backend]
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,6 +54,7 @@ services:
       # Postgres 18+ images keep PGDATA under /var/lib/postgresql/<major>/docker.
       - postgres-data:/var/lib/postgresql
     shm_size: 128m
+    mem_limit: 768m
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 5s
@@ -92,9 +72,10 @@ services:
     command:
       - sh
       - -c
-      - exec redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes --maxmemory-policy noeviction --protected-mode yes
+      - exec redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction --protected-mode yes
     volumes:
       - redis-data:/data
+    mem_limit: 384m
     healthcheck:
       test: ['CMD-SHELL', 'redis-cli ping | grep -q PONG']
       interval: 5s
@@ -103,15 +84,15 @@ services:
     networks: [backend]
 
 networks:
-  edge:
+  # Fixed subnet outside Docker's default pools and the host's routes, so TRUST_PROXY is exact.
+  ingress:
     ipam:
       config:
-        - subnet: 172.30.10.0/24
+        - subnet: 10.89.10.0/24
+          gateway: 10.89.10.1
   backend:
     internal: true
 
 volumes:
-  caddy-data:
-  caddy-config:
   postgres-data:
   redis-data:

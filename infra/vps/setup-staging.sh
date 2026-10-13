@@ -1,11 +1,11 @@
 #!/bin/sh
 # Prepares Bargu staging on an EXISTING, SHARED server. Run as root on the server:
 #   sh setup-staging.sh "<deploy public key>"
-# Strictly additive and idempotent. It never touches sshd, the firewall, the Docker daemon config or
-# containers/volumes/networks of other projects. It only creates:
+# Strictly additive and idempotent. It never touches other projects' containers, volumes, networks
+# or files. It only creates:
 #   - the `deploy` user, whose SSH key may run nothing but /usr/local/bin/bargu-deploy
 #   - /usr/local/bin/bargu-deploy (root-owned)
-#   - /opt/bargu/staging (compose project `bargu-staging`)
+#   - /opt/bargu/staging (compose project `bargu-staging`), with secrets generated on the server
 set -eu
 
 deploy_pubkey="${1:-}"
@@ -28,11 +28,11 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-# 1. Deploy identity (no password, forced command, no forwarding/pty).
+# 1. Deploy identity (locked password, forced command, no forwarding/pty).
 if ! id deploy >/dev/null 2>&1; then
   useradd --create-home --shell /bin/sh deploy
-  passwd --lock deploy >/dev/null
 fi
+passwd --lock deploy >/dev/null
 usermod --append --groups docker deploy
 install -d -m 0700 -o deploy -g deploy /home/deploy/.ssh
 printf 'restrict,command="/usr/local/bin/bargu-deploy" %s\n' "$deploy_pubkey" \
@@ -43,13 +43,19 @@ chmod 0600 /home/deploy/.ssh/authorized_keys
 # 2. Deploy entry point, root-owned so the deploy user cannot change it.
 install -m 0755 -o root -g root "$src_dir/deploy.sh" /usr/local/bin/bargu-deploy
 
-# 3. Stack directory. Existing .env (secrets) is never overwritten.
-install -d -m 0750 -o deploy -g deploy /opt/bargu "$stack_dir" "$stack_dir/caddy"
+# 3. Stack directory and compose file.
+install -d -m 0750 -o deploy -g deploy /opt/bargu "$stack_dir"
 install -m 0640 -o deploy -g deploy "$src_dir/compose.yml" "$stack_dir/compose.yml"
-install -m 0640 -o deploy -g deploy "$src_dir/caddy/Caddyfile" "$stack_dir/caddy/Caddyfile"
+
+# 4. Secrets: generated here, never transmitted. An existing .env is never overwritten.
 if [ ! -f "$stack_dir/.env" ]; then
-  install -m 0600 -o deploy -g deploy "$src_dir/.env.example" "$stack_dir/.env"
-  echo "setup-staging: created $stack_dir/.env from the template; fill in the secrets."
+  umask 077
+  sed -e "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 32)/" \
+      -e "s/^REDIS_PASSWORD=.*/REDIS_PASSWORD=$(openssl rand -hex 32)/" \
+      "$src_dir/.env.example" > "$stack_dir/.env"
+  chown deploy:deploy "$stack_dir/.env"
+  chmod 0600 "$stack_dir/.env"
+  echo "setup-staging: generated $stack_dir/.env"
 fi
 
 echo "setup-staging: done. Nothing outside the paths listed above was changed."

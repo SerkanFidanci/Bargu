@@ -16,8 +16,8 @@ packages/
   config/     Shared ESLint, TypeScript and Prettier config
 infra/
   docker-compose.yml   Local Postgres, Redis, Mailpit
-  staging/             Staging stack (Caddy, API, Postgres, Redis) + deploy script
-  vps/                 Staging server runbook
+  staging/             Staging stack (API, Postgres, Redis), host-nginx site, deploy script
+  vps/                 Staging server runbook and additive setup scripts
 docs/ADR/
 ```
 
