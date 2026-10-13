@@ -42,6 +42,9 @@ function userIdFromHandle(handle: string | undefined): string | null {
 
 const logger = new Logger('Passkeys');
 
+/** COSE algorithm ids offered at registration: Ed25519, ES256 (P-256), RS256. */
+export const PASSKEY_ALGORITHMS = [-8, -7, -257];
+
 /**
  * Refuses a passkey operation with the one public code, and logs why for diagnosis. The reason and
  * the verifier's message (format, origin, RP ID, challenge) carry no account data or key material.
@@ -63,18 +66,32 @@ export class PasskeysService {
   async registrationOptions(
     auth: AuthContext,
   ): Promise<{ challengeId: string; options: PublicKeyCredentialCreationOptionsJSON }> {
-    const { username, existing } = await this.database.asUser(auth.userId, async (tx) => {
-      const [user] = await tx.select({ username: users.username }).from(users);
-      const rows = await tx
-        .select({ id: passkeys.credentialId, transports: passkeys.transports })
-        .from(passkeys);
-      return { username: user?.username ?? null, existing: rows };
-    });
+    const { username, displayName, existing } = await this.database.asUser(
+      auth.userId,
+      async (tx) => {
+        const [user] = await tx
+          .select({ username: users.username, displayName: users.displayName })
+          .from(users);
+        const rows = await tx
+          .select({ id: passkeys.credentialId, transports: passkeys.transports })
+          .from(passkeys);
+        return {
+          username: user?.username ?? null,
+          displayName: user?.displayName ?? null,
+          existing: rows,
+        };
+      },
+    );
     const options = await generateRegistrationOptions({
       rpName: this.env.WEBAUTHN_RP_NAME,
       rpID: this.env.WEBAUTHN_RP_ID,
       userName: username ?? 'Bargu',
+      // Shown in the phone's passkey list; Android's passkey providers refuse an empty one.
+      userDisplayName: displayName ?? username ?? 'Bargu',
       userID: userIdBytes(auth.userId),
+      // Algorithms every platform authenticator implements. The library's default also offers
+      // ML-DSA (-48), which some Android passkey providers reject outright instead of skipping.
+      supportedAlgorithmIDs: PASSKEY_ALGORITHMS,
       attestationType: 'none',
       authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
       excludeCredentials: existing.map((row) => ({
@@ -103,6 +120,7 @@ export class PasskeysService {
         expectedOrigin: this.env.WEBAUTHN_ORIGINS,
         expectedRPID: this.env.WEBAUTHN_RP_ID,
         requireUserVerification: true,
+        supportedAlgorithmIDs: PASSKEY_ALGORITHMS,
       });
     } catch (error) {
       throw rejected(HttpStatus.BAD_REQUEST, 'registration response invalid', error);

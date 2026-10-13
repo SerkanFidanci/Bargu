@@ -2,6 +2,7 @@ import type { DeviceKeys } from '@bargu/crypto';
 import type { Me, Session } from '@bargu/schemas';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { PASSKEY_ALGORITHMS } from '../../src/auth/passkeys.service.js';
 import { SoftwareAuthenticator } from '../support/authenticator.js';
 import { createTestApp, type TestApp } from './support/app.js';
 import { call, login, newDevice, registration, uniqueEmail } from './support/client.js';
@@ -106,6 +107,27 @@ describe('passkeys', () => {
 
     const cloned = await passkeyLogin(authenticator, owner.session.userId, { counter: 1 });
     expect(cloned.result.json()).toMatchObject({ code: 'PASSKEY_INVALID' });
+  });
+
+  it('asks for what every phone can create: a visible name and standard algorithms', async () => {
+    const account = await login(test, uniqueEmail());
+    await call(test.app, {
+      method: 'PATCH',
+      url: '/v1/me',
+      body: { displayName: 'Ayşe' },
+      accessToken: account.session.accessToken,
+      device: account.device,
+    });
+    const start = await call(test.app, {
+      url: '/v1/auth/passkey/register/options',
+      accessToken: account.session.accessToken,
+      device: account.device,
+    });
+    const { options } =
+      start.json<Options<{ user: { displayName: string }; pubKeyCredParams: { alg: number }[] }>>();
+    // Android's passkey providers refuse an empty display name or an unknown algorithm (ML-DSA).
+    expect(options.user.displayName).toBe('Ayşe');
+    expect(options.pubKeyCredParams.map((param) => param.alg)).toEqual(PASSKEY_ALGORITHMS);
   });
 
   it('keeps a registration challenge to the account that asked for it', async () => {
