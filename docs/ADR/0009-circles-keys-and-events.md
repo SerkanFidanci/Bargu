@@ -68,6 +68,40 @@ güncellenirdi; bu CLAUDE.md'ye aykırı. Bu yüzden olay altyapısı şimdi kur
 - Hesap aynı (5200 tur SHA-256), ama artık kısa dilimlerde, her dilim arasında bir kare beklenerek
   (`safetyNumberAsync`): ekran donmaz. Yerel modüle taşımak gerekmedi.
 
+### Güvenlik incelemesinden sonra (yayından önce)
+
+Bağımsız bir inceleme sunucu tarafında bir yüksek, iki orta ve altı düşük bulgu çıkardı; hepsi
+yayından önce kapatıldı ve her biri testle korunuyor:
+
+- **Arkadaşlık iki taraf için biter.** Biri ayrılır ya da isteği reddederse diğer tarafın satırı da
+  kapanır. Yeniden istek her zaman karşı tarafın yeni onayını ister (önceki "evet" taşınmaz);
+  karşılıklı istek ise kabul sayılır. Arkadaşlık bittikten önce üretilmiş arkadaş QR'ı/linki geçersiz.
+- **Veritabanı seviyesinde sahte çember yok.** `pair` çember yalnızca istek veya QR fonksiyonuyla
+  doğar; yeni çember epoch 1'den başlar; epoch yalnızca `app.start_epoch` ile ve birer birer artar
+  (aktif üye şartı). Yardımcı fonksiyonlar, üyesi olmadığın çember hakkında bilgi vermez.
+- **Davetli, kabul etmeden** yalnızca kendisini ve daveti göndereni görür (diğer üyeler gizli).
+- **Roller:** her aktif üye davet edebilir; çıkarma yalnızca sahipte ve sahip çıkarılamaz. Geri
+  dönen eski sahip üye olarak döner. Sahip ayrılınca en eski aktif üye sahip olur; aktif kimse
+  kalmazsa açık davetler geri çekilir.
+- **50 kişi sınırı** eşzamanlı katılımlarda da aşılmaz (çember başına işlem kilidi).
+- **Yeni epoch:** yeni cihazla giriş, çıkış ve çalınma şüphesiyle iptal edilen oturumda. Aynı
+  telefonun yeniden girişinde değil (gereksiz anahtar trafiği yok).
+- **Canlı bağlantı** erişim anahtarı kadar yaşar (10 dk); telefon kendiliğinden yeni anahtarla
+  bağlanır ve kaçırdığını alır. Telefon başına tek bağlantı; bağlantı başına sınırlı `resume`;
+  çalınma şüphesinde (aynı yenileme anahtarı iki kez) bağlantı hemen kapanır.
+- `resume` cevabı artık bir **imleç** (`cursor`) taşır: tam yeniden yüklemeden sonra telefon en
+  son olaydan devam eder, her bağlantıda yeniden yükleme yapmaz.
+
+### Telefonda
+
+- Anahtarlar, bilinen kimlik anahtarları ve son olay kimliği **şifreli MMKV kasasında** (AES-256,
+  anahtarı Keychain/Keystore'da, yalnızca bu cihaz). MMKV'nin şifrelemesi bütünlük doğrulaması
+  yapmaz; kasayı değiştirebilen biri zaten telefonun kilidini açmış biridir (tehdit modeli dışında).
+  Çıkışta kasa ve anahtarı silinir.
+- Kimlik anahtarları ilk görüşte güvenilir sayılır (TOFU). Değişirse o kişiye anahtar gönderilmez ve
+  ondan anahtar kabul edilmez; kullanıcı uyarıyı onaylayana ya da güvenlik numarasını QR ile
+  doğrulayana kadar.
+
 ## Sonuçlar
 
 - Yeni bağımlılıklar: `socket.io` 4.8.4, `@nestjs/websockets` ve `@nestjs/platform-socket.io` 12.1.3

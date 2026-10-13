@@ -2,9 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 
 export interface DeviceChange {
   userId: string;
-  /** `login`: a new device became the account's active one; `logout`: the device ended. */
-  kind: 'login' | 'logout';
+  /**
+   * `login`: a device signed in; `logout`: the user signed out on it; `revoked`: its session was
+   * ended for safety (a refresh token was used twice, a sign of theft).
+   */
+  kind: 'login' | 'logout' | 'revoked';
   deviceId: string;
+  /** For a login: the device (and its keys) is new to the account, not a re-login of the same one. */
+  newDevice: boolean;
   /** For a login that replaced another active device. */
   replacedDeviceId: string | null;
 }

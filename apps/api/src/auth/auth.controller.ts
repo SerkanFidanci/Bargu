@@ -133,6 +133,7 @@ export class AuthController {
       userId: auth.userId,
       kind: 'logout',
       deviceId: auth.deviceId,
+      newDevice: false,
       replacedDeviceId: null,
     });
   }

@@ -3,7 +3,7 @@ import { type Circle, type DeliveredEvent, resumeReplySchema } from '@bargu/sche
 import { io, type Socket } from 'socket.io-client';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { EVENTS_PATH } from '../../src/events/events.gateway.js';
+import { EVENTS_PATH, RESUMES_PER_CONNECTION } from '../../src/events/events.gateway.js';
 import { createTestApp, type TestApp } from './support/app.js';
 import { call, login } from './support/client.js';
 import { as, circleWith, type Person, person } from './support/people.js';
@@ -126,9 +126,15 @@ describe('event socket', () => {
     expect(reply.events.map((e) => e.event.type)).toEqual(['circle.changed', 'circle.changed']);
     const ids = reply.events.map((e) => e.id);
     expect([...ids].sort()).toEqual(ids);
+    expect(reply.cursor).toBe(ids.at(-1));
 
+    // A phone that reloads everything resumes from the newest event afterwards.
     const fresh = resumeReplySchema.parse(await again.emitWithAck('resume', { lastEventId: null }));
-    expect(fresh).toEqual({ events: [], snapshot: true });
+    expect(fresh).toEqual({ events: [], snapshot: true, cursor: ids.at(-1) });
+    const caughtUp = resumeReplySchema.parse(
+      await again.emitWithAck('resume', { lastEventId: fresh.cursor }),
+    );
+    expect(caughtUp).toEqual({ events: [], snapshot: false, cursor: fresh.cursor });
     const ancient = resumeReplySchema.parse(
       await again.emitWithAck('resume', { lastEventId: '1-0' }),
     );
@@ -169,5 +175,59 @@ describe('event socket', () => {
       device: ayse.device,
     });
     await signedOut;
+  });
+
+  it('keeps one connection per phone: a newer one replaces the older', async () => {
+    const ali = await person(test);
+    const older = await connectAs(ali);
+    const closed = new Promise<void>((resolve) => {
+      older.once('disconnect', () => {
+        resolve();
+      });
+    });
+    const newer = await connectAs(ali);
+    await closed;
+    expect(newer.connected).toBe(true);
+  });
+
+  it('closes the connection of a session revoked for a stolen refresh token', async () => {
+    const ali = await person(test);
+    const socket = await connectAs(ali);
+    const closed = new Promise<void>((resolve) => {
+      socket.once('disconnect', () => {
+        resolve();
+      });
+    });
+    const refresh = () =>
+      call(test.app, {
+        url: '/v1/auth/refresh',
+        body: { refreshToken: ali.session.refreshToken },
+        device: ali.device,
+      });
+    expect((await refresh()).statusCode).toBe(200);
+    // The same refresh token again, after the grace window for lost responses: theft.
+    const id = ali.session.refreshToken.split('.')[2];
+    await test.admin.query(
+      `UPDATE app.refresh_tokens SET used_at = used_at - interval '1 hour' WHERE id = $1`,
+      [id],
+    );
+    expect((await refresh()).statusCode).toBe(401);
+    await closed;
+    await expect(connectAs(ali)).rejects.toThrow('DEVICE_REVOKED');
+  });
+
+  it('answers only a few resumes per connection', async () => {
+    const ali = await person(test);
+    const socket = await connectAs(ali);
+    const closed = new Promise<void>((resolve) => {
+      socket.once('disconnect', () => {
+        resolve();
+      });
+    });
+    for (let i = 0; i < RESUMES_PER_CONNECTION; i++) {
+      await socket.emitWithAck('resume', { lastEventId: null });
+    }
+    socket.emit('resume', { lastEventId: null });
+    await closed;
   });
 });

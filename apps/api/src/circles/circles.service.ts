@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable, type OnModuleInit } from '@nestjs/common';
 import { REKEY_INTERVAL_MS } from '@bargu/crypto';
 import { AVATAR_EMOJIS, type Circle, type CircleCreate, type MemberCard } from '@bargu/schemas';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
@@ -94,11 +94,12 @@ export class CirclesService implements OnModuleInit {
   onModuleInit(): void {
     this.lifecycle.subscribe(async (change) => {
       if (change.replacedDeviceId !== null) this.events.disconnectDevice(change.replacedDeviceId);
-      if (change.kind === 'logout') {
-        this.events.disconnectDevice(change.deviceId);
-        return;
+      if (change.kind !== 'login') this.events.disconnectDevice(change.deviceId);
+      // New keys (a new phone), or keys that may be exposed (signed out, session revoked): every
+      // circle of the user moves to a new epoch. A re-login of the same device changes nothing.
+      if (change.kind !== 'login' || change.newDevice) {
+        await this.startEpochsForDevice(change.userId);
       }
-      await this.startEpochsForDevice(change.userId);
     });
   }
 
@@ -160,6 +161,7 @@ export class CirclesService implements OnModuleInit {
   /** Joins a circle one was invited to: the circle moves to a new epoch for its new member. */
   async accept(auth: AuthContext, circleId: string): Promise<Circle> {
     const circle = await this.database.asUser(auth.userId, async (tx) => {
+      await this.lock(tx, circleId);
       const updated = await tx
         .update(circleMembers)
         .set({ status: 'active', joinedAt: new Date() })
@@ -181,12 +183,15 @@ export class CirclesService implements OnModuleInit {
 
   async decline(auth: AuthContext, circleId: string): Promise<void> {
     const remaining = await this.database.asUser(auth.userId, async (tx) => {
+      await this.lock(tx, circleId);
       const before = await this.mustRead(tx, circleId, auth.userId);
       if (before.myStatus !== 'invited') throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
       await tx
         .update(circleMembers)
         .set({ status: 'declined', endedAt: new Date() })
         .where(and(eq(circleMembers.circleId, circleId), eq(circleMembers.userId, auth.userId)));
+      // A declined friend request is over for the one who asked, too.
+      if (before.kind === 'pair') await tx.execute(sql`SELECT app.end_pair(${circleId})`);
       return audience(before).filter((userId) => userId !== auth.userId);
     });
     await this.events.publish([auth.userId], { type: 'circle.gone', circleId });
@@ -194,35 +199,34 @@ export class CirclesService implements OnModuleInit {
   }
 
   /**
-   * Leaves a circle (for a pair: ends the friendship). An owner leaving hands ownership to the
-   * longest-standing active member first, so a group is never left without one.
+   * Leaves a circle (for a pair: ends the friendship, for both). An owner leaving a group hands
+   * ownership on first (see handOver), so a group is never left without one.
    */
   async leave(auth: AuthContext, circleId: string): Promise<void> {
-    const { remaining, pair } = await this.database.asUser(auth.userId, async (tx) => {
+    const { remaining, pair, withdrawn } = await this.database.asUser(auth.userId, async (tx) => {
+      await this.lock(tx, circleId);
       const before = await this.mustRead(tx, circleId, auth.userId);
       if (before.myStatus !== 'active') throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
-      const others = before.members.filter((member) => member.userId !== auth.userId);
-      if (before.kind !== 'pair' && before.myRole === 'owner') {
-        const owners = others.filter((m) => m.role === 'owner' && m.status === 'active');
-        const heir = others.find((m) => m.status === 'active');
-        if (owners.length === 0 && heir !== undefined) {
-          await tx
-            .update(circleMembers)
-            .set({ role: 'owner' })
-            .where(
-              and(eq(circleMembers.circleId, circleId), eq(circleMembers.userId, heir.userId)),
-            );
-        }
-      }
+      const withdrawnIds =
+        before.kind !== 'pair' && before.myRole === 'owner'
+          ? await this.handOver(tx, circleId, auth.userId)
+          : [];
       // New epoch first (while still a member), so the one leaving never gets its keys.
       await this.startEpoch(tx, circleId);
       await tx
         .update(circleMembers)
         .set({ status: 'left', endedAt: new Date() })
         .where(and(eq(circleMembers.circleId, circleId), eq(circleMembers.userId, auth.userId)));
-      return { remaining: others.map((m) => m.userId), pair: before.kind === 'pair' };
+      if (before.kind === 'pair') await tx.execute(sql`SELECT app.end_pair(${circleId})`);
+      return {
+        remaining: before.members
+          .map((member) => member.userId)
+          .filter((userId) => userId !== auth.userId && !withdrawnIds.includes(userId)),
+        pair: before.kind === 'pair',
+        withdrawn: withdrawnIds,
+      };
     });
-    await this.events.publish([auth.userId], { type: 'circle.gone', circleId });
+    await this.events.publish([auth.userId, ...withdrawn], { type: 'circle.gone', circleId });
     if (pair) {
       // A friendship needs both people: it disappears for the other side too.
       await this.events.publish(remaining, { type: 'circle.gone', circleId });
@@ -235,12 +239,14 @@ export class CirclesService implements OnModuleInit {
   async remove(auth: AuthContext, circleId: string, userId: string): Promise<Circle> {
     if (userId === auth.userId) throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
     const circle = await this.database.asUser(auth.userId, async (tx) => {
+      await this.lock(tx, circleId);
       const before = await this.mustRead(tx, circleId, auth.userId);
       if (before.kind === 'pair' || before.myRole !== 'owner' || before.myStatus !== 'active') {
         throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
       }
       const target = before.members.find((member) => member.userId === userId);
       if (target === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      if (target.role === 'owner') throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
       await this.startEpoch(tx, circleId);
       await tx
         .update(circleMembers)
@@ -299,6 +305,7 @@ export class CirclesService implements OnModuleInit {
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', result.retryAfter);
     }
     const { circle, started } = await this.database.asUser(auth.userId, async (tx) => {
+      await this.lock(tx, circleId);
       const before = await this.mustRead(tx, circleId, auth.userId);
       if (before.myStatus !== 'active') throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
       if (Date.now() - before.epochStartedAt < REKEY_INTERVAL_MS) {
@@ -357,11 +364,53 @@ export class CirclesService implements OnModuleInit {
 
   /** Moves a circle to a new key epoch and drops distributions the protocol no longer accepts. */
   async startEpoch(tx: Tx, circleId: string): Promise<void> {
-    await tx
-      .update(circles)
-      .set({ epoch: sql`${circles.epoch} + 1`, epochStartedAt: new Date() })
-      .where(eq(circles.id, circleId));
-    await tx.execute(sql`SELECT app.prune_key_envelopes(${circleId})`);
+    await tx.execute(sql`SELECT app.start_epoch(${circleId})`);
+  }
+
+  /** Serialises membership changes of one circle until the transaction ends. */
+  private async lock(tx: Tx, circleId: string): Promise<void> {
+    await tx.execute(sql`SELECT app.lock_circle(${circleId})`);
+  }
+
+  /**
+   * An owner is leaving a group. The longest-standing active member becomes owner (unless another
+   * owner remains). With nobody active left, open invitations are withdrawn: no one could accept
+   * into a group nobody runs. Returns the people whose invitation was withdrawn.
+   */
+  private async handOver(tx: Tx, circleId: string, owner: string): Promise<string[]> {
+    const others = await tx
+      .select({
+        userId: circleMembers.userId,
+        role: circleMembers.role,
+        status: circleMembers.status,
+      })
+      .from(circleMembers)
+      .where(
+        and(
+          eq(circleMembers.circleId, circleId),
+          ne(circleMembers.userId, owner),
+          inArray(circleMembers.status, ['invited', 'active']),
+        ),
+      )
+      .orderBy(asc(circleMembers.joinedAt), asc(circleMembers.createdAt));
+    const active = others.filter((member) => member.status === 'active');
+    if (active.some((member) => member.role === 'owner')) return [];
+    const heir = active[0];
+    if (heir !== undefined) {
+      await tx
+        .update(circleMembers)
+        .set({ role: 'owner' })
+        .where(and(eq(circleMembers.circleId, circleId), eq(circleMembers.userId, heir.userId)));
+      return [];
+    }
+    const invited = others.map((member) => member.userId);
+    if (invited.length > 0) {
+      await tx
+        .update(circleMembers)
+        .set({ status: 'removed', endedAt: new Date() })
+        .where(and(eq(circleMembers.circleId, circleId), inArray(circleMembers.userId, invited)));
+    }
+    return invited;
   }
 
   private async limit(userId: string): Promise<void> {

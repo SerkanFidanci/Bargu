@@ -5,6 +5,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 
 import { ApiError } from '../common/api-error.js';
 import { devices, refreshTokens, securityEvents } from '../db/schema.js';
+import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { AccessTokens } from './access-tokens.js';
 import type { AuthContext, AuthedRequest } from './request-context.js';
@@ -38,6 +39,7 @@ export class SessionsService {
     private readonly database: DatabaseService,
     private readonly accessTokens: AccessTokens,
     private readonly signatures: RequestSignatures,
+    private readonly lifecycle: DeviceLifecycle,
   ) {}
 
   /** Starts a new refresh family for a freshly logged-in device. Runs inside `asUser`. */
@@ -112,7 +114,7 @@ export class SessionsService {
           await tx
             .insert(securityEvents)
             .values({ userId, type: 'refresh_reuse', deviceId: row.deviceId });
-          return { kind: 'reused' } as const;
+          return { kind: 'reused', deviceId: row.deviceId } as const;
         }
       }
       const next = await this.insertRefresh(tx, userId, row.deviceId, row.familyId);
@@ -125,6 +127,16 @@ export class SessionsService {
     });
 
     // Revocation must be committed before answering, so it is reported after the transaction.
+    if (outcome.kind === 'reused') {
+      // The device's live connection ends too, and its circles move to new keys.
+      await this.lifecycle.notify({
+        userId,
+        kind: 'revoked',
+        deviceId: outcome.deviceId,
+        newDevice: false,
+        replacedDeviceId: null,
+      });
+    }
     if (outcome.kind !== 'ok') throw new ApiError(HttpStatus.UNAUTHORIZED, 'REFRESH_INVALID');
     return this.complete({
       userId,

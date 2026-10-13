@@ -53,7 +53,7 @@ export class DeviceRegistry {
     userId: string,
     device: VerifiedDevice,
     attestation: AttestationKind | null,
-  ): Promise<{ replacedDeviceId: string | null }> {
+  ): Promise<{ replacedDeviceId: string | null; newDevice: boolean }> {
     const now = new Date();
     const [existing] = await tx.select().from(devices).where(eq(devices.id, device.deviceId));
     if (existing !== undefined) {
@@ -71,7 +71,7 @@ export class DeviceRegistry {
         .update(refreshTokens)
         .set({ revokedAt: now })
         .where(and(eq(refreshTokens.deviceId, device.deviceId), isNull(refreshTokens.revokedAt)));
-      return { replacedDeviceId: null };
+      return { replacedDeviceId: null, newDevice: false };
     }
 
     const [active] = await tx
@@ -110,7 +110,7 @@ export class DeviceRegistry {
       if (isUniqueViolation(error)) throw new ApiError(HttpStatus.CONFLICT, 'DEVICE_CONFLICT');
       throw error;
     }
-    return { replacedDeviceId: active?.id ?? null };
+    return { replacedDeviceId: active?.id ?? null, newDevice: true };
   }
 }
 

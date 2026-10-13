@@ -83,10 +83,14 @@ CREATE FUNCTION app.is_circle_member(p_circle uuid) RETURNS boolean
     SELECT coalesce(app.member_status_of(p_circle, app.current_user_id()) IN ('invited', 'active'), false)
   $$;
 
+-- Answered only for circles the caller belongs to: outsiders learn nothing about who is in one.
 CREATE FUNCTION app.is_active_member(p_circle uuid, p_user uuid) RETURNS boolean
   LANGUAGE sql STABLE SECURITY DEFINER
   SET search_path = pg_catalog
-  AS $$ SELECT coalesce(app.member_status_of(p_circle, p_user) = 'active', false) $$;
+  AS $$
+    SELECT app.is_circle_member(p_circle)
+       AND coalesce(app.member_status_of(p_circle, p_user) = 'active', false)
+  $$;
 
 CREATE FUNCTION app.is_circle_owner(p_circle uuid) RETURNS boolean
   LANGUAGE sql STABLE SECURITY DEFINER
@@ -99,12 +103,24 @@ CREATE FUNCTION app.is_circle_owner(p_circle uuid) RETURNS boolean
     )
   $$;
 
+-- Only for the caller's own new circle (the first-member policy below).
 CREATE FUNCTION app.circle_is_empty(p_circle uuid) RETURNS boolean
   LANGUAGE sql STABLE SECURITY DEFINER
   SET search_path = pg_catalog
-  AS $$ SELECT NOT EXISTS (SELECT 1 FROM app.circle_members WHERE circle_id = p_circle) $$;
+  AS $$
+    SELECT EXISTS (SELECT 1 FROM app.circles WHERE id = p_circle AND created_by = app.current_user_id())
+       AND NOT EXISTS (SELECT 1 FROM app.circle_members WHERE circle_id = p_circle)
+  $$;
 
--- Sender keys suit circles of up to 50 people (BARGU_PLAN §1); invited people count too.
+-- Serialises membership changes of one circle (or one pair of people) within a transaction, so
+-- concurrent joins cannot exceed the size limit and concurrent leaves cannot orphan a group.
+CREATE FUNCTION app.lock_circle(p_key text) RETURNS void
+  LANGUAGE sql
+  SET search_path = pg_catalog
+  AS $$ SELECT pg_advisory_xact_lock(hashtextextended('circle:' || p_key, 0)) $$;
+
+-- Sender keys suit circles of up to 50 people (BARGU_PLAN §1); invited people count too. Used only
+-- inside the functions below, after app.lock_circle.
 CREATE FUNCTION app.circle_has_room(p_circle uuid) RETURNS boolean
   LANGUAGE sql STABLE SECURITY DEFINER
   SET search_path = pg_catalog
@@ -125,7 +141,9 @@ CREATE FUNCTION app.check_member_transition() RETURNS trigger
   DECLARE
     me uuid := app.current_user_id();
   BEGIN
-    IF current_user <> 'bargu_app' THEN
+    -- Exempt: the owner role only (migrations and the SECURITY DEFINER functions below, which
+    -- check their own rules). Every other role, present or future, is held to these.
+    IF current_user = 'bargu_owner' THEN
       RETURN NEW;
     END IF;
     IF NEW.circle_id <> OLD.circle_id OR NEW.user_id <> OLD.user_id
@@ -147,7 +165,7 @@ CREATE FUNCTION app.check_member_transition() RETURNS trigger
       RETURN NEW;
     END IF;
     IF OLD.status IN ('active', 'invited') AND NEW.status = 'removed' AND OLD.user_id <> me
-       AND app.is_circle_owner(OLD.circle_id) THEN
+       AND OLD.role <> 'owner' AND app.is_circle_owner(OLD.circle_id) THEN
       RETURN NEW;
     END IF;
     RAISE EXCEPTION 'membership transition % -> % not allowed', OLD.status, NEW.status
@@ -161,8 +179,13 @@ ALTER TABLE app.circles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app.circles FORCE ROW LEVEL SECURITY;
 CREATE POLICY circles_visible ON app.circles FOR SELECT
   USING (app.is_circle_member(id) OR created_by = app.current_user_id());
+-- Groups only: pairs (friendships) exist solely through app.request_friend and app.redeem_invite,
+-- and a new circle starts at epoch 1.
 CREATE POLICY circles_create ON app.circles FOR INSERT
-  WITH CHECK (created_by = app.current_user_id());
+  WITH CHECK (
+    created_by = app.current_user_id() AND kind <> 'pair' AND pair_key IS NULL
+    AND epoch = 1 AND expires_at IS NULL
+  );
 CREATE POLICY circles_change ON app.circles FOR UPDATE
   USING (app.is_active_member(id, app.current_user_id()))
   WITH CHECK (app.is_active_member(id, app.current_user_id()));
@@ -177,9 +200,11 @@ CREATE POLICY members_visible ON app.circle_members FOR SELECT
 CREATE POLICY members_add ON app.circle_members FOR INSERT
   WITH CHECK (
     user_id = app.current_user_id() AND role = 'owner' AND status = 'active'
+    AND invited_by IS NULL AND ended_at IS NULL
     AND app.circle_is_empty(circle_id)
     AND EXISTS (SELECT 1 FROM app.circles c
-                 WHERE c.id = circle_id AND c.created_by = app.current_user_id())
+                 WHERE c.id = circle_id AND c.created_by = app.current_user_id()
+                   AND c.kind <> 'pair')
   );
 CREATE POLICY members_change ON app.circle_members FOR UPDATE
   USING (user_id = app.current_user_id() OR app.is_circle_owner(circle_id))
@@ -189,9 +214,13 @@ ALTER TABLE app.invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app.invites FORCE ROW LEVEL SECURITY;
 CREATE POLICY invites_own ON app.invites
   USING (created_by = app.current_user_id())
+  WITH CHECK (created_by = app.current_user_id());
+-- A new link: unused, single-use, at most a day, and for a circle only by an active member.
+CREATE POLICY invites_new ON app.invites AS RESTRICTIVE FOR INSERT
   WITH CHECK (
-    created_by = app.current_user_id()
-    AND (circle_id IS NULL OR app.is_active_member(circle_id, app.current_user_id()))
+    (circle_id IS NULL OR app.is_active_member(circle_id, app.current_user_id()))
+    AND used_count = 0 AND max_uses = 1 AND revoked_at IS NULL
+    AND expires_at <= now() + interval '1 day 1 minute'
   );
 
 ALTER TABLE app.key_envelopes ENABLE ROW LEVEL SECURITY;
@@ -234,16 +263,18 @@ CREATE FUNCTION app.redeem_invite(p_token_hash bytea) RETURNS uuid
       RETURN NULL;
     END IF;
     IF invite.kind = 'circle' THEN
-      IF NOT app.is_active_member(invite.circle_id, invite.created_by) THEN
+      PERFORM app.lock_circle(invite.circle_id::text);
+      IF NOT coalesce(app.member_status_of(invite.circle_id, invite.created_by) = 'active', false) THEN
         RAISE EXCEPTION 'inviter left the circle' USING ERRCODE = 'check_violation';
       END IF;
       IF NOT app.circle_has_room(invite.circle_id) THEN
         RAISE EXCEPTION 'circle is full' USING ERRCODE = 'check_violation';
       END IF;
+      -- Coming back after leaving is as a member: a former owner does not get the role back.
       INSERT INTO app.circle_members (circle_id, user_id, role, status, invited_by, joined_at)
       VALUES (invite.circle_id, me, 'member', 'active', invite.created_by, now())
       ON CONFLICT (circle_id, user_id) DO UPDATE
-        SET status = 'active', joined_at = now(), ended_at = NULL
+        SET status = 'active', role = 'member', joined_at = now(), ended_at = NULL
         WHERE app.circle_members.status IN ('invited', 'declined', 'left');
       IF NOT FOUND THEN
         RAISE EXCEPTION 'already a member or removed' USING ERRCODE = 'check_violation';
@@ -251,10 +282,16 @@ CREATE FUNCTION app.redeem_invite(p_token_hash bytea) RETURNS uuid
       RETURN invite.circle_id;
     END IF;
     pair := least(me::text, invite.created_by::text) || ':' || greatest(me::text, invite.created_by::text);
+    PERFORM app.lock_circle(pair);
     SELECT id INTO target FROM app.circles WHERE pair_key = pair;
     IF target IS NULL THEN
       INSERT INTO app.circles (kind, pair_key, created_by) VALUES ('pair', pair, invite.created_by)
       RETURNING id INTO target;
+    ELSIF EXISTS (SELECT 1 FROM app.circle_members
+                   WHERE circle_id = target AND ended_at > invite.created_at) THEN
+      -- The friendship ended (or a request was declined) after this code was made: its "yes" no
+      -- longer stands.
+      RAISE EXCEPTION 'invite predates the end of the friendship' USING ERRCODE = 'check_violation';
     END IF;
     INSERT INTO app.circle_members (circle_id, user_id, role, status, invited_by, joined_at)
     VALUES (target, invite.created_by, 'owner', 'active', NULL, now()),
@@ -267,6 +304,7 @@ CREATE FUNCTION app.redeem_invite(p_token_hash bytea) RETURNS uuid
 
 -- Public card of every member of a circle the caller belongs to: profile and, for active members,
 -- the active device's public key bundle (needed to hand out sender keys). Never the email hash.
+-- Oldest membership first.
 CREATE FUNCTION app.circle_member_cards(p_circle uuid) RETURNS TABLE (
   user_id uuid,
   role app.member_role,
@@ -291,6 +329,12 @@ CREATE FUNCTION app.circle_member_cards(p_circle uuid) RETURNS TABLE (
       LEFT JOIN app.devices d ON d.user_id = m.user_id AND d.revoked_at IS NULL AND m.status = 'active'
      WHERE m.circle_id = p_circle AND m.status IN ('invited', 'active')
        AND app.is_circle_member(p_circle)
+       -- Someone only invited sees who invited them, not the other members, until they accept.
+       AND (app.member_status_of(p_circle, app.current_user_id()) = 'active'
+            OR m.user_id = app.current_user_id()
+            OR m.user_id = (SELECT i.invited_by FROM app.circle_members i
+                             WHERE i.circle_id = p_circle AND i.user_id = app.current_user_id()))
+     ORDER BY m.created_at, m.user_id
   $$;
 
 -- A user's public profile by username (adding a friend): no id, no email hash.
@@ -307,8 +351,30 @@ CREATE FUNCTION app.public_profile(p_username text) RETURNS TABLE (
      WHERE username = p_username AND deleted_at IS NULL AND app.current_user_id() IS NOT NULL
   $$;
 
--- Starts (or finds) the pair circle with the owner of a username, inviting them. Returns the
--- circle; NULL for an unknown name or yourself.
+-- Moves a circle to a new sender-key epoch (PROTOCOL §4: membership or device change, 24 hours)
+-- and drops distributions the protocol no longer accepts (older than N - 2). Only an active member
+-- may, and only ever by one: the epoch cannot be rewound or pushed towards overflow.
+CREATE FUNCTION app.start_epoch(p_circle uuid) RETURNS integer
+  LANGUAGE plpgsql SECURITY DEFINER
+  SET search_path = pg_catalog
+  AS $$
+  DECLARE
+    v_epoch integer;
+  BEGIN
+    IF NOT coalesce(app.member_status_of(p_circle, app.current_user_id()) = 'active', false) THEN
+      RAISE EXCEPTION 'not an active member' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    UPDATE app.circles SET epoch = epoch + 1, epoch_started_at = now()
+     WHERE id = p_circle
+    RETURNING epoch INTO v_epoch;
+    DELETE FROM app.key_envelopes WHERE circle_id = p_circle AND epoch < v_epoch - 2;
+    RETURN v_epoch;
+  END
+  $$;
+
+-- Starts (or finds) the pair circle with the owner of a username. Returns the circle; NULL for an
+-- unknown name or yourself. Asking someone who already asked you is saying yes to them; otherwise
+-- they are asked, also after a decline or an unfriending: an earlier yes never carries over.
 CREATE FUNCTION app.request_friend(p_username text) RETURNS uuid
   LANGUAGE plpgsql SECURITY DEFINER
   SET search_path = pg_catalog
@@ -318,28 +384,51 @@ CREATE FUNCTION app.request_friend(p_username text) RETURNS uuid
     other uuid;
     pair text;
     target uuid;
+    mine app.member_status;
+    theirs app.member_status;
   BEGIN
     SELECT id INTO other FROM app.users WHERE username = p_username AND deleted_at IS NULL;
     IF me IS NULL OR other IS NULL OR other = me THEN
       RETURN NULL;
     END IF;
     pair := least(me::text, other::text) || ':' || greatest(me::text, other::text);
+    PERFORM app.lock_circle(pair);
     SELECT id INTO target FROM app.circles WHERE pair_key = pair;
     IF target IS NULL THEN
       INSERT INTO app.circles (kind, pair_key, created_by) VALUES ('pair', pair, me)
       RETURNING id INTO target;
     END IF;
-    -- The requester is in; the other side is asked (again, after a decline or an unfriending).
+    mine := app.member_status_of(target, me);
+    theirs := app.member_status_of(target, other);
+    IF mine = 'active' AND theirs IN ('invited', 'active') THEN
+      -- Already friends, or already asked: nothing changes.
+      RETURN target;
+    END IF;
     INSERT INTO app.circle_members (circle_id, user_id, role, status, joined_at)
     VALUES (target, me, 'owner', 'active', now())
-    ON CONFLICT (circle_id, user_id) DO UPDATE SET status = 'active', joined_at = now(), ended_at = NULL
-      WHERE app.circle_members.status IN ('invited', 'declined', 'left');
-    INSERT INTO app.circle_members (circle_id, user_id, role, status, invited_by)
-    VALUES (target, other, 'owner', 'invited', me)
-    ON CONFLICT (circle_id, user_id) DO UPDATE SET status = 'invited', ended_at = NULL
-      WHERE app.circle_members.status IN ('declined', 'left');
+    ON CONFLICT (circle_id, user_id) DO UPDATE SET status = 'active', joined_at = now(), ended_at = NULL;
+    IF mine IS DISTINCT FROM 'invited' OR theirs IS DISTINCT FROM 'active' THEN
+      INSERT INTO app.circle_members (circle_id, user_id, role, status, invited_by)
+      VALUES (target, other, 'owner', 'invited', me)
+      ON CONFLICT (circle_id, user_id) DO UPDATE
+        SET status = 'invited', invited_by = me, joined_at = NULL, ended_at = NULL;
+    END IF;
+    PERFORM app.start_epoch(target);
     RETURN target;
   END
+  $$;
+
+-- A friendship needs both people: once the caller left or declined a pair, it ends for the other
+-- side too (a later request starts over and needs a new yes).
+CREATE FUNCTION app.end_pair(p_circle uuid) RETURNS void
+  LANGUAGE sql SECURITY DEFINER
+  SET search_path = pg_catalog
+  AS $$
+    UPDATE app.circle_members m SET status = 'left', ended_at = now()
+      FROM app.circles c
+     WHERE c.id = p_circle AND c.kind = 'pair' AND m.circle_id = p_circle
+       AND m.status IN ('invited', 'active')
+       AND app.member_status_of(p_circle, app.current_user_id()) IN ('declined', 'left')
   $$;
 
 -- Invites a user (by username) into a group circle the caller is active in, again after a decline
@@ -353,6 +442,7 @@ CREATE FUNCTION app.invite_user(p_circle uuid, p_username text) RETURNS boolean
     me uuid := app.current_user_id();
     other uuid;
   BEGIN
+    PERFORM app.lock_circle(p_circle::text);
     IF me IS NULL OR NOT app.is_active_member(p_circle, me) OR NOT app.circle_has_room(p_circle)
        OR EXISTS (SELECT 1 FROM app.circles WHERE id = p_circle AND kind = 'pair') THEN
       RETURN false;
@@ -363,7 +453,8 @@ CREATE FUNCTION app.invite_user(p_circle uuid, p_username text) RETURNS boolean
     END IF;
     INSERT INTO app.circle_members (circle_id, user_id, role, status, invited_by)
     VALUES (p_circle, other, 'member', 'invited', me)
-    ON CONFLICT (circle_id, user_id) DO UPDATE SET status = 'invited', ended_at = NULL
+    ON CONFLICT (circle_id, user_id) DO UPDATE
+      SET status = 'invited', role = 'member', invited_by = me, ended_at = NULL
       WHERE app.circle_members.status IN ('declined', 'left');
     RETURN FOUND;
   END
@@ -394,17 +485,6 @@ CREATE FUNCTION app.invite_preview(p_token_hash bytea) RETURNS TABLE (
        AND i.used_count < i.max_uses AND app.current_user_id() IS NOT NULL
   $$;
 
--- Drops sender-key distributions of epochs the protocol no longer accepts (older than N - 2).
-CREATE FUNCTION app.prune_key_envelopes(p_circle uuid) RETURNS void
-  LANGUAGE sql SECURITY DEFINER
-  SET search_path = pg_catalog
-  AS $$
-    DELETE FROM app.key_envelopes e
-     USING app.circles c
-     WHERE e.circle_id = p_circle AND c.id = p_circle AND e.epoch < c.epoch - 2
-       AND app.is_active_member(p_circle, app.current_user_id())
-  $$;
-
 REVOKE ALL ON FUNCTION app.member_status_of(uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.is_circle_member(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.is_active_member(uuid, uuid) FROM PUBLIC;
@@ -415,18 +495,23 @@ REVOKE ALL ON FUNCTION app.redeem_invite(bytea) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.circle_member_cards(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.public_profile(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.request_friend(text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION app.prune_key_envelopes(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION app.start_epoch(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION app.end_pair(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION app.lock_circle(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.circle_has_room(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.invite_user(uuid, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION app.invite_preview(bytea) FROM PUBLIC;
 
+-- app.circle_has_room and app.member_status_of stay internal to the functions above.
 GRANT EXECUTE ON FUNCTION app.is_circle_member(uuid), app.is_active_member(uuid, uuid),
-  app.is_circle_owner(uuid), app.circle_is_empty(uuid), app.redeem_invite(bytea),
-  app.circle_member_cards(uuid), app.public_profile(text), app.request_friend(text),
-  app.prune_key_envelopes(uuid), app.circle_has_room(uuid), app.invite_user(uuid, text), app.invite_preview(bytea)
+  app.is_circle_owner(uuid), app.circle_is_empty(uuid), app.lock_circle(text),
+  app.redeem_invite(bytea), app.circle_member_cards(uuid), app.public_profile(text),
+  app.request_friend(text), app.start_epoch(uuid), app.end_pair(uuid),
+  app.invite_user(uuid, text), app.invite_preview(bytea)
   TO bargu_app;
 
-GRANT SELECT, INSERT, UPDATE (name, epoch, epoch_started_at) ON app.circles TO bargu_app;
+-- The epoch changes only through app.start_epoch.
+GRANT SELECT, INSERT, UPDATE (name) ON app.circles TO bargu_app;
 GRANT SELECT, INSERT, UPDATE (role, status, joined_at, ended_at) ON app.circle_members TO bargu_app;
 GRANT SELECT, INSERT, UPDATE (revoked_at) ON app.invites TO bargu_app;
 GRANT SELECT, INSERT, UPDATE (envelope, created_at) ON app.key_envelopes TO bargu_app;

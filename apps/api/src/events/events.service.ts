@@ -68,14 +68,12 @@ export class EventsService {
    * or never seen): the phone reloads its state instead of trusting the gap.
    */
   async since(userId: string, lastId: string | null): Promise<ResumeReply> {
-    if (lastId === null) return { events: [], snapshot: true };
     const key = streamKey(userId);
+    if (lastId === null) return this.snapshot(key);
     const [first] = (await this.redis.xRange(key, '-', '+', { COUNT: 1 })) ?? [];
     // Nothing kept (expired), or the phone's last event is older than everything kept: events in
     // between may have been trimmed, so the phone reloads instead of trusting the gap.
-    if (first === undefined || compareIds(lastId, first.id) < 0) {
-      return { events: [], snapshot: true };
-    }
+    if (first === undefined || compareIds(lastId, first.id) < 0) return this.snapshot(key);
     const entries =
       (await this.redis.xRange(key, `(${lastId}`, '+', { COUNT: EVENT_STREAM_LENGTH })) ?? [];
     const events: DeliveredEvent[] = [];
@@ -85,7 +83,16 @@ export class EventsService {
       const { at, event } = JSON.parse(raw) as { at: number; event: ServerEvent };
       events.push({ id: entry.id, at, event });
     }
-    return { events, snapshot: false };
+    return { events, snapshot: false, cursor: events.at(-1)?.id ?? lastId };
+  }
+
+  /**
+   * "Reload everything", with the newest event id as the place to resume from afterwards: anything
+   * newer reaches the phone live (it is already in its room) or on its next resume.
+   */
+  private async snapshot(key: string): Promise<ResumeReply> {
+    const [latest] = (await this.redis.xRevRange(key, '+', '-', { COUNT: 1 })) ?? [];
+    return { events: [], snapshot: true, cursor: latest?.id ?? null };
   }
 
   /** Closes a device's live connections (logout, device replaced). */

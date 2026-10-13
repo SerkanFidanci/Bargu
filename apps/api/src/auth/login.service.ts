@@ -44,12 +44,17 @@ export class LoginService {
     await this.otp.limitVerification(request.ip);
     const { device, attested } = await this.checkDevice(body.device, request);
     const emailHmac = await this.otp.verify(body.challengeId, body.code, device.identityKey);
-    const { session, replacedDeviceId } = await this.loginByEmail(emailHmac, device, attested);
+    const { session, replacedDeviceId, newDevice } = await this.loginByEmail(
+      emailHmac,
+      device,
+      attested,
+    );
     await this.attestation.consume(body.device);
     await this.lifecycle.notify({
       userId: session.userId,
       kind: 'login',
       deviceId: device.deviceId,
+      newDevice,
       replacedDeviceId,
     });
     return session;
@@ -74,6 +79,7 @@ export class LoginService {
       userId,
       kind: 'login',
       deviceId: device.deviceId,
+      newDevice: started.newDevice,
       replacedDeviceId: started.replacedDeviceId,
     });
     return session;
@@ -90,7 +96,7 @@ export class LoginService {
     emailHmac: Uint8Array,
     device: VerifiedDevice,
     attested: Awaited<ReturnType<AttestationService['verify']>>,
-  ): Promise<{ session: Session; replacedDeviceId: string | null }> {
+  ): Promise<{ session: Session; replacedDeviceId: string | null; newDevice: boolean }> {
     // Two attempts: a concurrent first login with the same address may create the account first.
     for (let attempt = 0; ; attempt++) {
       const existing = await this.database.userIdForEmail(emailHmac);
@@ -103,6 +109,7 @@ export class LoginService {
         return {
           session: await this.sessions.complete(started.started),
           replacedDeviceId: started.replacedDeviceId,
+          newDevice: started.newDevice,
         };
       } catch (error) {
         if (existing === null && isUniqueViolation(error)) {
@@ -124,9 +131,14 @@ export class LoginService {
     event: SecurityEventType,
     isNewUser: boolean,
   ) {
-    const { replacedDeviceId } = await this.registry.activate(tx, userId, device, attested);
+    const { replacedDeviceId, newDevice } = await this.registry.activate(
+      tx,
+      userId,
+      device,
+      attested,
+    );
     await tx.insert(securityEvents).values({ userId, type: event, deviceId: device.deviceId });
     const started = await this.sessions.start(tx, userId, device.deviceId, isNewUser);
-    return { started, replacedDeviceId };
+    return { started, replacedDeviceId, newDevice };
   }
 }

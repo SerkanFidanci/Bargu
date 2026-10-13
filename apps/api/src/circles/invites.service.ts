@@ -154,6 +154,8 @@ function refusal(error: unknown): unknown {
   if (message.includes('already a member or removed')) {
     return new ApiError(HttpStatus.CONFLICT, 'ALREADY_MEMBER');
   }
-  if (message.includes('inviter left')) return new ApiError(HttpStatus.NOT_FOUND, 'INVITE_INVALID');
+  if (message.includes('inviter left') || message.includes('predates the end')) {
+    return new ApiError(HttpStatus.NOT_FOUND, 'INVITE_INVALID');
+  }
   return error;
 }

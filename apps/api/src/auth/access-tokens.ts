@@ -24,6 +24,11 @@ export interface AccessClaims {
   sessionId: string;
 }
 
+/** Verified claims, with when the token stops being valid (Unix ms). */
+export interface VerifiedClaims extends AccessClaims {
+  expiresAt: number;
+}
+
 /** Short-lived EdDSA JWTs (BARGU_PLAN §3.2). Every request still checks device and session in DB. */
 @Injectable()
 export class AccessTokens {
@@ -56,7 +61,7 @@ export class AccessTokens {
     return { token, expiresAt: (now + ACCESS_TOKEN_TTL_SECONDS) * 1000 };
   }
 
-  async verify(token: string): Promise<AccessClaims> {
+  async verify(token: string): Promise<VerifiedClaims> {
     try {
       const { payload } = await jwtVerify(
         token,
@@ -76,14 +81,19 @@ export class AccessTokens {
           requiredClaims: ['sub', 'did', 'sid', 'exp', 'iat'],
         },
       );
-      const { sub, did, sid } = payload;
-      if (typeof sub !== 'string' || typeof did !== 'string' || typeof sid !== 'string') {
+      const { sub, did, sid, exp } = payload;
+      if (
+        typeof sub !== 'string' ||
+        typeof did !== 'string' ||
+        typeof sid !== 'string' ||
+        typeof exp !== 'number'
+      ) {
         throw new errors.JWTClaimValidationFailed('claims', payload);
       }
       if (!UUID.test(sub) || !UUID.test(did) || !UUID.test(sid)) {
         throw new errors.JWTClaimValidationFailed('claims', payload);
       }
-      return { userId: sub, deviceId: did, sessionId: sid };
+      return { userId: sub, deviceId: did, sessionId: sid, expiresAt: exp * 1000 };
     } catch (error) {
       if (error instanceof errors.JWTExpired) {
         throw new ApiError(HttpStatus.UNAUTHORIZED, 'TOKEN_EXPIRED');

@@ -159,8 +159,18 @@ export const deliveredEventSchema = z
   .strict();
 export type DeliveredEvent = z.infer<typeof deliveredEventSchema>;
 
-/** Reply to `resume`: missed events in order, or `snapshot: true` when too many were missed. */
+/**
+ * Reply to `resume`: missed events in order, or `snapshot: true` when too many were missed (reload
+ * everything). `cursor` is the id to resume from next time, once this reply is handled.
+ */
 export const resumeReplySchema = z
-  .object({ events: z.array(deliveredEventSchema), snapshot: z.boolean() })
+  .object({
+    events: z.array(deliveredEventSchema),
+    snapshot: z.boolean(),
+    cursor: z
+      .string()
+      .regex(/^\d+-\d+$/)
+      .nullable(),
+  })
   .strict();
 export type ResumeReply = z.infer<typeof resumeReplySchema>;

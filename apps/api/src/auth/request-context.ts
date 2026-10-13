@@ -7,6 +7,8 @@ export interface AuthContext {
   deviceId: string;
   sessionId: string;
   identityKey: Uint8Array;
+  /** When the access token expires (Unix ms); a live connection ends then. */
+  expiresAt: number;
 }
 
 export type AuthedRequest = FastifyRequest & { auth?: AuthContext; rawBody?: Buffer };

@@ -27,6 +27,16 @@ const handshakeSchema = z
   })
   .strict();
 
+/** A phone resumes once per connection; a few more are tolerated, then the connection closes. */
+export const RESUMES_PER_CONNECTION = 5;
+
+/** Who a socket acts for, with the token it presented (checked again after joining its rooms). */
+interface Connection {
+  auth: AuthContext;
+  token: string;
+  resumes: number;
+}
+
 const resumeSchema = z
   .object({
     lastEventId: z
@@ -39,7 +49,10 @@ const resumeSchema = z
 /**
  * The single live connection per phone (BARGU_PLAN §3.4). WebSocket transport only (no long-polling,
  * so no sticky sessions). The handshake is authenticated like a signed HTTP request: access token,
- * live device and session, and a one-time device signature over "GET /v1/events".
+ * live device and session, and a one-time device signature over "GET /v1/events". A connection
+ * lives no longer than its access token (the phone reconnects with a fresh one), closes when the
+ * device signs out, is replaced or has its session revoked, and replaces an older connection of
+ * the same device.
  */
 @WebSocketGateway({
   path: EVENTS_PATH,
@@ -54,7 +67,7 @@ const resumeSchema = z
 export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
   private readonly logger = new Logger('EventsGateway');
   /** Who each connected socket acts for, set once by the handshake middleware. */
-  private readonly identities = new WeakMap<Socket, AuthContext>();
+  private readonly connections = new WeakMap<Socket, Connection>();
 
   constructor(
     private readonly events: EventsService,
@@ -66,8 +79,8 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
     this.events.attach(server);
     server.use((socket, next) => {
       this.authenticate(socket).then(
-        (auth) => {
-          this.identities.set(socket, auth);
+        (connection) => {
+          this.connections.set(socket, connection);
           next();
         },
         (error: unknown) => {
@@ -78,31 +91,56 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
   }
 
   async handleConnection(socket: Socket): Promise<void> {
-    const identity = this.identities.get(socket);
-    if (identity === undefined) {
+    const connection = this.connections.get(socket);
+    if (connection === undefined) {
       socket.disconnect(true);
       return;
     }
-    await socket.join([userRoom(identity.userId), deviceRoom(identity.deviceId)]);
+    const { auth, token } = connection;
+    // One connection per device: a newer one replaces the older (it is not in the room yet).
+    this.events.disconnectDevice(auth.deviceId);
+    await socket.join([userRoom(auth.userId), deviceRoom(auth.deviceId)]);
+    // A sign-out or device change that committed while the handshake ran closed the device's
+    // sockets before this one joined: check again now that it is in the rooms.
+    try {
+      await this.contexts.resolve(token);
+    } catch {
+      socket.disconnect(true);
+      return;
+    }
+    const expiry = setTimeout(
+      () => {
+        socket.disconnect(true);
+      },
+      Math.max(0, auth.expiresAt - Date.now()),
+    );
+    socket.once('disconnect', () => {
+      clearTimeout(expiry);
+    });
   }
 
   /** Missed events since the phone's last one (or a snapshot request), as the acknowledgement. */
   @SubscribeMessage('resume')
   async resume(socket: Socket, payload: unknown): Promise<ResumeReply> {
-    const identity = this.identities.get(socket);
+    const connection = this.connections.get(socket);
     const parsed = resumeSchema.safeParse(payload);
-    if (identity === undefined || !parsed.success) {
-      return { events: [], snapshot: true };
+    if (connection === undefined || !parsed.success) {
+      return { events: [], snapshot: true, cursor: null };
+    }
+    connection.resumes += 1;
+    if (connection.resumes > RESUMES_PER_CONNECTION) {
+      socket.disconnect(true);
+      return { events: [], snapshot: true, cursor: null };
     }
     try {
-      return await this.events.since(identity.userId, parsed.data.lastEventId);
+      return await this.events.since(connection.auth.userId, parsed.data.lastEventId);
     } catch (error) {
       this.logger.warn(`resume failed: ${error instanceof Error ? error.name : 'unknown'}`);
-      return { events: [], snapshot: true };
+      return { events: [], snapshot: true, cursor: null };
     }
   }
 
-  private async authenticate(socket: Socket): Promise<AuthContext> {
+  private async authenticate(socket: Socket): Promise<Connection> {
     const parsed = handshakeSchema.safeParse(socket.handshake.auth);
     if (!parsed.success) throw new ApiError(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED');
     const { token, ts, nonce, sig } = parsed.data;
@@ -119,6 +157,6 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
       auth.deviceId,
       auth.identityKey,
     );
-    return auth;
+    return { auth, token, resumes: 0 };
   }
 }

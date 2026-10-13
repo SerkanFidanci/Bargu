@@ -242,7 +242,32 @@ describe('sender-key distribution', () => {
       userId: bora.userId,
       kind: 'login',
       deviceId: randomUuid(),
+      newDevice: true,
       replacedDeviceId: bora.device.deviceId,
+    });
+    expect((await fetchCircle(ayse, circle.id)).epoch).toBe(circle.epoch + 1);
+  });
+
+  it('keeps the epoch when the same phone signs in again, and moves on when it signs out', async () => {
+    const [ayse, bora] = await Promise.all([person(test), person(test)]);
+    const circle = await circleWith(test, ayse, bora);
+    const { DeviceLifecycle } = await import('../../src/devices/device-lifecycle.js');
+    const lifecycle = test.app.get(DeviceLifecycle);
+    await lifecycle.notify({
+      userId: bora.userId,
+      kind: 'login',
+      deviceId: bora.device.deviceId,
+      newDevice: false,
+      replacedDeviceId: null,
+    });
+    expect((await fetchCircle(ayse, circle.id)).epoch).toBe(circle.epoch);
+    // Signed out: keys that were on that phone are not used for anything new.
+    await lifecycle.notify({
+      userId: bora.userId,
+      kind: 'logout',
+      deviceId: bora.device.deviceId,
+      newDevice: false,
+      replacedDeviceId: null,
     });
     expect((await fetchCircle(ayse, circle.id)).epoch).toBe(circle.epoch + 1);
   });
