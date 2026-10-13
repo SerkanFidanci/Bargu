@@ -32,24 +32,35 @@ function percentile(sorted: readonly number[], p: number): number {
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0;
 }
 
+const WARM_UP_CALLS = 5;
+
+/**
+ * Times `run` over warm-up plus `iterations` calls. `call` keeps counting across both phases, so an
+ * operation that must not repeat (decrypting the same envelope twice is a replay) gets fresh input.
+ */
 function measure(
   id: BenchmarkResult['id'],
   iterations: number,
-  run: (i: number) => void,
+  run: (call: number) => void,
 ): BenchmarkResult {
-  for (let i = 0; i < 5; i++) run(i); // warm-up (JIT-less Hermes still benefits from warm caches)
+  let call = 0;
+  for (; call < WARM_UP_CALLS; call++) run(call); // warm caches before timing
   const samples: number[] = [];
-  for (let i = 0; i < iterations; i++) {
+  for (let i = 0; i < iterations; i++, call++) {
     const start = performance.now();
-    run(i);
+    run(call);
     samples.push(performance.now() - start);
   }
   samples.sort((a, b) => a - b);
   return { id, iterations, medianMs: percentile(samples, 0.5), p95Ms: percentile(samples, 0.95) };
 }
 
-/** Runs the protocol's hot paths on this device with the same code the app ships. */
-export function runCryptoBenchmark(): BenchmarkResult[] {
+/**
+ * Runs the protocol's hot paths on this device with the same code the app ships. `scale` shrinks
+ * the iteration counts (tests use a small value).
+ */
+export function runCryptoBenchmark(scale = 1): BenchmarkResult[] {
+  const n = (count: number) => Math.max(1, Math.round(count * scale));
   const alice = generateDeviceKeys(ALICE_DEVICE);
   const bob = generateDeviceKeys(BOB_DEVICE);
   const alicePublic: DevicePublicKeys = {
@@ -81,21 +92,27 @@ export function runCryptoBenchmark(): BenchmarkResult[] {
     state = result.nextState;
     return result.envelope;
   };
-  const envelopes = Array.from({ length: 205 }, () => encryptOnce(location));
+  const decryptRuns = n(200);
+  // One envelope per decrypt call: each is accepted exactly once by the replay guard.
+  const envelopes = Array.from({ length: WARM_UP_CALLS + decryptRuns }, () =>
+    encryptOnce(location),
+  );
   const replay = new ReplayGuard();
 
   return [
-    measure('encrypt', 200, () => encryptOnce(location)),
-    measure('send', 200, () => encryptOnce(applyPrecision(location, 'neighborhood'))),
-    measure('decrypt', 200, (i) => {
-      decryptMessage({ envelope: envelopes[i], senderKey, sender: alicePublic, replay });
+    measure('encrypt', n(200), () => encryptOnce(location)),
+    measure('send', n(200), () => encryptOnce(applyPrecision(location, 'neighborhood'))),
+    measure('decrypt', decryptRuns, (call) => {
+      decryptMessage({ envelope: envelopes[call], senderKey, sender: alicePublic, replay });
     }),
-    measure('distribute', 100, () => {
+    measure('distribute', n(100), () => {
       createSenderKeyDistribution({ senderKey, sender: alice, recipient: bobPublic });
     }),
-    measure('seal', 100, () => sealForDevice(bob.dh.publicKey, new Uint8Array(300))),
-    measure('keygen', 50, (i) => generateDeviceKeys(i % 2 === 0 ? ALICE_DEVICE : BOB_DEVICE)),
-    measure('safetyNumber', 10, () =>
+    measure('seal', n(100), () => sealForDevice(bob.dh.publicKey, new Uint8Array(300))),
+    measure('keygen', n(50), (call) =>
+      generateDeviceKeys(call % 2 === 0 ? ALICE_DEVICE : BOB_DEVICE),
+    ),
+    measure('safetyNumber', n(10), () =>
       safetyNumber(
         { userId: CIRCLE, identityKey: alice.identity.publicKey },
         { userId: BOB_DEVICE, identityKey: bob.identity.publicKey },

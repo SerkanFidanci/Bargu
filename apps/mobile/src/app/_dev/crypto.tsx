@@ -1,3 +1,4 @@
+import { BarguCryptoError } from '@bargu/crypto';
 import { Redirect, useTheme } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +16,14 @@ type RunState =
   | { phase: 'idle' }
   | { phase: 'running' }
   | { phase: 'done'; results: BenchmarkResult[] }
-  | { phase: 'failed' };
+  | { phase: 'failed'; reason: string };
+
+/** Dev-only diagnostics. Library errors expose a code and never key material. */
+function describeError(error: unknown): string {
+  if (error instanceof BarguCryptoError) return error.code;
+  if (error instanceof Error) return `${error.name}: ${error.message}`.slice(0, 160);
+  return 'unknown';
+}
 
 // Dev-only: measures on-device crypto speed (Faz 1 DoD). Not reachable in production builds.
 export default function CryptoBenchmarkScreen() {
@@ -31,8 +39,8 @@ export default function CryptoBenchmarkScreen() {
     setTimeout(() => {
       try {
         setRun({ phase: 'done', results: runCryptoBenchmark() });
-      } catch {
-        setRun({ phase: 'failed' });
+      } catch (error: unknown) {
+        setRun({ phase: 'failed', reason: describeError(error) });
       }
     }, 50);
   };
@@ -63,7 +71,7 @@ export default function CryptoBenchmarkScreen() {
 
         {run.phase === 'failed' ? (
           <Text style={[styles.note, { color: colors.notification }]}>
-            {t('dev.crypto.failed')}
+            {t('dev.crypto.failed')} ({run.reason})
           </Text>
         ) : null}
 
