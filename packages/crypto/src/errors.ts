@@ -9,8 +9,10 @@ export type CryptoErrorCode =
   /** The envelope was produced for another circle, epoch or sender than the key supplied. */
   | 'KEY_MISMATCH'
   | 'WRONG_RECIPIENT'
-  /** Sequence number already seen (or older) for this sender and epoch. */
+  /** Message already accepted, outside the replay window, or from an epoch below the floor. */
   | 'REPLAY'
+  /** Authentic location that is older than one already accepted (locations are last-write-wins). */
+  | 'STALE'
   | 'PAYLOAD_TOO_LARGE'
   /** The sender key ran out of sequence numbers; a new epoch is required. */
   | 'REKEY_REQUIRED';

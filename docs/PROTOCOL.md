@@ -32,8 +32,9 @@ Kendi primitive'imiz yoktur; yalnızca audit edilmiş kütüphanelerin standart 
 - **Tamsayılar** (`epoch`, `seq`): u32, büyük-endian (4 bayt).
 - **Etiketler**: UTF-8 + `0x00` sonlandırıcı (hiçbir etiket diğerinin öneki olamaz).
 - **İkili alanlar** (JSON'da): base64url, dolgusuz, kanonik (fazladan bit taşıyan kodlama reddedilir).
-- **Dolgu**: düz metin, `0x80` + sıfırlarla 128 baytın katına tamamlanır (ISO/IEC 7816-4). Mesajda en
-  fazla 1024, bildirimde en fazla 2048 bayt.
+- **Dolgu** (ISO/IEC 7816-4, `0x80` + sıfırlar): mesaj düz metni türü ve hassasiyeti ne olursa olsun
+  **tam 512 bayta** tamamlanır (tek boy: boyuttan hiçbir şey çıkmaz; v1'in en büyük içeriği ~380
+  bayt). Bildirim düz metni 128 baytın katına, en fazla 2048 bayta tamamlanır.
 - `‖` birleştirme demektir.
 
 | Etiket             | Kullanım                       |
@@ -129,7 +130,7 @@ sig = Ed25519.sign(sender.identity, "bargu/v1/msg-sig\0" ‖ header ‖ ct)
   "senderDeviceId": "…",
   "seq": 5,
   "salt": "b64u(16)",
-  "ct": "b64u(144…1040)",
+  "ct": "b64u(528)",
   "sig": "b64u(64)"
 }
 ```
@@ -144,9 +145,19 @@ sig = Ed25519.sign(sender.identity, "bargu/v1/msg-sig\0" ‖ header ‖ ct)
 Alıcıda sıra: biçim → çember/epoch/gönderen eşleşmesi → **imza** → tekrar penceresi → çözme →
 dolgu → JSON → şema. Tekrar penceresi yalnızca başarılı çözmeden sonra ilerler.
 
-**Tekrar koruması:** alıcı her `(senderDeviceId, epoch)` için kabul ettiği en büyük `seq`'i tutar.
-Eşit veya küçük `seq` reddedilir (konum son-yazan-kazanır olduğundan eski mesaj zaten anlamsızdır).
-Durum şifreli yerel önbellekte saklanır, yeniden başlatmada pencere açılmaz.
+**Tekrar koruması** (`ReplayGuard`), her **`(circleId, senderDeviceId)`** için ayrı tutulur (epoch ve
+`seq` çember başınadır):
+
+- **Kayan pencere** (IPsec / DTLS gibi): epoch içinde en büyük `seq`'in 64 gerisine kadar sırası
+  karışmış mesaj **bir kez** kabul edilir; aynı `seq` ikinci kez ve pencerenin gerisi reddedilir
+  (`REPLAY`). Böylece geç gelen `place_enter` gibi olaylar kaybolmaz.
+- **Epoch tabanı:** epoch N kabul edildikten sonra N − 2 ve öncesi reddedilir — o epoch'un anahtarı
+  hâlâ saklanıyor olsa bile. Sunucu eski bir dağıtımı ve eski mesajları yeniden gönderemez.
+- **Konum son-yazan-kazanır:** bu göndericiden daha yeni bir konum kabul edildiyse, eski konum
+  doğrulanır ve kaydedilir (tekrar gönderilemez) ama `STALE` hatasıyla teslim edilmez.
+- Durum şifreli yerel önbellekte saklanır, yeniden başlatmada pencere açılmaz. Anahtar deposu
+  (Faz 4) mevcut epoch'tan eski bir dağıtımı kabul etmez; iOS bildirim eklentisi (Faz 7) aynı
+  durumu uygulama grubundan paylaşır.
 
 **Sunucu** imzayı ve gönderenin çember üyeliğini doğrular (`verifyMessageEnvelope`), sonra iletir.
 
@@ -165,11 +176,11 @@ Zod ayrık birleşimi (`kind`), bilinmeyen alan reddedilir ([`packages/schemas`]
 
 ## 7. Hassasiyet (şifrelemeden önce, gönderende)
 
-| Seviye  | Hücre  | Etki                                                                |
-| ------- | ------ | ------------------------------------------------------------------- |
-| Tam     | —      | Değişmez                                                            |
-| Mahalle | ~1 km  | Hücre merkezine çekilir; `spd`/`hdg` atılır; `acc` ≥ hücre yarıçapı |
-| Şehir   | ~10 km | Aynısı, 10 km hücre                                                 |
+| Seviye  | Hücre  | Etki                                                                      |
+| ------- | ------ | ------------------------------------------------------------------------- |
+| Tam     | —      | Değişmez                                                                  |
+| Mahalle | ~1 km  | Hücre merkezine çekilir; `spd`/`hdg` atılır; `acc` hücre yarıçapının katı |
+| Şehir   | ~10 km | Aynısı, 10 km hücre                                                       |
 
 Rastgele gürültü değil, **sabit ızgara**: aynı yer hep aynı noktayı verir, ortalama almak gerçek konumu
 ortaya çıkarmaz. Satır ve sütunlar 180°/360°'yi tam böler (tarih değiştirme hattında yarım hücre yok);
@@ -208,11 +219,15 @@ zarfından gelir.
 ## 10. Değişmezler (testlerle korunur)
 
 - Herhangi bir bitin değiştirilmesi reddedilir (property testi, 300 rastgele deneme).
-- Tekrar veya eski `seq` reddedilir; doğrulanamayan mesaj pencereyi ilerletmez.
+- Tekrar, pencere dışı `seq` ve epoch tabanının altı reddedilir; doğrulanamayan mesaj pencereyi
+  ilerletmez; iki çemberdeki aynı gönderici birbirini etkilemez; eski konum `STALE` olur.
+- Her içerik türünün en büyük hâli dahil tüm zarfların `ct` boyutu aynıdır (528 bayt).
 - Yanlış epoch / çember / gönderen anahtarı reddedilir; çıkarılan üye yeni epoch'u çözemez.
 - Kötü niyetli ama geçerli anahtarlı gönderici (bozuk dolgu, geçersiz UTF-8/JSON/şema) reddedilir.
 - RFC 7748, 8032, 8439 ve 5869 test vektörleri; `packages/crypto` %100 satır/dal/fonksiyon kapsamı.
-- TypeScript çıktısı Swift/CryptoKit ile açılır (macOS CI).
+- TypeScript çıktısı Swift/CryptoKit ile açılır (macOS CI). Swift tarafı da bilinmeyen alanı, yanlış
+  boyutlu `ct`'yi ve kanonik olmayan UUID'yi reddeder. CryptoKit küçük mertebeli kimlik anahtarlarını
+  kendisi reddetmez: eklenti yalnızca uygulamanın TypeScript ile doğrulayıp sakladığı anahtarları kullanır.
 
 ## 11. Sürümleme
 

@@ -78,8 +78,10 @@ export function signWithLabel(
 
 /**
  * Strict RFC 8032 verification (`zip215: false`): rejects non-canonical encodings and malleable
- * signatures, matching Apple CryptoKit. With the lengths checked here, noble only throws on
- * non-byte arguments, so invalid keys or signatures yield `false`.
+ * signatures. Apple CryptoKit verifies cofactorless and does not reject small-order keys, so the
+ * two sides agree only on keys that passed `isValidEd25519PublicKey` (every identity key is
+ * checked on registration). With the lengths checked here, noble only throws on non-byte
+ * arguments, so invalid keys or signatures yield `false`.
  */
 export function verifyWithLabel(
   label: Label,

@@ -5,10 +5,11 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                        |
-| -------------------------------- | -------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client) |
-| Faz 1 — Kripto Çekirdeği         | 🔄 Onay bekliyor                             |
+| Faz                              | Durum                                         |
+| -------------------------------- | --------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)  |
+| Faz 1 — Kripto Çekirdeği         | ✅ Onaylandı (açık madde: cihazda hız ölçümü) |
+| Faz 2 — Auth & Cihazlar          | 🔄 Devam ediyor                               |
 
 ## Ortamlar
 
@@ -48,9 +49,23 @@ Protokol: [PROTOCOL.md](PROTOCOL.md) · Tehdit modeli: [THREAT_MODEL.md](THREAT_
 
 ### Test sonuçları
 
-- `packages/crypto`: 78 test (RFC vektörleri, fast-check property testleri, tamper, replay, epoch,
+- `packages/crypto`: 84 test (RFC vektörleri, fast-check property testleri, tamper, replay, epoch,
   çıkarılan üye, kötü niyetli gönderici, fixture, performans) — %100 kapsam.
-- `packages/schemas`: 18 test. Swift: 8 test (Linux'ta swift-crypto ile; CI'da macOS CryptoKit ile).
+- `packages/schemas`: 21 test. Swift: 10 test (Linux'ta swift-crypto ile; CI'da macOS CryptoKit ile).
+
+### Bağımsız güvenlik incelemesi (kapanış kontrolü)
+
+Faz kapanmadan önce kripto kodu ayrı bir inceleyiciyle saldırgan gözüyle tarandı. Bulgular ve durum:
+
+| Bulgu                                                                                                   | Önem   | Durum                                                                |
+| ------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------- |
+| Tekrar koruması çemberi ayırt etmiyordu: bir çemberdeki yeni epoch, diğerinde eski mesajı geri açıyordu | Yüksek | ✅ Düzeltildi: `(çember, gönderen)` başına durum + iki çember testi  |
+| Epoch tabanı yoktu: sunucu eski bir epoch'un mesajlarını yeniden gönderebilirdi                         | Orta   | ✅ Düzeltildi: N − 2 ve öncesi reddedilir                            |
+| Sırası karışan olaylar (ör. `place_enter`) sessizce düşüyordu                                           | Düşük  | ✅ Düzeltildi: 64'lük kayan pencere; eski konum `STALE`              |
+| Zarf boyutu hassasiyet seviyesini ve hareketi sızdırıyordu                                              | Düşük  | ✅ Düzeltildi: tüm mesajlar tek boy (512 bayt); `acc` yuvarlanıyor   |
+| Swift tarafı UUID / bilinmeyen alan / `ct` boyutunda TypeScript kadar katı değildi                      | Düşük  | ✅ Düzeltildi + Swift testleri                                       |
+| CryptoKit küçük mertebeli Ed25519 anahtarlarını reddetmiyor                                             | Düşük  | Belgelendi: eklenti yalnızca TS ile doğrulanmış anahtarları kullanır |
+| Bildirim eklentisinin tekrar durumu, değişen kimlik anahtarına otomatik dağıtım                         | Bilgi  | Faz 4 ve Faz 7 kalan işlerine eklendi                                |
 
 ### Testlerin bulup düzelttiği hatalar
 
@@ -145,3 +160,7 @@ Protokol: [PROTOCOL.md](PROTOCOL.md) · Tehdit modeli: [THREAT_MODEL.md](THREAT_
   yükleniyor; Bargu kullanmıyor → sadece ilgili projeye kapsamla.
 - Geliştirme ve önizleme sürümlerinin telefonda yan yana durabilmesi için ayrı uygulama kimliği
   (`app.bargu.dev`) değerlendir.
+- **Faz 4:** anahtar deposu mevcut epoch'tan eski dağıtımı reddetsin; kimlik anahtarı değişen üyeye
+  sender key, kullanıcı uyarıyı onaylayana kadar otomatik dağıtılmasın.
+- **Faz 7:** iOS bildirim eklentisi tekrar korumasını (`ReplayGuard` durumu) uygulamayla uygulama
+  grubu üzerinden paylaşsın.

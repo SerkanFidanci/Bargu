@@ -148,6 +148,32 @@ final class FixtureTests: XCTestCase {
     ) { XCTAssertEqual($0 as? BarguCryptoError, .badSignature) }
   }
 
+  func testEnvelopeDecodingIsStrict() throws {
+    var json =
+      try JSONSerialization.jsonObject(with: JSONEncoder().encode(Self.fixtures.message.envelope))
+      as! [String: Any]
+    XCTAssertNoThrow(
+      try JSONDecoder().decode(
+        MessageEnvelope.self, from: JSONSerialization.data(withJSONObject: json)))
+    json["plaintext"] = "oops"
+    XCTAssertThrowsError(
+      try JSONDecoder().decode(
+        MessageEnvelope.self, from: JSONSerialization.data(withJSONObject: json)))
+  }
+
+  func testMessageCiphertextMustHaveTheFixedSize() throws {
+    let fixture = Self.fixtures.message
+    let e = fixture.envelope
+    let shorter = MessageEnvelope(
+      v: e.v, circleId: e.circleId, epoch: e.epoch, senderDeviceId: e.senderDeviceId, seq: e.seq,
+      salt: e.salt, ct: Encoding.base64urlEncode(try b64(e.ct).dropLast(128)), sig: e.sig)
+    XCTAssertThrowsError(
+      try BarguProtocol.verifyAndDecrypt(
+        envelope: shorter, senderKey: hex(fixture.senderKey),
+        senderIdentityKey: b64(alice.bundle.identityKey))
+    ) { XCTAssertEqual($0 as? BarguCryptoError, .malformed) }
+  }
+
   func testSealedPushOpensOnlyForRecipient() throws {
     let fixture = Self.fixtures.sealedPush
     let plaintext = try BarguProtocol.openSealed(
@@ -172,6 +198,10 @@ final class FixtureTests: XCTestCase {
     XCTAssertThrowsError(try Encoding.base64url("AB"))  // non-canonical trailing bits
     XCTAssertThrowsError(try Encoding.base64url("A+"))  // standard alphabet
     XCTAssertThrowsError(try Encoding.uuidBytes("0190F7A4-5B6C-7D8E-9F01-23456789ABCD"))
+    // Right length and characters, hyphen moved / sign prefix: TypeScript rejects both, so must Swift.
+    XCTAssertThrowsError(try Encoding.uuidBytes("0190f7a45-b6c-7d8e-9f01-23456789abcd"))
+    XCTAssertThrowsError(try Encoding.uuidBytes("+190f7a4-5b6c-7d8e-9f01-23456789abcd"))
+    XCTAssertNoThrow(try Encoding.uuidBytes("0190f7a4-5b6c-7d8e-9f01-23456789abcd"))
     XCTAssertThrowsError(try BarguProtocol.openSealed("AQ", recipientDhSecretKey: Data(count: 32)))
   }
 }

@@ -1,12 +1,12 @@
-import { PADDING_BLOCK_BYTES } from './constants.js';
 import { BarguCryptoError } from './errors.js';
 
 /**
- * ISO/IEC 7816-4 padding: append 0x80 then zeros up to the next multiple of the block size. Hides
- * the exact plaintext length (e.g. status text length) from anyone who sees the ciphertext.
+ * ISO/IEC 7816-4 padding: append 0x80 then zeros up to the next multiple of `blockBytes`. Hides
+ * the exact plaintext length from anyone who sees the ciphertext. With `blockBytes` equal to
+ * `maxPaddedLength` every output has the same size.
  */
-export function pad(data: Uint8Array, maxPaddedLength: number): Uint8Array {
-  const paddedLength = Math.ceil((data.length + 1) / PADDING_BLOCK_BYTES) * PADDING_BLOCK_BYTES;
+export function pad(data: Uint8Array, blockBytes: number, maxPaddedLength: number): Uint8Array {
+  const paddedLength = Math.ceil((data.length + 1) / blockBytes) * blockBytes;
   if (paddedLength > maxPaddedLength) {
     throw new BarguCryptoError('PAYLOAD_TOO_LARGE', 'plaintext exceeds the size limit');
   }
@@ -16,8 +16,9 @@ export function pad(data: Uint8Array, maxPaddedLength: number): Uint8Array {
   return padded;
 }
 
-export function unpad(padded: Uint8Array): Uint8Array {
-  if (padded.length === 0 || padded.length % PADDING_BLOCK_BYTES !== 0) {
+/** Reverses `pad`. Runs only on authenticated plaintext, so its errors are not a padding oracle. */
+export function unpad(padded: Uint8Array, blockBytes: number): Uint8Array {
+  if (padded.length === 0 || padded.length % blockBytes !== 0) {
     throw new BarguCryptoError('DECRYPT_FAILED', 'invalid padding');
   }
   let end = padded.length - 1;

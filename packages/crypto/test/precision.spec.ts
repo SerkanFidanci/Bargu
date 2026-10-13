@@ -95,6 +95,17 @@ describe('applyPrecision', () => {
     }
   });
 
+  it('rounds accuracy up to whole cell radii instead of passing the raw value through', () => {
+    const radius = Math.ceil(1000 / Math.SQRT2);
+    expect(applyPrecision({ ...base, acc: 6 }, 'neighborhood').acc).toBe(radius);
+    expect(applyPrecision({ ...base, acc: radius + 1 }, 'neighborhood').acc).toBe(2 * radius);
+    expect(applyPrecision({ ...base, acc: 3 * radius }, 'neighborhood').acc).toBe(3 * radius);
+    // Capped below the schema maximum, so the result is always a valid payload.
+    const city = applyPrecision({ ...base, acc: 1_000_000 }, 'city');
+    expect(city.acc).toBeLessThanOrEqual(1_000_000);
+    expect(city.acc % Math.ceil(10_000 / Math.SQRT2)).toBe(0);
+  });
+
   it('rejects invalid locations', () => {
     expect(() => applyPrecision({ ...base, lat: 100 }, 'city')).toThrow(BarguCryptoError);
   });

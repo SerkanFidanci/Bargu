@@ -20,7 +20,7 @@ import {
   x25519SharedSecret,
 } from '../src/primitives.js';
 import { rekeyReason } from '../src/rekey.js';
-import { ReplayGuard } from '../src/replay.js';
+import { REPLAY_WINDOW, ReplayGuard } from '../src/replay.js';
 import { ids } from './helpers.js';
 
 function codeOf(fn: () => unknown): string {
@@ -72,24 +72,36 @@ describe('padding', () => {
   it('round-trips and always fills whole blocks (property)', () => {
     fc.assert(
       fc.property(fc.uint8Array({ maxLength: 1023 }), (data) => {
-        const padded = pad(data, 1024);
+        const padded = pad(data, 128, 1024);
         expect(padded.length % 128).toBe(0);
         expect(padded.length).toBeGreaterThan(data.length);
-        expect(unpad(padded)).toEqual(data);
+        expect(unpad(padded, 128)).toEqual(data);
+      }),
+    );
+  });
+
+  it('gives every input the same size when the block is the limit (property)', () => {
+    fc.assert(
+      fc.property(fc.uint8Array({ maxLength: 511 }), (data) => {
+        const padded = pad(data, 512, 512);
+        expect(padded).toHaveLength(512);
+        expect(unpad(padded, 512)).toEqual(data);
       }),
     );
   });
 
   it('rejects oversized input and invalid padding', () => {
-    expect(codeOf(() => pad(new Uint8Array(1024), 1024))).toBe('PAYLOAD_TOO_LARGE');
+    expect(codeOf(() => pad(new Uint8Array(1024), 128, 1024))).toBe('PAYLOAD_TOO_LARGE');
+    expect(codeOf(() => pad(new Uint8Array(512), 512, 512))).toBe('PAYLOAD_TOO_LARGE');
     for (const bad of [
       new Uint8Array(0),
       new Uint8Array(100),
       new Uint8Array(128),
       Uint8Array.of(...new Array<number>(127).fill(0), 7),
     ]) {
-      expect(codeOf(() => unpad(bad))).toBe('DECRYPT_FAILED');
+      expect(codeOf(() => unpad(bad, 128))).toBe('DECRYPT_FAILED');
     }
+    expect(codeOf(() => unpad(pad(Uint8Array.of(1), 128, 1024), 512))).toBe('DECRYPT_FAILED');
   });
 });
 
@@ -127,33 +139,73 @@ describe('primitives', () => {
 });
 
 describe('ReplayGuard', () => {
-  it('tracks the highest sequence per sender and epoch', () => {
+  const { circle, aliceDevice: alice, bobDevice: bob } = ids;
+  const { otherCircle } = ids;
+
+  it('accepts each sequence number once and tells latest from reordered', () => {
     const guard = new ReplayGuard();
-    expect(guard.isFresh(ids.aliceDevice, 1, 0)).toBe(true);
-    guard.accept(ids.aliceDevice, 1, 5);
-    guard.accept(ids.aliceDevice, 1, 3); // stale: ignored
-    expect(guard.isFresh(ids.aliceDevice, 1, 5)).toBe(false);
-    expect(guard.isFresh(ids.aliceDevice, 1, 6)).toBe(true);
-    expect(guard.isFresh(ids.bobDevice, 1, 0)).toBe(true);
-    expect(guard.isFresh(ids.aliceDevice, 2, 0)).toBe(true);
+    expect(guard.check(circle, alice, 1, 0)).toBe('latest');
+    guard.accept(circle, alice, 1, 5);
+    expect(guard.check(circle, alice, 1, 5)).toBe('replay');
+    expect(guard.check(circle, alice, 1, 6)).toBe('latest');
+    expect(guard.check(circle, alice, 1, 3)).toBe('reordered');
+    guard.accept(circle, alice, 1, 3);
+    expect(guard.check(circle, alice, 1, 3)).toBe('replay');
+    guard.accept(circle, alice, 1, 3); // a replay is never recorded twice
+    expect(guard.toJSON()[`${circle}/${alice}`]?.epochs['1']?.seen).toEqual([3]);
+    expect(guard.check(circle, bob, 1, 0)).toBe('latest');
   });
 
-  it('survives a restart through its serialised state', () => {
+  it('keeps circles apart: epochs and sequence numbers are per circle', () => {
     const guard = new ReplayGuard();
-    guard.accept(ids.aliceDevice, 1, 9);
-    const restored = new ReplayGuard(guard.toJSON());
-    expect(restored.isFresh(ids.aliceDevice, 1, 9)).toBe(false);
+    guard.accept(circle, alice, 1, 5);
+    // Alice's first message in another circle at the same epoch is not a replay.
+    expect(guard.check(otherCircle, alice, 1, 0)).toBe('latest');
+    guard.accept(otherCircle, alice, 1, 7);
+    // A newer epoch in one circle must not clear the other circle's current window.
+    guard.accept(circle, alice, 3, 0);
+    expect(guard.check(otherCircle, alice, 1, 7)).toBe('replay');
   });
 
-  it('forgets epochs older than the previous one', () => {
+  it('accepts out-of-order messages inside the window only', () => {
     const guard = new ReplayGuard();
-    guard.accept(ids.aliceDevice, 1, 9);
-    guard.accept(ids.bobDevice, 1, 9);
-    guard.accept(ids.aliceDevice, 2, 1);
-    expect(Object.keys(guard.toJSON())).toHaveLength(3);
-    guard.accept(ids.aliceDevice, 3, 1);
-    expect(guard.toJSON()).not.toHaveProperty(`${ids.aliceDevice}/1`);
-    expect(guard.toJSON()).toHaveProperty(`${ids.bobDevice}/1`);
+    guard.accept(circle, alice, 1, 100);
+    expect(guard.check(circle, alice, 1, 100 - REPLAY_WINDOW + 1)).toBe('reordered');
+    expect(guard.check(circle, alice, 1, 100 - REPLAY_WINDOW)).toBe('replay');
+    guard.accept(circle, alice, 1, 99);
+    guard.accept(circle, alice, 1, 100 + REPLAY_WINDOW - 1);
+    // Sliding forward drops numbers that left the window and keeps the ones still inside.
+    const window = guard.toJSON()[`${circle}/${alice}`]?.epochs['1'];
+    expect(window).toEqual({ max: 100 + REPLAY_WINDOW - 1, seen: [100] });
+    expect(guard.check(circle, alice, 1, 99)).toBe('replay');
+  });
+
+  it('keeps an epoch floor: two epochs back is dead even if its key is still stored', () => {
+    const guard = new ReplayGuard();
+    guard.accept(circle, alice, 1, 0);
+    guard.accept(circle, alice, 2, 0);
+    expect(guard.check(circle, alice, 1, 1)).toBe('reordered'); // previous epoch, in flight
+    expect(guard.check(circle, alice, 2, 1)).toBe('latest');
+    guard.accept(circle, alice, 3, 0);
+    expect(guard.check(circle, alice, 1, 1)).toBe('replay');
+    expect(guard.check(circle, alice, 2, 5)).toBe('reordered');
+    expect(Object.keys(guard.toJSON()[`${circle}/${alice}`]?.epochs ?? {})).toEqual(['2', '3']);
+    // First message seen from the previous epoch after a newer one: accepted, but not latest.
+    guard.accept(circle, bob, 5, 0);
+    expect(guard.check(circle, bob, 4, 9)).toBe('reordered');
+    guard.accept(circle, bob, 4, 9);
+    expect(guard.check(circle, bob, 4, 9)).toBe('replay');
+  });
+
+  it('survives a restart through its serialised state, without sharing it', () => {
+    const guard = new ReplayGuard();
+    guard.accept(circle, alice, 1, 9);
+    const state = guard.toJSON();
+    const restored = new ReplayGuard(state);
+    expect(restored.check(circle, alice, 1, 9)).toBe('replay');
+    restored.accept(circle, alice, 1, 10);
+    expect(state[`${circle}/${alice}`]?.epochs['1']?.max).toBe(9);
+    expect(guard.check(circle, alice, 1, 10)).toBe('latest');
   });
 });
 

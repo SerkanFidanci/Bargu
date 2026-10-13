@@ -40,6 +40,9 @@ describe('payloadSchema', () => {
     ['unknown kind', { kind: 'teleport', ts: 1 }],
     ['negative timestamp', { kind: 'bump', ts: -1 }],
     ['over-long status text', { kind: 'status', text: 'x'.repeat(81), expiresAt: 2, ts: 1 }],
+    ['control character in status', { kind: 'status', text: 'a\u0000b', expiresAt: 2, ts: 1 }],
+    ['bidi override in status', { kind: 'status', text: 'a\u202Eb', expiresAt: 2, ts: 1 }],
+    ['lone surrogate in status emoji', { kind: 'status', emoji: '\uD83D', expiresAt: 2, ts: 1 }],
   ])('rejects %s', (_, payload) => {
     expect(payloadSchema.safeParse(payload).success).toBe(false);
   });
@@ -53,7 +56,7 @@ describe('wire schemas', () => {
     senderDeviceId: uuid,
     seq: 7,
     salt: b64(16),
-    ct: b64(144),
+    ct: b64(528),
     sig: b64(64),
   };
 
@@ -65,8 +68,8 @@ describe('wire schemas', () => {
     ['unknown version', { ...envelope, v: 2 }],
     ['seq beyond u32', { ...envelope, seq: 2 ** 32 }],
     ['short salt', { ...envelope, salt: b64(15) }],
-    ['ciphertext above the frame budget', { ...envelope, ct: b64(1041) }],
-    ['ciphertext below the padding minimum', { ...envelope, ct: b64(143) }],
+    ['ciphertext longer than the fixed size', { ...envelope, ct: b64(529) }],
+    ['ciphertext shorter than the fixed size', { ...envelope, ct: b64(527) }],
     ['non-base64url signature', { ...envelope, sig: `${b64(63)}+=` }],
     ['extra field', { ...envelope, plaintext: 'oops' }],
   ])('rejects an envelope with %s', (_, value) => {

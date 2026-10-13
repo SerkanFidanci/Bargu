@@ -7,8 +7,8 @@ import {
 
 import {
   LABELS,
-  MAX_MESSAGE_PADDED_BYTES,
   MAX_U32,
+  MESSAGE_PADDED_BYTES,
   PROTOCOL_VERSION,
   SALT_BYTES,
   SIGNATURE_BYTES,
@@ -142,7 +142,11 @@ export function encryptPaddedWith(
 export function encryptMessageWith(input: EncryptInput, salt: Uint8Array): EncryptResult {
   const parsed = payloadSchema.safeParse(input.payload);
   if (!parsed.success) throw new BarguCryptoError('MALFORMED', 'invalid payload');
-  const plaintext = pad(utf8Encode(JSON.stringify(parsed.data)), MAX_MESSAGE_PADDED_BYTES);
+  const plaintext = pad(
+    utf8Encode(JSON.stringify(parsed.data)),
+    MESSAGE_PADDED_BYTES,
+    MESSAGE_PADDED_BYTES,
+  );
   try {
     return encryptPaddedWith(input, plaintext, salt);
   } finally {
@@ -189,6 +193,9 @@ export function verifyMessageEnvelope(envelope: unknown, senderIdentityKey: Uint
 /**
  * Authenticates and decrypts an envelope. Order: shape, key/epoch match, signature, replay window,
  * decryption, payload validation; the replay guard advances only after everything succeeded.
+ * Locations are last-write-wins: an authentic location older than one already accepted from the
+ * same sender is recorded (so it cannot be replayed) and rejected with `STALE`; other kinds are
+ * delivered even when they arrive out of order.
  */
 export function decryptMessage(input: {
   envelope: unknown;
@@ -208,8 +215,9 @@ export function decryptMessage(input: {
   if (!verifyWithLabel(LABELS.messageSignature, concatBytes(header, ct), sig, sender.identityKey)) {
     throw new BarguCryptoError('BAD_SIGNATURE', 'invalid envelope signature');
   }
-  if (!replay.isFresh(data.senderDeviceId, data.epoch, data.seq)) {
-    throw new BarguCryptoError('REPLAY', 'sequence number already seen');
+  const verdict = replay.check(data.circleId, data.senderDeviceId, data.epoch, data.seq);
+  if (verdict === 'replay') {
+    throw new BarguCryptoError('REPLAY', 'message already seen or too old');
   }
 
   const keyAndNonce = messageKey(senderKey.key, salt, header);
@@ -221,7 +229,7 @@ export function decryptMessage(input: {
   }
   let text: string;
   try {
-    text = utf8Decode(unpad(padded));
+    text = utf8Decode(unpad(padded, MESSAGE_PADDED_BYTES));
   } finally {
     padded.fill(0);
   }
@@ -234,6 +242,9 @@ export function decryptMessage(input: {
   const payload = payloadSchema.safeParse(json);
   if (!payload.success) throw new BarguCryptoError('MALFORMED', 'invalid payload');
 
-  replay.accept(data.senderDeviceId, data.epoch, data.seq);
+  replay.accept(data.circleId, data.senderDeviceId, data.epoch, data.seq);
+  if (payload.data.kind === 'loc' && verdict !== 'latest') {
+    throw new BarguCryptoError('STALE', 'a newer location from this sender was already accepted');
+  }
   return payload.data;
 }

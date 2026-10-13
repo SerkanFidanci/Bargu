@@ -1,4 +1,4 @@
-import { MAX_MESSAGE_PLAINTEXT_BYTES } from '@bargu/schemas';
+import { MESSAGE_PADDED_BYTES } from '@bargu/schemas';
 
 /** Wire format version carried in every header (`v`). */
 export const PROTOCOL_VERSION = 1;
@@ -10,9 +10,10 @@ export const TAG_BYTES = 16;
 export const SALT_BYTES = 16;
 export const ID_BYTES = 16;
 
-/** Plaintexts are padded to a multiple of this, so ciphertext length reveals little. */
-export const PADDING_BLOCK_BYTES = 128;
-export const MAX_MESSAGE_PADDED_BYTES = MAX_MESSAGE_PLAINTEXT_BYTES;
+/** Every message plaintext is padded to exactly this size (one bucket: size reveals nothing). */
+export { MESSAGE_PADDED_BYTES };
+/** Push plaintexts are padded to a multiple of this. */
+export const PUSH_PADDING_BLOCK_BYTES = 128;
 /** Push providers cap payloads at 4 KB; the sealed box must fit after base64url. */
 export const MAX_PUSH_PADDED_BYTES = 2048;
 

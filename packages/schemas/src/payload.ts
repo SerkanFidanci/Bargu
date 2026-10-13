@@ -40,11 +40,23 @@ export const shareStopPayloadSchema = z
   .object({ kind: z.literal('share_stop'), ts: timestamp })
   .strict();
 
+/**
+ * User-visible text: no control characters (JSON would inflate them past the fixed padded size),
+ * no lone surrogates and no bidi overrides (they can visually reorder what others see).
+ */
+const UNSAFE_TEXT = /[\p{Cc}\p{Cs}\u202A-\u202E\u2066-\u2069]/u;
+const displayText = (maxLength: number) =>
+  z
+    .string()
+    .min(1)
+    .max(maxLength)
+    .refine((text) => !UNSAFE_TEXT.test(text), 'contains control or bidi characters');
+
 export const statusPayloadSchema = z
   .object({
     kind: z.literal('status'),
-    emoji: z.string().min(1).max(16).optional(),
-    text: z.string().min(1).max(80).optional(),
+    emoji: displayText(16).optional(),
+    text: displayText(80).optional(),
     expiresAt: timestamp,
     ts: timestamp,
   })

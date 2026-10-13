@@ -2,7 +2,7 @@ import type { MessageEnvelope, Payload } from '@bargu/schemas';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { MAX_U32 } from '../src/constants.js';
+import { MAX_U32, MESSAGE_PADDED_BYTES } from '../src/constants.js';
 import { fromBase64url, toBase64url, utf8Encode } from '../src/encoding.js';
 import { BarguCryptoError } from '../src/errors.js';
 import {
@@ -36,6 +36,8 @@ function codeOf(fn: () => unknown): string {
   }
   return 'NO_ERROR';
 }
+
+const fixedPad = (data: Uint8Array) => pad(data, MESSAGE_PADDED_BYTES, MESSAGE_PADDED_BYTES);
 
 function decrypt(envelope: unknown, replay = new ReplayGuard()): Payload {
   return decryptMessage({ envelope, senderKey, sender: aliceKeys, replay });
@@ -110,19 +112,45 @@ describe('encryptMessage / decryptMessage', () => {
     expect(a.ct).not.toBe(b.ct);
   });
 
-  it('hides payload length inside 128-byte blocks', () => {
-    const short = encryptMessage({
-      state: createSenderState(senderKey),
-      sender: alice,
-      payload: { kind: 'bump', ts: 1 },
-    }).envelope;
-    const long = encryptMessage({
-      state: createSenderState(senderKey),
-      sender: alice,
-      payload: { kind: 'status', text: 'x'.repeat(40), expiresAt: 1, ts: 1 },
-    }).envelope;
-    expect(fromBase64url(short.ct).length).toBe(128 + 16);
-    expect(fromBase64url(long.ct).length).toBe(128 + 16);
+  it('gives every payload the same ciphertext size, even the largest of each kind', () => {
+    const maxTs = Number.MAX_SAFE_INTEGER;
+    // The longest JSON spelling of a double (17 digits plus an exponent): 2^-1022.
+    const longest = 2.2250738585072014e-308;
+    // Worst cases for the JSON size: longest numbers and the widest characters the schema allows.
+    const payloads: Payload[] = [
+      { kind: 'bump', ts: 1 },
+      {
+        kind: 'loc',
+        lat: -longest,
+        lng: -longest,
+        acc: longest,
+        spd: longest,
+        hdg: longest,
+        bat: 100,
+        chg: false,
+        ts: maxTs,
+      },
+      { kind: 'place_enter', placeId: ids.place, ts: maxTs },
+      { kind: 'place_exit', placeId: ids.place, ts: maxTs },
+      { kind: 'share_stop', ts: maxTs },
+      // 3 UTF-8 bytes per UTF-16 unit is the maximum (astral characters take 4 bytes per 2 units).
+      {
+        kind: 'status',
+        emoji: '❤'.repeat(16),
+        text: 'ࠀ'.repeat(80),
+        expiresAt: maxTs,
+        ts: maxTs,
+      },
+    ];
+    for (const payload of payloads) {
+      const { envelope } = encryptMessage({
+        state: createSenderState(senderKey),
+        sender: alice,
+        payload,
+      });
+      expect(fromBase64url(envelope.ct)).toHaveLength(MESSAGE_PADDED_BYTES + 16);
+      expect(decrypt(envelope)).toEqual(payload);
+    }
   });
 });
 
@@ -206,7 +234,7 @@ describe('tamper resistance', () => {
 });
 
 describe('replay protection', () => {
-  it('rejects duplicates and older sequence numbers, accepts newer ones', () => {
+  it('rejects duplicates and accepts each message once, in any order', () => {
     let state = createSenderState(senderKey);
     const envelopes: MessageEnvelope[] = [];
     for (let i = 0; i < 3; i++) {
@@ -219,6 +247,7 @@ describe('replay protection', () => {
 
     expect(decrypt(second, replay)).toEqual({ kind: 'bump', ts: 1 });
     expect(codeOf(() => decrypt(second, replay))).toBe('REPLAY');
+    expect(decrypt(first, replay)).toEqual({ kind: 'bump', ts: 0 });
     expect(codeOf(() => decrypt(first, replay))).toBe('REPLAY');
     expect(decrypt(third, replay)).toEqual({ kind: 'bump', ts: 2 });
   });
@@ -233,7 +262,60 @@ describe('replay protection', () => {
     expect(
       codeOf(() => decrypt({ ...envelope, sig: toBase64url(new Uint8Array(64)) }, replay)),
     ).toBe('BAD_SIGNATURE');
-    expect(replay.isFresh(ids.aliceDevice, 2, 10)).toBe(true);
+    expect(replay.check(ids.circle, ids.aliceDevice, 2, 10)).toBe('latest');
+  });
+
+  it('delivers reordered events once, but never an older location', () => {
+    let state = createSenderState(senderKey);
+    const send = (payload: Payload) => {
+      const result = encryptMessage({ state, sender: alice, payload });
+      state = result.nextState;
+      return result.envelope;
+    };
+    const enter = send({ kind: 'place_enter', placeId: ids.place, ts: 1 });
+    const oldLocation = send(locationPayload);
+    const newLocation = send({ ...locationPayload, ts: locationPayload.ts + 1 });
+    const replay = new ReplayGuard();
+
+    expect(decrypt(newLocation, replay)).toEqual({
+      ...locationPayload,
+      ts: locationPayload.ts + 1,
+    });
+    // The place event arrives late: still delivered, exactly once.
+    expect(decrypt(enter, replay)).toEqual({ kind: 'place_enter', placeId: ids.place, ts: 1 });
+    expect(codeOf(() => decrypt(enter, replay))).toBe('REPLAY');
+    // A late location is authentic but stale; it is recorded so it cannot come back either.
+    expect(codeOf(() => decrypt(oldLocation, replay))).toBe('STALE');
+    expect(codeOf(() => decrypt(oldLocation, replay))).toBe('REPLAY');
+  });
+
+  it('tracks each circle separately for the same sender and epoch', () => {
+    const otherKey = generateSenderKey({
+      circleId: ids.otherCircle,
+      epoch: 2,
+      senderDeviceId: ids.aliceDevice,
+    });
+    const replay = new ReplayGuard();
+    const inCircle = encryptMessage({
+      state: { senderKey, nextSeq: 5 },
+      sender: alice,
+      payload: { kind: 'bump', ts: 1 },
+    });
+    const inOther = encryptMessage({
+      state: createSenderState(otherKey),
+      sender: alice,
+      payload: { kind: 'bump', ts: 2 },
+    });
+
+    expect(decrypt(inCircle.envelope, replay)).toEqual({ kind: 'bump', ts: 1 });
+    expect(
+      decryptMessage({
+        envelope: inOther.envelope,
+        senderKey: otherKey,
+        sender: aliceKeys,
+        replay,
+      }),
+    ).toEqual({ kind: 'bump', ts: 2 });
   });
 });
 
@@ -285,10 +367,10 @@ describe('a malicious sender with a valid key', () => {
     ).envelope;
 
   it.each([
-    ['bad padding', new Uint8Array(128), 'DECRYPT_FAILED'],
-    ['invalid UTF-8', pad(Uint8Array.of(0xff, 0xfe), 1024), 'MALFORMED'],
-    ['non-JSON text', pad(utf8Encode('not json'), 1024), 'MALFORMED'],
-    ['JSON outside the payload schema', pad(utf8Encode('{"kind":"loc"}'), 1024), 'MALFORMED'],
+    ['bad padding', new Uint8Array(MESSAGE_PADDED_BYTES), 'DECRYPT_FAILED'],
+    ['invalid UTF-8', fixedPad(Uint8Array.of(0xff, 0xfe)), 'MALFORMED'],
+    ['non-JSON text', fixedPad(utf8Encode('not json')), 'MALFORMED'],
+    ['JSON outside the payload schema', fixedPad(utf8Encode('{"kind":"loc"}')), 'MALFORMED'],
   ])('rejects %s', (_, padded, code) => {
     expect(codeOf(() => decrypt(forge(padded)))).toBe(code);
   });

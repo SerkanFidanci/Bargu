@@ -26,7 +26,7 @@ export {
   type EncryptResult,
   type SenderState,
 } from './message.js';
-export { ReplayGuard, type ReplayState } from './replay.js';
+export { REPLAY_WINDOW, ReplayGuard, type ReplayState, type ReplayVerdict } from './replay.js';
 export { openSealed, sealForDevice } from './sealed.js';
 export {
   safetyNumber,

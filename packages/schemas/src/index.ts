@@ -11,7 +11,7 @@ export {
 } from './payload.js';
 export {
   deviceKeyBundleSchema,
-  MAX_MESSAGE_PLAINTEXT_BYTES,
+  MESSAGE_PADDED_BYTES,
   messageEnvelopeSchema,
   senderKeyDistributionSchema,
   type DeviceKeyBundle,

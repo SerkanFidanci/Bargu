@@ -39,10 +39,14 @@ function snapToGrid(lat: number, lng: number, cellKm: number): { lat: number; ln
   return { lat: snappedLat, lng: snappedLng };
 }
 
+/** Upper bound of `acc` in the payload schema. */
+const MAX_ACCURACY_METRES = 1_000_000;
+
 /**
  * Applies the sender's precision setting before encryption. Below full precision, speed and
- * heading are dropped (they would reveal movement inside the cell) and the accuracy radius grows
- * to cover the whole cell.
+ * heading are dropped (they would reveal movement inside the cell) and the accuracy radius is
+ * rounded up to a whole number of cell radii, so it covers the cell without revealing the raw
+ * GPS accuracy.
  */
 export function applyPrecision(location: LocPayload, level: PrecisionLevel): LocPayload {
   const parsed = locPayloadSchema.safeParse(location);
@@ -52,11 +56,15 @@ export function applyPrecision(location: LocPayload, level: PrecisionLevel): Loc
   const cellKm = PRECISION_CELL_KM[level];
   const { lat, lng } = snapToGrid(parsed.data.lat, parsed.data.lng, cellKm);
   const cellRadiusMetres = Math.ceil((cellKm * 1000) / Math.SQRT2);
+  const radii = Math.min(
+    Math.max(1, Math.ceil(parsed.data.acc / cellRadiusMetres)),
+    Math.floor(MAX_ACCURACY_METRES / cellRadiusMetres),
+  );
   return {
     kind: 'loc',
     lat,
     lng,
-    acc: Math.max(parsed.data.acc, cellRadiusMetres),
+    acc: radii * cellRadiusMetres,
     bat: parsed.data.bat,
     chg: parsed.data.chg,
     ts: parsed.data.ts,

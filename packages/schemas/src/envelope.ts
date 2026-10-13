@@ -9,19 +9,13 @@ function base64urlOf(bytes: number) {
     .regex(/^[A-Za-z0-9_-]*$/);
 }
 
-/** Unpadded base64url text whose decoded size is within [min, max] bytes. */
-function base64urlBetween(min: number, max: number) {
-  return z
-    .string()
-    .min(Math.ceil((min * 4) / 3))
-    .max(Math.ceil((max * 4) / 3))
-    .regex(/^[A-Za-z0-9_-]*$/);
-}
-
 const u32 = z.number().int().min(0).max(0xffff_ffff);
 
-/** Largest padded plaintext inside a message envelope (keeps a WS frame under 2 KB). */
-export const MAX_MESSAGE_PLAINTEXT_BYTES = 1024;
+/**
+ * Every message plaintext is padded to exactly this size, whatever its kind or precision, so the
+ * envelope size reveals nothing (docs/PROTOCOL.md §5). All v1 payloads fit; a WS frame stays < 2 KB.
+ */
+export const MESSAGE_PADDED_BYTES = 512;
 const AEAD_TAG_BYTES = 16;
 
 /**
@@ -37,7 +31,8 @@ export const messageEnvelopeSchema = z
     seq: u32,
     /** Per-message random salt for key derivation (16 bytes). */
     salt: base64urlOf(16),
-    ct: base64urlBetween(AEAD_TAG_BYTES + 128, AEAD_TAG_BYTES + MAX_MESSAGE_PLAINTEXT_BYTES),
+    /** Padded payload plus 16-byte tag: always the same length. */
+    ct: base64urlOf(MESSAGE_PADDED_BYTES + AEAD_TAG_BYTES),
     sig: base64urlOf(64),
   })
   .strict();

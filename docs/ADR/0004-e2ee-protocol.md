@@ -26,7 +26,10 @@ Protokol [PROTOCOL.md](../PROTOCOL.md)'deki gibi uygulandı. Plana göre farklar
    yönlendirebilirdi.
 4. **Katı doğrulama:** Ed25519 `zip215: false`; küçük mertebeli kimlik anahtarları ve düşük mertebeli
    X25519 noktaları reddedilir; base64url kanonik olmalı.
-5. **Dolgu:** içerik 128 baytın katına tamamlanır (boyuttan içerik türü çıkarılmasın).
+5. **Dolgu:** mesaj içeriği her zaman tam 512 bayta tamamlanır (boyuttan içerik türü, hassasiyet
+   seviyesi veya hareket bilgisi çıkmasın). İlk sürümdeki 128 baytlık bloklar bağımsız incelemede
+   yetersiz bulundu (tam konum 256, mahalle/şehir 128 bayt oluyordu). Durum metninde kontrol, tek başına
+   vekil (lone surrogate) ve yön değiştirme karakterleri yasak.
 6. **Güvenlik numarası:** SHA-256'nın 5200 turluk tekrarı (Signal'in SHA-512 yapısının SHA-256 hali);
    sıralama tam parmak izi baytlarına göre (iki telefonda da aynı QR).
 7. **Hassasiyet ızgarası:** satır ve sütunlar 180°/360°'yi tam bölecek şekilde ayarlanır; tarih
@@ -40,6 +43,13 @@ Protokol [PROTOCOL.md](../PROTOCOL.md)'deki gibi uygulandı. Plana göre farklar
    yapıştırıcısı. Lint istisnası yalnızca bu dosyaya tanımlı.
 10. **Sunucu doğrulaması:** `verifyMessageEnvelope` ve `verifySenderKeyDistribution` anahtarsız çalışır
     (imza + biçim). Üyelik kontrolü API'de yapılır (Faz 4–5).
+11. **Tekrar koruması çember başına, kayan pencereli ve epoch tabanlı** (bağımsız inceleme bulgusu):
+    ilk sürüm `(gönderen, epoch)` anahtarını kullanıyordu; epoch çember başına olduğundan bir
+    çemberdeki yeni epoch diğer çemberin penceresini siliyor ve tekrar saldırısına kapı açıyordu.
+    Artık `(çember, gönderen)` başına 64'lük kayan pencere (sırası karışan olaylar kaybolmaz), epoch
+    tabanı (N − 2 ve öncesi ölü) ve konum için son-yazan-kazanır (`STALE`).
+12. **Mahalle/şehir modunda `acc`** hücre yarıçapının tam katına yuvarlanır; ham GPS doğruluğu
+    sızmaz.
 
 ## Sonuçlar
 

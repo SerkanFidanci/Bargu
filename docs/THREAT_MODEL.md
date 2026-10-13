@@ -26,7 +26,7 @@ sızıntıları tutar. Protokol: [PROTOCOL.md](PROTOCOL.md). Her faz sonunda gü
 | Meraklı veya ele geçirilmiş sunucu    | E2EE (§4–5); sunucu düz koordinat görmez; log'larda konum/token/email yok                                                                                    | ✅ Faz 0–1                  |
 | Sunucunun anahtar değiştirmesi (MITM) | DH anahtarı kimlikle imzalı; kimlik anahtarı güvenlik numarası / QR ile doğrulanır; anahtar değişince uyarı                                                  | ✅ Kripto (Faz 1), UI Faz 4 |
 | Sahte veya değiştirilmiş mesaj        | Her zarf ve dağıtım Ed25519 imzalı; başlık AEAD'e bağlı; tek bit değişikliği reddedilir                                                                      | ✅ Faz 1                    |
-| Tekrar (replay) saldırısı             | `(gönderen, epoch)` başına artan `seq`; doğrulanamayan mesaj pencereyi ilerletmez                                                                            | ✅ Faz 1                    |
+| Tekrar (replay) saldırısı             | `(çember, gönderen)` başına kayan pencere + epoch tabanı; doğrulanamayan mesaj pencereyi ilerletmez                                                          | ✅ Faz 1                    |
 | Çıkarılan üye                         | Rekey: yeni epoch yalnızca kalan üyelere dağıtılır                                                                                                           | ✅ Kripto, akış Faz 4       |
 | Kontrolcü partner / aile üyesi        | Gizli paylaşım imkansız; yeni izleyici bildirimi; periyodik hatırlatma; tek dokunuşla durdurma; "Görenler" her an ekranda                                    | Faz 3, 5, 9                 |
 | Çalınan telefon                       | Anahtarlar Keychain/Keystore'da; opsiyonel biyometrik kilit; email OTP ile uzaktan iptal → rekey                                                             | Faz 2, 9                    |
@@ -57,7 +57,7 @@ Sunucu içerik görmez ama şunları görür; belgeleniyor ve kabul ediliyor:
 | ------------------------------- | --------------------------------------------- | -------------------------------------------------- |
 | Çember üyelikleri               | Sosyal graf                                   | v2: MLS / sealed sender değerlendirmesi            |
 | Gönderim zamanları ve sıklığı   | Hareket ediyor mu, durağan mı, canlı modda mı | Sabit hızlı sahte trafik pil maliyeti yüzünden yok |
-| Zarf boyutu                     | İçerik türü                                   | 128 baytlık dolgu blokları                         |
+| Zarf boyutu                     | —                                             | Tüm mesajlar tek boy (512 bayt dolgu)              |
 | "İzle" olayları (canlı mod)     | Kim kimin haritasını açtı                     | —                                                  |
 | IP adresleri                    | Yaklaşık konum (ağ seviyesi)                  | Log'lanmaz; kullanıcı VPN kullanabilir             |
 | Bildirim zamanlaması (APNs/FCM) | Olayların zamanı                              | İçerik sealed box ile gizli                        |

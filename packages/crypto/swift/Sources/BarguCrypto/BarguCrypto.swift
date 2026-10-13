@@ -13,7 +13,8 @@ public enum BarguCryptoError: Error, Equatable {
   case decryptFailed
 }
 
-/// Wire format of an encrypted message (TypeScript: `MessageEnvelope`).
+/// Wire format of an encrypted message (TypeScript: `MessageEnvelope`). Decoding is strict like
+/// the TypeScript schema: unknown fields are rejected.
 public struct MessageEnvelope: Codable, Equatable, Sendable {
   public let v: Int
   public let circleId: String
@@ -23,9 +24,41 @@ public struct MessageEnvelope: Codable, Equatable, Sendable {
   public let salt: String
   public let ct: String
   public let sig: String
+
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case v, circleId, epoch, senderDeviceId, seq, salt, ct, sig
+  }
+
+  public init(
+    v: Int, circleId: String, epoch: UInt32, senderDeviceId: String, seq: UInt32, salt: String,
+    ct: String, sig: String
+  ) {
+    self.v = v
+    self.circleId = circleId
+    self.epoch = epoch
+    self.senderDeviceId = senderDeviceId
+    self.seq = seq
+    self.salt = salt
+    self.ct = ct
+    self.sig = sig
+  }
+
+  public init(from decoder: Decoder) throws {
+    try Strict.rejectUnknownKeys(decoder, allowed: CodingKeys.allCases.map(\.rawValue))
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    self.init(
+      v: try c.decode(Int.self, forKey: .v),
+      circleId: try c.decode(String.self, forKey: .circleId),
+      epoch: try c.decode(UInt32.self, forKey: .epoch),
+      senderDeviceId: try c.decode(String.self, forKey: .senderDeviceId),
+      seq: try c.decode(UInt32.self, forKey: .seq),
+      salt: try c.decode(String.self, forKey: .salt),
+      ct: try c.decode(String.self, forKey: .ct),
+      sig: try c.decode(String.self, forKey: .sig))
+  }
 }
 
-/// Wire format of a wrapped sender key (TypeScript: `SenderKeyDistribution`).
+/// Wire format of a wrapped sender key (TypeScript: `SenderKeyDistribution`). Strict decoding.
 public struct SenderKeyDistribution: Codable, Equatable, Sendable {
   public let v: Int
   public let circleId: String
@@ -35,6 +68,53 @@ public struct SenderKeyDistribution: Codable, Equatable, Sendable {
   public let ephemeralKey: String
   public let ct: String
   public let sig: String
+
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case v, circleId, epoch, senderDeviceId, recipientDeviceId, ephemeralKey, ct, sig
+  }
+
+  public init(
+    v: Int, circleId: String, epoch: UInt32, senderDeviceId: String, recipientDeviceId: String,
+    ephemeralKey: String, ct: String, sig: String
+  ) {
+    self.v = v
+    self.circleId = circleId
+    self.epoch = epoch
+    self.senderDeviceId = senderDeviceId
+    self.recipientDeviceId = recipientDeviceId
+    self.ephemeralKey = ephemeralKey
+    self.ct = ct
+    self.sig = sig
+  }
+
+  public init(from decoder: Decoder) throws {
+    try Strict.rejectUnknownKeys(decoder, allowed: CodingKeys.allCases.map(\.rawValue))
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    self.init(
+      v: try c.decode(Int.self, forKey: .v),
+      circleId: try c.decode(String.self, forKey: .circleId),
+      epoch: try c.decode(UInt32.self, forKey: .epoch),
+      senderDeviceId: try c.decode(String.self, forKey: .senderDeviceId),
+      recipientDeviceId: try c.decode(String.self, forKey: .recipientDeviceId),
+      ephemeralKey: try c.decode(String.self, forKey: .ephemeralKey),
+      ct: try c.decode(String.self, forKey: .ct),
+      sig: try c.decode(String.self, forKey: .sig))
+  }
+}
+
+enum Strict {
+  struct AnyKey: CodingKey {
+    let stringValue: String
+    init?(stringValue: String) { self.stringValue = stringValue }
+    var intValue: Int? { nil }
+    init?(intValue: Int) { nil }
+  }
+
+  /// The TypeScript schemas are `.strict()`; JSONDecoder would silently drop extra fields.
+  static func rejectUnknownKeys(_ decoder: Decoder, allowed: [String]) throws {
+    let keys = try decoder.container(keyedBy: AnyKey.self).allKeys.map(\.stringValue)
+    guard keys.allSatisfy(allowed.contains) else { throw BarguCryptoError.malformed }
+  }
 }
 
 /// Bargu protocol v1, decrypting side. Every construction matches packages/crypto byte for byte
@@ -42,7 +122,9 @@ public struct SenderKeyDistribution: Codable, Equatable, Sendable {
 public enum BarguProtocol {
   static let version: UInt8 = 1
   static let tagBytes = 16
-  static let paddingBlock = 128
+  /// Message plaintexts are padded to exactly this size (TypeScript: `MESSAGE_PADDED_BYTES`).
+  static let messagePaddedBytes = 512
+  static let pushPaddingBlock = 128
   static let safetyNumberIterations = 5200
 
   enum Label {
@@ -76,13 +158,16 @@ public enum BarguProtocol {
       label: Label.pushKdf,
       context: Data()
     )
-    return try unpad(open(key: key, nonce: nonce, ciphertext: bytes.dropFirst(33), aad: header))
+    return try unpad(
+      open(key: key, nonce: nonce, ciphertext: bytes.dropFirst(33), aad: header),
+      block: pushPaddingBlock)
   }
 
   // MARK: - Messages
 
   /// Verifies the sender's signature, then decrypts. Returns the payload JSON bytes.
-  /// The caller enforces replay protection and checks the sender key's circle / epoch.
+  /// The caller enforces replay protection (per circle, as the TypeScript `ReplayGuard`) and checks
+  /// the sender key's circle / epoch.
   public static func verifyAndDecrypt(
     envelope: MessageEnvelope,
     senderKey: Data,
@@ -90,7 +175,7 @@ public enum BarguProtocol {
   ) throws -> Data {
     guard envelope.v == Int(version) else { throw BarguCryptoError.malformed }
     let salt = try Encoding.base64url(envelope.salt, length: 16)
-    let ct = try Encoding.base64url(envelope.ct)
+    let ct = try Encoding.base64url(envelope.ct, length: messagePaddedBytes + tagBytes)
     let sig = try Encoding.base64url(envelope.sig, length: 64)
     let header =
       Data([version]) + (try Encoding.uuidBytes(envelope.circleId)) + Encoding.u32be(envelope.epoch)
@@ -98,7 +183,8 @@ public enum BarguProtocol {
     try verify(Label.messageSignature, header + ct, sig, senderIdentityKey)
     let (key, nonce) = try deriveKeyAndNonce(
       ikm: senderKey, salt: salt, label: Label.messageKdf, context: header)
-    return try unpad(open(key: key, nonce: nonce, ciphertext: ct, aad: header))
+    return try unpad(
+      open(key: key, nonce: nonce, ciphertext: ct, aad: header), block: messagePaddedBytes)
   }
 
   // MARK: - Sender key distribution
@@ -204,6 +290,9 @@ public enum BarguProtocol {
     }
   }
 
+  /// Ed25519 verification. CryptoKit verifies cofactorless and does not reject small-order public
+  /// keys, while the TypeScript side (noble, `zip215: false`) does. Only pass identity keys the app
+  /// already accepted through TypeScript `verifyDeviceKeyBundle` (kept in the shared keychain).
   static func verify(_ label: String, _ message: Data, _ signature: Data, _ identityKey: Data) throws {
     guard let publicKey = try? Curve25519.Signing.PublicKey(rawRepresentation: identityKey) else {
       throw BarguCryptoError.invalidKey
@@ -232,8 +321,8 @@ public enum BarguProtocol {
     return bytes
   }
 
-  static func unpad(_ padded: Data) throws -> Data {
-    guard !padded.isEmpty, padded.count % paddingBlock == 0,
+  static func unpad(_ padded: Data, block: Int) throws -> Data {
+    guard !padded.isEmpty, padded.count % block == 0,
       let marker = padded.lastIndex(where: { $0 != 0 }), padded[marker] == 0x80
     else { throw BarguCryptoError.decryptFailed }
     return padded.prefix(upTo: marker)
@@ -260,11 +349,21 @@ enum Encoding {
       .replacingOccurrences(of: "=", with: "")
   }
 
+  static let hyphenOffsets: Set<Int> = [8, 13, 18, 23]
+
+  /// Canonical lower-case, hyphenated UUID only: exactly the TypeScript `UUID_PATTERN`.
   static func uuidBytes(_ uuid: String) throws -> Data {
-    let hex = uuid.replacingOccurrences(of: "-", with: "")
-    guard uuid.count == 36, hex.count == 32, hex == hex.lowercased() else {
-      throw BarguCryptoError.malformed
+    let chars = Array(uuid.utf8)
+    guard chars.count == 36 else { throw BarguCryptoError.malformed }
+    for (offset, char) in chars.enumerated() {
+      let valid =
+        hyphenOffsets.contains(offset)
+        ? char == UInt8(ascii: "-")
+        : (UInt8(ascii: "0")...UInt8(ascii: "9")).contains(char)
+          || (UInt8(ascii: "a")...UInt8(ascii: "f")).contains(char)
+      guard valid else { throw BarguCryptoError.malformed }
     }
+    let hex = uuid.replacingOccurrences(of: "-", with: "")
     var bytes = Data(capacity: 16)
     var index = hex.startIndex
     while index < hex.endIndex {

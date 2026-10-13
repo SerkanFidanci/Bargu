@@ -3,6 +3,7 @@ import {
   LABELS,
   MAX_PUSH_PADDED_BYTES,
   PROTOCOL_VERSION,
+  PUSH_PADDING_BLOCK_BYTES,
   TAG_BYTES,
 } from './constants.js';
 import { concatBytes, fromBase64url, toBase64url } from './encoding.js';
@@ -40,7 +41,11 @@ export function sealForDeviceWith(
   const sharedSecret = x25519SharedSecret(ephemeralSecretKey, recipientDhKey);
   const keyAndNonce = sealKey(sharedSecret, ephemeralKey, recipientDhKey);
   sharedSecret.fill(0);
-  const ct = aeadSeal(keyAndNonce, pad(plaintext, MAX_PUSH_PADDED_BYTES), header);
+  const ct = aeadSeal(
+    keyAndNonce,
+    pad(plaintext, PUSH_PADDING_BLOCK_BYTES, MAX_PUSH_PADDED_BYTES),
+    header,
+  );
   keyAndNonce.key.fill(0);
   return toBase64url(concatBytes(header, ct));
 }
@@ -71,7 +76,10 @@ export function openSealed(recipient: DeviceKeys, sealed: string): Uint8Array {
   const keyAndNonce = sealKey(sharedSecret, ephemeralKey, recipient.dh.publicKey);
   sharedSecret.fill(0);
   try {
-    return unpad(aeadOpen(keyAndNonce, bytes.subarray(HEADER_BYTES), header));
+    return unpad(
+      aeadOpen(keyAndNonce, bytes.subarray(HEADER_BYTES), header),
+      PUSH_PADDING_BLOCK_BYTES,
+    );
   } finally {
     keyAndNonce.key.fill(0);
   }
