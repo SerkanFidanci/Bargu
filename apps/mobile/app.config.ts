@@ -1,14 +1,17 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
-// `extra.eas.projectId` is added once `eas init` has linked the project (see apps/mobile/README.md).
-
 /** Reverse-DNS app identifier; permanent once published to the stores. */
 const APP_ID = 'app.bargu';
+
+/** EAS project (`eas init`); identifiers, not secrets. */
+const EAS_OWNER = 'otenus';
+const EAS_PROJECT_ID = '56c64a85-3555-4469-a686-4af1c67aa9ce';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Bargu',
   slug: 'bargu',
+  owner: EAS_OWNER,
   version: '0.1.0',
   scheme: 'bargu',
   orientation: 'portrait',
@@ -44,5 +47,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
+  },
+  extra: {
+    eas: { projectId: EAS_PROJECT_ID },
   },
 });
