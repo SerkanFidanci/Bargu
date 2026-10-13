@@ -28,7 +28,9 @@
         "seal": "Bildirim kutusu",
         "keygen": "Cihaz anahtarı üretimi",
         "safetyNumber": "Güvenlik numarası"
-      }
+      },
+      "backendNative": "Eğri işlemleri: telefonun yerel kripto kodu (öz test geçti)",
+      "backendReference": "Eğri işlemleri: JavaScript yedeği ({{reason}})"
     }
   }
 }

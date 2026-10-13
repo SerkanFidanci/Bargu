@@ -62,3 +62,10 @@ export {
   verificationKeyFromRaw,
   type OkpJwk,
 } from './server.js';
+export {
+  curveBackend,
+  installNativePrimitives,
+  uninstallNativePrimitives,
+  type NativeInstallResult,
+} from './native.js';
+export type { NativeCurvePrimitives } from './primitives.js';

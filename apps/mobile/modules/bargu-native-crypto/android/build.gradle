@@ -1,0 +1,23 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'app.bargu.nativecrypto'
+version = '1.0.0'
+
+android {
+  namespace "app.bargu.nativecrypto"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  // Google Tink: audited Ed25519 / X25519 (docs/ADR/0007). Pinned; Renovate proposes updates.
+  implementation 'com.google.crypto.tink:tink-android:1.23.0'
+}

@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DEV_TOOLS_ENABLED } from '@/config/env';
+import { nativeCryptoStatus } from '@/platform/native-crypto';
 import {
   ENCRYPT_BUDGET_MS,
   runCryptoBenchmark,
@@ -56,6 +57,11 @@ export default function CryptoBenchmarkScreen() {
         </Text>
         <Text style={[styles.note, { color: colors.text }]}>
           {t('dev.crypto.budget', { ms: ENCRYPT_BUDGET_MS })}
+        </Text>
+        <Text style={[styles.note, { color: colors.text }]}>
+          {nativeCryptoStatus.active
+            ? t('dev.crypto.backendNative')
+            : t('dev.crypto.backendReference', { reason: nativeCryptoStatus.reason })}
         </Text>
 
         <Pressable

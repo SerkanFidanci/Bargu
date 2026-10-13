@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["BarguNativeCryptoModule"]
+  },
+  "android": {
+    "modules": ["app.bargu.nativecrypto.BarguNativeCryptoModule"]
+  }
+}

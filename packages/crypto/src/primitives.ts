@@ -1,4 +1,5 @@
-// Thin, audited-library-only wrappers (@noble/*). No primitive is implemented here.
+// Thin, audited-library-only wrappers (@noble/*). No primitive is implemented here. On a phone the
+// curve operations may run natively (CryptoKit / Tink) after a self-test; see native.ts.
 import { chacha20poly1305, xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { ed25519, x25519 } from '@noble/curves/ed25519.js';
 import { hkdf } from '@noble/hashes/hkdf.js';
@@ -96,13 +97,42 @@ export function aeadOpen(
   }
 }
 
+/**
+ * The curve operations a platform can provide natively. Pure-JS curve arithmetic needs BigInt,
+ * which is slow on Hermes (Faz 1 device benchmark: 6.7 ms per signature); everything else (hashes,
+ * HKDF, ChaCha20-Poly1305) stays in JS. Installed only through `installNativePrimitives`.
+ */
+export interface NativeCurvePrimitives {
+  ed25519Sign(secretKey: Uint8Array, message: Uint8Array): Uint8Array;
+  ed25519Verify(publicKey: Uint8Array, message: Uint8Array, signature: Uint8Array): boolean;
+  x25519PublicKey(secretKey: Uint8Array): Uint8Array;
+  x25519SharedSecret(secretKey: Uint8Array, publicKey: Uint8Array): Uint8Array;
+}
+
+let native: NativeCurvePrimitives | null = null;
+
+/** @internal Only native.ts sets this, after the self-test passed. */
+export function setNativeCurvePrimitives(primitives: NativeCurvePrimitives | null): void {
+  native = primitives;
+}
+
+export function nativeCurvePrimitivesActive(): boolean {
+  return native !== null;
+}
+
 /** Ed25519 (RFC 8032) signature over `label || message`. */
 export function signWithLabel(
   label: Label,
   message: Uint8Array,
   identitySecretKey: Uint8Array,
 ): Uint8Array {
-  return ed25519.sign(concatBytes(labelBytes(label), message), identitySecretKey);
+  const data = concatBytes(labelBytes(label), message);
+  if (native === null) return ed25519.sign(data, identitySecretKey);
+  const signature = native.ed25519Sign(identitySecretKey, data);
+  if (signature.length !== SIGNATURE_BYTES) {
+    throw new BarguCryptoError('INVALID_KEY', 'native signer returned a malformed signature');
+  }
+  return signature;
 }
 
 /**
@@ -119,9 +149,15 @@ export function verifyWithLabel(
   identityPublicKey: Uint8Array,
 ): boolean {
   if (signature.length !== SIGNATURE_BYTES || identityPublicKey.length !== KEY_BYTES) return false;
-  return ed25519.verify(signature, concatBytes(labelBytes(label), message), identityPublicKey, {
-    zip215: false,
-  });
+  const data = concatBytes(labelBytes(label), message);
+  if (native === null) {
+    return ed25519.verify(signature, data, identityPublicKey, { zip215: false });
+  }
+  try {
+    return native.ed25519Verify(identityPublicKey, data, signature);
+  } catch {
+    return false;
+  }
 }
 
 export function ed25519PublicKey(secretKey: Uint8Array): Uint8Array {
@@ -137,14 +173,23 @@ export function isValidEd25519PublicKey(publicKey: Uint8Array): boolean {
 }
 
 export function x25519PublicKey(secretKey: Uint8Array): Uint8Array {
-  return x25519.getPublicKey(secretKey);
+  return native === null ? x25519.getPublicKey(secretKey) : native.x25519PublicKey(secretKey);
 }
 
 /** X25519 (RFC 7748). Low-order peer keys (all-zero shared secret) are rejected. */
 export function x25519SharedSecret(secretKey: Uint8Array, peerPublicKey: Uint8Array): Uint8Array {
+  let shared: Uint8Array;
   try {
-    return x25519.getSharedSecret(secretKey, peerPublicKey);
+    shared =
+      native === null
+        ? x25519.getSharedSecret(secretKey, peerPublicKey)
+        : native.x25519SharedSecret(secretKey, peerPublicKey);
   } catch {
     throw new BarguCryptoError('INVALID_KEY', 'unusable X25519 public key');
   }
+  // noble already refuses this; a native implementation might not.
+  if (shared.length !== KEY_BYTES || shared.every((byte) => byte === 0)) {
+    throw new BarguCryptoError('INVALID_KEY', 'unusable X25519 public key');
+  }
+  return shared;
 }

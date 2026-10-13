@@ -1,0 +1,7 @@
+{
+  "name": "bargu-native-crypto",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ed25519 and X25519 on the platform: Apple CryptoKit (iOS), Google Tink (Android)",
+  "main": "index.ts"
+}

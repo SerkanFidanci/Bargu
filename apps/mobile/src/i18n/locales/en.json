@@ -28,7 +28,9 @@
         "seal": "Push sealed box",
         "keygen": "Device key generation",
         "safetyNumber": "Safety number"
-      }
+      },
+      "backendNative": "Curve operations: the phone's native crypto (self-test passed)",
+      "backendReference": "Curve operations: JavaScript fallback ({{reason}})"
     }
   }
 }
