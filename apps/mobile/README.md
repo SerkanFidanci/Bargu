@@ -1,28 +1,29 @@
 # @bargu/mobile
 
-Expo SDK 57 (React Native 0.86, New Architecture, Hermes V1), Expo Router, TypeScript strict.
-Expo Go is not used; development happens in a **development build** (dev client).
+Expo SDK 57 (React Native 0.86, New Architecture, Hermes V1), Expo Router, TypeScript (sıkı mod).
+Expo Go kullanılmaz; geliştirme **development build** (dev client) üzerinde yapılır.
 
-## Daily development
+## Günlük geliştirme
 
 ```bash
-pnpm dev          # from the repo root: API + Metro
-pnpm dev:mobile   # Metro only, with Expo's keyboard shortcuts
+pnpm dev          # repo kökünden: API + Metro
+pnpm dev:mobile   # sadece Metro, Expo'nun klavye kısayollarıyla
 ```
 
-Open the dev client on the phone and connect to Metro (same Wi-Fi, or `pnpm dev:mobile -- --tunnel`).
-In development the app reaches the API on the machine running Metro, port 3000.
+Telefonda Bargu dev client'ı aç ve Metro'ya bağlan: aynı Wi-Fi'de **Enter URL manually** →
+`http://<bilgisayarın-yerel-IP'si>:8081`. Farklı ağdaysan `pnpm dev:mobile -- --tunnel`.
+Geliştirmede uygulama, Metro'nun çalıştığı bilgisayardaki API'ye (port 3000) bağlanır.
 
-## EAS
+## EAS (bulut build)
 
-The EAS project is linked (`owner` and `extra.eas.projectId` in `app.config.ts`; identifiers, not
-secrets). Each developer logs in once:
+EAS projesi bağlı (`app.config.ts` içindeki `owner` ve `extra.eas.projectId`; bunlar kimlik bilgisi
+değil, gizli değildir). Her geliştirici bir kez giriş yapar:
 
 ```bash
 pnpm dlx eas-cli@24.12.1 login
 ```
 
-Android signing credentials are generated and stored by EAS (remote credentials).
+Android imza anahtarı (keystore) EAS tarafından üretilir ve Expo'da saklanır.
 
 ### Android dev client
 
@@ -30,25 +31,25 @@ Android signing credentials are generated and stored by EAS (remote credentials)
 pnpm dlx eas-cli@24.12.1 build --platform android --profile development
 ```
 
-Install the resulting APK on the emulator or phone (EAS shows a QR code / link).
+Build bitince EAS'in verdiği link / QR ile APK'yı telefona kur.
 
-### iPhone dev client (no Mac needed)
+### iPhone dev client (Mac gerekmez)
 
-Requires a paid Apple Developer Program membership; EAS manages certificates and profiles.
+Ücretli **Apple Developer Program** üyeliği gerekir; sertifika ve profilleri EAS yönetir.
 
 ```bash
-pnpm dlx eas-cli@24.12.1 device:create        # register the iPhone (open the link on the phone)
+pnpm dlx eas-cli@24.12.1 device:create        # iPhone'u kaydet (çıkan linki telefonda aç)
 pnpm dlx eas-cli@24.12.1 build --platform ios --profile development
 ```
 
-On the iPhone, enable **Settings → Privacy & Security → Developer Mode**, then install the build
-from the EAS link. A new native build is needed only when native code or config plugins change;
-JavaScript changes load from Metro.
+iPhone'da **Ayarlar → Gizlilik ve Güvenlik → Geliştirici Modu**'nu aç, sonra EAS linkinden kur.
+Yeni native build sadece native kod ya da config plugin değişince gerekir; JavaScript değişiklikleri
+Metro'dan anında gelir.
 
-## Scripts
+## Komutlar
 
-| Script           | Purpose                                                        |
-| ---------------- | -------------------------------------------------------------- |
-| `pnpm typecheck` | Generates typed-route types, then `tsc --noEmit`               |
-| `pnpm lint`      | ESLint 10 (type-aware) + React Hooks/Compiler + Expo env rules |
-| `pnpm test`      | Jest (`jest-expo` preset)                                      |
+| Komut            | Ne yapar                                                            |
+| ---------------- | ------------------------------------------------------------------- |
+| `pnpm typecheck` | Expo Router tiplerini üretir, sonra `tsc --noEmit`                  |
+| `pnpm lint`      | ESLint 10 (tip bilgili) + React Hooks/Compiler + Expo env kuralları |
+| `pnpm test`      | Jest (`jest-expo` preset)                                           |

@@ -1,82 +1,84 @@
-# Staging server runbook
+# Staging sunucu rehberi
 
-Staging runs on an **existing server that also hosts another project**. Ground rule: Bargu changes
-are additive and confined to its own paths; nothing belonging to the other project is modified.
+Staging, **başka bir projeyi de barındıran mevcut bir sunucuda** çalışır. Temel kural: Bargu
+değişiklikleri sadece ekleme yapar ve kendi klasörlerinde kalır; diğer projeye ait hiçbir şey
+değiştirilmez.
 
-- **Ingress**: the host's nginx (already serving the other project on 80/443) gets one extra site,
-  `bargu-staging`, with its own Let's Encrypt certificate from the host's certbot.
-- **Stack**: `infra/staging/compose.yml` (compose project `bargu-staging`) — API published on
-  `127.0.0.1:3100` only; Postgres and Redis on an internal network.
-- **Delivery**: GitHub Actions builds the API image, pushes it to GHCR and rolls it out over SSH
-  (forced command, health-gated, automatic rollback).
-- **Domain**: until a real domain exists, `api.<ip-with-dashes>.sslip.io` (free wildcard DNS that
-  resolves to the embedded IP). Passkeys and universal links will need a real domain (Faz 2).
+- **Giriş kapısı (ingress)**: sunucudaki nginx (diğer proje için 80/443'ü zaten kullanıyor) bir site
+  daha alır: `bargu-staging`. Sertifikası sunucudaki certbot ile Let's Encrypt'ten alınır.
+- **Stack**: `infra/staging/compose.yml` (compose projesi `bargu-staging`) — API sadece
+  `127.0.0.1:3100`'de açık; Postgres ve Redis dışarıya kapalı iç ağda.
+- **Deploy**: GitHub Actions API imajını build eder, GHCR'a gönderir ve SSH ile sunucuya yükler
+  (sadece deploy komutunu çalıştırabilen anahtar, sağlık kontrolü, hata olursa otomatik geri dönüş).
+- **Domain**: gerçek domain alınana kadar `api.<IP-tireli>.sslip.io` (ücretsiz, hesap gerektirmeyen,
+  içindeki IP'ye çözülen DNS). Passkey ve universal link için gerçek domain gerekecek (Faz 2).
 
-Decision record: [ADR 0003](../../docs/ADR/0003-staging-deployment.md).
+Karar kaydı: [ADR 0003](../../docs/ADR/0003-staging-deployment.md).
 
-## Host baseline (applied 2026-10-13)
+## Sunucu güvenlik ayarları (2026-10-13'te uygulandı)
 
-- SSH: key-only (`/etc/ssh/sshd_config.d/00-hardening.conf`: no passwords, root by key only).
-- fail2ban: `sshd` jail (`/etc/fail2ban/jail.local`, journal match fixed for Ubuntu 24.04's
-  `ssh.service`).
-- Already present: ufw (22/80/443), unattended upgrades, nginx + certbot.
+- SSH: sadece anahtarla giriş (`/etc/ssh/sshd_config.d/00-hardening.conf`: şifre kapalı, root
+  sadece anahtarla).
+- fail2ban: `sshd` koruması (`/etc/fail2ban/jail.local`; Ubuntu 24.04'te log birimi `ssh.service`
+  olduğu için eşleşme düzeltildi).
+- Zaten vardı: ufw (22/80/443), otomatik güvenlik güncellemeleri, nginx + certbot.
 
-## 1. Install the stack (additive)
+## 1. Stack'i kur (sadece ekleme yapar)
 
 ```bash
-ssh-keygen -t ed25519 -N "" -C github-actions-deploy -f bargu-deploy   # CI-only key pair
+ssh-keygen -t ed25519 -N "" -C github-actions-deploy -f bargu-deploy   # sadece CI'ın kullanacağı anahtar
 scp -r infra bargu-server:/tmp/bargu-infra
 ssh bargu-server 'sh /tmp/bargu-infra/vps/setup-staging.sh "$(cat)"' < bargu-deploy.pub
 ```
 
-[`setup-staging.sh`](setup-staging.sh) creates only the `deploy` user (key restricted to a forced
-command), `/usr/local/bin/bargu-deploy` (root-owned) and `/opt/bargu/staging` with secrets generated
-on the server. Re-running it is safe and never overwrites `.env`.
+[`setup-staging.sh`](setup-staging.sh) sadece şunları oluşturur: `deploy` kullanıcısı (anahtarı tek
+bir komutla sınırlı), `/usr/local/bin/bargu-deploy` (root'a ait) ve şifreleri sunucuda üretilen
+`/opt/bargu/staging`. Tekrar çalıştırmak güvenlidir, `.env`'in üzerine asla yazmaz.
 
-## 2. Publish through nginx
+## 2. nginx üzerinden yayına al
 
 ```bash
-ssh bargu-server 'sh /tmp/bargu-infra/vps/setup-nginx.sh api.<ip-with-dashes>.sslip.io 3100'
+ssh bargu-server 'sh /tmp/bargu-infra/vps/setup-nginx.sh api.<IP-tireli>.sslip.io 3100'
 ```
 
-[`setup-nginx.sh`](setup-nginx.sh) writes `/etc/nginx/sites-available/bargu-staging`, obtains the
-certificate (`certbot certonly --nginx`, renewal reloads nginx) and validates with `nginx -t`
-before every graceful reload; an invalid config is rolled back.
+[`setup-nginx.sh`](setup-nginx.sh) `/etc/nginx/sites-available/bargu-staging` dosyasını yazar,
+sertifikayı alır (`certbot certonly --nginx`; yenilemeden sonra nginx otomatik yeniden yüklenir) ve
+her kesintisiz yeniden yüklemeden önce `nginx -t` ile doğrular; geçersiz ayar geri alınır.
 
-## 3. Connect GitHub
+## 3. GitHub'ı bağla
 
-Repository → Settings → Environments → **staging** (deployment branch: `main`; a required reviewer
-is recommended):
+Repository → Settings → Environments → **staging** (deploy dalı: `main`; onaylayıcı eklemek
+önerilir):
 
-| Kind     | Name                      | Value                                           |
-| -------- | ------------------------- | ----------------------------------------------- |
-| Secret   | `STAGING_SSH_KEY`         | private `bargu-deploy` key                      |
-| Variable | `STAGING_SSH_HOST`        | server IP                                       |
-| Variable | `STAGING_SSH_KNOWN_HOSTS` | `ssh-keyscan -t ed25519 <server-ip>` (verified) |
-| Variable | `STAGING_API_DOMAIN`      | the domain from step 2                          |
+| Tür      | Ad                        | Değer                                              |
+| -------- | ------------------------- | -------------------------------------------------- |
+| Secret   | `STAGING_SSH_KEY`         | `bargu-deploy` özel anahtarı                       |
+| Variable | `STAGING_SSH_HOST`        | sunucu IP'si                                       |
+| Variable | `STAGING_SSH_KNOWN_HOSTS` | `ssh-keyscan -t ed25519 <sunucu-ip>` (doğrulanmış) |
+| Variable | `STAGING_API_DOMAIN`      | 2. adımdaki domain                                 |
 
-Then repository variable `STAGING_ENABLED` = `true`, and delete the local private key file.
-Verify the host key fingerprint against `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the
-server before storing it.
+Ardından repo değişkeni `STAGING_ENABLED` = `true` yap ve yerel özel anahtar dosyasını sil. Host
+anahtarını kaydetmeden önce parmak izini sunucuda `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
+ile karşılaştır.
 
 ## 4. Deploy
 
-Every green CI run on `main` deploys; Actions → **Deploy staging** → _Run workflow_ deploys on demand.
-The deploy script pulls the exact image digest, waits for health checks and rolls back to the
-previous digest if the new release does not become healthy.
+`main`'e gelen her yeşil CI otomatik deploy eder; Actions → **Deploy staging** → _Run workflow_ ile
+elle de tetiklenebilir. Deploy script'i imajın tam digest'ini çeker, sağlık kontrollerini bekler,
+yeni sürüm sağlıklı olmazsa önceki digest'e geri döner.
 
-Check: `curl https://<domain>/health/live` → `{"status":"ok"}`.
+Kontrol: `curl https://<domain>/health/live` → `{"status":"ok"}`.
 
-## Operations
+## Günlük işler
 
 ```bash
 ssh bargu-server
 cd /opt/bargu/staging
 docker compose --env-file .env --env-file image.env ps
 docker compose --env-file .env --env-file image.env logs -f api
-curl -s http://127.0.0.1:3100/health/ready   # readiness is only reachable on the host
+curl -s http://127.0.0.1:3100/health/ready   # hazır olma kontrolü sadece sunucunun içinden erişilir
 ```
 
-- Postgres and Redis publish no ports and sit on an internal network.
-- Backups: not configured yet (no user data in Faz 0). Encrypted backups with a restore test are
-  required before real user data (Faz 10).
+- Postgres ve Redis dışarıya port açmaz, iç ağdadır.
+- Yedekleme: henüz kurulu değil (Faz 0'da kullanıcı verisi yok). Gerçek kullanıcı verisinden önce
+  şifreli yedek ve geri yükleme testi şart (Faz 10).

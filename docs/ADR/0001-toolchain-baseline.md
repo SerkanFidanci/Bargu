@@ -1,31 +1,52 @@
-# 0001. Toolchain baseline
+# 0001. Araç zinciri
 
-- Status: Accepted
-- Date: 2026-10-13
+- Durum: Kabul edildi
+- Tarih: 2026-10-13
 
-## Context
+## Bağlam
 
-Faz 0 sets up the monorepo. Versions were verified against registries and official docs on
-2026-10-13 (CLAUDE.md: never from memory). Several "latest" releases are not usable together yet.
+Faz 0 monorepo'yu kuruyor. Sürümler 2026-10-13'te paket kayıtlarından ve resmi dokümanlardan
+doğrulandı (CLAUDE.md: ezberden değil). "En yeni" sürümlerin bir kısmı henüz birlikte çalışmıyor.
 
-## Decision
+## Karar
 
-| Area            | Choice                                                                                                                                                                                                                          | Why                                                                                                                                                                                                                                                                                                                      |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Runtime         | **Node 24.21.0 LTS**, pinned in `package.json#devEngines.runtime` (pnpm installs and uses it for every script) and `.nvmrc`                                                                                                     | Node 25 is EOL (2026-06) and outside Vitest 5 / Expo engines. Node 26 becomes LTS on 2026-10-28; move once tooling confirms support.                                                                                                                                                                                     |
-| Package manager | **pnpm 12.11.2** (`packageManager`)                                                                                                                                                                                             | Settings live in `pnpm-workspace.yaml`. Isolated `node_modules` (Expo supports it since SDK 54).                                                                                                                                                                                                                         |
-| Supply chain    | pnpm: `minimumReleaseAge: 1440` (strict), `trustPolicy: no-downgrade` with `trustPolicyIgnoreAfter: 10080`, `blockExoticSubdeps`, `allowBuilds` allow-list, exact versions, frozen lockfile in CI. Renovate: 7-day release age. | Young releases are quarantined; a release with weaker publish evidence (provenance / trusted publishing) than its predecessors is refused until it is 7 days old (stolen-token pattern). Install scripts run only for reviewed packages. pnpm's age limit moves to 7 days once all lockfile entries are older than that. |
-| Monorepo        | Turborepo 2.11                                                                                                                                                                                                                  | `dev` is non-interactive so it works in any terminal; `pnpm dev:mobile` gives Expo's shortcuts.                                                                                                                                                                                                                          |
-| TypeScript      | **6.0.3**, not 7.0                                                                                                                                                                                                              | typescript-eslint 8.71 supports `<6.1`; the NestJS 12 CLI also pins `~6.0`. Renovate blocks ≥6.1. Strict plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`.                                                                                                                                                  |
-| Lint            | ESLint 10 flat config, typescript-eslint `strictTypeChecked`, eslint-plugin-security, eslint-comments (`require-description`)                                                                                                   | Enforces CLAUDE.md: no `any`, no `@ts-ignore`, every `eslint-disable` needs a reason, crypto imports only in `packages/crypto`, no `Math.random`, no `console`.                                                                                                                                                          |
-| Mobile lint     | `eslint-plugin-react-hooks` 7 (incl. React Compiler rules) + `eslint-plugin-expo`, **without** `eslint-config-expo`                                                                                                             | `eslint-config-expo` 57 pulls `eslint-plugin-react` / `eslint-plugin-import`, which call context APIs removed in ESLint 10 (verified: crash in `react/display-name`). Revisit when Expo ships ESLint 10 support.                                                                                                         |
-| Tests           | Vitest 5 (API, with unplugin-swc for decorator metadata); Jest 29 via `jest-expo` (mobile)                                                                                                                                      | Each matches its platform's documented setup.                                                                                                                                                                                                                                                                            |
-| Mobile          | Expo SDK 57 (RN 0.86, React 19.2, New Architecture only, Hermes V1), Expo Router with typed routes, React Compiler, dev client (no Expo Go)                                                                                     | Current SDK; pinned patch versions older than 24 h.                                                                                                                                                                                                                                                                      |
-| Hooks           | husky 9 + lint-staged 17; gitleaks in pre-commit                                                                                                                                                                                | Secrets are blocked before they reach history.                                                                                                                                                                                                                                                                           |
+- **Çalışma ortamı: Node 24.21.0 LTS.** `package.json#devEngines.runtime` ile sabit (pnpm indirip
+  her komutta kullanır), ayrıca `.nvmrc`. Node 25'in desteği bitti (2026-06) ve Vitest 5 / Expo onu
+  desteklemiyor. Node 26, 2026-10-28'de LTS olacak; araçlar destekleyince geçilir.
+- **Paket yöneticisi: pnpm 12.11.2** (`packageManager`). Ayarlar `pnpm-workspace.yaml`'da. İzole
+  `node_modules` (Expo SDK 54'ten beri destekliyor).
+- **Tedarik zinciri:**
+  - pnpm: `minimumReleaseAge: 1440` (katı), `trustPolicy: no-downgrade` +
+    `trustPolicyIgnoreAfter: 10080`, `blockExoticSubdeps`, `allowBuilds` izin listesi, sabit
+    sürümler, CI'da kilitli lockfile.
+  - Renovate: yeni sürümleri 7 gün bekletir.
+  - Neden: yeni sürümler karantinada bekler; yayın kanıtı (provenance / trusted publishing)
+    öncekilerden zayıf olan bir sürüm, 7 günlük olana kadar reddedilir (çalınmış token deseni).
+    Install script'leri sadece incelenmiş paketlerde çalışır. pnpm'in yaş sınırı, lockfile'daki tüm
+    kayıtlar 7 günü geçince 7 güne çıkarılacak.
+- **Monorepo: Turborepo 2.11.** `dev` her terminalde çalışsın diye etkileşimsiz; Expo kısayolları
+  için `pnpm dev:mobile`.
+- **TypeScript: 6.0.3, 7.0 değil.** typescript-eslint 8.71 `<6.1` destekliyor; NestJS 12 CLI de
+  `~6.0`'a sabit. Renovate ≥6.1'i engelliyor. Sıkı mod + `noUncheckedIndexedAccess`,
+  `exactOptionalPropertyTypes`.
+- **Lint: ESLint 10** flat config, typescript-eslint `strictTypeChecked`, eslint-plugin-security,
+  eslint-comments (`require-description`). CLAUDE.md kurallarını zorunlu kılar: `any` yok,
+  `@ts-ignore` yok, her `eslint-disable` gerekçeli, kripto import'ları sadece `packages/crypto`'da,
+  `Math.random` yok, `console` yok.
+- **Mobil lint:** `eslint-plugin-react-hooks` 7 (React Compiler kuralları dahil) +
+  `eslint-plugin-expo`, `eslint-config-expo` **olmadan**. Sebebi: `eslint-config-expo` 57'nin
+  getirdiği `eslint-plugin-react` / `eslint-plugin-import`, ESLint 10'da kaldırılan API'leri çağırıyor
+  (doğrulandı: `react/display-name`'de çöküyor). Expo ESLint 10 desteği verince yeniden değerlendirilir.
+- **Testler:** Vitest 5 (API; decorator metadata için unplugin-swc); Jest 29 + `jest-expo` (mobil).
+  Her biri kendi platformunun dokümante ettiği kurulum.
+- **Mobil:** Expo SDK 57 (RN 0.86, React 19.2, sadece New Architecture, Hermes V1), typed routes ile
+  Expo Router, React Compiler, dev client (Expo Go değil). Yamalar 24 saatten eski sürümlere sabit.
+- **Hook'lar:** husky 9 + lint-staged 17; commit öncesi gitleaks. Gizli bilgiler geçmişe girmeden
+  engellenir.
 
-## Consequences
+## Sonuçlar
 
-- Contributors need pnpm 12 (`npm i -g pnpm@12.11.2`) and gitleaks installed; Node is provided by pnpm.
-- Expo SDK patches published < 24 h ago cannot be installed until they mature (by design).
-- Upgrade TypeScript to 7 and `eslint-config-expo` only after their ecosystem constraints lift; Renovate
-  rules encode these limits.
+- Geliştiricilerin pnpm 12 (`npm i -g pnpm@12.11.2`) ve gitleaks kurması gerekir; Node'u pnpm sağlar.
+- 24 saatten yeni Expo yamaları olgunlaşana kadar kurulamaz (bilinçli tercih).
+- TypeScript 7'ye ve `eslint-config-expo`'ya geçiş, ekosistem kısıtları kalkınca yapılır; Renovate
+  kuralları bu sınırları içeriyor.

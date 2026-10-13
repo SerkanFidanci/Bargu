@@ -1,25 +1,26 @@
-# Architecture Decision Records
+# Mimari Karar Kayıtları (ADR)
 
-Every decision that changes the architecture gets an ADR (CLAUDE.md). Copy the template below into
-`NNNN-short-title.md`, never rewrite an accepted ADR — supersede it with a new one.
+Mimariyi değiştiren her karar bir ADR olarak yazılır (CLAUDE.md). Aşağıdaki şablonu
+`NNNN-kisa-baslik.md` olarak kopyala. Kabul edilmiş bir ADR yeniden yazılmaz; yerine yenisi yazılır
+ve eskisi "yerini aldı" olarak işaretlenir.
 
-| #                                   | Title                                                                 | Status   |
-| ----------------------------------- | --------------------------------------------------------------------- | -------- |
-| [0001](0001-toolchain-baseline.md)  | Toolchain baseline (Node, pnpm, TypeScript, ESLint, Expo)             | Accepted |
-| [0002](0002-backend-foundations.md) | Backend foundations (NestJS 12 ESM on Fastify, pg, node-redis)        | Accepted |
-| [0003](0003-staging-deployment.md)  | Staging deployment (shared VPS, host nginx, GHCR, SSH forced command) | Accepted |
+| #                                   | Başlık                                                           | Durum        |
+| ----------------------------------- | ---------------------------------------------------------------- | ------------ |
+| [0001](0001-toolchain-baseline.md)  | Araç zinciri (Node, pnpm, TypeScript, ESLint, Expo)              | Kabul edildi |
+| [0002](0002-backend-foundations.md) | Backend temeli (NestJS 12 ESM + Fastify, pg, node-redis)         | Kabul edildi |
+| [0003](0003-staging-deployment.md)  | Staging dağıtımı (paylaşımlı VPS, host nginx, GHCR, kısıtlı SSH) | Kabul edildi |
 
-## Template
+## Şablon
 
 ```md
-# NNNN. Title
+# NNNN. Başlık
 
-- Status: Proposed | Accepted | Superseded by NNNN
-- Date: YYYY-MM-DD
+- Durum: Önerildi | Kabul edildi | Yerini aldı: NNNN
+- Tarih: YYYY-AA-GG
 
-## Context
+## Bağlam
 
-## Decision
+## Karar
 
-## Consequences
+## Sonuçlar
 ```
