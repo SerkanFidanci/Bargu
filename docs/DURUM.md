@@ -5,13 +5,13 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                                                            |
-| -------------------------------- | -------------------------------------------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                     |
-| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                    |
-| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                     |
-| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (açık madde: telefonda fps ve büyük yazı ölçümü, passkey denemesi) |
-| Faz 4 — Çemberler & Anahtarlar   | 🟡 Kod ve testler tamam, staging'de doğrulandı; telefonda deneme bekliyor        |
+| Faz                              | Durum                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                                 |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                                |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                                 |
+| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (açık madde: telefonda fps ve büyük yazı ölçümü, passkey denemesi)             |
+| Faz 4 — Çemberler & Anahtarlar   | 🟡 Telefonda denendi (arkadaşlık, çember, davet, bildirim); proje sahibinin onayını bekliyor |
 
 ## Ortamlar
 
@@ -102,7 +102,8 @@ cihazın imzasının reddi, istek → kabul → olayın anında gelmesi, anahtar
 davetlinin yalnızca daveti göndereni görmesi, çıkarılanın hiçbir şey görmemesi ve anahtar
 alamaması, tek kullanımlık link, arkadaşlıktan çıkınca yeniden onay — 25/25 doğru.
 
-Android build: `e57490c0` (sistem bildirimleri, Firebase ile; önceki `4a2e4641`, `8fb45363`). Tek telefonla deneme için staging'de bir test arkadaşı (`@deneme.arkadas`)
+Telefonda (2026-10-14): uygulama kapalıyken test arkadaşının arkadaşlık isteği sistem bildirimi
+olarak geldi, 17 sn sonra kabul edildi, iki taraf anahtarlarını uçtan uca açtı. Android build: `e57490c0` (sistem bildirimleri, Firebase ile; önceki `4a2e4641`, `8fb45363`). Tek telefonla deneme için staging'de bir test arkadaşı (`@deneme.arkadas`)
 çalıştırıldı: istekleri kabul eder, anahtarını gönderir, gelen anahtarı açar (kontrol hesabıyla
 doğrulandı).
 
