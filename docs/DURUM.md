@@ -33,7 +33,8 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 Kararlar: [ADR 0015](ADR/0015-encrypted-places-and-arrivals.md) (şifreli yerler, varışı telefon
 algılar), [ADR 0016](ADR/0016-sealed-push-notifications.md) (bildirimler uçtan uca şifreli; ADR
-0010'un yerine). Durum: kod bitti, telefonda deneme bekliyor.
+0010'un yerine). Durum: kod bitti, staging'de, telefonda deneme bekliyor. Android: yerel derleme
+`eb227cb` (staging'den indirilir, tüm CI yeşil: Swift/CryptoKit ve iOS eklentisi dahil).
 
 Ara iş (aynı gün): Faz 6'nın son sürümü telefonda çöküyordu (hareketli figürlerde UI thread'de
 çağrılan sıradan bir fonksiyon; hata ayıklama sürümünde yalnızca uyarı). Düzeltildi (`5c7f170`),
