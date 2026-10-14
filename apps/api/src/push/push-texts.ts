@@ -7,6 +7,7 @@ export const PUSH_KINDS = [
   'friendAdded',
   'circleInvite',
   'memberJoined',
+  'bump',
 ] as const;
 export type PushKind = (typeof PUSH_KINDS)[number];
 
@@ -21,6 +22,7 @@ const TEXTS: Record<(typeof LOCALES)[number], Record<PushKind, string>> = {
     friendAdded: 'Yeni bir arkadaşın var',
     circleInvite: 'Bir çembere davet edildin',
     memberJoined: 'Çemberine yeni biri katıldı',
+    bump: 'Biri seni dürttü 👋',
   },
   en: {
     friendRequest: 'You have a new friend request',
@@ -28,6 +30,7 @@ const TEXTS: Record<(typeof LOCALES)[number], Record<PushKind, string>> = {
     friendAdded: 'You have a new friend',
     circleInvite: 'You were invited to a circle',
     memberJoined: 'Someone joined your circle',
+    bump: 'Someone poked you 👋',
   },
 };
 

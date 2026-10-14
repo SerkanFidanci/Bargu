@@ -44,3 +44,41 @@ export const watchRequestSchema = z.object({ circleId: z.uuid() }).strict();
 export const locEventSchema = z.object({ envelope: messageEnvelopeSchema }).strict();
 export const locGoneEventSchema = z.object({ circleId: z.uuid(), userId: z.uuid() }).strict();
 export const watchEventSchema = z.object({ circleId: z.uuid() }).strict();
+
+/**
+ * A poke (BARGU_PLAN §4.3 "Dürt"): one encrypted `bump` message to one circle, forwarded at once
+ * to the members who are online and never stored. Others get a content-free notification.
+ */
+export const bumpRequestSchema = z.object({ envelope: messageEnvelopeSchema }).strict();
+export const bumpReplySchema = z
+  .object({ ok: z.literal(true) })
+  .strict()
+  .or(z.object({ refused: z.enum(RELAY_REFUSALS) }).strict());
+export type BumpReply = z.infer<typeof bumpReplySchema>;
+export const bumpEventSchema = z.object({ envelope: messageEnvelopeSchema }).strict();
+
+/** A status (emoji and short text) lasts at most a day (BARGU_PLAN §4.3). */
+export const MAX_STATUS_SECONDS = 24 * 3600;
+/** The shortest status the server keeps (the app offers hours). */
+export const MIN_STATUS_SECONDS = 60;
+
+/**
+ * This device's status for some of its circles, encrypted like locations. The server keeps the
+ * latest one per member for `ttlSeconds` (the end the user chose; it cannot read it).
+ */
+export const statusPublishSchema = z
+  .object({
+    envelopes: z.array(messageEnvelopeSchema).min(1).max(MAX_ENVELOPES_PER_PUBLISH),
+    ttlSeconds: z.number().int().min(MIN_STATUS_SECONDS).max(MAX_STATUS_SECONDS),
+  })
+  .strict();
+export type StatusPublish = z.infer<typeof statusPublishSchema>;
+
+/** Latest status of every other member, for all circles the user is active in. */
+export const statusSnapshotSchema = z
+  .object({ envelopes: z.array(messageEnvelopeSchema) })
+  .strict();
+
+/** Live server → app messages for statuses (like `loc` / `loc.gone`). */
+export const statusEventSchema = z.object({ envelope: messageEnvelopeSchema }).strict();
+export const statusGoneEventSchema = z.object({ circleId: z.uuid(), userId: z.uuid() }).strict();

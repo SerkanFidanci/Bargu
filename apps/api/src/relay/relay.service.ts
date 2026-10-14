@@ -1,6 +1,6 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { verifyMessageEnvelope } from '@bargu/crypto';
-import type { MessageEnvelope, PublishReply } from '@bargu/schemas';
+import type { BumpReply, MessageEnvelope, PublishReply } from '@bargu/schemas';
 import { messageEnvelopeSchema, RELAY_REFUSALS } from '@bargu/schemas';
 import { and, eq, inArray } from 'drizzle-orm';
 
@@ -11,6 +11,7 @@ import { EventsService } from '../events/events.service.js';
 import { DatabaseService } from '../infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
+import { Notifier } from '../push/notifier.js';
 
 /** A location is kept 24 hours after it was sent, then it is gone (BARGU_PLAN §1: no history). */
 export const LOCATION_TTL_SECONDS = 24 * 3600;
@@ -22,15 +23,38 @@ export const RELAY_LIMITS = {
   publishes: { limit: 3, windowSeconds: 2 },
   /** "I am looking at this circle": renewed every minute while the map is open. */
   watches: { limit: 2, windowSeconds: 30 },
+  /** Pokes per sender and circle (BARGU_PLAN §4.3: 10 a minute per pair). */
+  bumps: { limit: 10, windowSeconds: 60 },
+  /** Status changes per device and circle: people set one now and then. */
+  statuses: { limit: 6, windowSeconds: 60 },
 } as const;
+
+interface Limit {
+  limit: number;
+  windowSeconds: number;
+}
 
 /** Latest envelope per circle member: `loc:{circleId}` → field userId (one active device each). */
 const locationKey = (circleId: string) => `loc:${circleId}`;
+/** Latest status per circle member, the same way (its own lifetime per field). */
+const statusKey = (circleId: string) => `status:${circleId}`;
+
+/** What the relay keeps per member: the location, and the status (emoji + text). */
+const STORES = {
+  loc: { key: locationKey, event: 'loc', gone: 'loc.gone', limit: RELAY_LIMITS.publishes },
+  status: {
+    key: statusKey,
+    event: 'status',
+    gone: 'status.gone',
+    limit: RELAY_LIMITS.statuses,
+  },
+} as const;
+type Store = keyof typeof STORES;
 
 /**
  * Stores an envelope unless a newer one (later epoch, or same epoch and higher sequence) is
  * already there, so a late HTTP publish never overwrites a fresher WebSocket one. Each field
- * expires on its own (Redis 7.4+ HEXPIRE).
+ * expires on its own (Redis 7.4+ HEXPIRE); the hash lives as long as its longest field.
  */
 const STORE_IF_NEWER = `
 local current = redis.call('HGET', KEYS[1], ARGV[1])
@@ -44,7 +68,9 @@ if current then
 end
 redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
 redis.call('HEXPIRE', KEYS[1], ARGV[5], 'FIELDS', 1, ARGV[1])
-redis.call('EXPIRE', KEYS[1], ARGV[5])
+if redis.call('TTL', KEYS[1]) < tonumber(ARGV[5]) then
+  redis.call('EXPIRE', KEYS[1], ARGV[5])
+end
 return 1
 `;
 
@@ -57,10 +83,12 @@ interface Membership {
 }
 
 /**
- * The location relay (BARGU_PLAN §3.2, Faz 5). It only ever handles ciphertext: it checks that an
+ * The relay (BARGU_PLAN §3.2, Faz 5–6). It only ever handles ciphertext: it checks that an
  * envelope is signed by the caller's device, that the caller is an active member and that the
- * epoch is still accepted, keeps the latest envelope per member for 24 hours, and pushes it to the
- * other members at once. It cannot read where anyone is.
+ * epoch is still accepted. Locations and statuses: the latest per member is kept for a limited
+ * time and pushed to the other members at once. Pokes: forwarded live, never kept. It cannot read
+ * where anyone is, what their status says, or that a message is a poke beyond which endpoint
+ * carried it.
  */
 @Injectable()
 export class RelayService {
@@ -69,9 +97,28 @@ export class RelayService {
     @Inject(REDIS) private readonly redis: RedisClient,
     private readonly events: EventsService,
     private readonly limiter: RateLimiter,
+    private readonly notifier: Notifier,
   ) {}
 
-  async publish(auth: AuthContext, envelopes: MessageEnvelope[]): Promise<PublishReply> {
+  publish(auth: AuthContext, envelopes: MessageEnvelope[]): Promise<PublishReply> {
+    return this.store('loc', auth, envelopes, LOCATION_TTL_SECONDS);
+  }
+
+  publishStatus(
+    auth: AuthContext,
+    envelopes: MessageEnvelope[],
+    ttlSeconds: number,
+  ): Promise<PublishReply> {
+    return this.store('status', auth, envelopes, ttlSeconds);
+  }
+
+  private async store(
+    store: Store,
+    auth: AuthContext,
+    envelopes: MessageEnvelope[],
+    ttlSeconds: number,
+  ): Promise<PublishReply> {
+    const { key, event, limit } = STORES[store];
     const memberships = await this.memberships(
       auth.userId,
       envelopes.map((envelope) => envelope.circleId),
@@ -79,33 +126,39 @@ export class RelayService {
     const refused: { circleId: string; code: Refusal }[] = [];
     let accepted = 0;
     for (const envelope of envelopes) {
-      const code = await this.check(auth, envelope, memberships.get(envelope.circleId));
+      const membership = memberships.get(envelope.circleId);
+      const code = await this.check(auth, envelope, membership, `${store}:${auth.deviceId}`, limit);
       if (code !== null) {
         refused.push({ circleId: envelope.circleId, code });
         continue;
       }
       accepted += 1;
       const stored = await this.redis.eval(STORE_IF_NEWER, {
-        keys: [locationKey(envelope.circleId)],
+        keys: [key(envelope.circleId)],
         arguments: [
           auth.userId,
           JSON.stringify(envelope),
           String(envelope.epoch),
           String(envelope.seq),
-          String(LOCATION_TTL_SECONDS),
+          String(ttlSeconds),
         ],
       });
-      if (stored === 1) {
-        this.events.emitLive(memberships.get(envelope.circleId)?.others ?? [], 'loc', {
-          envelope,
-        });
-      }
+      if (stored === 1) this.events.emitLive(membership?.others ?? [], event, { envelope });
     }
     return { accepted, refused };
   }
 
-  /** The latest envelope of every other member, in every circle the caller is active in. */
-  async snapshot(auth: AuthContext): Promise<MessageEnvelope[]> {
+  /** The latest location of every other member, in every circle the caller is active in. */
+  snapshot(auth: AuthContext): Promise<MessageEnvelope[]> {
+    return this.read('loc', auth);
+  }
+
+  /** The current status of every other member, in every circle the caller is active in. */
+  statuses(auth: AuthContext): Promise<MessageEnvelope[]> {
+    return this.read('status', auth);
+  }
+
+  private async read(store: Store, auth: AuthContext): Promise<MessageEnvelope[]> {
     const circleIds = await this.database.asUser(auth.userId, async (tx) =>
       (
         await tx
@@ -116,7 +169,7 @@ export class RelayService {
     );
     const envelopes: MessageEnvelope[] = [];
     for (const circleId of circleIds) {
-      const fields = await this.redis.hGetAll(locationKey(circleId));
+      const fields = await this.redis.hGetAll(STORES[store].key(circleId));
       for (const [userId, raw] of Object.entries(fields)) {
         if (userId === auth.userId) continue;
         const parsed = messageEnvelopeSchema.safeParse(JSON.parse(raw));
@@ -127,11 +180,46 @@ export class RelayService {
   }
 
   /** Stops showing the caller's last location in these circles (hidden, sharing turned off). */
-  async withdraw(auth: AuthContext, circleIds: string[]): Promise<void> {
+  withdraw(auth: AuthContext, circleIds: string[]): Promise<void> {
+    return this.take('loc', auth, circleIds);
+  }
+
+  /** Clears the caller's status in these circles. */
+  withdrawStatus(auth: AuthContext, circleIds: string[]): Promise<void> {
+    return this.take('status', auth, circleIds);
+  }
+
+  private async take(store: Store, auth: AuthContext, circleIds: string[]): Promise<void> {
     const memberships = await this.memberships(auth.userId, circleIds);
     for (const [circleId, membership] of memberships) {
-      await this.forget(circleId, auth.userId, membership.others);
+      await this.remove(store, circleId, auth.userId, membership.others);
     }
+  }
+
+  /**
+   * A poke: forwarded at once to the circle's other members who are online, kept nowhere. Those
+   * whose app is closed get a content-free notification (docs/ADR/0010).
+   */
+  async bump(auth: AuthContext, envelope: MessageEnvelope): Promise<BumpReply> {
+    const membership = (await this.memberships(auth.userId, [envelope.circleId])).get(
+      envelope.circleId,
+    );
+    const code = await this.check(
+      auth,
+      envelope,
+      membership,
+      `bump:${auth.userId}`,
+      RELAY_LIMITS.bumps,
+    );
+    if (code !== null || membership === undefined) return { refused: code ?? 'NOT_MEMBER' };
+    this.events.emitLive(membership.others, 'bump', { envelope });
+    const online = await this.events.online(membership.others);
+    await this.notifier.notify(
+      membership.others.filter((userId) => !online.has(userId)),
+      'bump',
+      envelope.circleId,
+    );
+    return { ok: true };
   }
 
   /** Someone looks at a circle on the map: its other members' phones switch to live updates. */
@@ -149,18 +237,29 @@ export class RelayService {
     this.events.emitLive(membership.others, 'watch', { circleId });
   }
 
-  /** A member is no longer in a circle (left, removed) or stops sharing: their dot goes away. */
+  /** A member is no longer in a circle (left, removed): their dot and status go away. */
   async forget(circleId: string, userId: string, audience: Iterable<string>): Promise<void> {
-    await this.redis.hDel(locationKey(circleId), userId);
-    this.events.emitLive(audience, 'loc.gone', { circleId, userId });
+    const others = [...audience];
+    await this.remove('loc', circleId, userId, others);
+    await this.remove('status', circleId, userId, others);
+  }
+
+  private async remove(
+    store: Store,
+    circleId: string,
+    userId: string,
+    audience: string[],
+  ): Promise<void> {
+    await this.redis.hDel(STORES[store].key(circleId), userId);
+    this.events.emitLive(audience, STORES[store].gone, { circleId, userId });
   }
 
   /** A whole circle ended (a friendship): nothing of it is kept. */
   async forgetCircle(circleId: string): Promise<void> {
-    await this.redis.del(locationKey(circleId));
+    await this.redis.del([locationKey(circleId), statusKey(circleId)]);
   }
 
-  /** Signed out or session revoked: the user's dot disappears from every circle. */
+  /** Signed out or session revoked: the user's dot and status disappear from every circle. */
   async forgetEverywhere(userId: string): Promise<void> {
     const rows = await this.database.asUser(userId, (tx) =>
       tx
@@ -181,6 +280,8 @@ export class RelayService {
     auth: AuthContext,
     envelope: MessageEnvelope,
     membership: Membership | undefined,
+    limitKey: string,
+    limit: Limit,
   ): Promise<Refusal | null> {
     if (envelope.senderDeviceId !== auth.deviceId) return 'INVALID';
     if (!verifyMessageEnvelope(envelope, auth.identityKey)) return 'INVALID';
@@ -188,12 +289,12 @@ export class RelayService {
     if (envelope.epoch > membership.epoch || envelope.epoch < membership.epoch - ACCEPTED_EPOCHS) {
       return 'EPOCH';
     }
-    const limit = await this.limiter.hit(
-      `pub:${auth.deviceId}:${envelope.circleId}`,
-      RELAY_LIMITS.publishes.limit,
-      RELAY_LIMITS.publishes.windowSeconds,
+    const hit = await this.limiter.hit(
+      `${limitKey}:${envelope.circleId}`,
+      limit.limit,
+      limit.windowSeconds,
     );
-    return limit.allowed ? null : 'RATE_LIMITED';
+    return hit.allowed ? null : 'RATE_LIMITED';
   }
 
   /** For each circle the user is active in (among `circleIds`): its epoch and the other members. */

@@ -1,9 +1,12 @@
 import { SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
 import {
+  type BumpReply,
+  bumpRequestSchema,
   type PublishReply,
   locationPublishSchema,
   locationWithdrawSchema,
   type MessageEnvelope,
+  statusPublishSchema,
   watchRequestSchema,
 } from '@bargu/schemas';
 import type { Socket } from 'socket.io';
@@ -16,7 +19,7 @@ import { RelayService } from './relay.service.js';
 type Ack<T> = T | { error: string };
 
 /**
- * Location messages over the event socket (same connection and handshake as events.gateway): the
+ * Relay messages over the event socket (same connection and handshake as events.gateway): the
  * phone publishes while the app is open, asks for a snapshot after (re)connecting, and tells
  * others when it looks at a circle. Replies are acknowledgements, never thrown errors.
  */
@@ -48,6 +51,38 @@ export class RelayGateway {
     const parsed = locationWithdrawSchema.safeParse(payload);
     if (connection === undefined || !parsed.success) return { error: 'VALIDATION_FAILED' };
     await this.relay.withdraw(connection.auth, parsed.data.circleIds);
+    return { ok: true };
+  }
+
+  @SubscribeMessage('bump')
+  async bump(socket: Socket, payload: unknown): Promise<Ack<BumpReply>> {
+    const connection = this.events.connectionOf(socket);
+    const parsed = bumpRequestSchema.safeParse(payload);
+    if (connection === undefined || !parsed.success) return { error: 'VALIDATION_FAILED' };
+    return this.relay.bump(connection.auth, parsed.data.envelope);
+  }
+
+  @SubscribeMessage('status')
+  async status(socket: Socket, payload: unknown): Promise<Ack<PublishReply>> {
+    const connection = this.events.connectionOf(socket);
+    const parsed = statusPublishSchema.safeParse(payload);
+    if (connection === undefined || !parsed.success) return { error: 'VALIDATION_FAILED' };
+    return this.relay.publishStatus(connection.auth, parsed.data.envelopes, parsed.data.ttlSeconds);
+  }
+
+  @SubscribeMessage('statuses')
+  async statuses(socket: Socket): Promise<Ack<{ envelopes: MessageEnvelope[] }>> {
+    const connection = this.events.connectionOf(socket);
+    if (connection === undefined) return { error: 'UNAUTHENTICATED' };
+    return { envelopes: await this.relay.statuses(connection.auth) };
+  }
+
+  @SubscribeMessage('status.withdraw')
+  async withdrawStatus(socket: Socket, payload: unknown): Promise<Ack<{ ok: true }>> {
+    const connection = this.events.connectionOf(socket);
+    const parsed = locationWithdrawSchema.safeParse(payload);
+    if (connection === undefined || !parsed.success) return { error: 'VALIDATION_FAILED' };
+    await this.relay.withdrawStatus(connection.auth, parsed.data.circleIds);
     return { ok: true };
   }
 

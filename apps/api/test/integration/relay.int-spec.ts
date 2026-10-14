@@ -15,6 +15,7 @@ import {
 import {
   type Circle,
   type MessageEnvelope,
+  type Payload,
   type PublishReply,
   publishReplySchema,
 } from '@bargu/schemas';
@@ -108,6 +109,12 @@ function sender(who: Person, circle: Circle) {
         sender: who.device,
         payload: { kind: 'loc', lat, lng, acc: 8, bat: 64, chg: false, ts: Date.now() },
       });
+      state = nextState;
+      return envelope;
+    },
+    /** Any other message (a poke, a status) with the same key and sequence. */
+    message(payload: Payload): MessageEnvelope {
+      const { envelope, nextState } = encryptMessage({ state, sender: who.device, payload });
       state = nextState;
       return envelope;
     },
@@ -297,5 +304,109 @@ describe('location relay', () => {
     expect(await ayseSocket.emitWithAck('watch', { circleId: circle.id })).toEqual({
       error: 'RATE_LIMITED',
     });
+  });
+});
+
+describe('pokes and statuses', () => {
+  it('pokes the other members at once and keeps nothing of it', async () => {
+    const [ayse, bora, mallory] = await Promise.all([person(test), person(test), person(test)]);
+    const circle = await circleWith(test, ayse, bora);
+    const [ayseSocket, boraSocket] = await Promise.all([connect(ayse), connect(bora)]);
+    const toBora = collect<{ envelope: MessageEnvelope }>(boraSocket, 'bump');
+    const ayseSends = sender(ayse, circle);
+
+    const poke = ayseSends.message({ kind: 'bump', ts: Date.now() });
+    expect(await ayseSocket.emitWithAck('bump', { envelope: poke })).toEqual({ ok: true });
+    await vi.waitFor(() => {
+      expect(toBora).toHaveLength(1);
+    });
+    const delivered = toBora[0];
+    if (delivered === undefined) throw new Error('nothing delivered');
+    expect(open(delivered.envelope, ayseSends.key, circle, ayse)).toMatchObject({ kind: 'bump' });
+
+    // Over HTTP too; and nothing about pokes is stored (only the rate limit counter exists).
+    const viaHttp = await as(test, ayse, 'POST', '/v1/bumps', {
+      envelope: ayseSends.message({ kind: 'bump', ts: Date.now() }),
+    });
+    expect(viaHttp.json()).toEqual({ ok: true });
+    const redis = (await import('redis')).createClient({ url: test.env.REDIS_URL });
+    await redis.connect();
+    try {
+      for await (const keys of redis.scanIterator({ MATCH: `*${circle.id}*`, COUNT: 500 })) {
+        for (const key of keys) expect(key.startsWith('rl:') || key.startsWith('loc:')).toBe(true);
+      }
+    } finally {
+      await redis.close();
+    }
+
+    // Someone outside the circle cannot poke into it.
+    const outsider = await as(test, mallory, 'POST', '/v1/bumps', {
+      envelope: sender(mallory, circle).message({ kind: 'bump', ts: Date.now() }),
+    });
+    expect(outsider.json()).toEqual({ refused: 'NOT_MEMBER' });
+    // At most ten a minute per circle: the rest is refused.
+    const replies: unknown[] = [];
+    for (let i = 0; i < 10; i++) {
+      replies.push(
+        await ayseSocket.emitWithAck('bump', {
+          envelope: ayseSends.message({ kind: 'bump', ts: Date.now() }),
+        }),
+      );
+    }
+    expect(replies).toContainEqual({ refused: 'RATE_LIMITED' });
+  });
+
+  it('keeps a status for the time chosen, and drops it when withdrawn', async () => {
+    const [ayse, bora] = await Promise.all([person(test), person(test)]);
+    const circle = await circleWith(test, ayse, bora);
+    const boraSocket = await connect(bora);
+    const toBora = collect<{ envelope: MessageEnvelope }>(boraSocket, 'status');
+    const gone = collect<{ circleId: string; userId: string }>(boraSocket, 'status.gone');
+    const ayseSends = sender(ayse, circle);
+    const status = ayseSends.message({
+      kind: 'status',
+      emoji: '☕',
+      text: 'kahve molası',
+      expiresAt: Date.now() + 3_600_000,
+      ts: Date.now(),
+    });
+
+    const reply = await as(test, ayse, 'POST', '/v1/statuses', {
+      envelopes: [status],
+      ttlSeconds: 3_600,
+    });
+    expect(reply.json()).toEqual({ accepted: 1, refused: [] });
+    await vi.waitFor(() => {
+      expect(toBora).toHaveLength(1);
+    });
+    const snapshot = await as(test, bora, 'GET', '/v1/statuses');
+    expect(snapshot.json()).toEqual({ envelopes: [status] });
+    // The location snapshot is separate and stays empty.
+    expect((await as(test, bora, 'GET', '/v1/locations')).json()).toEqual({ envelopes: [] });
+    // Its field lives for the chosen time, not the 24 hours of a location.
+    const redis = (await import('redis')).createClient({ url: test.env.REDIS_URL });
+    await redis.connect();
+    try {
+      const ttl = (await redis.hTTL(`status:${circle.id}`, ayse.userId))?.[0];
+      expect(ttl).toBeGreaterThan(3_500);
+      expect(ttl).toBeLessThanOrEqual(3_600);
+    } finally {
+      await redis.close();
+    }
+    // Longer than a day is refused before anything is stored.
+    const tooLong = await as(test, ayse, 'POST', '/v1/statuses', {
+      envelopes: [status],
+      ttlSeconds: 2 * 24 * 3_600,
+    });
+    expect(tooLong.statusCode).toBe(400);
+
+    expect(
+      (await as(test, ayse, 'POST', '/v1/statuses/withdraw', { circleIds: [circle.id] }))
+        .statusCode,
+    ).toBe(204);
+    await vi.waitFor(() => {
+      expect(gone).toContainEqual({ circleId: circle.id, userId: ayse.userId });
+    });
+    expect((await as(test, bora, 'GET', '/v1/statuses')).json()).toEqual({ envelopes: [] });
   });
 });

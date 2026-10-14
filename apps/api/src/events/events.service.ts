@@ -61,6 +61,17 @@ export class EventsService {
     if (rooms.length > 0) this.server?.to(rooms).emit(name, payload);
   }
 
+  /** Which of these users have the app open right now (a connected socket). */
+  async online(userIds: Iterable<string>): Promise<Set<string>> {
+    const result = new Set<string>();
+    const server = this.server;
+    if (server === null) return result;
+    for (const userId of new Set(userIds)) {
+      if ((await server.in(userRoom(userId)).fetchSockets()).length > 0) result.add(userId);
+    }
+    return result;
+  }
+
   /** Called by the gateway once the Socket.io server exists. */
   attach(server: Server): void {
     this.server = server;

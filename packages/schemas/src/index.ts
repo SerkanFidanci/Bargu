@@ -108,6 +108,9 @@ export {
   type ServerEvent,
 } from './circles.js';
 export {
+  bumpEventSchema,
+  bumpReplySchema,
+  bumpRequestSchema,
   locEventSchema,
   locGoneEventSchema,
   locationPublishSchema,
@@ -115,10 +118,18 @@ export {
   locationWithdrawSchema,
   MAX_CIRCLES_PER_REQUEST,
   MAX_ENVELOPES_PER_PUBLISH,
+  MAX_STATUS_SECONDS,
+  MIN_STATUS_SECONDS,
   publishReplySchema,
   RELAY_REFUSALS,
+  statusEventSchema,
+  statusGoneEventSchema,
+  statusPublishSchema,
+  statusSnapshotSchema,
   watchEventSchema,
   watchRequestSchema,
+  type BumpReply,
   type LocationPublish,
   type PublishReply,
+  type StatusPublish,
 } from './locations.js';
