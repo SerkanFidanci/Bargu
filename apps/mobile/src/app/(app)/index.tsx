@@ -19,7 +19,8 @@ import { useWatchCircles } from '@/features/location/use-location';
 import { memberName } from '@/features/circles/names';
 import { PeopleLayer } from '@/features/map/people-layer';
 import { MeSheet } from '@/features/home/sheets';
-import { BarguMap } from '@/features/map/bargu-map';
+import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
+import { usePeopleUi } from '@/features/map/people-ui';
 import { MapCredit } from '@/features/map/map-credit';
 import { useMe } from '@/features/profile/queries';
 import { space, touchTarget } from '@/theme';
@@ -48,6 +49,8 @@ export default function HomeScreen() {
   const sharing = useSharing();
   const myFix = useMyFix((state) => state.fix);
   const now = useNow();
+  const map = useRef<BarguMapHandle>(null);
+  const people = usePeopleUi(map, circleList.data ?? [], insets.top);
   // While the map is on screen, the circles' phones send live updates.
   useWatchCircles();
   const seers = seersOf(circleList.data ?? [], sharing, myUserId, now).map((member) => ({
@@ -70,13 +73,19 @@ export default function HomeScreen() {
   return (
     <View style={styles.screen}>
       <BarguMap
+        ref={map}
+        onPress={people.onMapPress}
         insets={{
           top: insets.top + PILL_HEIGHT,
           bottom: insets.bottom + DOCK_HEIGHT,
         }}
         focus={myFix === null ? null : [myFix.lng, myFix.lat]}
       >
-        <PeopleLayer me={me.data} circles={circleList.data ?? []} />
+        <PeopleLayer
+          me={me.data}
+          circles={circleList.data ?? []}
+          handlersFor={people.handlersFor}
+        />
         {DEV_TOOLS_ENABLED ? <SwarmLayer /> : null}
       </BarguMap>
       <MapCredit bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
@@ -107,6 +116,7 @@ export default function HomeScreen() {
           onMe={() => meSheet.current?.present()}
         />
       </Animated.View>
+      {people.overlay}
       <CirclesSheet
         ref={circles}
         onAdd={() => {

@@ -70,7 +70,7 @@ describe('email code login', () => {
 
   it('uses 8-digit codes', async () => {
     const { challengeId } = await requestCode(test, uniqueEmail());
-    expect(codeFor(test, challengeId)).toMatch(/^\d{8}$/);
+    expect(codeFor(test, challengeId)).toMatch(/^\d{4}$/);
   });
 
   it('stores no email address and no code anywhere', async () => {
@@ -120,7 +120,7 @@ describe('email code login', () => {
 });
 
 describe('brute force protection', () => {
-  it('kills a challenge after five wrong codes, even if the sixth is right', async () => {
+  it('kills a challenge after its wrong codes are spent, even if the next one is right', async () => {
     const device = newDevice();
     const { challengeId } = await requestCode(test, uniqueEmail(), device);
     const code = codeFor(test, challengeId);
@@ -141,7 +141,7 @@ describe('brute force protection', () => {
     for (let i = 0; i < OTP_LIMITS.requestsPerDevice; i++) {
       challenges.push((await requestCode(test, email, attacker)).challengeId);
     }
-    // 15 guesses at once against a budget of 10: slots are reserved before the code is compared.
+    // More guesses at once than the budget: slots are reserved before the code is compared.
     const guesses = challenges.flatMap((id) =>
       Array.from({ length: OTP_MAX_ATTEMPTS }, () =>
         verify(attacker, id, wrongCode(codeFor(test, id))),

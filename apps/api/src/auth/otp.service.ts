@@ -18,21 +18,25 @@ import { AuthKeys } from './auth-keys.js';
 import { ClientLimits, DAY, HOUR } from './client-limits.js';
 
 export const OTP_TTL_SECONDS = 10 * 60;
-/** BARGU_PLAN §3.2: a challenge dies after 5 wrong codes. */
-export const OTP_MAX_ATTEMPTS = 5;
+/** A challenge dies after 3 wrong codes (4-digit codes, docs/ADR/0012). */
+export const OTP_MAX_ATTEMPTS = 3;
 export const OTP_LIMITS = {
   /** Codes one device may request for one address per hour. */
   requestsPerDevice: 3,
   /** Codes sent to one address per day, whoever asks (no mail bombing through us). */
   requestsPerAddress: 20,
   /** Wrong codes per (address, device) per hour; only that device is locked out. */
-  failuresPerDevice: 10,
+  failuresPerDevice: 5,
   /**
    * Wrong codes per address per day across all devices; then the address is locked for everyone.
-   * With 8-digit codes this caps an attacker at 50 guesses a day (NIST SP 800-63B allows 100).
+   * With 4-digit codes (10^4) that is a 0.1 % chance a day for someone guessing…
    */
-  failuresPerAddress: 50,
+  failuresPerAddress: 10,
+  /** …and per week, so that a patient attacker stays near 10 % a year (docs/ADR/0012). */
+  failuresPerAddressWeek: 20,
 } as const;
+
+const WEEK = 7 * DAY;
 
 // Counts the attempt and returns the challenge in one atomic step; a missing (expired or used)
 // challenge is never recreated without a TTL.
@@ -57,8 +61,8 @@ return counts
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
 
 /**
- * Email one-time codes (BARGU_PLAN §3.2, docs/ADR/0005): 8 digits, 10 minutes, 5 attempts per
- * challenge. A challenge belongs to the device key that requested it, and wrong codes are counted
+ * Email one-time codes (BARGU_PLAN §3.2, docs/ADR/0005 and 0012): 4 digits, 10 minutes, 3 attempts
+ * per challenge. A challenge belongs to the device key that requested it, and wrong codes are counted
  * per (address, device) plus a daily cap per address: a stranger cannot spend a user's attempts,
  * and nobody gets more than a few dozen guesses a day. The code is derived from the challenge id
  * with a server key, so it is stored nowhere, not even hashed.
@@ -138,12 +142,17 @@ export class OtpService {
     const budgets = [
       `rl:otp-fail-d:${address}:${this.devicePseudonym(toBase64url(identityKey))}`,
       `rl:otp-fail-a:${address}`,
+      `rl:otp-fail-w:${address}`,
     ];
-    const [perDevice = 0, perAddress = 0] = (await this.redis.eval(RESERVE, {
+    const [perDevice = 0, perAddress = 0, perWeek = 0] = (await this.redis.eval(RESERVE, {
       keys: budgets,
-      arguments: [String(HOUR), String(DAY)],
+      arguments: [String(HOUR), String(DAY), String(WEEK)],
     })) as number[];
-    if (perDevice > OTP_LIMITS.failuresPerDevice || perAddress > OTP_LIMITS.failuresPerAddress) {
+    if (
+      perDevice > OTP_LIMITS.failuresPerDevice ||
+      perAddress > OTP_LIMITS.failuresPerAddress ||
+      perWeek > OTP_LIMITS.failuresPerAddressWeek
+    ) {
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'OTP_LOCKED');
     }
 
@@ -170,11 +179,16 @@ export class OtpService {
   }
 
   private async assertNotLocked(address: string, device: string): Promise<void> {
-    const [perDevice, perAddress] = await Promise.all([
+    const [perDevice, perAddress, perWeek] = await Promise.all([
       this.limiter.peek(`otp-fail-d:${address}:${device}`),
       this.limiter.peek(`otp-fail-a:${address}`),
+      this.limiter.peek(`otp-fail-w:${address}`),
     ]);
-    if (perDevice >= OTP_LIMITS.failuresPerDevice || perAddress >= OTP_LIMITS.failuresPerAddress) {
+    if (
+      perDevice >= OTP_LIMITS.failuresPerDevice ||
+      perAddress >= OTP_LIMITS.failuresPerAddress ||
+      perWeek >= OTP_LIMITS.failuresPerAddressWeek
+    ) {
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'OTP_LOCKED');
     }
   }

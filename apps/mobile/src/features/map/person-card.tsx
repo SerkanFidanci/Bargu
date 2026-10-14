@@ -1,0 +1,296 @@
+import {
+  BatteryCharging,
+  BatteryLow,
+  BatteryMedium,
+  Hand,
+  type LucideIcon,
+  MapPin,
+  Navigation,
+  UserRound,
+} from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { BackHandler, type LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
+
+import { avatarSize, elevation, radius, space, spring, useTheme } from '@/theme';
+import { useMotion } from '@/theme/use-motion';
+import { Avatar } from '@/ui/avatar';
+import { Button } from '@/ui/button';
+import { Text } from '@/ui/text';
+
+import { useNow } from '../location/clock';
+import { useMyFix } from '../location/engine';
+import { distanceBetween } from './glide';
+import { LOW_BATTERY, staleMinutes } from './people-layer';
+import type { PersonView } from './person-actions';
+import { closeCard, type PersonAction, type ScreenPoint } from './person-focus';
+
+/** Dragging the card down this far (px) closes it. */
+const DISMISS_PX = space.xxxl * 2;
+/** A location this coarse (m) came from a circle that shares only the neighbourhood or city. */
+const COARSE_M = 500;
+const HEADER = avatarSize.lg;
+const MARKER = avatarSize.md;
+
+function useBackToClose(open: boolean): void {
+  useEffect(() => {
+    if (!open) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      closeCard();
+      return true;
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, [open]);
+}
+
+function distanceText(metres: number, language: string): string {
+  const format = new Intl.NumberFormat(language, {
+    maximumFractionDigits: metres < 10_000 ? 1 : 0,
+  });
+  return metres < 1_000 ? `${String(Math.round(metres))} m` : `${format.format(metres / 1_000)} km`;
+}
+
+/**
+ * A person's card (BARGU_PLAN §4.3 "Kişi Sheet'i"): how long ago, where (place name read from the
+ * map on the phone), how far, battery, and the same actions as the radial menu. Opening it, their
+ * avatar flies from the map into the card (a shared-element transition on the UI thread); drag
+ * down, tap the map or press back to close it.
+ */
+export function PersonCard({
+  person,
+  from,
+  place,
+  onAction,
+  onHeight,
+}: {
+  person: PersonView;
+  /** Where on screen their avatar was tapped. */
+  from: ScreenPoint;
+  /** Place name, once the map has it (null: none nearby, undefined: still looking). */
+  place: string | null | undefined;
+  onAction: (action: PersonAction) => void;
+  /** The card's height, so the map keeps the person visible above it. */
+  onHeight: (height: number) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const now = useNow();
+  const myFix = useMyFix((state) => state.fix);
+  const motion = useMotion();
+  const [landed, setLanded] = useState(false);
+  const started = useRef(false);
+  const drag = useSharedValue(0);
+  const flyX = useSharedValue(0);
+  const flyY = useSharedValue(0);
+  const flyScale = useSharedValue(1);
+  const flyShown = useSharedValue(0);
+  useBackToClose(true);
+
+  const loc = person.location?.loc ?? null;
+  const minutes = loc === null ? undefined : staleMinutes(loc.ts, now);
+
+  const onLayout = (event: LayoutChangeEvent) => {
+    const { y, height } = event.nativeEvent.layout;
+    onHeight(height);
+    if (started.current) return;
+    started.current = true;
+    // The header avatar's centre on screen, from the card's own layout (no transforms involved).
+    const to = { x: space.xl + HEADER / 2, y: y + space.xl + HEADER / 2 };
+    const config = { ...spring.snappy, reduceMotion: ReduceMotion.System };
+    flyX.set(from.x - to.x);
+    flyY.set(from.y - to.y);
+    flyScale.set(MARKER / HEADER);
+    flyShown.set(1);
+    flyX.set(withSpring(0, config));
+    flyY.set(withSpring(0, config));
+    flyScale.set(
+      withSpring(1, config, (finished) => {
+        if (finished === true) scheduleOnRN(setLanded, true);
+      }),
+    );
+  };
+
+  const flying = useAnimatedStyle(() => ({
+    opacity: flyShown.get(),
+    transform: [{ translateX: flyX.get() }, { translateY: flyY.get() }, { scale: flyScale.get() }],
+  }));
+  const card = useAnimatedStyle(() => ({ transform: [{ translateY: Math.max(0, drag.get()) }] }));
+
+  const pan = Gesture.Pan()
+    .activeOffsetY(space.sm)
+    .onUpdate((event) => {
+      drag.set(event.translationY);
+    })
+    .onEnd((event) => {
+      if (event.translationY > DISMISS_PX) {
+        scheduleOnRN(closeCard);
+        return;
+      }
+      drag.set(withSpring(0, spring.snappy));
+    });
+
+  const when =
+    loc === null
+      ? t('map.card.noLocation')
+      : minutes === undefined
+        ? t('map.card.now')
+        : minutes < 60
+          ? t('map.card.minutesAgo', { minutes })
+          : t('map.card.hoursAgo', { hours: Math.floor(minutes / 60) });
+  const far =
+    loc === null || myFix === null
+      ? null
+      : distanceText(distanceBetween(myFix, loc), i18n.language);
+  const BatteryIcon =
+    loc?.chg === true
+      ? BatteryCharging
+      : (loc?.bat ?? 100) < LOW_BATTERY
+        ? BatteryLow
+        : BatteryMedium;
+
+  return (
+    <Animated.View entering={motion.enterUp} onLayout={onLayout} style={styles.dock}>
+      <GestureDetector gesture={pan}>
+        <Animated.View
+          testID="person-card"
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surfaceRaised,
+              boxShadow: elevation.floating,
+              paddingBottom: insets.bottom + space.lg,
+            },
+            card,
+          ]}
+        >
+          <View style={styles.header}>
+            <Animated.View style={[styles.avatar, flying, landed ? null : styles.inFlight]}>
+              <Avatar avatar={person.avatar} name={person.name} size="lg" />
+            </Animated.View>
+            <View style={styles.titles}>
+              <Text variant="title2" numberOfLines={1}>
+                {person.name}
+              </Text>
+              <Text variant="footnote" color="textMuted">
+                {person.handle === undefined ? when : `${person.handle} · ${when}`}
+              </Text>
+            </View>
+          </View>
+          {loc === null ? null : (
+            <View style={styles.facts}>
+              <Fact
+                icon={MapPin}
+                text={place ?? (place === null ? t('map.card.placeUnknown') : '…')}
+              />
+              {far === null ? null : (
+                <Fact icon={Navigation} text={t('map.card.distance', { far })} />
+              )}
+              <Fact
+                icon={BatteryIcon}
+                text={
+                  loc.chg
+                    ? t('map.card.batteryCharging', { level: loc.bat })
+                    : t('map.card.battery', { level: loc.bat })
+                }
+                danger={!loc.chg && loc.bat < LOW_BATTERY}
+              />
+              {loc.acc >= COARSE_M ? (
+                <Fact icon={MapPin} text={t('map.card.coarse')} muted />
+              ) : null}
+            </View>
+          )}
+          <View style={styles.actions}>
+            <View style={styles.action}>
+              <Button
+                label={t('map.actions.poke')}
+                icon={Hand}
+                onPress={() => {
+                  onAction('poke');
+                }}
+              />
+            </View>
+            <View style={styles.action}>
+              <Button
+                label={t('map.actions.directions')}
+                icon={Navigation}
+                variant="secondary"
+                disabled={loc === null}
+                onPress={() => {
+                  onAction('directions');
+                }}
+              />
+            </View>
+            <View style={styles.action}>
+              <Button
+                label={t('map.actions.profile')}
+                icon={UserRound}
+                variant="secondary"
+                onPress={() => {
+                  onAction('profile');
+                }}
+              />
+            </View>
+          </View>
+        </Animated.View>
+      </GestureDetector>
+    </Animated.View>
+  );
+}
+
+function Fact({
+  icon: Icon,
+  text,
+  danger = false,
+  muted = false,
+}: {
+  icon: LucideIcon;
+  text: string;
+  danger?: boolean;
+  muted?: boolean;
+}) {
+  const { colors } = useTheme();
+  const color = danger ? colors.danger : colors.textMuted;
+  return (
+    <View style={styles.fact}>
+      <Icon color={color} size={18} strokeWidth={2.25} />
+      <Text
+        variant="callout"
+        color={muted || danger ? 'textMuted' : 'text'}
+        style={styles.factText}
+      >
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  dock: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  card: {
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: space.xl,
+    gap: space.lg,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: HEADER },
+  avatar: { width: HEADER, height: HEADER },
+  inFlight: { zIndex: 1 },
+  titles: { flex: 1, gap: space.xxs },
+  facts: { gap: space.sm },
+  fact: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  factText: { flex: 1 },
+  actions: { flexDirection: 'row', gap: space.sm },
+  action: { flex: 1 },
+});

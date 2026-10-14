@@ -3,9 +3,10 @@ import {
   type CameraRef,
   type LngLat,
   Map,
+  type MapRef,
   type ViewPadding,
 } from '@maplibre/maplibre-react-native';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, type Ref, useEffect, useImperativeHandle, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
@@ -13,6 +14,7 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { duration } from '@/theme/motion';
 
 import { useMapScheme } from './appearance';
+import { PLACE_LAYERS, placeName } from './place-name';
 import { FOCUS_ZOOM, INITIAL_VIEW, mapStyle } from './style';
 
 export interface BarguMapProps {
@@ -21,19 +23,59 @@ export interface BarguMapProps {
   /** Where to look once it is known (the user's own position); later changes do not move it. */
   focus?: LngLat | null;
   children?: ReactNode;
+  ref?: Ref<BarguMapHandle>;
+  /** A tap on the map itself (not on a person). */
+  onPress?: () => void;
 }
+
+/** What the screens may ask of the map. */
+export interface BarguMapHandle {
+  /** Moves the camera to a point, keeping it clear of the `bottom` px a card covers. */
+  focusOn(at: LngLat, bottom: number): void;
+  /** The place name around a point, read from the labels the map shows (place-name.ts). */
+  placeName(at: LngLat, language: string): Promise<string | null>;
+}
+
+/** How far around a point (px) the map's labels are searched for its place name. */
+const PLACE_SEARCH_PX = 160;
 
 /**
  * The map behind everything. Tiles, fonts and icons come from our own server (no third party learns
  * the viewport, i.e. where the user looks). Light by day, dark at night unless the user picks one
  * (appearance.ts). The OpenStreetMap credit is drawn by MapCredit, not the native button.
  */
-export function BarguMap({ insets, focus = null, children }: BarguMapProps) {
+export function BarguMap({ insets, focus = null, children, ref, onPress }: BarguMapProps) {
   const { t } = useTranslation();
   const scheme = useMapScheme();
   const camera = useRef<CameraRef>(null);
+  const map = useRef<MapRef>(null);
   const focused = useRef(false);
   const reduced = useReducedMotion();
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      focusOn(at, bottom) {
+        const padding = { ...insets, bottom: Math.max(insets.bottom ?? 0, bottom) };
+        if (reduced) camera.current?.jumpTo({ center: at, padding });
+        else camera.current?.easeTo({ center: at, padding, duration: duration.slow });
+      },
+      async placeName(at, language) {
+        const current = map.current;
+        if (current === null) return null;
+        const [x, y] = await current.project(at);
+        const features = await current.queryRenderedFeatures(
+          [
+            [x - PLACE_SEARCH_PX, y - PLACE_SEARCH_PX],
+            [x + PLACE_SEARCH_PX, y + PLACE_SEARCH_PX],
+          ],
+          { layers: PLACE_LAYERS },
+        );
+        return placeName(features, { lng: at[0], lat: at[1] }, language);
+      },
+    }),
+    [insets, reduced],
+  );
 
   useEffect(() => {
     if (focus === null || focused.current || camera.current === null) return;
@@ -44,7 +86,9 @@ export function BarguMap({ insets, focus = null, children }: BarguMapProps) {
 
   return (
     <Map
+      ref={map}
       testID="map"
+      {...(onPress === undefined ? {} : { onPress })}
       accessibilityLabel={t('main.map')}
       style={StyleSheet.absoluteFill}
       mapStyle={mapStyle(scheme)}

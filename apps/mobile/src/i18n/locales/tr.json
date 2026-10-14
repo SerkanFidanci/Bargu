@@ -38,7 +38,7 @@
   "auth": {
     "email": {
       "title": "E-posta adresin",
-      "body": "Sana 8 haneli bir giriş kodu göndereceğiz. Şifre yok, telefon numarası yok.",
+      "body": "Sana 4 haneli bir giriş kodu göndereceğiz. Şifre yok, telefon numarası yok.",
       "label": "E-posta",
       "placeholder": "ornek@eposta.com",
       "submit": "Kod gönder",
@@ -46,8 +46,8 @@
     },
     "code": {
       "title": "Kodu yaz",
-      "body": "{{email}} adresine 8 haneli bir kod gönderdik. Gelen kutunu kontrol et.",
-      "label": "Giriş kodu, 8 hane",
+      "body": "{{email}} adresine 4 haneli bir kod gönderdik. Gelen kutunu kontrol et.",
+      "label": "Giriş kodu, 4 hane",
       "verifying": "Kontrol ediliyor…",
       "resend": "Kodu tekrar gönder",
       "resendIn": "{{seconds}} sn sonra tekrar gönderebilirsin",
@@ -57,7 +57,14 @@
       "invalid": "Kod yanlış. Tekrar dene.",
       "expired": "Bu kodun süresi doldu. Yeni bir kod iste.",
       "locked": "Çok fazla yanlış deneme. Yeni bir kod iste.",
-      "unavailable": "Bu hesap kullanılamıyor."
+      "unavailable": "Bu hesap kullanılamıyor.",
+      "hint": "Kodu yaz ya da e-postadan kopyalayıp yapıştır.",
+      "verified": "Doğrulandı",
+      "paste": "Kopyaladığın kodu yapıştır",
+      "pasteShort": "Yapıştır",
+      "nothingToPaste": "Panoda 4 haneli bir kod yok.",
+      "messageEyebrow": "E-POSTA · GİRİŞ KODU",
+      "messageBody": "Kodu kopyaladıysan buradan yapıştır"
     },
     "passkey": {
       "signIn": "Passkey ile giriş yap",
@@ -430,5 +437,33 @@
       "freezeDetail": "Son konumun haritada kalır, yenisi gönderilmez.",
       "hideDetail": "Herkesin haritasından kaybolursun, konum gönderilmez."
     }
+  },
+  "map": {
+    "actions": {
+      "poke": "Dürt",
+      "directions": "Yol tarifi",
+      "profile": "Profil",
+      "notifications": "Bildirimler",
+      "close": "Menüyü kapat"
+    },
+    "card": {
+      "noLocation": "Konumu şu an görünmüyor",
+      "now": "şimdi",
+      "minutesAgo": "{{minutes}} dk önce",
+      "hoursAgo": "{{hours}} sa önce",
+      "placeUnknown": "Yer adı yok",
+      "distance": "{{far}} uzakta",
+      "battery": "Pil %{{level}}",
+      "batteryCharging": "Pil %{{level}}, şarj oluyor",
+      "coarse": "Yaklaşık konum (seninle mahalle ya da şehir düzeyinde paylaşıyor)",
+      "close": "Kartı kapat"
+    },
+    "poke": {
+      "sent": "{{name}} dürtüldü",
+      "received": "{{name}} seni dürttü",
+      "limited": "Biraz bekle, çok sık dürttün.",
+      "failed": "Dürtülemedi. Bağlantını kontrol et."
+    },
+    "soon": "Kişiye özel bildirimler yakında geliyor."
   }
 }

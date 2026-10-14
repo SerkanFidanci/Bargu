@@ -1,4 +1,5 @@
 import {
+  bumpEventSchema,
   type Circle,
   locationSnapshotSchema,
   locEventSchema,
@@ -14,11 +15,16 @@ import * as Battery from 'expo-battery';
 import { z } from 'zod';
 import { create } from 'zustand';
 
+import i18n from '@/i18n';
+import { feedback } from '@/theme/haptics';
+import { toast } from '@/ui/toast';
+
 import { api, onSignedOut, useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
 import { useCircleKeys } from '../circles/circle-sync';
 import { circleSync, keys, liveRequest, onLiveMessage, onOnline } from '../live/live-session';
 import { queryClient } from '../query-client';
+import { receivePoke } from '../social/poke';
 import { isVaultOpen, vault } from '../storage/vault';
 import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle } from './engine';
 import { createReceiver } from './receive';
@@ -133,6 +139,13 @@ const receiver = createReceiver({
   keys,
   circles: () => cachedCircles() ?? [],
   store: vault,
+  // A poke: a buzz, their avatar bounces, and a line saying who it was.
+  onBump: (circleId, userId, ts) => {
+    const name = receivePoke(circleId, userId, ts);
+    if (name === null) return;
+    feedback('bump');
+    toast.info(i18n.t('map.poke.received', { name }));
+  },
 });
 
 let restored = false;
@@ -157,6 +170,9 @@ onLiveMessage((name, payload) => {
   } else if (name === 'loc.gone') {
     const parsed = locGoneEventSchema.safeParse(payload);
     if (parsed.success) receiver.gone(parsed.data.circleId, parsed.data.userId);
+  } else if (name === 'bump') {
+    const parsed = bumpEventSchema.safeParse(payload);
+    if (parsed.success) receiver.receive(parsed.data.envelope);
   } else if (name === 'watch') {
     const parsed = watchEventSchema.safeParse(payload);
     // Only a circle this phone shares with may switch it to live updates.

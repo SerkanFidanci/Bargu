@@ -60,6 +60,13 @@ export function useMotion() {
         : springy(ZoomIn.springify(), spring.bouncy)
             .delay(index * choreography.digitStagger)
             .reduceMotion(ReduceMotion.System),
+    /** The n-th item of the radial menu fanning out around a held avatar. */
+    radialAt: (index: number) =>
+      reduced
+        ? fade
+        : springy(ZoomIn.springify(), spring.bouncy)
+            .delay(index * choreography.radialStagger)
+            .reduceMotion(ReduceMotion.System),
     fadeIn: FadeIn.duration(duration.base),
     fadeOut: FadeOut.duration(duration.fast),
   };

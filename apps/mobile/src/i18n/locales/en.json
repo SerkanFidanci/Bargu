@@ -38,7 +38,7 @@
   "auth": {
     "email": {
       "title": "Your email",
-      "body": "We'll send you an 8-digit sign-in code. No password, no phone number.",
+      "body": "We'll send you a 4-digit sign-in code. No password, no phone number.",
       "label": "Email",
       "placeholder": "you@example.com",
       "submit": "Send code",
@@ -46,8 +46,8 @@
     },
     "code": {
       "title": "Enter the code",
-      "body": "We sent an 8-digit code to {{email}}. Check your inbox.",
-      "label": "Sign-in code, 8 digits",
+      "body": "We sent a 4-digit code to {{email}}. Check your inbox.",
+      "label": "Sign-in code, 4 digits",
       "verifying": "Checking…",
       "resend": "Send the code again",
       "resendIn": "You can resend in {{seconds}} s",
@@ -57,7 +57,14 @@
       "invalid": "Wrong code. Try again.",
       "expired": "This code has expired. Ask for a new one.",
       "locked": "Too many wrong attempts. Ask for a new code.",
-      "unavailable": "This account can't be used."
+      "unavailable": "This account can't be used.",
+      "hint": "Type the code, or copy it from the email and paste it.",
+      "verified": "Verified",
+      "paste": "Paste the code you copied",
+      "pasteShort": "Paste",
+      "nothingToPaste": "No 4-digit code on the clipboard.",
+      "messageEyebrow": "EMAIL · LOGIN CODE",
+      "messageBody": "Copied the code? Paste it here"
     },
     "passkey": {
       "signIn": "Sign in with a passkey",
@@ -430,5 +437,33 @@
       "freezeDetail": "Your last location stays on the map; no new one is sent.",
       "hideDetail": "You disappear from everyone’s map; no location is sent."
     }
+  },
+  "map": {
+    "actions": {
+      "poke": "Poke",
+      "directions": "Directions",
+      "profile": "Profile",
+      "notifications": "Notifications",
+      "close": "Close the menu"
+    },
+    "card": {
+      "noLocation": "Location not visible right now",
+      "now": "now",
+      "minutesAgo": "{{minutes}} min ago",
+      "hoursAgo": "{{hours}} h ago",
+      "placeUnknown": "No place name",
+      "distance": "{{far}} away",
+      "battery": "Battery {{level}}%",
+      "batteryCharging": "Battery {{level}}%, charging",
+      "coarse": "Approximate location (they share their area or city with you)",
+      "close": "Close the card"
+    },
+    "poke": {
+      "sent": "You poked {{name}}",
+      "received": "{{name}} poked you",
+      "limited": "Wait a moment, that was a lot of pokes.",
+      "failed": "Could not poke. Check your connection."
+    },
+    "soon": "Notification settings per person are coming soon."
   }
 }

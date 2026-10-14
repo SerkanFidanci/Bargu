@@ -1,11 +1,19 @@
 import type { Avatar as AvatarData } from '@bargu/schemas';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { avatarPalette, space } from '@/theme';
+import { avatarPalette, space, spring, timing } from '@/theme';
 import { AvatarMarker, PIN_HEIGHT } from '@/ui/avatar-marker';
 
 import { trailLevel } from './glide';
+import { type PersonHandlers, PersonGestures } from './person-gestures';
 
 /** Dots in a trail and their spacing (px), by trail level (glide.ts trailLevel). */
 const TRAIL = {
@@ -32,6 +40,10 @@ export interface MapAvatarProps {
   lowBattery?: boolean | undefined;
   /** Drawn above the pin (e.g. a status bubble). */
   above?: ReactNode;
+  /** Tap for the card, hold for the radial menu (others' avatars only). */
+  handlers?: PersonHandlers | undefined;
+  /** When they last poked this phone: the avatar jumps once. */
+  pokedAt?: number | undefined;
 }
 
 /**
@@ -49,10 +61,27 @@ export function MapAvatar({
   charging,
   lowBattery,
   above,
+  handlers,
+  pokedAt,
 }: MapAvatarProps) {
+  const lift = useSharedValue(0);
+  useEffect(() => {
+    if (pokedAt === undefined) return;
+    lift.set(withSequence(withTiming(-space.xl, timing.fast), withSpring(0, spring.bouncy)));
+  }, [pokedAt, lift]);
+  const jumping = useAnimatedStyle(() => ({ transform: [{ translateY: lift.get() }] }));
   const level =
     staleMinutes === undefined && hdg !== null && hdg !== undefined ? trailLevel(spd) : 0;
   const color = avatarPalette[avatar?.color ?? 0] ?? avatarPalette[0];
+  const pin = (
+    <AvatarMarker
+      name={name}
+      avatar={avatar}
+      staleMinutes={staleMinutes}
+      charging={charging}
+      lowBattery={lowBattery}
+    />
+  );
   return (
     <View style={styles.box} pointerEvents="box-none">
       {level === 0 ? null : (
@@ -87,15 +116,15 @@ export function MapAvatar({
           {above}
         </View>
       )}
-      <View style={styles.pin} pointerEvents="box-none">
-        <AvatarMarker
-          name={name}
-          avatar={avatar}
-          staleMinutes={staleMinutes}
-          charging={charging}
-          lowBattery={lowBattery}
-        />
-      </View>
+      <Animated.View style={[styles.pin, jumping]} pointerEvents="box-none">
+        {handlers === undefined ? (
+          pin
+        ) : (
+          <PersonGestures handlers={handlers}>
+            <View collapsable={false}>{pin}</View>
+          </PersonGestures>
+        )}
+      </Animated.View>
     </View>
   );
 }

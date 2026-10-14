@@ -36,13 +36,15 @@ const REPLAY_KEY = 'replay:v1';
 const LOCATIONS_KEY = 'locations:v1';
 const entryKey = (circleId: string, userId: string) => `${circleId}:${userId}`;
 
-export type Outcome = 'shown' | 'removed' | 'waiting' | 'ignored';
+export type Outcome = 'shown' | 'removed' | 'bumped' | 'waiting' | 'ignored';
 
 export interface ReceiverDeps {
   keys: () => KeyStore;
   /** Circles as currently known (cache); a circle missing here is waited for. */
   circles: () => readonly Circle[];
   store: () => KeyValueStore;
+  /** A member poked this phone (BARGU_PLAN §4.3 "Dürt"). */
+  onBump?: (circleId: string, userId: string, ts: number) => void;
   now?: () => number;
 }
 
@@ -61,7 +63,7 @@ function isVisible(circles: readonly Circle[], circleId: string, userId: string)
  * has not arrived yet waits (one per sender) and is tried again after the next key sync; messages
  * from a member whose identity key changed are ignored until the user accepts the change.
  */
-export function createReceiver({ keys, circles, store, now = Date.now }: ReceiverDeps) {
+export function createReceiver({ keys, circles, store, onBump, now = Date.now }: ReceiverDeps) {
   let replay: ReplayGuard | null = null;
   const waiting = new Map<string, MessageEnvelope>();
 
@@ -137,6 +139,10 @@ export function createReceiver({ keys, circles, store, now = Date.now }: Receive
       if (payload.kind === 'share_stop') {
         remove(circle.id, sender.userId);
         return 'removed';
+      }
+      if (payload.kind === 'bump') {
+        onBump?.(circle.id, sender.userId, payload.ts);
+        return 'bumped';
       }
       return 'ignored';
     } catch (error) {

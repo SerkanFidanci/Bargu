@@ -2,7 +2,10 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 
 import { ApiError } from '@/features/auth/api-client';
 import i18n from '@/i18n';
+import { orbit } from '@/theme';
 
+const mockClipboard = jest.fn<Promise<string>, []>();
+jest.mock('expo-clipboard', () => ({ getStringAsync: () => mockClipboard() }));
 jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
   DEV_TOOLS_ENABLED: false,
@@ -131,12 +134,12 @@ describe('code step', () => {
     jest.useRealTimers();
   });
 
-  it('verifies as soon as all 8 digits are in', async () => {
+  it('verifies as soon as all 4 digits are in', async () => {
     mockVerifyCode.mockResolvedValue({});
     await render(<CodeScreen />);
-    await fireEvent.changeText(screen.getByLabelText('Giriş kodu, 8 hane'), '12345678');
+    await fireEvent.changeText(screen.getByLabelText('Giriş kodu, 4 hane'), '1234');
     await waitFor(() => {
-      expect(mockVerifyCode).toHaveBeenCalledWith(mockParams.challengeId, '12345678');
+      expect(mockVerifyCode).toHaveBeenCalledWith(mockParams.challengeId, '1234');
     });
   });
 
@@ -147,10 +150,26 @@ describe('code step', () => {
   ])('explains %s and clears the boxes', async (code, message) => {
     mockVerifyCode.mockRejectedValue(new ApiError(400, code));
     await render(<CodeScreen />);
-    const field = screen.getByLabelText('Giriş kodu, 8 hane');
-    await fireEvent.changeText(field, '12345678');
+    const field = screen.getByLabelText('Giriş kodu, 4 hane');
+    await fireEvent.changeText(field, '1234');
     expect(await screen.findByText(message)).toBeTruthy();
-    expect(screen.getByLabelText('Giriş kodu, 8 hane').props.value).toBe('');
+    // The wrong code stays red for a moment, then the boxes empty for another try.
+    await act(async () => {
+      jest.advanceTimersByTime(orbit.errorHold);
+      await Promise.resolve();
+    });
+    expect(screen.getByLabelText('Giriş kodu, 4 hane').props.value).toBe('');
+  });
+
+  it('pastes a code copied from the email, only when asked', async () => {
+    mockVerifyCode.mockResolvedValue({});
+    mockClipboard.mockResolvedValue('Bargu giriş kodun: 4719. 10 dakika geçerli.');
+    await render(<CodeScreen />);
+    expect(mockClipboard).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Kopyaladığın kodu yapıştır' }));
+    await waitFor(() => {
+      expect(mockVerifyCode).toHaveBeenCalledWith(mockParams.challengeId, '4719');
+    });
   });
 
   it('holds back a new code for a minute, then sends one for the same address', async () => {

@@ -73,6 +73,25 @@ export const glide = {
   trailSpeeds: [1, 3, 8],
 } as const;
 
+/**
+ * The login code (ui/code-input.tsx): with the last digit the boxes curl onto an orbit, circle it
+ * while the server checks the code (the orbit is the loading state), and on success screw down a
+ * turn and a quarter into one verified tile. A wrong code unwinds them back into the row.
+ */
+export const orbit = {
+  curl: duration.base,
+  /** One full turn while waiting for the server. */
+  turn: 900,
+  screw: duration.slow,
+  /** Turns made while screwing down into the tile. */
+  screwTurns: 1.25,
+  /** How long a wrong code stays red before the boxes empty for another try. */
+  errorHold: 900,
+  /** Boxes shrink to this on the orbit, and the ring is dotted (dash, gap) so it does not read as a spinner. */
+  orbitScale: 0.72,
+  ringDash: [2, 8],
+} as const;
+
 /** Sequencing of several elements: how they enter one after another and how they react. */
 export const choreography = {
   /** Delay between consecutive elements entering (titles, fields, rows). */
@@ -87,6 +106,10 @@ export const choreography = {
   addTurn: 45,
   /** Safety number groups appear one after another, faster than rows. */
   digitStagger: 35,
+  /** Holding a person on the map this long opens the radial menu (BARGU_PLAN §4.3). */
+  hold: 350,
+  /** Radial menu items pop out one after another, quicker than rows. */
+  radialStagger: 30,
 } as const;
 
 /** Haptic feedback per interaction kind (expo-haptics), see haptics.ts. */

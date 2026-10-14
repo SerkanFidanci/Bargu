@@ -125,15 +125,15 @@ describe('one-time codes', () => {
     const mac = createHmac('sha256', key)
       .update(Buffer.concat([Buffer.from('bargu/v1/otp\0'), uuidToBytes(challenge)]))
       .digest();
-    const expected = String(mac.readUIntBE(0, 6) % 100_000_000).padStart(8, '0');
+    const expected = String(mac.readUIntBE(0, 6) % 10_000).padStart(4, '0');
     expect(deriveOtpCode(key, challenge)).toBe(expected);
   });
 
-  it('are eight digits and differ per challenge and key (property)', () => {
+  it('are four digits and differ per challenge and key (property)', () => {
     fc.assert(
       fc.property(fc.uuid({ version: 7 }), (id) => {
         const code = deriveOtpCode(key, id);
-        expect(code).toMatch(/^\d{8}$/);
+        expect(code).toMatch(/^\d{4}$/);
         expect(verifyOtpCode(key, id, code)).toBe(true);
       }),
       { numRuns: 100 },

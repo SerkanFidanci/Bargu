@@ -104,8 +104,11 @@ export function verifyRequestSignature(
   }
 }
 
-/** 8 digits: 10^8 codes keep guessing infeasible within the attempt limits (docs/ADR/0005). */
-export const OTP_DIGITS = 8;
+/**
+ * 4 digits (docs/ADR/0012, a product decision): 10^4 codes, so guessing is held back by the
+ * attempt budgets in apps/api otp.service (3 per code, 10 a day and 20 a week per address).
+ */
+export const OTP_DIGITS = 4;
 const OTP_MODULUS = 10 ** OTP_DIGITS;
 
 function requireKey(key: Uint8Array): void {
@@ -116,7 +119,7 @@ function requireKey(key: Uint8Array): void {
  * The one-time code for a login challenge, derived instead of stored (HOTP-style, RFC 4226, with
  * HMAC-SHA256 and the challenge id as the moving factor). Neither the database nor the job queue
  * ever holds a code or a hash of one; without the server key a leaked challenge reveals nothing.
- * 48 bits reduced mod 10^8: bias below 10^-6.
+ * 48 bits reduced mod 10^4: bias below 10^-10.
  */
 export function deriveOtpCode(otpKey: Uint8Array, challengeId: string): string {
   requireKey(otpKey);

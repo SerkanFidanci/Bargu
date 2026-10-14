@@ -81,7 +81,7 @@ export type DeviceRegistration = z.infer<typeof deviceRegistrationSchema>;
 export const otpVerifySchema = z
   .object({
     challengeId: z.uuid(),
-    code: z.string().regex(/^\d{8}$/),
+    code: z.string().regex(/^\d{4}$/),
     device: deviceRegistrationSchema,
   })
   .strict();

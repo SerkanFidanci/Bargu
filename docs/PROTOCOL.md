@@ -261,8 +261,8 @@ Sunucu: saat farkı ≤ 60 sn, her `(cihaz, nonce)` bir kez (Redis, 130 sn), imz
 anahtarıyla. Girişte henüz kayıtlı anahtar yoktur: istek, gönderilen anahtar paketindeki kimlik
 anahtarıyla imzalanır (anahtara sahip olma kanıtı).
 
-**Giriş kodu**: `kod = (ilk 48 bit HMAC-SHA256(OTP_KEY, "bargu/v1/otp\0" ‖ challengeId(16))) mod 10⁸`,
-8 haneye sıfırla doldurulur. Kod veya özeti hiçbir yerde saklanmaz. Meydan okuma, kodu isteyen cihazın
+**Giriş kodu**: `kod = (ilk 48 bit HMAC-SHA256(OTP_KEY, "bargu/v1/otp\0" ‖ challengeId(16))) mod 10⁴`,
+4 haneye sıfırla doldurulur (ADR 0012; önce 8 haneydi). Kod veya özeti hiçbir yerde saklanmaz. Meydan okuma, kodu isteyen cihazın
 kimlik anahtarına bağlıdır; yalnızca o anahtarla imzalı giriş kodu kullanabilir.
 
 **Takma ad** (ör. hız sınırı anahtarındaki istemci ağı): ilk 16 baytı hex olarak

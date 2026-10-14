@@ -4,8 +4,10 @@ import { memberName } from '../circles/names';
 import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
 import { bestPerPerson, useLocations } from '../location/receive';
+import { usePokes } from '../social/poke';
 import { GlidingMarker } from './gliding-marker';
 import { MapAvatar } from './map-avatar';
+import type { PersonHandlers } from './person-gestures';
 
 /**
  * A location older than this is shown grey with its age. A still phone sends a heartbeat every
@@ -34,8 +36,18 @@ function cardOf(circles: readonly Circle[], userId: string): MemberCard | undefi
  * circles), and the user's own avatar at the phone's position. Avatars glide between locations
  * (gliding-marker.tsx) and show without text whether someone moves, charges or runs out of battery.
  */
-export function PeopleLayer({ me, circles }: { me: Me; circles: readonly Circle[] }) {
+export function PeopleLayer({
+  me,
+  circles,
+  handlersFor,
+}: {
+  me: Me;
+  circles: readonly Circle[];
+  /** Tap and hold on someone (card, radial menu). */
+  handlersFor?: (userId: string) => PersonHandlers;
+}) {
   const locations = useLocations();
+  const pokes = usePokes();
   const myFix = useMyFix((state) => state.fix);
   const now = useNow();
   return (
@@ -59,6 +71,8 @@ export function PeopleLayer({ me, circles }: { me: Me; circles: readonly Circle[
               hdg={loc.hdg}
               charging={loc.chg}
               lowBattery={!loc.chg && loc.bat < LOW_BATTERY}
+              handlers={handlersFor?.(entry.userId)}
+              pokedAt={pokes[entry.userId]}
             />
           </GlidingMarker>
         );

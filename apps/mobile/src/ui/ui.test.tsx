@@ -148,10 +148,12 @@ describe('Segmented', () => {
 describe('CodeInput feedback', () => {
   it('plays the error haptic when a code is rejected', async () => {
     const { rerender } = await render(
-      <CodeInput label="Giriş kodu" length={8} value="" onChange={jest.fn()} />,
+      <CodeInput label="Giriş kodu" length={4} value="" onChange={jest.fn()} />,
     );
     expect(Haptics.notificationAsync).not.toHaveBeenCalledWith('error');
-    await rerender(<CodeInput label="Giriş kodu" length={8} value="" onChange={jest.fn()} error />);
+    await rerender(
+      <CodeInput label="Giriş kodu" length={4} value="" onChange={jest.fn()} phase="wrong" />,
+    );
     expect(Haptics.notificationAsync).toHaveBeenCalledWith('error');
   });
 });
