@@ -10,6 +10,7 @@ export {
   duration,
   glide,
   haptic,
+  meetFx,
   orbit,
   press,
   spring,

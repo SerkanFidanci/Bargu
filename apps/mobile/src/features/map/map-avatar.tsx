@@ -13,6 +13,7 @@ import { avatarPalette, space, spring, timing } from '@/theme';
 import { AvatarMarker, PIN_HEIGHT } from '@/ui/avatar-marker';
 
 import { trailLevel } from './glide';
+import { MeetBurst } from './meet-burst';
 import { type PersonHandlers, PersonGestures } from './person-gestures';
 
 /** Dots in a trail and their spacing (px), by trail level (glide.ts trailLevel). */
@@ -44,6 +45,8 @@ export interface MapAvatarProps {
   handlers?: PersonHandlers | undefined;
   /** When they last poked this phone: the avatar jumps once. */
   pokedAt?: number | undefined;
+  /** A meeting to celebrate around this avatar (meet-burst.tsx). */
+  burst?: { at: number; colors: readonly [string, string] } | null | undefined;
 }
 
 /**
@@ -63,6 +66,7 @@ export function MapAvatar({
   above,
   handlers,
   pokedAt,
+  burst,
 }: MapAvatarProps) {
   const lift = useSharedValue(0);
   useEffect(() => {
@@ -110,6 +114,9 @@ export function MapAvatar({
             );
           })}
         </View>
+      )}
+      {burst === null || burst === undefined ? null : (
+        <MeetBurst key={burst.at} at={burst.at} colors={burst.colors} />
       )}
       {above === undefined ? null : (
         <View style={styles.above} pointerEvents="box-none">

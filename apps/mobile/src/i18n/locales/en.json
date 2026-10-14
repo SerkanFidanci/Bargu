@@ -467,7 +467,9 @@
       "limited": "Wait a moment, that was a lot of pokes.",
       "failed": "Could not poke. Check your connection."
     },
-    "soon": "Notification settings per person are coming soon."
+    "soon": "Notification settings per person are coming soon.",
+    "meet": "You and {{name}} met! 🎉",
+    "cluster": "{{count}} people together: {{names}}. Tap to zoom in."
   },
   "status": {
     "title": "Your status",

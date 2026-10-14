@@ -1,15 +1,20 @@
 import type { Circle, Me, MemberCard } from '@bargu/schemas';
+import { useMemo } from 'react';
 
 import { memberName } from '../circles/names';
 import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
-import { bestPerPerson, useLocations } from '../location/receive';
+import { bestPerPerson, type ReceivedLocation, useLocations } from '../location/receive';
 import { usePokes } from '../social/poke';
 import { statusOf, useMyStatus, useStatuses } from '../social/status';
 import { StatusBubble } from '../social/status-sheet';
 import { GlidingMarker } from './gliding-marker';
 import { MapAvatar } from './map-avatar';
 import type { PersonHandlers } from './person-gestures';
+import { useMeetingWatcher } from './use-meetings';
+import { type Cluster, clusterPeople } from './cluster';
+import { useMapZoom } from './map-zoom';
+import { ClusterBubble } from './cluster-bubble';
 
 /**
  * A location older than this is shown grey with its age. A still phone sends a heartbeat every
@@ -42,23 +47,41 @@ export function PeopleLayer({
   me,
   circles,
   handlersFor,
+  onCluster,
 }: {
   me: Me;
   circles: readonly Circle[];
   /** Tap and hold on someone (card, radial menu). */
   handlersFor?: (userId: string) => PersonHandlers;
+  /** A tap on a cluster of people (the map zooms in). */
+  onCluster?: (lat: number, lng: number) => void;
 }) {
   const locations = useLocations();
   const pokes = usePokes();
   const statuses = useStatuses();
   const myStatus = useMyStatus((state) => state.status);
+  const burst = useMeetingWatcher(me, circles);
   const myFix = useMyFix((state) => state.fix);
   const now = useNow();
+  const zoom = useMapZoom((state) => state.zoom);
+  const people = bestPerPerson(locations).flatMap((entry) => {
+    const card = cardOf(circles, entry.userId);
+    return card === undefined
+      ? []
+      : [{ id: entry.userId, lat: entry.loc.lat, lng: entry.loc.lng, entry, card }];
+  });
+  const clusters = clusterPeople(people, zoom);
   return (
     <>
-      {bestPerPerson(locations).map((entry) => {
-        const card = cardOf(circles, entry.userId);
-        if (card === undefined) return null;
+      {clusters.map((cluster) => {
+        if (cluster.members.length > 1) {
+          return (
+            <ClusterMarker key={cluster.key} cluster={cluster} now={now} onPress={onCluster} />
+          );
+        }
+        const [person] = cluster.members;
+        if (person === undefined) return null;
+        const { entry, card } = person;
         const { loc } = entry;
         const status = statusOf(statuses, entry.userId, now);
         return (
@@ -90,6 +113,7 @@ export function PeopleLayer({
             avatar={me.avatar}
             spd={myFix.spd}
             hdg={myFix.hdg}
+            burst={burst}
             above={
               myStatus === null || myStatus.expiresAt <= now ? undefined : (
                 <StatusBubble status={myStatus} />
@@ -99,5 +123,44 @@ export function PeopleLayer({
         </GlidingMarker>
       )}
     </>
+  );
+}
+
+interface PersonOnMap {
+  id: string;
+  lat: number;
+  lng: number;
+  entry: ReceivedLocation;
+  card: MemberCard;
+}
+
+/** Several people merged into one liquid bubble at their centre; a tap zooms in on them. */
+function ClusterMarker({
+  cluster,
+  now,
+  onPress,
+}: {
+  cluster: Cluster<PersonOnMap>;
+  now: number;
+  onPress: ((lat: number, lng: number) => void) | undefined;
+}) {
+  const newest = Math.max(...cluster.members.map((member) => member.entry.loc.ts));
+  // A new object only when the centre moves, so the marker glides instead of restarting.
+  const fix = useMemo(
+    () => ({ lat: cluster.lat, lng: cluster.lng, ts: newest }),
+    [cluster.lat, cluster.lng, newest],
+  );
+  return (
+    <GlidingMarker id={cluster.key} fix={fix} receivedAt={now}>
+      <ClusterBubble
+        people={cluster.members.map((member) => ({
+          id: member.id,
+          name: memberName(member.card),
+          avatar: member.card.avatar,
+        }))}
+        offsets={cluster.offsets}
+        onPress={() => onPress?.(cluster.lat, cluster.lng)}
+      />
+    </GlidingMarker>
   );
 }

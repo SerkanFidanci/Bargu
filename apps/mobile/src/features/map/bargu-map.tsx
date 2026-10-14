@@ -14,6 +14,7 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { duration } from '@/theme/motion';
 
 import { useMapScheme } from './appearance';
+import { useMapZoom } from './map-zoom';
 import { PLACE_LAYERS, placeName } from './place-name';
 import { FOCUS_ZOOM, INITIAL_VIEW, mapStyle } from './style';
 
@@ -32,9 +33,15 @@ export interface BarguMapProps {
 export interface BarguMapHandle {
   /** Moves the camera to a point, keeping it clear of the `bottom` px a card covers. */
   focusOn(at: LngLat, bottom: number): void;
+  /** Zooms in on a point (a cluster of people, so they separate). */
+  zoomIn(at: LngLat): void;
   /** The place name around a point, read from the labels the map shows (place-name.ts). */
   placeName(at: LngLat, language: string): Promise<string | null>;
 }
+
+/** How much a tap on a cluster zooms in (each step doubles the scale). */
+const ZOOM_STEP = 2;
+const MAX_ZOOM = 18;
 
 /** How far around a point (px) the map's labels are searched for its place name. */
 const PLACE_SEARCH_PX = 160;
@@ -59,6 +66,13 @@ export function BarguMap({ insets, focus = null, children, ref, onPress }: Bargu
         const padding = { ...insets, bottom: Math.max(insets.bottom ?? 0, bottom) };
         if (reduced) camera.current?.jumpTo({ center: at, padding });
         else camera.current?.easeTo({ center: at, padding, duration: duration.slow });
+      },
+      zoomIn(at) {
+        void map.current?.getZoom().then((zoom) => {
+          const target = Math.min(zoom + ZOOM_STEP, MAX_ZOOM);
+          if (reduced) camera.current?.jumpTo({ center: at, zoom: target });
+          else camera.current?.easeTo({ center: at, zoom: target, duration: duration.slow });
+        });
       },
       async placeName(at, language) {
         const current = map.current;
@@ -89,6 +103,10 @@ export function BarguMap({ insets, focus = null, children, ref, onPress }: Bargu
       ref={map}
       testID="map"
       {...(onPress === undefined ? {} : { onPress })}
+      // Clusters depend on the zoom: recomputed when the map settles, not on every frame.
+      onRegionDidChange={(event) => {
+        useMapZoom.setState({ zoom: event.nativeEvent.zoom });
+      }}
       accessibilityLabel={t('main.map')}
       style={StyleSheet.absoluteFill}
       mapStyle={mapStyle(scheme)}
@@ -101,7 +119,7 @@ export function BarguMap({ insets, focus = null, children, ref, onPress }: Bargu
       touchRotate={false}
       attribution={false}
     >
-      <Camera ref={camera} initialViewState={INITIAL_VIEW} minZoom={3} maxZoom={18} />
+      <Camera ref={camera} initialViewState={INITIAL_VIEW} minZoom={3} maxZoom={MAX_ZOOM} />
       {children}
     </Map>
   );

@@ -108,6 +108,9 @@ export const weatherFx = {
   stars: { count: 18, twinkleMs: 3_200 },
 } as const;
 
+/** "You met": a burst of particles around the user's avatar (BARGU_PLAN §4.3). */
+export const meetFx = { particles: 28, durationMs: 1_400, reach: 72, size: 5 } as const;
+
 /** Sequencing of several elements: how they enter one after another and how they react. */
 export const choreography = {
   /** Delay between consecutive elements entering (titles, fields, rows). */

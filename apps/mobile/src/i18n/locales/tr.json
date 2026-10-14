@@ -467,7 +467,9 @@
       "limited": "Biraz bekle, çok sık dürttün.",
       "failed": "Dürtülemedi. Bağlantını kontrol et."
     },
-    "soon": "Kişiye özel bildirimler yakında geliyor."
+    "soon": "Kişiye özel bildirimler yakında geliyor.",
+    "meet": "{{name}} ile buluştunuz! 🎉",
+    "cluster": "{{count}} kişi bir arada: {{names}}. Yakınlaştırmak için dokun."
   },
   "status": {
     "title": "Durumun",
