@@ -1,5 +1,8 @@
 {
   "ios": {
-    "NSCameraUsageDescription": "Bargu uses the camera to read your friend's QR code. Nothing is recorded."
+    "NSCameraUsageDescription": "Bargu uses the camera to read your friend's QR code. Nothing is recorded.",
+    "NSLocationWhenInUseUsageDescription": "Bargu shares your location, end-to-end encrypted, only with the circles you choose.",
+    "NSLocationAlwaysAndWhenInUseUsageDescription": "So your circles can see you while the app is closed. Your location is end-to-end encrypted.",
+    "NSLocationAlwaysUsageDescription": "So your circles can see you while the app is closed. Your location is end-to-end encrypted."
   }
 }

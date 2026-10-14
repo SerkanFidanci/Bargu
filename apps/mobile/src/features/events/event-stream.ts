@@ -14,11 +14,17 @@ export interface Transport {
   disconnect(): void;
   /** Asks for missed events since `lastEventId` (null: none known, reload). */
   resume(lastEventId: string | null): Promise<unknown>;
+  /** A request the server answers (publish, snapshot, watch). */
+  request(name: string, payload?: unknown): Promise<unknown>;
 }
 
 export interface TransportHandlers {
   onConnect(): void;
   onEvent(payload: unknown): void;
+  /** Live messages outside the event stream: the latest one is all that matters (locations). */
+  onLive(name: string, payload: unknown): void;
+  /** The connection dropped (it will be retried). */
+  onDisconnect(): void;
   /** The server refused the handshake (its error code); no automatic retry follows. */
   onDenied(code: string): void;
   /** The server closed the connection (logout, device replaced); no automatic retry follows. */
@@ -36,6 +42,10 @@ export interface EventStreamDeps {
   reload(): Promise<void>;
   /** A refused handshake, for the session to react (e.g. DEVICE_REVOKED ends it). */
   denied(code: string): void;
+  /** Connected and caught up (true), or connection lost (false). */
+  online?: (online: boolean) => void;
+  /** A live message (locations, watch requests). */
+  live?: (name: string, payload: unknown) => void;
   setTimer?: (run: () => void, ms: number) => unknown;
   clearTimer?: (timer: unknown) => void;
   now?: () => number;
@@ -88,6 +98,12 @@ export class EventStream {
       },
       onEvent: (payload) => {
         this.receive(payload);
+      },
+      onLive: (name, payload) => {
+        this.deps.live?.(name, payload);
+      },
+      onDisconnect: () => {
+        this.deps.online?.(false);
       },
       onDenied: (code) => {
         this.deps.denied(code);
@@ -184,6 +200,13 @@ export class EventStream {
       }
       await this.handle([...reply.events, ...late]);
     });
+    this.deps.online?.(true);
+  }
+
+  /** A request over the live connection; null when not connected (the caller uses HTTP). */
+  request(name: string, payload?: unknown): Promise<unknown> | null {
+    if (this.transport?.connected !== true) return null;
+    return this.transport.request(name, payload);
   }
 
   private async reload(): Promise<boolean> {

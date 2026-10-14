@@ -25,5 +25,7 @@ export function mapStyle(scheme: ColorScheme, mapUrl: string = env.mapUrl): Styl
   return style;
 }
 
-/** Where the map opens before Faz 5 knows the user's position: all of Turkey. */
+/** Where the map opens before the user's position is known: all of Turkey. */
 export const INITIAL_VIEW = { center: [35.2, 39.0] as [number, number], zoom: 4.6 };
+/** Zoom once the user's position is known: the neighbourhood, streets readable. */
+export const FOCUS_ZOOM = 14;

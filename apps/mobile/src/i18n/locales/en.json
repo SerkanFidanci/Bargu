@@ -96,7 +96,8 @@
     "seers": {
       "none": "Nobody can see you",
       "hint": "Shows who can see you",
-      "count": "Seen by {{count}}"
+      "count": "Seen by {{count}}",
+      "ghost": "You are a ghost"
     },
     "dock": {
       "circles": "Circles",
@@ -160,7 +161,9 @@
     "marker": {
       "live": "{{name}}, live location",
       "stale": "{{name}}, location from {{minutes}} minutes ago",
-      "age": "{{minutes}} min"
+      "age": "{{minutes}} min",
+      "staleHours": "{{name}}, location from {{hours}} hours ago",
+      "ageHours": "{{hours}} h"
     },
     "sheet": {
       "close": "Close"
@@ -373,5 +376,51 @@
   },
   "notifications": {
     "channel": "Friends and circles"
+  },
+  "location": {
+    "service": {
+      "title": "Sharing your location",
+      "body": "Your circles see you on the map. Turn on ghost mode to stop."
+    },
+    "permission": {
+      "title": "Location permission needed",
+      "body": "So your friends can see you on the map. Your location is encrypted on your phone; not even our server can see it.",
+      "blockedBody": "Location is turned off for Bargu. Allow it \"while using the app\" in Settings to start sharing.",
+      "allow": "Allow",
+      "settings": "Open Settings"
+    },
+    "sharing": {
+      "title": "Your location",
+      "toggle": "{{name}} can see your location",
+      "toggleGroup": "This circle can see your location",
+      "off": "Off: your location does not go to this circle.",
+      "always": "On until you turn it off.",
+      "until": "On until {{time}}.",
+      "ghostOn": "You are a ghost: nobody sees your location right now.",
+      "precision": "How detailed",
+      "duration": "For how long"
+    },
+    "precision": {
+      "exact": "Exact",
+      "neighborhood": "Area",
+      "city": "City",
+      "exactDetail": "They see exactly where you are.",
+      "neighborhoodDetail": "They only see which area you are in (about 1 km).",
+      "cityDetail": "They only see which city you are in (about 10 km)."
+    },
+    "duration": {
+      "always": "No limit",
+      "hour": "1 hour",
+      "tonight": "Until tonight"
+    },
+    "ghost": {
+      "title": "Ghost mode",
+      "off": "Off",
+      "freeze": "Freeze",
+      "hide": "Hide",
+      "offDetail": "Your circles see you at the detail you chose.",
+      "freezeDetail": "Your last location stays on the map; no new one is sent.",
+      "hideDetail": "You disappear from everyone’s map; no location is sent."
+    }
   }
 }

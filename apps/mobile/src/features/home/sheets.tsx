@@ -24,6 +24,7 @@ import {
   passkeysSupported,
 } from '@/features/auth/passkeys';
 import { errorMessage } from '@/features/errors';
+import { GhostControl } from '@/features/location/sharing-card';
 import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
 import { usePushState } from '@/features/notifications/push';
 import { meKey } from '@/features/profile/queries';
@@ -114,6 +115,7 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
           onPress={() => void createPasskey()}
         />
       ) : null}
+      <GhostControl />
       <Row
         icon={Bell}
         label={t('sheets.me.notifications')}

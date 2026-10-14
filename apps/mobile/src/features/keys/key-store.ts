@@ -28,6 +28,7 @@ export type KnownIdentity = z.infer<typeof identitySchema>;
 
 const k = {
   own: (circleId: string, epoch: number) => `own:${circleId}:${String(epoch)}`,
+  seq: (circleId: string, epoch: number) => `seq:${circleId}:${String(epoch)}`,
   received: (circleId: string, epoch: number, senderDeviceId: string) =>
     `recv:${circleId}:${String(epoch)}:${senderDeviceId}`,
   floor: (circleId: string) => `floor:${circleId}`,
@@ -174,8 +175,19 @@ export class KeyStore {
     );
   }
 
+  /**
+   * The next message sequence number for this device's key in a circle's epoch, already counted
+   * as used (persisted before the caller encrypts: a crash never makes a number come back).
+   */
+  reserveSeq(circle: Pick<Circle, 'id' | 'epoch'>): number {
+    const key = k.seq(circle.id, circle.epoch);
+    const next = Number(this.store.get(key) ?? 0);
+    this.store.set(key, String(next + 1));
+    return next;
+  }
+
   /** This device's sender key for the circle's current epoch, created on first use. */
-  ownKey(circle: Circle): SenderKey {
+  ownKey(circle: Pick<Circle, 'id' | 'epoch'>): SenderKey {
     const stored = read(this.store, k.own(circle.id, circle.epoch), ownSchema);
     if (stored !== null) {
       return {
@@ -285,7 +297,12 @@ export class KeyStore {
   prune(circleId: string, currentEpoch: number | null): void {
     for (const key of this.store.keys()) {
       const parts = key.split(':');
-      if ((parts[0] !== 'own' && parts[0] !== 'recv') || parts[1] !== circleId) continue;
+      if (
+        (parts[0] !== 'own' && parts[0] !== 'recv' && parts[0] !== 'seq') ||
+        parts[1] !== circleId
+      ) {
+        continue;
+      }
       const epoch = Number(parts[2]);
       if (currentEpoch === null || epoch < currentEpoch - RETAINED_EPOCHS) this.store.delete(key);
     }

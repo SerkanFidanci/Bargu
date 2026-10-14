@@ -57,9 +57,13 @@ export function AvatarMarker({ name, avatar, staleMinutes }: AvatarMarkerProps) 
     transform: [{ scale: 1 + breath.get() * (ambient.breathe.scale - 1) }],
   }));
 
-  const label = stale
-    ? t('ui.marker.stale', { name, minutes: staleMinutes })
-    : t('ui.marker.live', { name });
+  // Over an hour old: in hours ("3 sa"), which reads faster than a large number of minutes.
+  const hours = stale && staleMinutes >= 60 ? Math.floor(staleMinutes / 60) : null;
+  const label = !stale
+    ? t('ui.marker.live', { name })
+    : hours === null
+      ? t('ui.marker.stale', { name, minutes: staleMinutes })
+      : t('ui.marker.staleHours', { name, hours });
 
   return (
     <View accessible accessibilityLabel={label} style={styles.container}>
@@ -76,7 +80,9 @@ export function AvatarMarker({ name, avatar, staleMinutes }: AvatarMarkerProps) 
       {stale ? (
         <View style={[styles.age, { backgroundColor: colors.surfaceRaised }]}>
           <Text variant="caption" color="textMuted" allowFontScaling={false}>
-            {t('ui.marker.age', { minutes: staleMinutes })}
+            {hours === null
+              ? t('ui.marker.age', { minutes: staleMinutes })
+              : t('ui.marker.ageHours', { hours })}
           </Text>
         </View>
       ) : null}

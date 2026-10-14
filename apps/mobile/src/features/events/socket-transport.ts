@@ -4,6 +4,10 @@ import type { TransportFactory } from './event-stream';
 
 /** Path of the event socket on the API (apps/api events.gateway EVENTS_PATH). */
 export const EVENTS_PATH = '/v1/events';
+/** Live messages the relay pushes (apps/api relay.service). */
+export const LIVE_MESSAGES = ['loc', 'loc.gone', 'watch'] as const;
+/** How long a request may take before the caller falls back (HTTP, or tries later). */
+const REQUEST_TIMEOUT_MS = 5_000;
 /** How long the server gets to answer `resume` before the phone reloads instead. */
 const RESUME_TIMEOUT_MS = 10_000;
 
@@ -40,8 +44,14 @@ export function socketTransport(
       if (!socket.active) handlers.onDenied(error.message);
     });
     socket.on('disconnect', (reason) => {
+      handlers.onDisconnect();
       if (reason === 'io server disconnect') handlers.onServerDisconnect();
     });
+    for (const name of LIVE_MESSAGES) {
+      socket.on(name, (payload: unknown) => {
+        handlers.onLive(name, payload);
+      });
+    }
     return {
       get connected() {
         return socket.connected;
@@ -52,6 +62,8 @@ export function socketTransport(
       disconnect: () => {
         socket.disconnect();
       },
+      request: (name, payload) =>
+        socket.timeout(REQUEST_TIMEOUT_MS).emitWithAck(name, payload) as Promise<unknown>,
       resume: (lastEventId) =>
         socket
           .timeout(RESUME_TIMEOUT_MS)

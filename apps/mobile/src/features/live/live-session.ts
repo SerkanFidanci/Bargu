@@ -1,10 +1,11 @@
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
+import { create } from 'zustand';
 
 import { env } from '@/config/env';
 
-import { api, onSignedOut, sessionRevoked, useAuth } from '../auth/auth-store';
+import { api, bootstrapAuth, onSignedOut, sessionRevoked, useAuth } from '../auth/auth-store';
 import { announce } from '../circles/announce';
 import { createCircleSync } from '../circles/circle-sync';
 import { circlesApi } from '../circles/circles-api';
@@ -15,6 +16,35 @@ import { queryClient } from '../query-client';
 import { destroyVault, openVault, vault } from '../storage/vault';
 
 let keyStore: KeyStore | null = null;
+
+/** Whether the live connection is up and caught up (the map says "Connecting…" otherwise). */
+export const useConnection = create<{ online: boolean; drops: number }>(() => ({
+  online: false,
+  /** Counts connection losses, so a view can tell one outage from the next. */
+  drops: 0,
+}));
+
+function setOnline(online: boolean): void {
+  const current = useConnection.getState();
+  if (current.online === online) return;
+  useConnection.setState({ online, drops: online ? current.drops : current.drops + 1 });
+}
+
+type LiveListener = (name: string, payload: unknown) => void;
+const liveListeners = new Set<LiveListener>();
+const onlineListeners = new Set<() => void>();
+
+/** Live messages from the relay (locations, watch requests); returns the unsubscribe. */
+export function onLiveMessage(listener: LiveListener): () => void {
+  liveListeners.add(listener);
+  return () => liveListeners.delete(listener);
+}
+
+/** Runs after every (re)connection once caught up; returns the unsubscribe. */
+export function onOnline(listener: () => void): () => void {
+  onlineListeners.add(listener);
+  return () => onlineListeners.delete(listener);
+}
 
 /** The signed-in user's key store on this device (vault must be open). */
 export function keys(): KeyStore {
@@ -41,7 +71,30 @@ const stream = new EventStream({
   denied: (code) => {
     if (code === 'DEVICE_REVOKED') void sessionRevoked();
   },
+  online: (online) => {
+    setOnline(online);
+    if (online) for (const listener of onlineListeners) listener();
+  },
+  live: (name, payload) => {
+    for (const listener of liveListeners) listener(name, payload);
+  },
 });
+
+/** A request over the live connection; null when it is down (the caller uses HTTP instead). */
+export function liveRequest(name: string, payload?: unknown): Promise<unknown> | null {
+  return stream.request(name, payload);
+}
+
+/**
+ * For work that may start without the app on screen (the background location task): reads the
+ * session and opens the vault if the app has not. False when nobody is signed in.
+ */
+export async function ensureSession(): Promise<boolean> {
+  if (useAuth.getState().status === 'loading') await bootstrapAuth();
+  if (useAuth.getState().status !== 'signedIn') return false;
+  await openVault();
+  return true;
+}
 
 /** The stream starts before anything else touches the vault: resolve it on each call. */
 function lazyVault() {
@@ -63,6 +116,7 @@ function lazyVault() {
 // Nothing of one account may survive into the next sign-in: connection, keys, position.
 onSignedOut(() => {
   stream.reset();
+  setOnline(false);
   keyStore = null;
   void destroyVault();
 });
@@ -93,6 +147,7 @@ export function useLiveSession(): boolean {
         stream.start();
       } else if (state === 'background') {
         stream.stop();
+        setOnline(false);
       }
     });
     const network = NetInfo.addEventListener((state) => {

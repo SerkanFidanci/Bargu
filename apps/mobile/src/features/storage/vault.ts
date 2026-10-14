@@ -25,6 +25,8 @@ const OPTIONS: SecureStore.SecureStoreOptions = {
 const KEY_CHARS = 32;
 
 let store: KeyValueStore | null = null;
+/** The first open, shared by callers that race (the app and a background location task). */
+let opening: Promise<KeyValueStore> | null = null;
 
 function wrap(mmkv: MMKV): KeyValueStore {
   return {
@@ -43,8 +45,20 @@ function wrap(mmkv: MMKV): KeyValueStore {
 }
 
 /** Opens (creating its key on first use) the vault. Call once signed in, before using it. */
-export async function openVault(): Promise<KeyValueStore> {
-  if (store !== null) return store;
+export function openVault(): Promise<KeyValueStore> {
+  if (store !== null) return Promise.resolve(store);
+  opening ??= open().finally(() => {
+    opening = null;
+  });
+  return opening;
+}
+
+/** Whether the vault is open (a background start may come before the app opened it). */
+export function isVaultOpen(): boolean {
+  return store !== null;
+}
+
+async function open(): Promise<KeyValueStore> {
   let key = await SecureStore.getItemAsync(STORAGE_KEY, OPTIONS);
   if (key?.length !== KEY_CHARS) {
     key = generateToken().slice(0, KEY_CHARS);

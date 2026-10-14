@@ -49,10 +49,11 @@ async function flush(): Promise<void> {
 function setup(reply: () => Promise<unknown>) {
   let handlers: TransportHandlers | null = null;
   const transport = {
-    connected: false,
+    connected: false as boolean,
     connect: jest.fn(),
     disconnect: jest.fn(),
     resume: jest.fn<Promise<unknown>, [string | null]>(() => reply()),
+    request: jest.fn<Promise<unknown>, [string, unknown?]>(() => Promise.resolve({})),
   } satisfies Transport;
   const store = memoryStore();
   const applied: ServerEvent[][] = [];
@@ -76,6 +77,8 @@ function setup(reply: () => Promise<unknown>) {
       return timers.length;
     },
     clearTimer: jest.fn(),
+    online: jest.fn<undefined, [boolean]>(),
+    live: jest.fn<undefined, [string, unknown]>(),
   };
   const stream = new EventStream(deps);
   stream.start();
@@ -206,5 +209,29 @@ describe('compareEventIds', () => {
     expect(compareEventIds('10-2', '10-10')).toBeLessThan(0);
     expect(compareEventIds('10-1', '10-1')).toBe(0);
     expect(compareEventIds('1700000000001-0', '1700000000000-5')).toBeGreaterThan(0);
+  });
+
+  it('says it is online only once caught up, and offline when the connection drops', async () => {
+    const { deps, on } = setup(() =>
+      Promise.resolve({ events: [], snapshot: true, cursor: '1-0' }),
+    );
+    on().onConnect();
+    expect(deps.online).not.toHaveBeenCalled();
+    await flush();
+    expect(deps.online).toHaveBeenLastCalledWith(true);
+    on().onDisconnect();
+    expect(deps.online).toHaveBeenLastCalledWith(false);
+  });
+
+  it('passes live messages on and sends requests only while connected', async () => {
+    const { stream, transport, deps, on } = setup(() =>
+      Promise.resolve({ events: [], snapshot: true, cursor: '1-0' }),
+    );
+    on().onLive('loc', { envelope: 1 });
+    expect(deps.live).toHaveBeenCalledWith('loc', { envelope: 1 });
+    expect(stream.request('locations')).toBeNull();
+    transport.connected = true;
+    await expect(stream.request('locations')).resolves.toEqual({});
+    expect(transport.request).toHaveBeenCalledWith('locations', undefined);
   });
 });

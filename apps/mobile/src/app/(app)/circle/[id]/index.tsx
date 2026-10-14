@@ -30,6 +30,7 @@ import {
   useCircleActions,
 } from '@/features/circles/queries';
 import { circleSync, keys } from '@/features/live/live-session';
+import { SharingCard } from '@/features/location/sharing-card';
 import { isValidDisplayName } from '@/features/profile/profile-form';
 import { radius, space, touchTarget, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
@@ -190,6 +191,12 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
       ) : active ? (
         <Appear index={1}>
           <EncryptionCard ready={status?.ready ?? false} waitingFor={status?.waitingFor ?? 0} />
+        </Appear>
+      ) : null}
+
+      {active ? (
+        <Appear index={2}>
+          <SharingCard circleId={circle.id} name={pair ? title : null} />
         </Appear>
       ) : null}
 

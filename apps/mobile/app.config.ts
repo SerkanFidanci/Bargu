@@ -103,6 +103,21 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         defaultChannel: 'social',
       },
     ],
+    // Location for circles (docs/ADR/0011): only the "while using" permission. On Android a
+    // foreground service with a visible notification keeps it going on a locked screen, so the
+    // background location permission is never asked for; iOS continues updates started in the app.
+    [
+      'expo-location',
+      {
+        // Turkish devices get native-locales/tr.json.
+        locationWhenInUsePermission:
+          'Bargu shares your location, end-to-end encrypted, only with the circles you choose.',
+        isIosBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: false,
+        isAndroidForegroundServiceEnabled: true,
+        androidForegroundServiceIcon: './assets/images/notification-icon.png',
+      },
+    ],
     // QR codes only (adding friends, comparing safety numbers): camera, never the microphone.
     [
       'expo-camera',

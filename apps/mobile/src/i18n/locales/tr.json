@@ -96,7 +96,8 @@
     "seers": {
       "none": "Seni kimse görmüyor",
       "hint": "Kimlerin seni gördüğünü açar",
-      "count": "{{count}} kişi seni görüyor"
+      "count": "{{count}} kişi seni görüyor",
+      "ghost": "Hayalet modundasın"
     },
     "dock": {
       "circles": "Çemberler",
@@ -160,7 +161,9 @@
     "marker": {
       "live": "{{name}}, canlı konum",
       "stale": "{{name}}, {{minutes}} dakika önceki konum",
-      "age": "{{minutes}} dk"
+      "age": "{{minutes}} dk",
+      "staleHours": "{{name}}, {{hours}} saat önceki konum",
+      "ageHours": "{{hours}} sa"
     },
     "sheet": {
       "close": "Kapat"
@@ -373,5 +376,51 @@
   },
   "notifications": {
     "channel": "Arkadaşlar ve çemberler"
+  },
+  "location": {
+    "service": {
+      "title": "Konumun paylaşılıyor",
+      "body": "Çemberlerin seni haritada görüyor. Durdurmak için hayalet moduna geç."
+    },
+    "permission": {
+      "title": "Konum izni gerekiyor",
+      "body": "Arkadaşların seni haritada görebilsin. Konumun telefonunda şifrelenir; sunucumuz bile göremez.",
+      "blockedBody": "Konum izni kapalı. Ayarlardan \"Uygulamayı kullanırken\" iznini verirsen paylaşım başlar.",
+      "allow": "İzin ver",
+      "settings": "Ayarları aç"
+    },
+    "sharing": {
+      "title": "Konumun",
+      "toggle": "{{name}} konumunu görsün",
+      "toggleGroup": "Bu çember konumunu görsün",
+      "off": "Kapalı: konumun bu çembere gitmiyor.",
+      "always": "Sen kapatana kadar açık.",
+      "until": "{{time}} saatine kadar açık.",
+      "ghostOn": "Hayalet modundasın: şu an kimse konumunu görmüyor.",
+      "precision": "Ne kadar ayrıntılı",
+      "duration": "Ne kadar süre"
+    },
+    "precision": {
+      "exact": "Tam",
+      "neighborhood": "Mahalle",
+      "city": "Şehir",
+      "exactDetail": "Tam yerini görürler.",
+      "neighborhoodDetail": "Sadece hangi semtte olduğunu görürler (yaklaşık 1 km).",
+      "cityDetail": "Sadece hangi şehirde olduğunu görürler (yaklaşık 10 km)."
+    },
+    "duration": {
+      "always": "Süresiz",
+      "hour": "1 saat",
+      "tonight": "Bu akşama kadar"
+    },
+    "ghost": {
+      "title": "Hayalet modu",
+      "off": "Kapalı",
+      "freeze": "Dondur",
+      "hide": "Gizle",
+      "offDetail": "Çemberlerin seni seçtiğin ayrıntıda görüyor.",
+      "freezeDetail": "Son konumun haritada kalır, yenisi gönderilmez.",
+      "hideDetail": "Herkesin haritasından kaybolursun, konum gönderilmez."
+    }
   }
 }

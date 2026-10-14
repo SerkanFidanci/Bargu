@@ -8,6 +8,14 @@ import { SeersPill } from '@/features/home/seers-pill';
 import { AddSheet } from '@/features/circles/add-sheet';
 import { CirclesSheet } from '@/features/circles/circles-sheet';
 import { useCircles } from '@/features/circles/queries';
+import { useAuth } from '@/features/auth/auth-store';
+import { useNow } from '@/features/location/clock';
+import { useMyFix } from '@/features/location/engine';
+import { LocationBanner } from '@/features/location/location-banner';
+import { seersOf, useSharing } from '@/features/location/sharing';
+import { useWatchCircles } from '@/features/location/use-location';
+import { memberName } from '@/features/circles/names';
+import { PeopleLayer } from '@/features/map/people-layer';
 import { MeSheet } from '@/features/home/sheets';
 import { BarguMap } from '@/features/map/bargu-map';
 import { MapCredit } from '@/features/map/map-credit';
@@ -34,6 +42,17 @@ export default function HomeScreen() {
   const motion = useMotion();
   const celebrating = useCelebration((state) => state.pending);
   const celebrated = useCelebration((state) => state.done);
+  const myUserId = useAuth((state) => state.userId);
+  const sharing = useSharing();
+  const myFix = useMyFix((state) => state.fix);
+  const now = useNow();
+  // While the map is on screen, the circles' phones send live updates.
+  useWatchCircles();
+  const seers = seersOf(circleList.data ?? [], sharing, myUserId, now).map((member) => ({
+    id: member.userId,
+    name: memberName(member),
+    avatar: member.avatar,
+  }));
   const toggleAdd = () => {
     if (addOpen) {
       add.current?.dismiss();
@@ -53,14 +72,22 @@ export default function HomeScreen() {
           top: insets.top + PILL_HEIGHT,
           bottom: insets.bottom + DOCK_HEIGHT,
         }}
-      />
+        focus={myFix === null ? null : [myFix.lng, myFix.lat]}
+      >
+        <PeopleLayer me={me.data} circles={circleList.data ?? []} />
+      </BarguMap>
       <MapCredit bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
       <Animated.View
         entering={motion.enterDown}
         style={[styles.top, { top: insets.top + space.sm }]}
         pointerEvents="box-none"
       >
-        <SeersPill seers={[]} onPress={() => circles.current?.present()} />
+        <SeersPill
+          seers={seers}
+          ghost={sharing.ghost !== 'off'}
+          onPress={() => circles.current?.present()}
+        />
+        <LocationBanner />
       </Animated.View>
       <Animated.View
         entering={motion.enterUpAt(1)}
@@ -100,6 +127,12 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  top: { position: 'absolute', left: space.lg, right: space.lg, alignItems: 'center' },
+  top: {
+    position: 'absolute',
+    left: space.lg,
+    right: space.lg,
+    alignItems: 'center',
+    gap: space.sm,
+  },
   bottom: { position: 'absolute', left: 0, right: 0 },
 });

@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 
 import { useLiveSession } from '@/features/live/live-session';
+import { useLocationSession } from '@/features/location/use-location';
 import { usePushNotifications } from '@/features/notifications/use-push';
 
 export const unstable_settings = { initialRouteName: 'index' };
@@ -10,6 +11,8 @@ export default function AppLayout() {
   const ready = useLiveSession();
   // Right after sign-in: ask for notifications once and register this phone.
   usePushNotifications(ready);
+  // Then the location: permission, the location service, live mode (Faz 5).
+  useLocationSession(ready);
   if (!ready) return null;
   return (
     <Stack screenOptions={{ headerShown: false }}>
