@@ -5,13 +5,14 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                                                                        |
-| -------------------------------- | -------------------------------------------------------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                                 |
-| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                                |
-| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                                 |
-| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (açık madde: telefonda fps ve büyük yazı ölçümü, passkey denemesi)             |
-| Faz 4 — Çemberler & Anahtarlar   | 🟡 Telefonda denendi (arkadaşlık, çember, davet, bildirim); proje sahibinin onayını bekliyor |
+| Faz                              | Durum                                                                 |
+| -------------------------------- | --------------------------------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                          |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                         |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                          |
+| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı) |
+| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim) |
+| Faz 5 — Konum Motoru & Relay     | 🚧 Sürüyor                                                            |
 
 ## Ortamlar
 

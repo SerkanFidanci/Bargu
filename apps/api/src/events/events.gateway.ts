@@ -10,10 +10,9 @@ import type { Server, Socket } from 'socket.io';
 import { z } from 'zod';
 
 import { AuthContexts } from '../auth/auth-contexts.js';
-import type { AuthContext } from '../auth/request-context.js';
 import { RequestSignatures } from '../auth/request-signatures.js';
 import { ApiError } from '../common/api-error.js';
-import { deviceRoom, EventsService, userRoom } from './events.service.js';
+import { deviceRoom, EventsService, type SocketConnection, userRoom } from './events.service.js';
 
 /** Path of the event socket; the handshake signature covers "GET <this path>". */
 export const EVENTS_PATH = '/v1/events';
@@ -30,13 +29,6 @@ const handshakeSchema = z
 /** A phone resumes once per connection; a few more are tolerated, then the connection closes. */
 export const RESUMES_PER_CONNECTION = 5;
 
-/** Who a socket acts for, with the token it presented (checked again after joining its rooms). */
-interface Connection {
-  auth: AuthContext;
-  token: string;
-  resumes: number;
-}
-
 const resumeSchema = z
   .object({
     lastEventId: z
@@ -46,6 +38,18 @@ const resumeSchema = z
   })
   .strict();
 
+/** Shared by every gateway on the event socket (Nest gives gateways on one path one server). */
+export const GATEWAY_OPTIONS = {
+  path: EVENTS_PATH,
+  transports: ['websocket'],
+  serveClient: false,
+  cors: false,
+  // Small control messages and location publishes (at most 10 envelopes of about 1 KB).
+  maxHttpBufferSize: 16 * 1024,
+  pingInterval: 20_000,
+  pingTimeout: 20_000,
+};
+
 /**
  * The single live connection per phone (BARGU_PLAN §3.4). WebSocket transport only (no long-polling,
  * so no sticky sessions). The handshake is authenticated like a signed HTTP request: access token,
@@ -54,21 +58,9 @@ const resumeSchema = z
  * device signs out, is replaced or has its session revoked, and replaces an older connection of
  * the same device.
  */
-@WebSocketGateway({
-  path: EVENTS_PATH,
-  transports: ['websocket'],
-  serveClient: false,
-  cors: false,
-  // Small control messages only; location relay (Faz 5) sizes its own limits.
-  maxHttpBufferSize: 16 * 1024,
-  pingInterval: 20_000,
-  pingTimeout: 20_000,
-})
+@WebSocketGateway(GATEWAY_OPTIONS)
 export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
   private readonly logger = new Logger('EventsGateway');
-  /** Who each connected socket acts for, set once by the handshake middleware. */
-  private readonly connections = new WeakMap<Socket, Connection>();
-
   constructor(
     private readonly events: EventsService,
     private readonly contexts: AuthContexts,
@@ -80,7 +72,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
     server.use((socket, next) => {
       this.authenticate(socket).then(
         (connection) => {
-          this.connections.set(socket, connection);
+          this.events.bind(socket, connection);
           next();
         },
         (error: unknown) => {
@@ -91,7 +83,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
   }
 
   async handleConnection(socket: Socket): Promise<void> {
-    const connection = this.connections.get(socket);
+    const connection = this.events.connectionOf(socket);
     if (connection === undefined) {
       socket.disconnect(true);
       return;
@@ -122,7 +114,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
   /** Missed events since the phone's last one (or a snapshot request), as the acknowledgement. */
   @SubscribeMessage('resume')
   async resume(socket: Socket, payload: unknown): Promise<ResumeReply> {
-    const connection = this.connections.get(socket);
+    const connection = this.events.connectionOf(socket);
     const parsed = resumeSchema.safeParse(payload);
     if (connection === undefined || !parsed.success) {
       return { events: [], snapshot: true, cursor: null };
@@ -140,7 +132,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
     }
   }
 
-  private async authenticate(socket: Socket): Promise<Connection> {
+  private async authenticate(socket: Socket): Promise<SocketConnection> {
     const parsed = handshakeSchema.safeParse(socket.handshake.auth);
     if (!parsed.success) throw new ApiError(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED');
     const { token, ts, nonce, sig } = parsed.data;

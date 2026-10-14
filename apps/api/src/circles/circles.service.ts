@@ -10,6 +10,7 @@ import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { Notifier } from '../push/notifier.js';
+import { RelayService } from '../relay/relay.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 
 const HOUR = 3600;
@@ -97,12 +98,17 @@ export class CirclesService implements OnModuleInit {
     private readonly limiter: RateLimiter,
     private readonly lifecycle: DeviceLifecycle,
     private readonly notifier: Notifier,
+    private readonly relay: RelayService,
   ) {}
 
   onModuleInit(): void {
     this.lifecycle.subscribe(async (change) => {
       if (change.replacedDeviceId !== null) this.events.disconnectDevice(change.replacedDeviceId);
-      if (change.kind !== 'login') this.events.disconnectDevice(change.deviceId);
+      if (change.kind !== 'login') {
+        this.events.disconnectDevice(change.deviceId);
+        // Signed out (or revoked): their dot leaves every map at once.
+        await this.relay.forgetEverywhere(change.userId);
+      }
       // New keys (a new phone), or keys that may be exposed (signed out, session revoked): every
       // circle of the user moves to a new epoch. A re-login of the same device changes nothing.
       if (change.kind !== 'login' || change.newDevice) {
@@ -240,6 +246,9 @@ export class CirclesService implements OnModuleInit {
       };
     });
     await this.events.publish([auth.userId, ...withdrawn], { type: 'circle.gone', circleId });
+    // Whoever leaves takes their last location with them.
+    if (pair) await this.relay.forgetCircle(circleId);
+    else await this.relay.forget(circleId, auth.userId, remaining);
     if (pair) {
       // A friendship needs both people: it disappears for the other side too.
       await this.events.publish(remaining, { type: 'circle.gone', circleId });
@@ -268,6 +277,7 @@ export class CirclesService implements OnModuleInit {
       return this.mustRead(tx, circleId, auth.userId);
     });
     await this.events.publish([userId], { type: 'circle.gone', circleId });
+    await this.relay.forget(circleId, userId, audience(circle));
     await this.changed(circle);
     return circle;
   }

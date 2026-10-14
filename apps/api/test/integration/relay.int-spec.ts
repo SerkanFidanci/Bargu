@@ -1,0 +1,301 @@
+import { Writable } from 'node:stream';
+
+import {
+  createSenderState,
+  decryptMessage,
+  encryptMessage,
+  generateRequestNonce,
+  generateSenderKey,
+  ReplayGuard,
+  type SenderKey,
+  type SenderState,
+  signRequest,
+  verifyDeviceKeyBundle,
+} from '@bargu/crypto';
+import {
+  type Circle,
+  type MessageEnvelope,
+  type PublishReply,
+  publishReplySchema,
+} from '@bargu/schemas';
+import { io, type Socket } from 'socket.io-client';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+import { EVENTS_PATH } from '../../src/events/events.gateway.js';
+import { createTestApp, type TestApp, testEnv } from './support/app.js';
+import { as, circleWith, type Person, person } from './support/people.js';
+
+// Somewhere in Istanbul: the test proves these numbers never reach the server in any form.
+const LAT = 41.008_237;
+const LNG = 28.978_359;
+const COORDINATE_TEXTS = ['41.008', '28.978', '41,008', '28,978'];
+
+let test: TestApp;
+let url: string;
+let logs = '';
+const sockets: Socket[] = [];
+
+beforeAll(async () => {
+  // Everything the server logs, at the most verbose level, is kept and searched below.
+  const logStream = new Writable({
+    write(chunk: Buffer, _encoding, done) {
+      logs += chunk.toString('utf8');
+      done();
+    },
+  });
+  test = await createTestApp({ env: testEnv({ LOG_LEVEL: 'trace' }), logStream });
+  await test.app.listen(0, '127.0.0.1');
+  url = await test.app.getUrl();
+});
+afterAll(async () => {
+  for (const socket of sockets) socket.disconnect();
+  await test.close();
+});
+
+function connect(who: Person): Promise<Socket> {
+  const nonce = generateRequestNonce();
+  const ts = Date.now();
+  return new Promise((resolve, reject) => {
+    const socket = io(url, {
+      path: EVENTS_PATH,
+      transports: ['websocket'],
+      reconnection: false,
+      forceNew: true,
+      auth: {
+        token: who.session.accessToken,
+        ts: String(ts),
+        nonce,
+        sig: signRequest(who.device.identity.secretKey, {
+          method: 'GET',
+          path: EVENTS_PATH,
+          timestamp: ts,
+          nonce,
+          deviceId: who.device.deviceId,
+          body: new Uint8Array(0),
+        }),
+      },
+    });
+    sockets.push(socket);
+    socket.once('connect', () => {
+      resolve(socket);
+    });
+    socket.once('connect_error', reject);
+  });
+}
+
+function collect<T>(socket: Socket, name: string): T[] {
+  const received: T[] = [];
+  socket.on(name, (payload: T) => {
+    received.push(payload);
+  });
+  return received;
+}
+
+/** A sender as the app is: its own sender key for the circle's epoch, sequence numbers kept. */
+function sender(who: Person, circle: Circle) {
+  let state: SenderState = createSenderState(
+    generateSenderKey({
+      circleId: circle.id,
+      epoch: circle.epoch,
+      senderDeviceId: who.device.deviceId,
+    }),
+  );
+  return {
+    key: state.senderKey,
+    next(lat = LAT, lng = LNG): MessageEnvelope {
+      const { envelope, nextState } = encryptMessage({
+        state,
+        sender: who.device,
+        payload: { kind: 'loc', lat, lng, acc: 8, bat: 64, chg: false, ts: Date.now() },
+      });
+      state = nextState;
+      return envelope;
+    },
+  };
+}
+
+async function publishWs(socket: Socket, envelopes: MessageEnvelope[]): Promise<PublishReply> {
+  return publishReplySchema.parse(await socket.emitWithAck('publish', { envelopes }));
+}
+
+function open(envelope: MessageEnvelope, key: SenderKey, circle: Circle, from: Person) {
+  const device = circle.members.find((member) => member.userId === from.userId)?.device ?? null;
+  if (device === null) throw new Error('sender has no device card');
+  return decryptMessage({
+    envelope,
+    senderKey: key,
+    sender: verifyDeviceKeyBundle(device.bundle),
+    replay: new ReplayGuard(),
+  });
+}
+
+describe('location relay', () => {
+  it('delivers a location to the other members at once, and only ciphertext ever reaches it', async () => {
+    const [ayse, bora] = await Promise.all([person(test), person(test)]);
+    const circle = await circleWith(test, ayse, bora);
+    const [ayseSocket, boraSocket] = await Promise.all([connect(ayse), connect(bora)]);
+    const toBora = collect<{ envelope: MessageEnvelope }>(boraSocket, 'loc');
+    const toAyse = collect<{ envelope: MessageEnvelope }>(ayseSocket, 'loc');
+    const ayseSends = sender(ayse, circle);
+
+    const reply = await publishWs(ayseSocket, [ayseSends.next()]);
+    expect(reply).toEqual({ accepted: 1, refused: [] });
+    await vi.waitFor(() => {
+      expect(toBora).toHaveLength(1);
+    });
+    expect(toAyse).toEqual([]);
+    // Bora's phone, holding Ayşe's sender key, reads it; nothing in between could.
+    const delivered = toBora[0];
+    if (delivered === undefined) throw new Error('nothing delivered');
+    const payload = open(delivered.envelope, ayseSends.key, circle, ayse);
+    expect(payload).toMatchObject({ kind: 'loc', lat: LAT, lng: LNG });
+
+    // Over HTTP too (the app in the background), and the snapshot has the newest one.
+    const viaHttp = ayseSends.next(LAT + 0.001, LNG);
+    const httpReply = await as(test, ayse, 'POST', '/v1/locations', { envelopes: [viaHttp] });
+    expect(httpReply.json()).toEqual({ accepted: 1, refused: [] });
+    const snapshot = await as(test, bora, 'GET', '/v1/locations');
+    expect(snapshot.json<{ envelopes: MessageEnvelope[] }>().envelopes).toEqual([viaHttp]);
+    // Ayşe's own location is not echoed back to her.
+    expect((await as(test, ayse, 'GET', '/v1/locations')).json()).toEqual({ envelopes: [] });
+
+    // DoD (Faz 5): no plain coordinate anywhere on the server: Redis, the database, the logs.
+    const redisDump: string[] = [];
+    const redis = (await import('redis')).createClient({ url: test.env.REDIS_URL });
+    await redis.connect();
+    try {
+      for await (const keys of redis.scanIterator({ COUNT: 500 })) {
+        for (const key of keys) {
+          const type = await redis.type(key);
+          if (type === 'string') redisDump.push(String(await redis.get(key)));
+          if (type === 'hash') redisDump.push(JSON.stringify(await redis.hGetAll(key)));
+          if (type === 'stream') redisDump.push(JSON.stringify(await redis.xRange(key, '-', '+')));
+          if (type === 'list') redisDump.push(JSON.stringify(await redis.lRange(key, 0, -1)));
+          if (type === 'set') redisDump.push(JSON.stringify(await redis.sMembers(key)));
+          if (type === 'zset') redisDump.push(JSON.stringify(await redis.zRange(key, 0, -1)));
+        }
+      }
+    } finally {
+      await redis.close();
+    }
+    const { rows: tables } = await test.admin.query<{ name: string }>(
+      `SELECT format('%I.%I', schemaname, tablename) AS name FROM pg_tables
+        WHERE schemaname IN ('app', 'pgboss')`,
+    );
+    const databaseDump: string[] = [];
+    for (const { name } of tables) {
+      const { rows } = await test.admin.query<{ dump: string | null }>(
+        `SELECT json_agg(t)::text AS dump FROM ${name} t`,
+      );
+      databaseDump.push(rows[0]?.dump ?? '');
+    }
+    expect(redisDump.join('\n')).toContain(circle.id);
+    expect(logs).toContain('/v1/locations');
+    for (const text of COORDINATE_TEXTS) {
+      expect(redisDump.join('\n'), `redis: ${text}`).not.toContain(text);
+      expect(databaseDump.join('\n'), `database: ${text}`).not.toContain(text);
+      expect(logs, `logs: ${text}`).not.toContain(text);
+    }
+  });
+
+  it('keeps the newest location when an older one arrives late', async () => {
+    const [ayse, bora] = await Promise.all([person(test), person(test)]);
+    const circle = await circleWith(test, ayse, bora);
+    const ayseSends = sender(ayse, circle);
+    const older = ayseSends.next();
+    const newer = ayseSends.next();
+    await as(test, ayse, 'POST', '/v1/locations', { envelopes: [newer] });
+    await as(test, ayse, 'POST', '/v1/locations', { envelopes: [older] });
+    const snapshot = (await as(test, bora, 'GET', '/v1/locations')).json<{
+      envelopes: MessageEnvelope[];
+    }>();
+    expect(snapshot.envelopes).toEqual([newer]);
+  });
+
+  it('refuses forged, foreign, outdated and too frequent envelopes', async () => {
+    const [ayse, bora, mallory] = await Promise.all([person(test), person(test), person(test)]);
+    const circle = await circleWith(test, ayse, bora);
+    const ayseSocket = await connect(ayse);
+    const ayseSends = sender(ayse, circle);
+
+    // Signed by another device than the one publishing.
+    const forged = sender(mallory, circle).next();
+    expect((await publishWs(ayseSocket, [forged])).refused).toEqual([
+      { circleId: circle.id, code: 'INVALID' },
+    ]);
+    // Someone outside the circle.
+    const malloryHttp = await as(test, mallory, 'POST', '/v1/locations', {
+      envelopes: [sender(mallory, circle).next()],
+    });
+    expect(malloryHttp.json<PublishReply>().refused).toEqual([
+      { circleId: circle.id, code: 'NOT_MEMBER' },
+    ]);
+    // A future epoch.
+    const future = sender(ayse, { ...circle, epoch: circle.epoch + 1 }).next();
+    expect((await publishWs(ayseSocket, [future])).refused[0]?.code).toBe('EPOCH');
+    // More than live mode needs: the rest is dropped.
+    const codes: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const reply = await publishWs(ayseSocket, [ayseSends.next()]);
+      codes.push(reply.refused[0]?.code ?? 'ok');
+    }
+    expect(codes).toContain('RATE_LIMITED');
+    expect(codes.slice(0, 3)).toEqual(['ok', 'ok', 'ok']);
+    // Malformed input is refused before anything else.
+    expect(await ayseSocket.emitWithAck('publish', { envelopes: [] })).toEqual({
+      error: 'VALIDATION_FAILED',
+    });
+  });
+
+  it('takes a member’s dot away when they are removed, leave or withdraw', async () => {
+    const [ayse, bora, can] = await Promise.all([person(test), person(test), person(test)]);
+    const circle = await circleWith(test, ayse, bora, can);
+    const boraSocket = await connect(bora);
+    const gone = collect<{ circleId: string; userId: string }>(boraSocket, 'loc.gone');
+    await as(test, can, 'POST', '/v1/locations', { envelopes: [sender(can, circle).next()] });
+    await as(test, ayse, 'POST', '/v1/locations', { envelopes: [sender(ayse, circle).next()] });
+    expect(
+      (await as(test, bora, 'GET', '/v1/locations')).json<{ envelopes: MessageEnvelope[] }>()
+        .envelopes,
+    ).toHaveLength(2);
+
+    await as(test, ayse, 'POST', `/v1/circles/${circle.id}/members/${can.userId}/remove`);
+    await vi.waitFor(() => {
+      expect(gone).toContainEqual({ circleId: circle.id, userId: can.userId });
+    });
+    // Ayşe hides: her last location goes as well.
+    expect(
+      (await as(test, ayse, 'POST', '/v1/locations/withdraw', { circleIds: [circle.id] }))
+        .statusCode,
+    ).toBe(204);
+    await vi.waitFor(() => {
+      expect(gone).toContainEqual({ circleId: circle.id, userId: ayse.userId });
+    });
+    expect((await as(test, bora, 'GET', '/v1/locations')).json()).toEqual({ envelopes: [] });
+    // The removed member can no longer read anything of the circle.
+    expect((await as(test, can, 'GET', '/v1/locations')).json()).toEqual({ envelopes: [] });
+  });
+
+  it('asks the other members for live updates when someone looks at the circle', async () => {
+    const [ayse, bora, mallory] = await Promise.all([person(test), person(test), person(test)]);
+    const circle = await circleWith(test, ayse, bora);
+    const [ayseSocket, boraSocket, mallorySocket] = await Promise.all([
+      connect(ayse),
+      connect(bora),
+      connect(mallory),
+    ]);
+    const toBora = collect<{ circleId: string }>(boraSocket, 'watch');
+    expect(await ayseSocket.emitWithAck('watch', { circleId: circle.id })).toEqual({ ok: true });
+    await vi.waitFor(() => {
+      expect(toBora).toEqual([{ circleId: circle.id }]);
+    });
+    expect(await mallorySocket.emitWithAck('watch', { circleId: circle.id })).toEqual({
+      error: 'NOT_FOUND',
+    });
+    // At most twice in 30 seconds per circle (the app renews once a minute).
+    await ayseSocket.emitWithAck('watch', { circleId: circle.id });
+    expect(await ayseSocket.emitWithAck('watch', { circleId: circle.id })).toEqual({
+      error: 'RATE_LIMITED',
+    });
+  });
+});

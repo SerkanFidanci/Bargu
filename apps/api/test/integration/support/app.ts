@@ -44,7 +44,7 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
 }
 
 export async function createTestApp(
-  options: { env?: Env; verifiers?: AttestationVerifiers } = {},
+  options: { env?: Env; verifiers?: AttestationVerifiers; logStream?: NodeJS.WritableStream } = {},
 ): Promise<TestApp> {
   const env = options.env ?? testEnv();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule.forRoot(env)] })
@@ -52,10 +52,16 @@ export async function createTestApp(
     .useValue(options.verifiers ?? {})
     .compile();
   const app = configureApp(
-    moduleRef.createNestApplication<NestFastifyApplication>(createHttpAdapter(env), {
-      logger: false,
-      rawBody: true,
-    }),
+    moduleRef.createNestApplication<NestFastifyApplication>(
+      createHttpAdapter(
+        env,
+        options.logStream === undefined ? {} : { logStream: options.logStream },
+      ),
+      {
+        logger: false,
+        rawBody: true,
+      },
+    ),
   );
   await app.init();
   await app.getHttpAdapter().getInstance().ready();

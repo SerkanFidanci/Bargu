@@ -107,3 +107,18 @@ export {
   type ResumeReply,
   type ServerEvent,
 } from './circles.js';
+export {
+  locEventSchema,
+  locGoneEventSchema,
+  locationPublishSchema,
+  locationSnapshotSchema,
+  locationWithdrawSchema,
+  MAX_CIRCLES_PER_REQUEST,
+  MAX_ENVELOPES_PER_PUBLISH,
+  publishReplySchema,
+  RELAY_REFUSALS,
+  watchEventSchema,
+  watchRequestSchema,
+  type LocationPublish,
+  type PublishReply,
+} from './locations.js';

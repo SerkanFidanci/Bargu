@@ -1,6 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { DeliveredEvent, ResumeReply, ServerEvent } from '@bargu/schemas';
-import type { Server } from 'socket.io';
+import type { Server, Socket } from 'socket.io';
+
+import type { AuthContext } from '../auth/request-context.js';
 
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 
@@ -10,6 +12,13 @@ export const EVENT_RETENTION_SECONDS = 24 * 3600;
 export const EVENT_STREAM_LENGTH = 500;
 
 const streamKey = (userId: string) => `ev:${userId}`;
+
+/** A connected socket's identity and the token it presented (re-checked after joining). */
+export interface SocketConnection {
+  auth: AuthContext;
+  token: string;
+  resumes: number;
+}
 export const userRoom = (userId: string) => `user:${userId}`;
 export const deviceRoom = (deviceId: string) => `device:${deviceId}`;
 
@@ -29,8 +38,28 @@ function compareIds(a: string, b: string): number {
 export class EventsService {
   private readonly logger = new Logger('Events');
   private server: Server | null = null;
+  /** Who each connected socket acts for, set once by the handshake (events.gateway). */
+  private readonly connections = new WeakMap<Socket, SocketConnection>();
 
   constructor(@Inject(REDIS) private readonly redis: RedisClient) {}
+
+  bind(socket: Socket, connection: SocketConnection): void {
+    this.connections.set(socket, connection);
+  }
+
+  /** The authenticated identity behind a socket (undefined before the handshake completed). */
+  connectionOf(socket: Socket): SocketConnection | undefined {
+    return this.connections.get(socket);
+  }
+
+  /**
+   * Pushes a live message to users' connected phones, without storing it: for things where only
+   * the latest matters (locations) and that phones catch up on by asking for a snapshot.
+   */
+  emitLive(userIds: Iterable<string>, name: string, payload: unknown): void {
+    const rooms = [...new Set(userIds)].map(userRoom);
+    if (rooms.length > 0) this.server?.to(rooms).emit(name, payload);
+  }
 
   /** Called by the gateway once the Socket.io server exists. */
   attach(server: Server): void {
