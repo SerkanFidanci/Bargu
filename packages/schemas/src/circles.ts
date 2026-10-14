@@ -150,6 +150,8 @@ export const serverEventSchema = z.discriminatedUnion('type', [
       epoch: z.number().int().positive(),
     })
     .strict(),
+  /** A place of the circle was saved or deleted: the app fetches that circle's places. */
+  z.object({ type: z.literal('places.changed'), circleId: z.uuid() }).strict(),
 ]);
 export type ServerEvent = z.infer<typeof serverEventSchema>;
 

@@ -7,9 +7,35 @@ export {
   shareStopPayloadSchema,
   statusPayloadSchema,
   profilePayloadSchema,
+  placePayloadSchema,
+  PLACE_NAME_MAX,
+  PLACE_RADIUS_M,
   type LocPayload,
   type Payload,
+  type PlacePayload,
 } from './payload.js';
+export {
+  devicePushesSchema,
+  MAX_SEALED_PUSH_CHARS,
+  placeEventRequestSchema,
+  placeEventSchema,
+  PUSH_NOTICES,
+  pushBodySchema,
+  sealedPushSchema,
+  type DevicePushes,
+  type PlaceEventRequest,
+  type PushBody,
+  type PushNotice,
+} from './push.js';
+export {
+  MAX_PLACES_PER_CIRCLE,
+  placePutReplySchema,
+  placePutSchema,
+  placeRecordSchema,
+  placesSchema,
+  type PlacePut,
+  type PlaceRecord,
+} from './places.js';
 export {
   deviceKeyBundleSchema,
   MESSAGE_PADDED_BYTES,

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { messageEnvelopeSchema } from './envelope.js';
+import { devicePushesSchema } from './push.js';
 
 /**
  * Envelopes per publish: one per circle the device shares with. Keeps a WebSocket frame well
@@ -47,9 +48,12 @@ export const watchEventSchema = z.object({ circleId: z.uuid() }).strict();
 
 /**
  * A poke (BARGU_PLAN §4.3 "Dürt"): one encrypted `bump` message to one circle, forwarded at once
- * to the members who are online and never stored. Others get a content-free notification.
+ * to the members who are online and never stored. The others get the sealed notification the
+ * sender's phone prepared for their device (push.ts).
  */
-export const bumpRequestSchema = z.object({ envelope: messageEnvelopeSchema }).strict();
+export const bumpRequestSchema = z
+  .object({ envelope: messageEnvelopeSchema, pushes: devicePushesSchema.optional() })
+  .strict();
 export const bumpReplySchema = z
   .object({ ok: z.literal(true) })
   .strict()

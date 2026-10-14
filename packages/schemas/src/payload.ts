@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** Unix epoch milliseconds. */
-const timestamp = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+export const timestamp = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 
 /**
  * Location update. Precision reduction (grid snap) happens on the sender before encryption, so
@@ -50,7 +50,7 @@ export const shareStopPayloadSchema = z
  * no lone surrogates and no bidi overrides (they can visually reorder what others see).
  */
 export const UNSAFE_TEXT = /[\p{Cc}\p{Cs}\u202A-\u202E\u2066-\u2069]/u;
-const displayText = (maxLength: number) =>
+export const displayText = (maxLength: number) =>
   z
     .string()
     .min(1)
@@ -82,6 +82,32 @@ export const profilePayloadSchema = z
   })
   .strict();
 
+/** A place's circle on the map: from a house to a campus (the app offers 100 / 250 / 500 m). */
+export const PLACE_RADIUS_M = { min: 50, max: 1_000 } as const;
+export const PLACE_NAME_MAX = 40;
+export const placeNameSchema = displayText(PLACE_NAME_MAX);
+export const placeEmojiSchema = displayText(16);
+
+/**
+ * A place of a circle (BARGU_PLAN §4.3 "Yerler"), as its members' phones store it on the server:
+ * encrypted like any message, so the server keeps only ciphertext. `ts` only grows with every
+ * edit (the editor takes the later of now and the previous `ts` + 1), so a phone never goes back
+ * to an older version the server might serve again.
+ */
+export const placePayloadSchema = z
+  .object({
+    kind: z.literal('place'),
+    id: z.uuid(),
+    name: placeNameSchema,
+    emoji: placeEmojiSchema,
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    radius: z.number().int().min(PLACE_RADIUS_M.min).max(PLACE_RADIUS_M.max),
+    ts: timestamp,
+  })
+  .strict();
+export type PlacePayload = z.infer<typeof placePayloadSchema>;
+
 /** Everything a sender can put inside an encrypted envelope (BARGU_PLAN §3.1). */
 export const payloadSchema = z.discriminatedUnion('kind', [
   locPayloadSchema,
@@ -91,6 +117,7 @@ export const payloadSchema = z.discriminatedUnion('kind', [
   shareStopPayloadSchema,
   statusPayloadSchema,
   profilePayloadSchema,
+  placePayloadSchema,
 ]);
 
 export type Payload = z.infer<typeof payloadSchema>;

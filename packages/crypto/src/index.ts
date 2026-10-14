@@ -22,6 +22,7 @@ export {
 export {
   createSenderState,
   decryptMessage,
+  decryptStoredMessage,
   encryptMessage,
   verifyMessageEnvelope,
   type EncryptResult,
@@ -29,6 +30,7 @@ export {
 } from './message.js';
 export { REPLAY_WINDOW, ReplayGuard, type ReplayState, type ReplayVerdict } from './replay.js';
 export { openSealed, sealForDevice } from './sealed.js';
+export { openPush, sealPush, type OpenedPush, type PushRecipient } from './push.js';
 export {
   SAFETY_NUMBER_ROUNDS_PER_PAUSE,
   safetyNumber,

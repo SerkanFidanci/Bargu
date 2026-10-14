@@ -11,6 +11,8 @@ public enum BarguCryptoError: Error, Equatable {
   case invalidKey
   case badSignature
   case decryptFailed
+  /// A push from a device the app does not know (TypeScript: `KEY_MISMATCH`).
+  case keyMismatch
 }
 
 /// Wire format of an encrypted message (TypeScript: `MessageEnvelope`). Decoding is strict like
@@ -102,6 +104,76 @@ public struct SenderKeyDistribution: Codable, Equatable, Sendable {
   }
 }
 
+/// What a notification says (TypeScript: `PushBody`, packages/schemas/src/push.ts), decoded as
+/// strictly as the zod schema: per kind exactly its fields, ids and texts checked.
+public struct PushBody: Decodable, Equatable, Sendable {
+  public enum Kind: String, Sendable { case place, bump, notice }
+  public static let notices: Set<String> = [
+    "friendRequest", "friendAccepted", "friendAdded", "circleInvite", "memberJoined",
+  ]
+
+  public let kind: Kind
+  public let circleId: String
+  public let ts: UInt64
+  /// `place` only.
+  public let placeId: String?
+  public let event: String?
+  public let name: String?
+  public let emoji: String?
+  /// `notice` only.
+  public let notice: String?
+
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case kind, circleId, ts, placeId, event, name, emoji, notice
+  }
+
+  static func fields(_ kind: Kind) -> Set<String> {
+    switch kind {
+    case .place: return ["kind", "circleId", "placeId", "event", "name", "emoji", "ts"]
+    case .bump: return ["kind", "circleId", "ts"]
+    case .notice: return ["kind", "notice", "circleId", "ts"]
+    }
+  }
+
+  public init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    guard let kind = Kind(rawValue: try c.decode(String.self, forKey: .kind)) else {
+      throw BarguCryptoError.malformed
+    }
+    let keys = try decoder.container(keyedBy: Strict.AnyKey.self).allKeys.map(\.stringValue)
+    guard Set(keys) == Self.fields(kind), keys.count == Self.fields(kind).count else {
+      throw BarguCryptoError.malformed
+    }
+    self.kind = kind
+    circleId = try c.decode(String.self, forKey: .circleId)
+    _ = try Encoding.uuidBytes(circleId)
+    ts = try c.decode(UInt64.self, forKey: .ts)
+    guard ts <= 9_007_199_254_740_991 else { throw BarguCryptoError.malformed }
+    placeId = try c.decodeIfPresent(String.self, forKey: .placeId)
+    event = try c.decodeIfPresent(String.self, forKey: .event)
+    name = try c.decodeIfPresent(String.self, forKey: .name)
+    emoji = try c.decodeIfPresent(String.self, forKey: .emoji)
+    notice = try c.decodeIfPresent(String.self, forKey: .notice)
+    switch kind {
+    case .place:
+      _ = try Encoding.uuidBytes(placeId ?? "")
+      guard event == "enter" || event == "exit", Strict.isDisplayText(name, max: 40),
+        Strict.isDisplayText(emoji, max: 16)
+      else { throw BarguCryptoError.malformed }
+    case .notice:
+      guard let notice, Self.notices.contains(notice) else { throw BarguCryptoError.malformed }
+    case .bump:
+      break
+    }
+  }
+}
+
+/// A push opened on this device: who signed it (nil: the server's notice) and what it says.
+public struct OpenedPush: Equatable, Sendable {
+  public let senderDeviceId: String?
+  public let body: PushBody
+}
+
 enum Strict {
   struct AnyKey: CodingKey {
     let stringValue: String
@@ -114,6 +186,16 @@ enum Strict {
   static func rejectUnknownKeys(_ decoder: Decoder, allowed: [String]) throws {
     let keys = try decoder.container(keyedBy: AnyKey.self).allKeys.map(\.stringValue)
     guard keys.allSatisfy(allowed.contains) else { throw BarguCryptoError.malformed }
+  }
+
+  /// TypeScript `displayText`: 1…max UTF-16 units (zod counts those), no control characters and no
+  /// bidi overrides or isolates (Swift strings cannot hold lone surrogates).
+  static func isDisplayText(_ text: String?, max: Int) -> Bool {
+    guard let text, !text.isEmpty, text.utf16.count <= max else { return false }
+    return !text.unicodeScalars.contains { scalar in
+      scalar.properties.generalCategory == .control || (0x202A...0x202E).contains(scalar.value)
+        || (0x2066...0x2069).contains(scalar.value)
+    }
   }
 }
 
@@ -134,6 +216,7 @@ public enum BarguProtocol {
     static let messageKdf = "bargu/v1/msg"
     static let messageSignature = "bargu/v1/msg-sig"
     static let pushKdf = "bargu/v1/push"
+    static let pushSignature = "bargu/v1/push-sig"
     static let safetyNumber = "bargu/v1/safety"
 
     /// UTF-8 followed by a 0x00 terminator.
@@ -161,6 +244,44 @@ public enum BarguProtocol {
     return try unpad(
       open(key: key, nonce: nonce, ciphertext: bytes.dropFirst(33), aad: header),
       block: pushPaddingBlock)
+  }
+
+  /// Opens a notification sealed for this device (docs/PROTOCOL.md §7): a member's push must be
+  /// signed, for this very device, by the identity key the app trusts for the sending device
+  /// (`senderIdentityKey` returns nil for unknown devices) and is never a notice; the server's
+  /// pushes can only be notices. The caller checks freshness (`ts`).
+  public static func openPush(
+    _ sealed: String,
+    recipientDeviceId: String,
+    recipientDhSecretKey: Data,
+    senderIdentityKey: (String) -> Data?
+  ) throws -> OpenedPush {
+    let inner = Data(try openSealed(sealed, recipientDhSecretKey: recipientDhSecretKey))
+    let headerBytes = 1 + 16 + 64
+    var senderDeviceId: String? = nil
+    let json: Data
+    if inner.first == 0 {
+      json = inner.subdata(in: 1..<inner.count)
+    } else if inner.first == 1, inner.count > headerBytes {
+      let senderId = inner.subdata(in: 1..<17)
+      let sender = Encoding.uuidString(senderId)
+      guard let identityKey = senderIdentityKey(sender) else { throw BarguCryptoError.keyMismatch }
+      json = inner.subdata(in: headerBytes..<inner.count)
+      try verify(
+        Label.pushSignature, (try Encoding.uuidBytes(recipientDeviceId)) + senderId + json,
+        inner.subdata(in: 17..<headerBytes), identityKey)
+      senderDeviceId = sender
+    } else {
+      throw BarguCryptoError.malformed
+    }
+    let body: PushBody
+    do {
+      body = try JSONDecoder().decode(PushBody.self, from: json)
+    } catch {
+      throw BarguCryptoError.malformed
+    }
+    guard (senderDeviceId == nil) == (body.kind == .notice) else { throw BarguCryptoError.malformed }
+    return OpenedPush(senderDeviceId: senderDeviceId, body: body)
   }
 
   // MARK: - Messages
@@ -373,6 +494,13 @@ enum Encoding {
       index = next
     }
     return bytes
+  }
+
+  /// 16 raw bytes as canonical lower-case UUID text (TypeScript `bytesToUuid`).
+  static func uuidString(_ bytes: Data) -> String {
+    let hex = Array(bytes.map { String(format: "%02x", $0) }.joined())
+    return [0..<8, 8..<12, 12..<16, 16..<20, 20..<32].map { String(hex[$0]) }.joined(
+      separator: "-")
   }
 
   static func u32be(_ value: UInt32) -> Data {

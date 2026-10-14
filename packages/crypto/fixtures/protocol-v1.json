@@ -8,6 +8,7 @@
     "messageKdf": "bargu/v1/msg",
     "messageSignature": "bargu/v1/msg-sig",
     "pushKdf": "bargu/v1/push",
+    "pushSignature": "bargu/v1/push-sig",
     "safetyNumber": "bargu/v1/safety",
     "requestSignature": "bargu/v1/req-sig",
     "otpCode": "bargu/v1/otp",
@@ -76,6 +77,17 @@
     "recipient": "bob",
     "sealed": "AVfbSzWfI65eFG5OJRIFZwRyJQY0jBUMFHU9DJM9BNQhi8p0olZ9TWszHxn1ce1mlCG4jT2ZCxdgZMlXSptO5LoXS-aGslTJ7EPIemfZL7MbgwaXk7oVQT4qksapHtaeVXHmG_lMZ5bzV-gyVBmyc5d8t2Sb7o_aVU-6YJH0_Y67GAQbgfMB15qLhqbYAFQG3p7A6Q_p_kQ4N3u6-QS8vV3T7JxzEHCd3Zcr7utGG1ZRFDiej0eNRVM39Y8J_54J3HnmdYB-mlfzp_zV4yanJDM_RZSF72OS-aa1pHssl0zXyDj5VCU3Lb9dM0YkA1uU-WaW0l29IF78yHgR1PvotxY00uogGOKjQq69TnjXdWIsivZVzcP8n5BeznOgmYi1MQnX_NUiyQjjQjRBYuRabQ6gLcMVUn3eVxDlEcVyMLzkNhoPE3qkyusTndULyRVTg6kEDvlZmzxtsRFe5q5Fvrj5yAmkZongHrF4io_uP2oVYnELxItKfzTU1965TX0gAVFEa4xWSBozfdkXrIZJYE-dYQkjbLQYsIHdm5bomaWEc8eULrDxAjQ2YFWwS-PtGxIU7gTlVHP9U_P9oDISF_J-5LlDpyJBLfmNOulPLx0USlvMY2S62jUATXa0oJS7uZzwI_MUimDNIt0RrCY82AcRw2d1vu6AQPv6WSRP-Z7L-QiM9ROXxEDj60TGce6dBApnrkb4DBXwz-adxZ3KzQTvZuH3ce1lbJt1FO_cwmBKoaLP7XSNCcDmf0KfLAhQxV-CzAftDnLg2pcuIf19WTr6fSmAOZoouoO106GxSH9-iM_QjOTTklYUqTIc2OItf77Iq4UhSgLC1YKyDZRBvY3HIM60u0BYT_P63G8z9TFbuic2U3mwYc9Jh0bY5sQIWftwRaf_sD4sxTWqM1lD6DGv6b4rT-xqWEH--4Z8qkMLvWZaF6J35tf1uHgTH2W8EoOxCXD5eDy4TYZjOd60pQAHSxE0I2mTA-TrzMxP5Kp54GrEMkSI5162D_GGXYdcNp0ap-u3V4Y1YJpVzZLIuysWKYAZsb5WGoS60bN5UqwGsERS6uic0Cyk2Ps8vB2tIzZbV-8UV9WPhHmpB4Fr9WWQJsaOJbUEy0YrsWD9kiH1XRK2qSRRolmrPXQqR4RnwVUI6Z_uW6MCZpzD9SPZwhgfVez-C7DWTGPKxpCVhTDdi6Y33REZgDoBTwL2Fn-6K6khsCgLOulYrM86KxgG-bCX8VpUDRpE-8pb3AF92BWfJZm0Zb_oNltIw8qkV4qmqDSE3dx5eNBWQSjOtCdYC61aQC8jOdSrSwT6b5WiJAQ2HmdiZSUOyCg7D9WCMy9SCk7eBf7MW_YqhizMyTRHROSSdBAgvfAW38peC6HBJWyFaDDijfjWeS-nsuk4nPj6V4IIihNuByasBVk1kFaoYVQVEuddJuGpOKdcgufB5JT-eQJdcIma8v2XmzPFiyuB4hgOntmGfq_hFwOYjEHR5j_NADehMV7xwy1_4rjZBOYKC0VUY6nmj1mEYdNE1LSVVQJgEZL78gJBOUtFB7LW0wDX6LpDSi3wuWcZVdAZa6sk6plo6ItGmO_pLGwCrr0BQw",
     "plaintext": "{\"circleId\":\"0190f7a4-5b6c-7d8e-9f01-23456789abcd\",\"envelope\":{\"v\":1,\"circleId\":\"0190f7a4-5b6c-7d8e-9f01-23456789abcd\",\"epoch\":4,\"senderDeviceId\":\"0190f7a4-0000-7000-8000-00000000a11c\",\"seq\":5,\"salt\":\"EREREREREREREREREREREQ\",\"ct\":\"RW1mM7iEbl1hEZCr9AsDXr_IetlG_KcZhPoawZrRkt6SLeXsm8WoskZNgTIenFc31L256KKWR2XrjJSjtEgpguSWbxi4hcJho0PTpF_IDlfgG022qXMXlisFZSDIc2Df4b5t4m2i7oXHfzCrnHXTt-SYZO7PT2_pCq3Rincv43dhSVM9JStGyxpgWFQTi65ysuHaQFsjzEvoqT2Wfbm4Ast5WzPhhy3X3ZJnV-eNouit6KWMlWYFZcDEoHYqHLxxHiGaBvWUNYQ4lijP8xKK9D2aUzeifvdA24tAgiBb5blPCV9o09Lz39tBeXCUjRyrV9DpZK4BZqvtb8A7GSOBBIILvEw-oJdgJGqKMOuFGqdlGeDBVDaFMYpX8-YHDE1NS8htUV_N6vuPdJyXAOlwKPAJFmSTRvAY0Wb5MC5tKnrI9pp4FqepDH-NKoPlVgRQn2ZCHmHQil-JtsDC-rgVumvbGZ-sdkW1ZO63Oum44g5ObhhGOJxH9eAZDFAG3O5XdJiXT7iLg87NHj28Jotxn0Q8XszXzXo5_uoi6j-rKxTCExnLNXaWBQoC0LBeq7RJJJbw05dX6fhopmDOR-XcAtzKu2u98_8TUr9QfdTy7tBwasea_ic1hSKUL0lT2UyZ3WAbNxnC91GXbwinlnJIKkqGrJVN7gl6pDcIFeOJkUvYBfJhuWIgHXvdkiin0XGR\",\"sig\":\"E13U0mjeNZYnkfIx3YQLBZBCNwf5ueq77xdU01sIkLeNV4xz_z1SwTXMb7DgfHX0ZnDofmXl2eVG0VYsYDOQBw\"}}"
+  },
+  "signedPush": {
+    "recipient": "bob",
+    "sender": "alice",
+    "sealed": "Afd_9LEHiL_cpiyguxYNQnz1di2F8rXK1oB-ycP-u94JFL9zIdNjov2IpdNkVtEgcKQzoOCM-mqoGgmHHkCmX4hz0VzdwmRPl_FNec1g3cJq2tfgLwGnfYJWp0JtKZF6BT7LXp0G5UTX_V0dxA5FZh1QJRo9mnEr-GXciojSylE8sRFcpl8K3I10lwfLsTdF10oJ8AYuT3YRgZbls_ddH_-VA44OhOaIz8w5n9o1KaGObTi-oZYJ6X5FZ6xy5fqEB7TiO4WkV-_CXYI30USVQbPK6RzJwxhUEAZIWjKmMl7SauHWVnQNKStr5CL1oml4z0mRP99DmffWSJtqH7eTcdvkj_OhAoeLjxgmmg_I_UWLMxB_01BPU5ixV9K6pFRR4tJu7nofG3NxmdkR-s_jh8MMlGHprjaWDvtpd_jM4vL5A_EAjy5YdiygLV38xWVP1kAAL3qdHohBVX2xEhux9XXAprmDIKRzp6rAzoVHd2cNxkk3Y8jgdESKc0_gQVscTBxCblxjSyfjkhpxj_ImRqVYys9H1zC_L7Tkfbacl3EXolPf7Ia4d6hXTrObKSRoZA",
+    "body": "{\"kind\":\"place\",\"circleId\":\"0190f7a4-5b6c-7d8e-9f01-23456789abcd\",\"placeId\":\"0190f7a4-2222-7222-8222-000000000001\",\"event\":\"enter\",\"name\":\"Ev\",\"emoji\":\"🏠\",\"ts\":1791880000000}"
+  },
+  "noticePush": {
+    "recipient": "bob",
+    "sealed": "AXOy2LdqqbU2YAMryPXYvuOjrk47On_Umt6B9zR6NKpoWDWs_tBLqYJm7NYr9EHbKk5Drxf9mZzHwRXngx4tiOnij-3-WRmwPfU_VQbP4NOQ1NL-S-RA0Se_LjZZEPuCAS7OCogIA4qo0Og87YaKnXJIvax9Cu0A9G-TwMgh2wqoccnmJKP4H7zSWxEDovdkyjfWvIJ_5vZrEUe73WGS9lkeF2uLzPPdAEsZqx42_aeT",
+    "body": "{\"kind\":\"notice\",\"notice\":\"circleInvite\",\"circleId\":\"0190f7a4-5b6c-7d8e-9f01-23456789abcd\",\"ts\":1791880000000}"
   },
   "safetyNumber": {
     "alice": {

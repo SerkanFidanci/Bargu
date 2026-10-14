@@ -34,6 +34,7 @@ export const LABELS = {
   messageKdf: 'bargu/v1/msg',
   messageSignature: 'bargu/v1/msg-sig',
   pushKdf: 'bargu/v1/push',
+  pushSignature: 'bargu/v1/push-sig',
   safetyNumber: 'bargu/v1/safety',
   // Account and server-side helpers (not part of the message wire format).
   requestSignature: 'bargu/v1/req-sig',

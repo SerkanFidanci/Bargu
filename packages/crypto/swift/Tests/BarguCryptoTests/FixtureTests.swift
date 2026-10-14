@@ -28,7 +28,14 @@ final class FixtureTests: XCTestCase {
     let senderKeyDistribution: SenderKeyDistributionFixture
     let message: MessageFixture
     let sealedPush: SealedPushFixture
+    let signedPush: PushFixture
+    let noticePush: PushFixture
     let safetyNumber: SafetyNumberFixture
+
+    struct PushFixture: Decodable {
+      let sealed: String
+      let body: String
+    }
 
     struct SenderKeyDistributionFixture: Decodable {
       let senderKey: String
@@ -185,6 +192,77 @@ final class FixtureTests: XCTestCase {
     ) { XCTAssertEqual($0 as? BarguCryptoError, .decryptFailed) }
   }
 
+  func knownSender(_ deviceId: String) -> Data? {
+    deviceId == alice.deviceId ? try? b64(alice.bundle.identityKey) : nil
+  }
+
+  func openPush(
+    _ sealed: String, claimingRecipient recipient: Device? = nil,
+    senders: ((String) -> Data?)? = nil
+  ) throws -> OpenedPush {
+    try BarguProtocol.openPush(
+      sealed, recipientDeviceId: (recipient ?? bob).deviceId,
+      recipientDhSecretKey: hex(bob.dhSecretKey), senderIdentityKey: senders ?? knownSender)
+  }
+
+  func testSignedPushOpensAndMatchesTheBody() throws {
+    let fixture = Self.fixtures.signedPush
+    let opened = try openPush(fixture.sealed)
+    XCTAssertEqual(opened.senderDeviceId, alice.deviceId)
+    XCTAssertEqual(
+      opened.body, try JSONDecoder().decode(PushBody.self, from: Data(fixture.body.utf8)))
+    XCTAssertEqual(opened.body.kind, .place)
+    XCTAssertEqual(opened.body.event, "enter")
+    XCTAssertEqual(opened.body.name, "Ev")
+    XCTAssertEqual(opened.body.emoji, "🏠")
+  }
+
+  func testServerNoticeOpensUnsigned() throws {
+    let opened = try openPush(Self.fixtures.noticePush.sealed)
+    XCTAssertNil(opened.senderDeviceId)
+    XCTAssertEqual(opened.body.kind, .notice)
+    XCTAssertEqual(opened.body.notice, "circleInvite")
+  }
+
+  func testPushIsBoundToItsRecipientAndSender() throws {
+    let sealed = Self.fixtures.signedPush.sealed
+    // Signed for Bob's device: claiming another recipient id breaks the signature.
+    XCTAssertThrowsError(try openPush(sealed, claimingRecipient: alice)) {
+      XCTAssertEqual($0 as? BarguCryptoError, .badSignature)
+    }
+    XCTAssertThrowsError(try openPush(sealed, senders: { _ in nil })) {
+      XCTAssertEqual($0 as? BarguCryptoError, .keyMismatch)
+    }
+    let bobKey = try b64(bob.bundle.identityKey)
+    XCTAssertThrowsError(try openPush(sealed, senders: { _ in bobKey })) {
+      XCTAssertEqual($0 as? BarguCryptoError, .badSignature)
+    }
+  }
+
+  func testPushBodyDecodingIsStrict() throws {
+    let circle = "0190f7a4-5b6c-7d8e-9f01-23456789abcd"
+    func decode(_ fields: [String: Any]) throws -> PushBody {
+      try JSONDecoder().decode(
+        PushBody.self, from: JSONSerialization.data(withJSONObject: fields))
+    }
+    let bump: [String: Any] = ["kind": "bump", "circleId": circle, "ts": 1]
+    XCTAssertNoThrow(try decode(bump))
+    XCTAssertThrowsError(try decode(bump.merging(["name": "x"]) { $1 }))
+    XCTAssertThrowsError(try decode(bump.merging(["circleId": "not-a-uuid"]) { $1 }))
+    XCTAssertThrowsError(
+      try decode(["kind": "notice", "notice": "hello", "circleId": circle, "ts": 1]))
+    let place: [String: Any] = [
+      "kind": "place", "circleId": circle, "placeId": circle, "event": "exit", "name": "Ev",
+      "emoji": "x", "ts": 1,
+    ]
+    XCTAssertNoThrow(try decode(place))
+    XCTAssertThrowsError(try decode(place.merging(["event": "near"]) { $1 }))
+    XCTAssertThrowsError(try decode(place.merging(["name": String(repeating: "x", count: 41)]) { $1 }))
+    // A right-to-left override would let a name visually reorder the notification text.
+    let override = String(Character(Unicode.Scalar(0x202E)!))
+    XCTAssertThrowsError(try decode(place.merging(["name": "Ev" + override]) { $1 }))
+  }
+
   func testSafetyNumberMatches() throws {
     let fixture = Self.fixtures.safetyNumber
     let number = try BarguProtocol.safetyNumber(
@@ -202,6 +280,9 @@ final class FixtureTests: XCTestCase {
     XCTAssertThrowsError(try Encoding.uuidBytes("0190f7a45-b6c-7d8e-9f01-23456789abcd"))
     XCTAssertThrowsError(try Encoding.uuidBytes("+190f7a4-5b6c-7d8e-9f01-23456789abcd"))
     XCTAssertNoThrow(try Encoding.uuidBytes("0190f7a4-5b6c-7d8e-9f01-23456789abcd"))
+    XCTAssertEqual(
+      Encoding.uuidString(try Encoding.uuidBytes("0190f7a4-5b6c-7d8e-9f01-23456789abcd")),
+      "0190f7a4-5b6c-7d8e-9f01-23456789abcd")
     XCTAssertThrowsError(try BarguProtocol.openSealed("AQ", recipientDhSecretKey: Data(count: 32)))
   }
 }

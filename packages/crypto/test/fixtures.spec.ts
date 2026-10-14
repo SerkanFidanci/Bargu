@@ -4,6 +4,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { pushBodySchema } from '@bargu/schemas';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { describe, expect, it } from 'vitest';
 
@@ -12,6 +13,7 @@ import { utf8Decode, utf8Encode } from '../src/encoding.js';
 import { exportDeviceKeyBundle, verifyDeviceKeyBundle } from '../src/keys.js';
 import { decryptMessage, encryptMessageWith } from '../src/message.js';
 import { ReplayGuard } from '../src/replay.js';
+import { openPush, sealPushWith } from '../src/push.js';
 import { openSealed, sealForDeviceWith } from '../src/sealed.js';
 import { safetyNumber } from '../src/safety-number.js';
 import { createSenderKeyDistributionWith, openSenderKeyDistribution } from '../src/sender-key.js';
@@ -41,6 +43,31 @@ function buildFixtures() {
     bob.dh.publicKey,
     utf8Encode(pushPlaintext),
     new Uint8Array(32).fill(0x09),
+  );
+  // Notifications (docs/PROTOCOL.md §7): what the iOS extension opens.
+  const recipient = { deviceId: bob.deviceId, dhKey: bob.dh.publicKey };
+  const placeBody = {
+    kind: 'place',
+    circleId: ids.circle,
+    placeId: ids.place,
+    event: 'enter',
+    name: 'Ev',
+    emoji: '🏠',
+    ts: 1_791_880_000_000,
+  } as const;
+  const noticeBody = {
+    kind: 'notice',
+    notice: 'circleInvite',
+    circleId: ids.circle,
+    ts: 1_791_880_000_000,
+  } as const;
+  const signedPush = sealPushWith(
+    { recipient, sender: alice, body: placeBody },
+    new Uint8Array(32).fill(0x0a),
+  );
+  const noticePush = sealPushWith(
+    { recipient, sender: null, body: noticeBody },
+    new Uint8Array(32).fill(0x0b),
   );
   const number = safetyNumber(
     { userId: ids.aliceUser, identityKey: alice.identity.publicKey },
@@ -73,6 +100,13 @@ function buildFixtures() {
       plaintext: JSON.stringify(locationPayload),
     },
     sealedPush: { recipient: 'bob', sealed, plaintext: pushPlaintext },
+    signedPush: {
+      recipient: 'bob',
+      sender: 'alice',
+      sealed: signedPush,
+      body: JSON.stringify(placeBody),
+    },
+    noticePush: { recipient: 'bob', sealed: noticePush, body: JSON.stringify(noticeBody) },
     safetyNumber: {
       alice: { userId: ids.aliceUser, identityKey: bytesToHex(alice.identity.publicKey) },
       bob: { userId: ids.bobUser, identityKey: bytesToHex(bob.identity.publicKey) },
@@ -117,5 +151,19 @@ describe('cross-implementation fixtures', () => {
     expect(utf8Decode(openSealed(bob, fixtures.sealedPush.sealed))).toBe(
       fixtures.sealedPush.plaintext,
     );
+    const known = (deviceId: string) =>
+      deviceId === alice.deviceId ? alice.identity.publicKey : null;
+    expect(
+      openPush({ recipient: bob, sealed: fixtures.signedPush.sealed, senderIdentityKey: known }),
+    ).toEqual({
+      senderDeviceId: alice.deviceId,
+      body: pushBodySchema.parse(JSON.parse(fixtures.signedPush.body)),
+    });
+    expect(
+      openPush({ recipient: bob, sealed: fixtures.noticePush.sealed, senderIdentityKey: known }),
+    ).toEqual({
+      senderDeviceId: null,
+      body: pushBodySchema.parse(JSON.parse(fixtures.noticePush.body)),
+    });
   });
 });

@@ -3,6 +3,7 @@ import {
   payloadSchema,
   type MessageEnvelope,
   type Payload,
+  type PlacePayload,
 } from '@bargu/schemas';
 
 import {
@@ -190,22 +191,16 @@ export function verifyMessageEnvelope(envelope: unknown, senderIdentityKey: Uint
   }
 }
 
-/**
- * Authenticates and decrypts an envelope. Order: shape, key/epoch match, signature, replay window,
- * decryption, payload validation; the replay guard advances only after everything succeeded.
- * Locations are last-write-wins: an authentic location older than one already accepted from the
- * same sender is recorded (so it cannot be replayed) and rejected with `STALE`; other kinds are
- * delivered even when they arrive out of order.
- */
-export function decryptMessage(input: {
+interface OpenInput {
   envelope: unknown;
   senderKey: SenderKey;
   sender: DevicePublicKeys;
-  replay: ReplayGuard;
-}): Payload {
-  const { senderKey, sender, replay } = input;
-  const { data, ct, sig, header, salt } = parseEnvelope(input.envelope);
+}
 
+/** Shape, key and epoch match, signature: everything before the replay window. */
+function authenticate({ envelope, senderKey, sender }: OpenInput) {
+  const parsed = parseEnvelope(envelope);
+  const { data, ct, sig, header } = parsed;
   if (data.senderDeviceId !== sender.deviceId || data.senderDeviceId !== senderKey.senderDeviceId) {
     throw new BarguCryptoError('KEY_MISMATCH', 'envelope is from another device');
   }
@@ -215,11 +210,14 @@ export function decryptMessage(input: {
   if (!verifyWithLabel(LABELS.messageSignature, concatBytes(header, ct), sig, sender.identityKey)) {
     throw new BarguCryptoError('BAD_SIGNATURE', 'invalid envelope signature');
   }
-  const verdict = replay.check(data.circleId, data.senderDeviceId, data.epoch, data.seq);
-  if (verdict === 'replay') {
-    throw new BarguCryptoError('REPLAY', 'message already seen or too old');
-  }
+  return parsed;
+}
 
+/** Decryption and payload validation of an authenticated envelope. */
+function decryptAuthenticated(
+  senderKey: SenderKey,
+  { ct, header, salt }: ReturnType<typeof parseEnvelope>,
+): Payload {
   const keyAndNonce = messageKey(senderKey.key, salt, header);
   let padded: Uint8Array;
   try {
@@ -241,10 +239,42 @@ export function decryptMessage(input: {
   }
   const payload = payloadSchema.safeParse(json);
   if (!payload.success) throw new BarguCryptoError('MALFORMED', 'invalid payload');
+  return payload.data;
+}
 
+/**
+ * Authenticates and decrypts an envelope. Order: shape, key/epoch match, signature, replay window,
+ * decryption, payload validation; the replay guard advances only after everything succeeded.
+ * Locations are last-write-wins: an authentic location older than one already accepted from the
+ * same sender is recorded (so it cannot be replayed) and rejected with `STALE`; other kinds are
+ * delivered even when they arrive out of order.
+ */
+export function decryptMessage(input: OpenInput & { replay: ReplayGuard }): Payload {
+  const { senderKey, replay } = input;
+  const parsed = authenticate(input);
+  const { data } = parsed;
+  const verdict = replay.check(data.circleId, data.senderDeviceId, data.epoch, data.seq);
+  if (verdict === 'replay') {
+    throw new BarguCryptoError('REPLAY', 'message already seen or too old');
+  }
+  const payload = decryptAuthenticated(senderKey, parsed);
   replay.accept(data.circleId, data.senderDeviceId, data.epoch, data.seq);
-  if (payload.data.kind === 'loc' && verdict !== 'latest') {
+  if (payload.kind === 'loc' && verdict !== 'latest') {
     throw new BarguCryptoError('STALE', 'a newer location from this sender was already accepted');
   }
-  return payload.data;
+  return payload;
+}
+
+/**
+ * Opens a message a circle keeps on the server for later (a place, docs/ADR/0015): the same checks
+ * as `decryptMessage` except the replay window, since members open it again and again, long after
+ * newer messages from its author. Only `place` payloads are accepted this way; the caller keeps
+ * versions in order (a place's `ts` never goes back).
+ */
+export function decryptStoredMessage(input: OpenInput): PlacePayload {
+  const payload = decryptAuthenticated(input.senderKey, authenticate(input));
+  if (payload.kind !== 'place') {
+    throw new BarguCryptoError('MALFORMED', 'only places are stored messages');
+  }
+  return payload;
 }

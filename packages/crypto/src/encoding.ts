@@ -43,6 +43,13 @@ export function uuidToBytes(uuid: string): Uint8Array {
   return bytes;
 }
 
+/** 16 raw bytes back to the canonical UUID text. */
+export function bytesToUuid(bytes: Uint8Array): string {
+  if (bytes.length !== ID_BYTES) throw new BarguCryptoError('MALFORMED', 'invalid id');
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export function u32be(value: number): Uint8Array {
   if (!Number.isInteger(value) || value < 0 || value > MAX_U32) {
     throw new BarguCryptoError('MALFORMED', 'expected an unsigned 32-bit integer');
