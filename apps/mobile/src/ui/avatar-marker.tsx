@@ -16,6 +16,7 @@ import Animated, {
 import { activityFx, ambient, avatarSize, elevation, radius, space, useTheme } from '@/theme';
 
 import { Avatar } from './avatar';
+import { gaitPose, leanSideOf } from './gait';
 import { Text } from './text';
 
 export interface AvatarMarkerProps {
@@ -31,6 +32,8 @@ export interface AvatarMarkerProps {
   userId?: string | undefined;
   /** What they seem to be doing: the pin moves accordingly and a small badge says it. */
   activity?: MarkerActivity | undefined;
+  /** Degrees from north while moving: they lean that way and the badge faces it. */
+  heading?: number | null | undefined;
 }
 
 /** What someone seems to be doing (features/map/activity.ts decides). */
@@ -64,9 +67,9 @@ function useCycle(periodMs: number | null) {
 function periodOf(activity: MarkerActivity): number | null {
   switch (activity) {
     case 'walking':
-      return activityFx.walk.periodMs;
+      return activityFx.walk.cycleMs;
     case 'running':
-      return activityFx.run.periodMs;
+      return activityFx.run.cycleMs;
     case 'cycling':
       return activityFx.bike.periodMs;
     case 'driving':
@@ -116,6 +119,7 @@ export function AvatarMarker({
   lowBattery = false,
   userId,
   activity = 'still',
+  heading,
 }: AvatarMarkerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -129,25 +133,44 @@ export function AvatarMarker({
   const breathing = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + breath.get() * (ambient.breathe.scale - 1) }],
   }));
-  // Walking: a step bob; running: quicker, leaning forward; a bike sways; a car hums.
+  const leanSide = leanSideOf(heading);
+  // Walking and running: a real gait (gait.ts); a bike sways; a car hums.
   const motion = useAnimatedStyle(() => {
-    const wave = Math.sin(cycle.get() * 2 * Math.PI);
-    let x = 0;
-    let y = 0;
-    let angle = 0;
-    if (doing === 'walking') {
-      y = -Math.abs(wave) * activityFx.walk.lift;
-      angle = wave * activityFx.walk.tilt;
-    } else if (doing === 'running') {
-      y = -Math.abs(wave) * activityFx.run.lift;
-      angle = activityFx.run.lean + wave * activityFx.run.tilt;
+    let pose = { x: 0, y: 0, rotate: 0, scaleX: 1, scaleY: 1 };
+    if (doing === 'walking' || doing === 'running') {
+      pose = gaitPose(
+        cycle.get(),
+        doing === 'walking' ? activityFx.walk : activityFx.run,
+        leanSide,
+      );
     } else if (doing === 'cycling') {
-      x = wave * activityFx.bike.sway;
-      angle = wave * activityFx.bike.tilt;
+      const wave = Math.sin(cycle.get() * 2 * Math.PI);
+      pose = { ...pose, x: wave * activityFx.bike.sway, rotate: wave * activityFx.bike.tilt };
     } else if (doing === 'driving') {
-      y = wave * activityFx.drive.lift;
+      pose = { ...pose, y: Math.sin(cycle.get() * 2 * Math.PI) * activityFx.drive.lift };
     }
-    return { transform: [{ translateX: x }, { translateY: y }, { rotate: `${String(angle)}deg` }] };
+    return {
+      transform: [
+        { translateX: pose.x },
+        { translateY: pose.y },
+        { rotate: `${String(pose.rotate)}deg` },
+        { scaleX: pose.scaleX },
+        { scaleY: pose.scaleY },
+      ],
+    };
+  });
+  // The shadow on the ground under a walking or running pin: smaller and lighter in the air.
+  const shadow = useAnimatedStyle(() => {
+    if (doing !== 'walking' && doing !== 'running') return { opacity: 0 };
+    const { lift } = gaitPose(
+      cycle.get(),
+      doing === 'walking' ? activityFx.walk : activityFx.run,
+      0,
+    );
+    return {
+      opacity: activityFx.shadow.opacity * (1 - lift * 0.5),
+      transform: [{ scaleX: 1 - lift * activityFx.shadow.shrink }],
+    };
   });
   // Settled in one place: a slow ripple spreading from the pin.
   const ripple = useAnimatedStyle(() => ({
@@ -174,9 +197,14 @@ export function AvatarMarker({
   const doingLabel = doing === 'still' ? null : t(`ui.marker.activity.${doing}`);
   const label = [where, doingLabel, battery].filter((part) => part !== null).join(', ');
   const badge = ACTIVITY_BADGE[doing];
+  const faceEast =
+    (doing === 'walking' || doing === 'running' || doing === 'cycling') && leanSide > 0.2;
 
   return (
     <View accessible accessibilityLabel={label} style={styles.container}>
+      <View style={styles.shadowSlot} pointerEvents="none">
+        <Animated.View style={[styles.shadow, { backgroundColor: colors.scrim }, shadow]} />
+      </View>
       <Animated.View style={[styles.pin, motion]}>
         <Animated.View
           style={[styles.ripple, { borderColor: colors.primary }, ripple]}
@@ -197,7 +225,12 @@ export function AvatarMarker({
                 { backgroundColor: colors.surfaceRaised, boxShadow: elevation.raised },
               ]}
             >
-              <Text variant="caption" allowFontScaling={false} style={styles.activityText}>
+              <Text
+                variant="caption"
+                allowFontScaling={false}
+                // The walker emojis face left: mirrored when heading east, so they face the way.
+                style={[styles.activityText, faceEast ? styles.mirrored : null]}
+              >
                 {badge}
               </Text>
             </View>
@@ -233,7 +266,21 @@ export function AvatarMarker({
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center' },
-  pin: { alignItems: 'center' },
+  // Rotations and squash pivot on the tip: the person stands on their position.
+  pin: { alignItems: 'center', transformOrigin: '50% 100%' },
+  shadowSlot: {
+    position: 'absolute',
+    top: PIN_HEIGHT - activityFx.shadow.height / 2,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  shadow: {
+    width: activityFx.shadow.width,
+    height: activityFx.shadow.height,
+    borderRadius: activityFx.shadow.height / 2,
+  },
+  mirrored: { transform: [{ scaleX: -1 }] },
   ripple: {
     position: 'absolute',
     top: 0,

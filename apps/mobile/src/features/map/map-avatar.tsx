@@ -9,10 +9,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { avatarPalette, space, spring, timing } from '@/theme';
+import { avatarPalette, space, spring, timing, useTheme } from '@/theme';
 import { AvatarMarker, PIN_HEIGHT } from '@/ui/avatar-marker';
 
 import type { Activity } from './activity';
+import { Footprints } from './footprints';
 import { trailLevel } from './glide';
 import { MeetBurst } from './meet-burst';
 import { type PersonHandlers, PersonGestures } from './person-gestures';
@@ -56,8 +57,8 @@ export interface MapAvatarProps {
 
 /**
  * The marker view of a person: a fixed square whose centre is exactly their position (the map
- * anchors it at the centre), with the pin's tip on that point and, while they move, a trail of
- * fading dots behind them that grows with their speed. The square keeps the anchor true whatever
+ * anchors it at the centre), with the pin's tip on that point and, while they move, footprints
+ * (on foot) or a trail of fading dots that grows with their speed (on wheels). The square keeps the anchor true whatever
  * is drawn around the pin (age, trail, status).
  */
 export function MapAvatar({
@@ -81,9 +82,12 @@ export function MapAvatar({
     lift.set(withSequence(withTiming(-space.xl, timing.fast), withSpring(0, spring.bouncy)));
   }, [pokedAt, lift]);
   const jumping = useAnimatedStyle(() => ({ transform: [{ translateY: lift.get() }] }));
-  const level =
-    staleMinutes === undefined && hdg !== null && hdg !== undefined ? trailLevel(spd) : 0;
-  const color = avatarPalette[avatar?.color ?? 0] ?? avatarPalette[0];
+  const heading = staleMinutes === undefined ? hdg : null;
+  // On foot: footprints; on wheels: the fading trail that grows with speed.
+  const gait = activity === 'walking' ? 'walk' : activity === 'running' ? 'run' : null;
+  const level = heading !== null && heading !== undefined && gait === null ? trailLevel(spd) : 0;
+  const { colors } = useTheme();
+  const color = avatarPalette[avatar?.color ?? 0] ?? colors.primary;
   const pin = (
     <AvatarMarker
       name={name}
@@ -93,10 +97,14 @@ export function MapAvatar({
       lowBattery={lowBattery}
       userId={userId}
       activity={activity}
+      heading={hdg}
     />
   );
   return (
     <View style={styles.box} pointerEvents="box-none">
+      {gait === null || heading === null || heading === undefined ? null : (
+        <Footprints gait={gait} heading={heading} center={CENTER} color={color} />
+      )}
       {level === 0 ? null : (
         <View
           pointerEvents="none"

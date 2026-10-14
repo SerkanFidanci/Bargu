@@ -122,8 +122,23 @@ export const activityFx = {
   speeds: { walk: 0.8, run: 2.2, bike: 4.2, drive: 8 },
   /** Within this many metres for this long counts as staying in one place. */
   stay: { radiusM: 100, settledMin: 30 },
-  walk: { periodMs: 520, lift: 2.5, tilt: 3 },
-  run: { periodMs: 320, lift: 3.5, tilt: 4, lean: -7 },
+  /**
+   * A gait: one cycle is two steps (left, right). Each step lifts the pin in a soft arc and lands
+   * with a little squash; the weight shifts side to side once per cycle (pivoting on the point
+   * where the person is); the body leans towards where they are heading.
+   */
+  walk: { cycleMs: 1_040, lift: 3, sway: 1.5, tilt: 4, lean: 3, squash: 0.06 },
+  run: { cycleMs: 680, lift: 5.5, sway: 1, tilt: 3, lean: 8, squash: 0.1 },
+  /** Footprints left behind while walking or running: count, spacing and side offset (px). */
+  footprints: {
+    walk: { prints: 5, spacing: 9, side: 3.5 },
+    run: { prints: 4, spacing: 14, side: 3 },
+    width: 4.5,
+    height: 7,
+    opacity: 0.55,
+  },
+  /** The shadow under a walking or running pin: smaller and lighter while it is in the air. */
+  shadow: { width: 22, height: 6, opacity: 0.6, shrink: 0.35 },
   bike: { periodMs: 760, tilt: 7, sway: 1.5 },
   drive: { periodMs: 140, lift: 0.8 },
   settled: { rippleMs: 3_200, scale: 1.9, opacity: 0.35 },
