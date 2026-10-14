@@ -19,6 +19,7 @@ import { useWatchCircles } from '@/features/location/use-location';
 import { memberName } from '@/features/circles/names';
 import { PeopleLayer } from '@/features/map/people-layer';
 import { MeSheet } from '@/features/home/sheets';
+import { StatusSheet } from '@/features/social/status-sheet';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
 import { usePeopleUi } from '@/features/map/people-ui';
 import { MapCredit } from '@/features/map/map-credit';
@@ -41,6 +42,7 @@ export default function HomeScreen() {
   const circles = useRef<SheetRef>(null);
   const add = useRef<SheetRef>(null);
   const meSheet = useRef<SheetRef>(null);
+  const statusSheet = useRef<SheetRef>(null);
   const [addOpen, setAddOpen] = useState(false);
   const motion = useMotion();
   const celebrating = useCelebration((state) => state.pending);
@@ -133,7 +135,16 @@ export default function HomeScreen() {
         }}
         onClose={() => add.current?.dismiss()}
       />
-      <MeSheet ref={meSheet} me={me.data} onClose={() => meSheet.current?.dismiss()} />
+      <MeSheet
+        ref={meSheet}
+        me={me.data}
+        onClose={() => meSheet.current?.dismiss()}
+        onStatus={() => {
+          meSheet.current?.dismiss();
+          statusSheet.current?.present();
+        }}
+      />
+      <StatusSheet ref={statusSheet} onClose={() => statusSheet.current?.dismiss()} />
       {celebrating ? <Confetti onDone={celebrated} /> : null}
     </View>
   );

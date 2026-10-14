@@ -9,6 +9,9 @@ import {
   type MessageEnvelope,
   type PublishReply,
   publishReplySchema,
+  statusEventSchema,
+  statusGoneEventSchema,
+  statusSnapshotSchema,
   watchEventSchema,
 } from '@bargu/schemas';
 import * as Battery from 'expo-battery';
@@ -25,6 +28,13 @@ import { useCircleKeys } from '../circles/circle-sync';
 import { circleSync, keys, liveRequest, onLiveMessage, onOnline } from '../live/live-session';
 import { queryClient } from '../query-client';
 import { receivePoke } from '../social/poke';
+import {
+  pruneStatuses,
+  receivedStatus,
+  resetStatuses,
+  restoreStatuses,
+  statusGone,
+} from '../social/status';
 import { isVaultOpen, vault } from '../storage/vault';
 import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle } from './engine';
 import { createReceiver } from './receive';
@@ -140,6 +150,7 @@ const receiver = createReceiver({
   circles: () => cachedCircles() ?? [],
   store: vault,
   // A poke: a buzz, their avatar bounces, and a line saying who it was.
+  onStatus: receivedStatus,
   onBump: (circleId, userId, ts) => {
     const name = receivePoke(circleId, userId, ts);
     if (name === null) return;
@@ -156,6 +167,7 @@ export function restoreLocations(): void {
   if (restored) return;
   restored = true;
   receiver.restore();
+  restoreStatuses();
   // Circles left while the app was closed: their members go from the map at once.
   if (cachedCircles() !== undefined) receiver.prune();
 }
@@ -170,6 +182,12 @@ onLiveMessage((name, payload) => {
   } else if (name === 'loc.gone') {
     const parsed = locGoneEventSchema.safeParse(payload);
     if (parsed.success) receiver.gone(parsed.data.circleId, parsed.data.userId);
+  } else if (name === 'status') {
+    const parsed = statusEventSchema.safeParse(payload);
+    if (parsed.success) receiver.receive(parsed.data.envelope);
+  } else if (name === 'status.gone') {
+    const parsed = statusGoneEventSchema.safeParse(payload);
+    if (parsed.success) statusGone(parsed.data.circleId, parsed.data.userId);
   } else if (name === 'bump') {
     const parsed = bumpEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope);
@@ -189,6 +207,9 @@ onOnline(() => {
     try {
       const snapshot = locationSnapshotSchema.safeParse(await liveRequest('locations'));
       if (snapshot.success) receiver.receiveSnapshot(snapshot.data.envelopes);
+      const statuses = statusSnapshotSchema.safeParse(await liveRequest('statuses'));
+      if (statuses.success)
+        for (const envelope of statuses.data.envelopes) receiver.receive(envelope);
     } catch {
       // The next connection asks again; live messages keep coming meanwhile.
     }
@@ -221,6 +242,7 @@ queryClient.getQueryCache().subscribe((event) => {
   const left = [...knownCircles].some((id) => !current.has(id));
   knownCircles = current;
   receiver.prune();
+  pruneStatuses(circles);
   receiver.retryWaiting();
   if (joined || left) void locationEngine.changed();
 });
@@ -228,6 +250,7 @@ queryClient.getQueryCache().subscribe((event) => {
 onSignedOut(() => {
   locationEngine.reset();
   receiver.reset();
+  resetStatuses();
   knownCircles = new Set();
   sharingLoaded = false;
   restored = false;

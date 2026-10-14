@@ -5,6 +5,8 @@ import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
 import { bestPerPerson, useLocations } from '../location/receive';
 import { usePokes } from '../social/poke';
+import { statusOf, useMyStatus, useStatuses } from '../social/status';
+import { StatusBubble } from '../social/status-sheet';
 import { GlidingMarker } from './gliding-marker';
 import { MapAvatar } from './map-avatar';
 import type { PersonHandlers } from './person-gestures';
@@ -48,6 +50,8 @@ export function PeopleLayer({
 }) {
   const locations = useLocations();
   const pokes = usePokes();
+  const statuses = useStatuses();
+  const myStatus = useMyStatus((state) => state.status);
   const myFix = useMyFix((state) => state.fix);
   const now = useNow();
   return (
@@ -56,6 +60,7 @@ export function PeopleLayer({
         const card = cardOf(circles, entry.userId);
         if (card === undefined) return null;
         const { loc } = entry;
+        const status = statusOf(statuses, entry.userId, now);
         return (
           <GlidingMarker
             key={entry.userId}
@@ -73,6 +78,7 @@ export function PeopleLayer({
               lowBattery={!loc.chg && loc.bat < LOW_BATTERY}
               handlers={handlersFor?.(entry.userId)}
               pokedAt={pokes[entry.userId]}
+              above={status === null ? undefined : <StatusBubble status={status} />}
             />
           </GlidingMarker>
         );
@@ -84,6 +90,11 @@ export function PeopleLayer({
             avatar={me.avatar}
             spd={myFix.spd}
             hdg={myFix.hdg}
+            above={
+              myStatus === null || myStatus.expiresAt <= now ? undefined : (
+                <StatusBubble status={myStatus} />
+              )
+            }
           />
         </GlidingMarker>
       )}

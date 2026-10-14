@@ -28,6 +28,7 @@ import { Button } from '@/ui/button';
 import { Text } from '@/ui/text';
 
 import { useNow } from '../location/clock';
+import { statusOf, useStatuses } from '../social/status';
 import { useMyFix } from '../location/engine';
 import { distanceBetween } from './glide';
 import { LOW_BATTERY, staleMinutes } from './people-layer';
@@ -99,6 +100,7 @@ export function PersonCard({
   useBackToClose(true);
 
   const loc = person.location?.loc ?? null;
+  const status = statusOf(useStatuses(), person.userId, now);
   const minutes = loc === null ? undefined : staleMinutes(loc.ts, now);
 
   const onLayout = (event: LayoutChangeEvent) => {
@@ -188,6 +190,18 @@ export function PersonCard({
               </Text>
             </View>
           </View>
+          {status === null ? null : (
+            <View style={[styles.status, { backgroundColor: colors.surface }]}>
+              <Text variant="bodyStrong">
+                {[status.emoji, status.text].filter((part) => part !== undefined).join('  ')}
+              </Text>
+              <Text variant="caption" color="textMuted">
+                {t('map.card.statusLeft', {
+                  hours: Math.max(1, Math.round((status.expiresAt - now) / 3_600_000)),
+                })}
+              </Text>
+            </View>
+          )}
           {loc === null ? null : (
             <View style={styles.facts}>
               <Fact
@@ -289,6 +303,7 @@ const styles = StyleSheet.create({
   inFlight: { zIndex: 1 },
   titles: { flex: 1, gap: space.xxs },
   facts: { gap: space.sm },
+  status: { padding: space.md, borderRadius: radius.lg, gap: space.xxs },
   fact: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   factText: { flex: 1 },
   actions: { flexDirection: 'row', gap: space.sm },

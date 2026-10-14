@@ -5,7 +5,9 @@ import {
   type ReplayState,
   verifyDeviceKeyBundle,
 } from '@bargu/crypto';
-import { type Circle, locPayloadSchema, type MessageEnvelope } from '@bargu/schemas';
+import { type Circle, locPayloadSchema, type MessageEnvelope, type Payload } from '@bargu/schemas';
+
+type StatusPayload = Extract<Payload, { kind: 'status' }>;
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -45,6 +47,8 @@ export interface ReceiverDeps {
   store: () => KeyValueStore;
   /** A member poked this phone (BARGU_PLAN §4.3 "Dürt"). */
   onBump?: (circleId: string, userId: string, ts: number) => void;
+  /** A member set or changed their status (emoji and short text). */
+  onStatus?: (circleId: string, userId: string, status: StatusPayload) => void;
   now?: () => number;
 }
 
@@ -63,7 +67,14 @@ function isVisible(circles: readonly Circle[], circleId: string, userId: string)
  * has not arrived yet waits (one per sender) and is tried again after the next key sync; messages
  * from a member whose identity key changed are ignored until the user accepts the change.
  */
-export function createReceiver({ keys, circles, store, onBump, now = Date.now }: ReceiverDeps) {
+export function createReceiver({
+  keys,
+  circles,
+  store,
+  onBump,
+  onStatus,
+  now = Date.now,
+}: ReceiverDeps) {
   let replay: ReplayGuard | null = null;
   const waiting = new Map<string, MessageEnvelope>();
 
@@ -139,6 +150,10 @@ export function createReceiver({ keys, circles, store, onBump, now = Date.now }:
       if (payload.kind === 'share_stop') {
         remove(circle.id, sender.userId);
         return 'removed';
+      }
+      if (payload.kind === 'status') {
+        onStatus?.(circle.id, sender.userId, payload);
+        return 'shown';
       }
       if (payload.kind === 'bump') {
         onBump?.(circle.id, sender.userId, payload.ts);

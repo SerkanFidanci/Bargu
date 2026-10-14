@@ -160,7 +160,9 @@
       "notifications_enabled": "Açık",
       "notifications_denied": "Kapalı · açmak için dokun",
       "notifications_unavailable": "Bu sürümde henüz yok",
-      "notifications_unknown": "Kontrol ediliyor"
+      "notifications_unknown": "Kontrol ediliyor",
+      "status": "Durum",
+      "statusNone": "Bir emoji ve birkaç kelime paylaş"
     }
   },
   "ui": {
@@ -456,7 +458,8 @@
       "battery": "Pil %{{level}}",
       "batteryCharging": "Pil %{{level}}, şarj oluyor",
       "coarse": "Yaklaşık konum (seninle mahalle ya da şehir düzeyinde paylaşıyor)",
-      "close": "Kartı kapat"
+      "close": "Kartı kapat",
+      "statusLeft": "{{hours}} sa daha"
     },
     "poke": {
       "sent": "{{name}} dürtüldü",
@@ -465,5 +468,16 @@
       "failed": "Dürtülemedi. Bağlantını kontrol et."
     },
     "soon": "Kişiye özel bildirimler yakında geliyor."
+  },
+  "status": {
+    "title": "Durumun",
+    "emoji": "Bir emoji seç",
+    "text": "Birkaç kelime (isteğe bağlı)",
+    "placeholder": "kahve molası",
+    "helper": "Çemberlerin görür, şifreli gider, süresi dolunca kendiliğinden kalkar.",
+    "duration": "Ne kadar süre",
+    "hours": "{{hours}} sa",
+    "save": "Paylaş",
+    "clear": "Durumu kaldır"
   }
 }

@@ -160,7 +160,9 @@
       "notifications_enabled": "On",
       "notifications_denied": "Off · tap to turn on",
       "notifications_unavailable": "Not in this version yet",
-      "notifications_unknown": "Checking"
+      "notifications_unknown": "Checking",
+      "status": "Status",
+      "statusNone": "Share an emoji and a few words"
     }
   },
   "ui": {
@@ -456,7 +458,8 @@
       "battery": "Battery {{level}}%",
       "batteryCharging": "Battery {{level}}%, charging",
       "coarse": "Approximate location (they share their area or city with you)",
-      "close": "Close the card"
+      "close": "Close the card",
+      "statusLeft": "{{hours}} h left"
     },
     "poke": {
       "sent": "You poked {{name}}",
@@ -465,5 +468,16 @@
       "failed": "Could not poke. Check your connection."
     },
     "soon": "Notification settings per person are coming soon."
+  },
+  "status": {
+    "title": "Your status",
+    "emoji": "Pick an emoji",
+    "text": "A few words (optional)",
+    "placeholder": "coffee break",
+    "helper": "Your circles see it, encrypted; it disappears when its time is up.",
+    "duration": "For how long",
+    "hours": "{{hours}} h",
+    "save": "Share",
+    "clear": "Remove status"
   }
 }

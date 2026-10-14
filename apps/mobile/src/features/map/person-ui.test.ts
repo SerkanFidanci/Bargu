@@ -15,6 +15,9 @@ import { personView } from './person-actions';
 import { hoveredItem, opensBelow, RADIAL_RADIUS, radialPosition } from './person-focus';
 import { placeName } from './place-name';
 
+// The card's actions navigate; the router itself is not part of these tests.
+jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+
 const ORIGIN = { x: 200, y: 400 };
 
 describe('radial menu', () => {
