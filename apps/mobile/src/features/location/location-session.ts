@@ -1,5 +1,6 @@
 import {
   bumpEventSchema,
+  bumpReplySchema,
   type Circle,
   locationSnapshotSchema,
   locEventSchema,
@@ -7,6 +8,7 @@ import {
   MAX_CIRCLES_PER_REQUEST,
   MEMBER_STATUSES,
   type MessageEnvelope,
+  placeEventSchema,
   type PublishReply,
   publishReplySchema,
   statusEventSchema,
@@ -24,8 +26,15 @@ import { toast } from '@/ui/toast';
 
 import { api, onSignedOut, useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
+import { memberName } from '../circles/names';
 import { useCircleKeys } from '../circles/circle-sync';
 import { circleSync, keys, liveRequest, onLiveMessage, onOnline } from '../live/live-session';
+import { loadMuteSettings } from '../notifications/mute-session';
+import { isMuted } from '../notifications/mutes';
+import { loadContacts } from '../notifications/push-contacts';
+import { usePlaces } from '../places/places';
+import { places } from '../places/places-session';
+import { createPresence, placeEvent } from '../places/presence';
 import { queryClient } from '../query-client';
 import { publishProfile, receivedProfile, resetPhotos, restorePhotos } from '../profile/photo';
 import { receivePoke } from '../social/poke';
@@ -122,6 +131,46 @@ async function withdraw(circleIds: string[]): Promise<void> {
   }
 }
 
+/**
+ * Tells a circle this phone arrived at or left one of its places: the encrypted message, and a
+ * notification sealed for each trusted member's device (members online get the message at once).
+ */
+async function announce(
+  circle: Pick<Circle, 'id' | 'epoch'>,
+  place: Parameters<typeof placeEvent>[0]['place'],
+  event: 'enter' | 'exit',
+): Promise<void> {
+  const device = useAuth.getState().device;
+  if (device === null) return;
+  const request = placeEvent({
+    circle,
+    place,
+    event,
+    keys: keys(),
+    device,
+    recipients: loadContacts(vault()).recipients[circle.id] ?? [],
+    now: Date.now(),
+  });
+  const reply = bumpReplySchema.parse(
+    await api.authed('/v1/place-events', { method: 'POST', body: request }),
+  );
+  if ('refused' in reply && (reply.refused === 'EPOCH' || reply.refused === 'NOT_MEMBER')) {
+    void circleSync.refresh(circle.id).catch(() => undefined);
+  }
+}
+
+/** Arrivals and departures, noticed on this phone from its own positions (docs/ADR/0015). */
+const presence = createPresence({
+  places: () => {
+    places.restore();
+    return Object.values(usePlaces.getState());
+  },
+  circles: sendCircles,
+  sharing: loadSharingSettings,
+  store: vault,
+  announce,
+});
+
 /** The one engine of this run: fed by the location service, open app or locked screen alike. */
 export const locationEngine = createLocationEngine({
   keys,
@@ -136,7 +185,11 @@ export const locationEngine = createLocationEngine({
   outdated: (circleIds) => {
     for (const circleId of circleIds) void circleSync.refresh(circleId).catch(() => undefined);
   },
+  onFix: (fix) => presence.fix(fix),
 });
+
+/** An arrival or departure older than this when it arrives (it waited for a key) is not shown. */
+const PLACE_EVENT_FRESH_MS = 10 * 60_000;
 
 /** Changes one circle's sharing (or the ghost mode); takes effect at once. */
 export function updateSharing(change: (current: SharingSettings) => SharingSettings): void {
@@ -155,9 +208,25 @@ const receiver = createReceiver({
   onProfile: (userId, profile) => {
     void receivedProfile(userId, profile).catch(() => undefined);
   },
+  // Someone arrived at or left a place: a line saying who and where, unless muted.
+  onPlace: (circleId, userId, event) => {
+    if (Date.now() - event.ts > PLACE_EVENT_FRESH_MS) return;
+    const place = usePlaces.getState()[event.placeId];
+    const member = cachedCircles()
+      ?.find((circle) => circle.id === circleId)
+      ?.members.find((candidate) => candidate.userId === userId);
+    if (place === undefined || member === undefined) return;
+    if (isMuted(loadMuteSettings(), { kind: 'place', placeId: place.id }, userId)) return;
+    const values = { name: memberName(member), place: `${place.emoji} ${place.name}` };
+    toast.info(
+      event.kind === 'place_enter'
+        ? i18n.t('places.arrivedToast', values)
+        : i18n.t('places.leftToast', values),
+    );
+  },
   onBump: (circleId, userId, ts) => {
     const name = receivePoke(circleId, userId, ts);
-    if (name === null) return;
+    if (name === null || isMuted(loadMuteSettings(), { kind: 'bump' }, userId)) return;
     feedback('bump');
     toast.info(i18n.t('map.poke.received', { name }));
   },
@@ -198,6 +267,9 @@ onLiveMessage((name, payload) => {
     if (parsed.success) statusGone(parsed.data.circleId, parsed.data.userId);
   } else if (name === 'bump') {
     const parsed = bumpEventSchema.safeParse(payload);
+    if (parsed.success) receiver.receive(parsed.data.envelope);
+  } else if (name === 'place') {
+    const parsed = placeEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope);
   } else if (name === 'watch') {
     const parsed = watchEventSchema.safeParse(payload);

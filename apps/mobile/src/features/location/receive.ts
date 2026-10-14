@@ -9,6 +9,7 @@ import { type Circle, locPayloadSchema, type MessageEnvelope, type Payload } fro
 
 type StatusPayload = Extract<Payload, { kind: 'status' }>;
 type ProfilePayload = Extract<Payload, { kind: 'profile' }>;
+type PlaceEventPayload = Extract<Payload, { kind: 'place_enter' | 'place_exit' }>;
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -52,6 +53,8 @@ export interface ReceiverDeps {
   onStatus?: (circleId: string, userId: string, status: StatusPayload) => void;
   /** A member's profile message (their photo key, docs/ADR/0014). */
   onProfile?: (userId: string, profile: ProfilePayload) => void;
+  /** A member arrived at or left one of the circle's places (docs/ADR/0015). */
+  onPlace?: (circleId: string, userId: string, event: PlaceEventPayload) => void;
   now?: () => number;
 }
 
@@ -77,6 +80,7 @@ export function createReceiver({
   onBump,
   onStatus,
   onProfile,
+  onPlace,
   now = Date.now,
 }: ReceiverDeps) {
   let replay: ReplayGuard | null = null;
@@ -166,6 +170,10 @@ export function createReceiver({
       if (payload.kind === 'bump') {
         onBump?.(circle.id, sender.userId, payload.ts);
         return 'bumped';
+      }
+      if (payload.kind === 'place_enter' || payload.kind === 'place_exit') {
+        onPlace?.(circle.id, sender.userId, payload);
+        return 'shown';
       }
       return 'ignored';
     } catch (error) {

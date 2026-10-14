@@ -2,8 +2,9 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
-/** Android channel for friend and circle notices (users can tune it in system settings). */
-export const SOCIAL_CHANNEL = 'social';
+import { PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
+
+export { SOCIAL_CHANNEL };
 
 /**
  * enabled: system notifications on and this phone registered; denied: the user said no (only the
@@ -28,8 +29,9 @@ Notifications.setNotificationHandler({
 export interface PushRegistration {
   /** Sends the phone's push token to the server (signed request). */
   register: (token: string) => Promise<void>;
-  /** Name of the Android channel, in the user's language. */
+  /** Names of the Android channels, in the user's language. */
   channelName: string;
+  placesChannelName: string;
 }
 
 /**
@@ -37,10 +39,18 @@ export interface PushRegistration {
  * registers this phone for notifications. On Android 13+ the dialog appears only once a channel
  * exists, so the channel comes first.
  */
-export async function enablePush({ register, channelName }: PushRegistration): Promise<PushState> {
+export async function enablePush({
+  register,
+  channelName,
+  placesChannelName,
+}: PushRegistration): Promise<PushState> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(SOCIAL_CHANNEL, {
       name: channelName,
+      importance: Notifications.AndroidImportance.HIGH,
+    });
+    await Notifications.setNotificationChannelAsync(PLACES_CHANNEL, {
+      name: placesChannelName,
       importance: Notifications.AndroidImportance.HIGH,
     });
   }

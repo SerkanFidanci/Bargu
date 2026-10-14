@@ -198,6 +198,8 @@ export function createCircleSync({
     async apply(events: ServerEvent[]): Promise<void> {
       const work = new Map<string, { fetch: boolean; keys: boolean; gone: boolean }>();
       for (const event of events) {
+        // Places have their own sync (features/places); the circle itself did not change.
+        if (event.type === 'places.changed') continue;
         const entry = work.get(event.circleId) ?? { fetch: false, keys: false, gone: false };
         if (event.type === 'circle.gone') {
           entry.gone = true;

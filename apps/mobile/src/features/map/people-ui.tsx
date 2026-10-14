@@ -6,7 +6,10 @@ import { duration } from '@/theme/motion';
 import { feedback } from '@/theme/haptics';
 import { toast } from '@/ui/toast';
 
+import type { SheetRef } from '@/ui/sheet';
+
 import { useLocations } from '../location/receive';
+import { MuteSheet } from '../notifications/mute-sheet';
 import { poke } from '../social/poke';
 import type { BarguMapHandle } from './bargu-map';
 import { type PersonView, personView, runPersonAction } from './person-actions';
@@ -39,6 +42,8 @@ export function usePeopleUi(
   const locations = useLocations();
   const [place, setPlace] = useState<{ userId: string; name: string | null } | null>(null);
   const focused = useRef<string | null>(null);
+  const muteSheet = useRef<SheetRef>(null);
+  const [muting, setMuting] = useState<{ userId: string; name: string } | null>(null);
 
   const sendPoke = useCallback(
     async (person: PersonView) => {
@@ -63,12 +68,13 @@ export function usePeopleUi(
       if (action === 'profile') closeCard();
       runPersonAction(action, person, {
         poke: (who) => void sendPoke(who),
-        soon: () => {
-          toast.info(t('map.soon'));
+        notifications: (who) => {
+          setMuting({ userId: who.userId, name: who.name });
+          muteSheet.current?.present();
         },
       });
     },
-    [circles, sendPoke, t],
+    [circles, sendPoke],
   );
 
   const handlersFor = useCallback(
@@ -135,6 +141,7 @@ export function usePeopleUi(
         />
       )}
       <RadialMenu onPick={act} />
+      <MuteSheet ref={muteSheet} person={muting} />
     </>
   );
 

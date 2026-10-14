@@ -61,8 +61,8 @@ export function openProfile(person: PersonView): void {
 
 export interface ActionDeps {
   poke: (person: PersonView) => void;
-  /** Not here yet (per-person notification settings come with Faz 7). */
-  soon: () => void;
+  /** This person's notification switches (mute-sheet.tsx). */
+  notifications: (person: PersonView) => void;
 }
 
 export function runPersonAction(action: PersonAction, person: PersonView, deps: ActionDeps): void {
@@ -77,7 +77,7 @@ export function runPersonAction(action: PersonAction, person: PersonView, deps: 
       openProfile(person);
       return;
     case 'notifications':
-      deps.soon();
+      deps.notifications(person);
       return;
   }
 }

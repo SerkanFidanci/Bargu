@@ -6,6 +6,7 @@ import { AppState, Platform } from 'react-native';
 import i18n, { resolveLanguage } from '@/i18n';
 
 import { api } from '../auth/auth-store';
+import { registerPushTask } from './background-push';
 import { circleOfResponse, enablePush } from './push';
 
 /** The server sends this phone its notices in this language, to this token (apps/api push). */
@@ -33,7 +34,13 @@ function open(response: Notifications.NotificationResponse): void {
 export function usePushNotifications(ready: boolean): void {
   useEffect(() => {
     if (!ready) return;
-    void enablePush({ register, channelName: i18n.t('notifications.channel') });
+    void enablePush({
+      register,
+      channelName: i18n.t('notifications.channel'),
+      placesChannelName: i18n.t('notifications.placesChannel'),
+    });
+    // Notifications arrive sealed and data-only (docs/ADR/0016): this task opens and shows them.
+    if (Platform.OS === 'android') void registerPushTask().catch(() => undefined);
     const tokens = Notifications.addPushTokenListener((token) => {
       const data: unknown = token.data;
       if (typeof data === 'string') void register(data).catch(() => undefined);

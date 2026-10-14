@@ -399,7 +399,25 @@
     "andMore": "{{text}} (+{{count}})"
   },
   "notifications": {
-    "channel": "Arkadaşlar ve çemberler"
+    "channel": "Arkadaşlar ve çemberler",
+    "placesChannel": "Varışlar ve ayrılışlar",
+    "arrived": "{{name}} vardı",
+    "left": "{{name}} ayrıldı",
+    "poked": "{{name}} seni dürttü 👋",
+    "notice": {
+      "friendRequest": "Yeni bir arkadaşlık isteğin var",
+      "friendAccepted": "Arkadaşlık isteğin kabul edildi",
+      "friendAdded": "Yeni bir arkadaşın var",
+      "circleInvite": "Bir çembere davet edildin",
+      "memberJoined": "Çemberine yeni biri katıldı",
+      "memberJoinedIn": "{{circle}} çemberine yeni biri katıldı"
+    },
+    "mute": {
+      "title": "{{name}} için bildirimler",
+      "places": "Varışları ve ayrılışları",
+      "pokes": "Dürtmeleri",
+      "hint": "Kapattıkların yalnızca bu telefonda susar; sunucu kimi sessize aldığını bilmez."
+    }
   },
   "location": {
     "service": {
@@ -474,9 +492,34 @@
       "limited": "Biraz bekle, çok sık dürttün.",
       "failed": "Dürtülemedi. Bağlantını kontrol et."
     },
-    "soon": "Kişiye özel bildirimler yakında geliyor.",
     "meet": "{{name}} ile buluştunuz! 🎉",
     "cluster": "{{count}} kişi bir arada: {{names}}. Yakınlaştırmak için dokun."
+  },
+  "places": {
+    "title": "Yerler",
+    "add": "Yer ekle",
+    "empty": "Ev, okul, iş… Bir yer ekle; biri varınca ya da ayrılınca haber gelsin.",
+    "newTitle": "Yeni yer",
+    "editTitle": "Yeri düzenle",
+    "name": "Yerin adı",
+    "namePlaceholder": "Örneğin Ev",
+    "emoji": "Simge",
+    "meters": "{{meters}} m",
+    "sizeHint": "Dairenin kenarındaki tutamağı sürükle: 100, 250 ya da 500 m",
+    "moveHint": "Haritayı kaydırarak yeri dairenin ortasına getir",
+    "save": "Kaydet",
+    "delete": "Yeri sil",
+    "deleteConfirm": "Bu yer çemberden silinsin mi? Herkesin haritasından kalkar.",
+    "saved": "Yer kaydedildi",
+    "deleted": "Yer silindi",
+    "conflict": "Bu yeri biri az önce değiştirdi. Son hâline bak ve yeniden dene.",
+    "full": "Bir çemberde en çok 30 yer olabilir.",
+    "failed": "Kaydedilemedi. Bağlantını kontrol et.",
+    "notify": "Bu yerdeki varış ve ayrılışlar",
+    "exactOnly": "Bu çembere tam konum paylaştığında varış ve ayrılışların haber verilir.",
+    "arrivedToast": "{{name}} vardı · {{place}}",
+    "leftToast": "{{name}} ayrıldı · {{place}}",
+    "encrypted": "Yerin adı ve konumu şifreli; sunucu göremez."
   },
   "status": {
     "title": "Durumun",

@@ -31,6 +31,7 @@ import {
 } from '@/features/circles/queries';
 import { circleSync, keys } from '@/features/live/live-session';
 import { SharingCard } from '@/features/location/sharing-card';
+import { PlacesCard } from '@/features/places/places-card';
 import { isValidDisplayName } from '@/features/profile/profile-form';
 import { radius, space, touchTarget, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
@@ -197,6 +198,12 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
       {active ? (
         <Appear index={2}>
           <SharingCard circleId={circle.id} name={pair ? title : null} />
+        </Appear>
+      ) : null}
+
+      {active ? (
+        <Appear index={2}>
+          <PlacesCard circleId={circle.id} />
         </Appear>
       ) : null}
 

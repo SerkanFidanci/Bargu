@@ -27,6 +27,10 @@ export interface BarguMapProps {
   ref?: Ref<BarguMapHandle>;
   /** A tap on the map itself (not on a person). */
   onPress?: () => void;
+  /** Every camera move, while it moves (the place editor sizes its circle with it). */
+  onViewChange?: (view: { center: LngLat; zoom: number }) => void;
+  /** Zoom of the first focus (a street by default). */
+  focusZoom?: number;
 }
 
 /** What the screens may ask of the map. */
@@ -51,7 +55,15 @@ const PLACE_SEARCH_PX = 160;
  * the viewport, i.e. where the user looks). Light by day, dark at night unless the user picks one
  * (appearance.ts). The OpenStreetMap credit is drawn by MapCredit, not the native button.
  */
-export function BarguMap({ insets, focus = null, children, ref, onPress }: BarguMapProps) {
+export function BarguMap({
+  insets,
+  focus = null,
+  children,
+  ref,
+  onPress,
+  onViewChange,
+  focusZoom = FOCUS_ZOOM,
+}: BarguMapProps) {
   const { t } = useTranslation();
   const scheme = useMapScheme();
   const camera = useRef<CameraRef>(null);
@@ -94,9 +106,9 @@ export function BarguMap({ insets, focus = null, children, ref, onPress }: Bargu
   useEffect(() => {
     if (focus === null || focused.current || camera.current === null) return;
     focused.current = true;
-    if (reduced) camera.current.jumpTo({ center: focus, zoom: FOCUS_ZOOM });
-    else camera.current.easeTo({ center: focus, zoom: FOCUS_ZOOM, duration: duration.slow });
-  }, [focus, reduced]);
+    if (reduced) camera.current.jumpTo({ center: focus, zoom: focusZoom });
+    else camera.current.easeTo({ center: focus, zoom: focusZoom, duration: duration.slow });
+  }, [focus, focusZoom, reduced]);
 
   return (
     <Map
@@ -106,7 +118,15 @@ export function BarguMap({ insets, focus = null, children, ref, onPress }: Bargu
       // Clusters depend on the zoom: recomputed when the map settles, not on every frame.
       onRegionDidChange={(event) => {
         useMapZoom.setState({ zoom: event.nativeEvent.zoom });
+        onViewChange?.({ center: event.nativeEvent.center, zoom: event.nativeEvent.zoom });
       }}
+      {...(onViewChange === undefined
+        ? {}
+        : {
+            onRegionIsChanging: (event: { nativeEvent: { center: LngLat; zoom: number } }) => {
+              onViewChange({ center: event.nativeEvent.center, zoom: event.nativeEvent.zoom });
+            },
+          })}
       accessibilityLabel={t('main.map')}
       style={StyleSheet.absoluteFill}
       mapStyle={mapStyle(scheme)}

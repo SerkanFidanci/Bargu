@@ -399,7 +399,25 @@
     "andMore": "{{text}} (+{{count}})"
   },
   "notifications": {
-    "channel": "Friends and circles"
+    "channel": "Friends and circles",
+    "placesChannel": "Arrivals and departures",
+    "arrived": "{{name}} arrived",
+    "left": "{{name}} left",
+    "poked": "{{name}} poked you 👋",
+    "notice": {
+      "friendRequest": "You have a new friend request",
+      "friendAccepted": "Your friend request was accepted",
+      "friendAdded": "You have a new friend",
+      "circleInvite": "You were invited to a circle",
+      "memberJoined": "Someone joined your circle",
+      "memberJoinedIn": "Someone joined {{circle}}"
+    },
+    "mute": {
+      "title": "Notifications from {{name}}",
+      "places": "Arrivals and departures",
+      "pokes": "Pokes",
+      "hint": "What you turn off goes quiet on this phone only; the server never learns whom you muted."
+    }
   },
   "location": {
     "service": {
@@ -474,9 +492,34 @@
       "limited": "Wait a moment, that was a lot of pokes.",
       "failed": "Could not poke. Check your connection."
     },
-    "soon": "Notification settings per person are coming soon.",
     "meet": "You and {{name}} met! 🎉",
     "cluster": "{{count}} people together: {{names}}. Tap to zoom in."
+  },
+  "places": {
+    "title": "Places",
+    "add": "Add a place",
+    "empty": "Home, school, work… Add a place and hear when someone arrives or leaves.",
+    "newTitle": "New place",
+    "editTitle": "Edit place",
+    "name": "Name of the place",
+    "namePlaceholder": "For example Home",
+    "emoji": "Icon",
+    "meters": "{{meters}} m",
+    "sizeHint": "Drag the handle on the circle: 100, 250 or 500 m",
+    "moveHint": "Move the map to put the place in the middle of the circle",
+    "save": "Save",
+    "delete": "Delete place",
+    "deleteConfirm": "Delete this place from the circle? It goes from everyone’s map.",
+    "saved": "Place saved",
+    "deleted": "Place deleted",
+    "conflict": "Someone just changed this place. Look at it again and retry.",
+    "full": "A circle can have at most 30 places.",
+    "failed": "Could not save. Check your connection.",
+    "notify": "Arrivals and departures here",
+    "exactOnly": "Your arrivals and departures are shared while you share your exact location with this circle.",
+    "arrivedToast": "{{name}} arrived · {{place}}",
+    "leftToast": "{{name}} left · {{place}}",
+    "encrypted": "The name and location of the place are encrypted; the server cannot see them."
   },
   "status": {
     "title": "Your status",

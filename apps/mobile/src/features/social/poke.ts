@@ -1,11 +1,18 @@
 import { encryptMessage } from '@bargu/crypto';
-import { bumpReplySchema, type Circle, type MessageEnvelope } from '@bargu/schemas';
+import {
+  bumpReplySchema,
+  type Circle,
+  type DevicePushes,
+  type MessageEnvelope,
+} from '@bargu/schemas';
 import { create } from 'zustand';
 
 import { api, useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
 import { memberName } from '../circles/names';
 import { keys, liveRequest } from '../live/live-session';
+import { contactsOf } from '../notifications/push-contacts';
+import { sealPushes } from '../places/presence';
 import { queryClient } from '../query-client';
 
 /** When each person last poked this phone (their avatar bounces once). */
@@ -16,8 +23,13 @@ export const POKE_FRESH_MS = 60_000;
 
 export type PokeResult = 'sent' | 'limited' | 'failed';
 
-async function deliver(envelope: MessageEnvelope): Promise<unknown> {
-  const viaSocket = liveRequest('bump', { envelope });
+/** A live frame stays well under the socket's 16 KB; a poke to a big circle goes over HTTP. */
+const SOCKET_BODY_LIMIT = 12_000;
+
+async function deliver(envelope: MessageEnvelope, pushes: DevicePushes): Promise<unknown> {
+  const body = { envelope, pushes };
+  const viaSocket =
+    JSON.stringify(body).length < SOCKET_BODY_LIMIT ? liveRequest('bump', body) : null;
   if (viaSocket !== null) {
     try {
       const reply = bumpReplySchema.safeParse(await viaSocket);
@@ -26,7 +38,7 @@ async function deliver(envelope: MessageEnvelope): Promise<unknown> {
       // No answer in time: try HTTP.
     }
   }
-  return api.authed('/v1/bumps', { method: 'POST', body: { envelope } });
+  return api.authed('/v1/bumps', { method: 'POST', body });
 }
 
 /**
@@ -46,7 +58,11 @@ export async function poke(circleId: string): Promise<PokeResult> {
       sender: device,
       payload: { kind: 'bump', ts: Date.now() },
     });
-    const reply = bumpReplySchema.safeParse(await deliver(envelope));
+    // Members whose app is closed get a notification sealed for their device (docs/ADR/0016).
+    const recipients =
+      contactsOf([circle], store, useAuth.getState().userId).recipients[circle.id] ?? [];
+    const pushes = sealPushes(recipients, device, { kind: 'bump', circleId, ts: Date.now() });
+    const reply = bumpReplySchema.safeParse(await deliver(envelope, pushes));
     if (!reply.success) return 'failed';
     if ('ok' in reply.data) return 'sent';
     return reply.data.refused === 'RATE_LIMITED' ? 'limited' : 'failed';

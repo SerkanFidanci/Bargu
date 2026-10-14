@@ -1,3 +1,4 @@
+import type { ServerEvent } from '@bargu/schemas';
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
@@ -32,6 +33,13 @@ function setOnline(online: boolean): void {
 
 type LiveListener = (name: string, payload: unknown) => void;
 const liveListeners = new Set<LiveListener>();
+const eventListeners = new Set<(events: readonly ServerEvent[]) => void>();
+
+/** Resumable server events as they are applied (places use `places.changed`); the unsubscribe. */
+export function onServerEvents(listener: (events: readonly ServerEvent[]) => void): () => void {
+  eventListeners.add(listener);
+  return () => eventListeners.delete(listener);
+}
 const onlineListeners = new Set<() => void>();
 
 /** Live messages from the relay (locations, watch requests); returns the unsubscribe. */
@@ -66,7 +74,10 @@ export const circleSync = createCircleSync({
 const stream = new EventStream({
   transport: socketTransport(env.apiUrl, (path) => api.socketHandshake(path)),
   store: { ...lazyVault() },
-  apply: (events) => circleSync.apply(events),
+  apply: (events) => {
+    for (const listener of eventListeners) listener(events);
+    return circleSync.apply(events);
+  },
   reload: () => circleSync.reload(),
   denied: (code) => {
     if (code === 'DEVICE_REVOKED') void sessionRevoked();

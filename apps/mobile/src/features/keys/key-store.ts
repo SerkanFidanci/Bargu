@@ -209,6 +209,32 @@ export class KeyStore {
     return fresh;
   }
 
+  /**
+   * This device's sender key of an epoch if it is still kept (never created here): opens what this
+   * phone stored on the server back then (a place, docs/ADR/0015).
+   */
+  storedOwnKey(circleId: string, epoch: number): SenderKey | null {
+    const stored = read(this.store, k.own(circleId, epoch), ownSchema);
+    return stored === null
+      ? null
+      : {
+          circleId,
+          epoch,
+          senderDeviceId: this.me.device.deviceId,
+          key: fromBase64url(stored.key, 32),
+        };
+  }
+
+  /** Our own public keys, for opening what this device itself sealed. */
+  ownPublicKeys(): { deviceId: string; identityKey: Uint8Array; dhKey: Uint8Array } {
+    const { device } = this.me;
+    return {
+      deviceId: device.deviceId,
+      identityKey: device.identity.publicKey,
+      dhKey: device.dh.publicKey,
+    };
+  }
+
   /** Copies of our current sender key still owed to trusted active members. */
   pendingDistributions(circle: Circle): SenderKeyDistribution[] {
     if (circle.myStatus !== 'active') return [];

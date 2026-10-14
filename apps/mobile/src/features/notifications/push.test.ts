@@ -18,7 +18,12 @@ jest.mock('expo-notifications', () => ({
 }));
 
 const register = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
-const run = () => enablePush({ register, channelName: 'Arkadaşlar ve çemberler' });
+const run = () =>
+  enablePush({
+    register,
+    channelName: 'Arkadaşlar ve çemberler',
+    placesChannelName: 'Varışlar ve ayrılışlar',
+  });
 
 beforeEach(() => {
   jest.clearAllMocks();

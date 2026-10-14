@@ -57,6 +57,8 @@ export interface EngineDeps {
   withdraw: (circleIds: string[]) => Promise<void>;
   /** The relay refused some circles (old epoch, no longer a member): refresh them. */
   outdated?: (circleIds: string[]) => void;
+  /** Every new position, sent or not (arrivals and departures at places, docs/ADR/0015). */
+  onFix?: (fix: Fix) => Promise<void>;
   now?: () => number;
 }
 
@@ -172,6 +174,7 @@ export function createLocationEngine(deps: EngineDeps) {
     latest = next;
     stay = nextStay(stay, next, next.ts);
     useMyFix.setState({ fix: next, since: stay.since });
+    void deps.onFix?.(next).catch(() => undefined);
     if (shouldSend(last, next, now(), live())) {
       pending = next;
       return pump();

@@ -18,6 +18,7 @@ import { seersOf, useSharing } from '@/features/location/sharing';
 import { useWatchCircles } from '@/features/location/use-location';
 import { memberName } from '@/features/circles/names';
 import { PeopleLayer } from '@/features/map/people-layer';
+import { PlacesLayer } from '@/features/places/places-layer';
 import { MeSheet } from '@/features/home/sheets';
 import { StatusSheet } from '@/features/social/status-sheet';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
@@ -86,6 +87,7 @@ export default function HomeScreen() {
         }}
         focus={myFix === null ? null : [myFix.lng, myFix.lat]}
       >
+        <PlacesLayer />
         <PeopleLayer
           me={me.data}
           circles={circleList.data ?? []}

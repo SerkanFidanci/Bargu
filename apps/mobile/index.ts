@@ -6,5 +6,8 @@ import './src/platform/native-crypto';
 // 3. the background location task, defined before anything renders: Android may start the app
 //    without a screen just to deliver a location (src/features/location/background-task.ts);
 import './src/features/location/background-task';
-// 4. the screens.
+// 4. the notification task, for the same reason: a sealed notification may wake the app alone
+//    (src/features/notifications/background-push.ts);
+import './src/features/notifications/background-push';
+// 5. the screens.
 import 'expo-router/entry';
