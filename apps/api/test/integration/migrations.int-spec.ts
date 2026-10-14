@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { inject } from 'vitest';
 
 import { schema } from '../../src/db/schema.js';
-import { APP_ROLE, migrate } from '../../src/db/migrate.js';
+import { migrate } from '../../src/db/migrate.js';
 
 let admin: Pool;
 const options = () => ({
@@ -43,15 +43,8 @@ describe('migrations', () => {
     }
   });
 
-  it('re-assert the runtime role attributes on every run', async () => {
-    await admin.query(`ALTER ROLE ${APP_ROLE} BYPASSRLS`);
-    await migrate(options());
-    const { rows } = await admin.query<{ bypass: boolean }>(
-      `SELECT rolbypassrls AS bypass FROM pg_roles WHERE rolname = $1`,
-      [APP_ROLE],
-    );
-    expect(rows[0]?.bypass).toBe(false);
-  });
+  // "Re-assert the runtime role attributes on every run" is checked in global-setup.ts, before
+  // any test runs: it briefly gives the shared runtime role BYPASSRLS.
 
   it('match the typed Drizzle schema column for column', async () => {
     for (const table of Object.values(schema)) {

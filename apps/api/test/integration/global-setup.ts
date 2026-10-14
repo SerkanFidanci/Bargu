@@ -44,6 +44,25 @@ export default async function setup(project: TestProject): Promise<() => Promise
   const databaseAdminUrl = urlFor(ADMIN_URL, database);
   await migrate({ adminUrl: databaseAdminUrl, appPassword: APP_PASSWORD, migrationsDir });
 
+  // Every migration run re-asserts the runtime role's attributes (a drifted role could bypass RLS).
+  // Checked here, before any test starts: it briefly changes a role shared by the whole cluster,
+  // which would let concurrently running tests see rows they must not.
+  const roleCheck = new Client({ connectionString: databaseAdminUrl });
+  await roleCheck.connect();
+  try {
+    await roleCheck.query(`ALTER ROLE ${roleCheck.escapeIdentifier(APP_ROLE)} BYPASSRLS`);
+    await migrate({ adminUrl: databaseAdminUrl, appPassword: APP_PASSWORD, migrationsDir });
+    const { rows } = await roleCheck.query<{ bypass: boolean }>(
+      'SELECT rolbypassrls AS bypass FROM pg_roles WHERE rolname = $1',
+      [APP_ROLE],
+    );
+    if (rows[0]?.bypass !== false) {
+      throw new Error('migrate did not take BYPASSRLS away from the runtime role');
+    }
+  } finally {
+    await roleCheck.end();
+  }
+
   const redis = createClient({ url: REDIS_URL });
   await redis.connect();
   await redis.flushAll();
