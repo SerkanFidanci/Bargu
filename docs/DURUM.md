@@ -12,7 +12,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                          |
 | Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı) |
 | Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim) |
-| Faz 5 — Konum Motoru & Relay     | 🚧 Sürüyor                                                            |
+| Faz 5 — Konum Motoru & Relay     | 🚧 Kod bitti, telefonda deneme bekliyor                               |
 
 ## Ortamlar
 
@@ -25,6 +25,87 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Android sürümleri  | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır)                                                                               |
 | Uygulama kimliği   | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                         |
 | Harita dosyaları   | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                 |
+
+## Faz 5 — Konum Motoru & Relay (2026-10-14)
+
+Kararlar: [ADR 0011](ADR/0011-location-engine-and-relay.md). Durum: kod bitti, telefonda deneme
+bekliyor.
+
+### DoD
+
+| Ölçüt                                                | Durum                                                                                                                                                                                     |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Log/DB/Redis'te düz koordinat yok (otomatik test)    | ✅ API testi gerçek şifreli konum gönderip Redis'i, tüm tabloları, iş kuyruğunu ve ayrıntılı log'u tarıyor                                                                                |
+| Kilitli ekranda arka planda gönderim                 | Android: hazır (görünür bildirimli konum servisi, arka plan izni yok), telefonda denenecek. iOS: Apple hesabı bekliyor                                                                    |
+| Gönderen → alıcı ekranı p95 < 500 ms                 | Sunucu yolu p95 **17 ms** (canlı bağlantı), 25 ms (arka plan / HTTP); ağ gidiş-dönüş p95 244 ms (şirket ağından); tahmini uçtan uca p95 ≈ 270 ms. İki gerçek telefonla doğrulama bekliyor |
+| Uçak modu, Wi-Fi ↔ hücresel, 10 dk arka plan sonrası | Otomatik: yeniden bağlanma + kaçırılanları alma, çevrimdışıyken yalnız en yeni konumu bekletme, açılışta son konumlar ✅. Elle: telefonda denenecek                                       |
+| 8 saatlik saha testi pil raporu                      | Proje sahibi telefonda yapacak                                                                                                                                                            |
+
+### Yapılanlar
+
+- **Şifreli konum aktarıcısı (sunucu)**: telefon her çember için ayrı şifrelenmiş ve imzalı zarf
+  yollar; sunucu yalnızca imzayı, üyeliği ve epoch'u denetler, her üyenin en son zarfını 24 saat
+  tutar ve diğer üyelere anında iletir. Konumu okuyamaz. Canlı bağlantıdan (uygulama açıkken) ya da
+  HTTP'den (ekran kilitliyken) gelir; açılışta herkesin son konumu bir kerede gelir.
+- **Konum motoru (telefon)**: tek motor, uygulama açıkken de ekran kilitliyken de aynı. Kural:
+  hareket ederken 5 sn ve 10 m, dururken 5 dk'da bir "buradayım", biri haritanı açmışsa saniyede
+  bir (2 dk boyunca). Pil seviyesi ve şarj durumu da şifreli zarfın içinde. İnternet yoksa yalnızca
+  en yeni konum bekler, bağlantı gelince gider.
+- **Kilitli ekran (Android)**: yalnızca "uygulamayı kullanırken" izni. Paylaşım açıkken bildirim
+  çubuğunda "Konumun paylaşılıyor" görünür; uygulama kaydırılıp kapatılsa da sürer. GPS yalnızca
+  bir çembere tam konum veriliyorsa açık; mahalle/şehirde Wi-Fi ve baz istasyonu yeter.
+- **Harita**: arkadaşlar avatarlarıyla, kendi avatarın kendi yerinde; harita açılışta sana döner.
+  Bir kişi birkaç çemberdeyse en ayrıntılı konumu görünür. 10 dakikadan eski konum gri ve yaşıyla
+  ("12 dk", "3 sa"). Son konumlar telefonda şifreli saklanır, uygulama yeniden açılınca hemen
+  görünür; sunucuda artık olmayan konum (24 saat dolan, geri çekilen, çıkan üye) silinir.
+- **Paylaşım ayarları (çember ekranında)**: aç/kapa, ne kadar ayrıntılı (tam / mahalle ~1 km /
+  şehir ~10 km, bulanıklaştırma şifrelemeden önce telefonda), ne kadar süre (süresiz / 1 saat / bu
+  akşama kadar). Ayarlar yalnızca telefonda; sunucu öğrenmez. Kapatınca, süre dolunca konum
+  sunucudan anında geri çekilir; daha kaba ayar, eski ince konumun yerine hemen geçer.
+- **Hayalet modu ("Ben" panelinde)**: dondur (son konumun kalır, yenisi gitmez) veya gizle
+  (herkesin haritasından kalkarsın). Üstteki "Seni kim görüyor" hapı hayalet modunu söyler.
+- **Bağlantı ve izin**: konum izni yoksa haritada neden gerektiğini anlatan kart (reddedildiyse
+  Ayarlar'a götürür); bağlantı 2 sn'den uzun koparsa "Bağlanıyor…" satırı. Yenileme butonu yok.
+- **Test arkadaşı (staging)**: `@deneme.arkadas` artık şifreli konumunu yolluyor (senin 400 m
+  doğunda yürüyerek bir tur atıyor) ve seninkini açıyor; log'una yalnızca doğruluk, pil ve yaş
+  yazar, koordinat yazmaz. Komutlar: `walk`, `still`, `hide`. Anahtarları dosyada, yeniden
+  başlarsa "yeni telefon" sayılmaz.
+
+### Test sonuçları
+
+| Paket           | Test | Not                                                                                                        |
+| --------------- | ---- | ---------------------------------------------------------------------------------------------------------- |
+| API entegrasyon | +5   | aktarıcı: canlı ve HTTP iletim, düz koordinat taraması, en yeni kazanır, retler, geri çekme, izleme sınırı |
+| Mobil           | 198  | +40: gönderme kuralları, şifreleme/çözme, tekrar koruması, bekleyen anahtar, motor, olay akışı             |
+| CI (GitHub)     | ✅   | `502219b`, `99be7b5`                                                                                       |
+
+Gecikme ölçümü (2026-10-14, staging): iki test hesabı arkadaş olup anahtar değişti, biri 200
+şifreli konumu canlı bağlantıdan, 40'ını HTTP'den yolladı; diğeri aldı ve çözdü. Hiçbiri kaybolmadı.
+
+| Yol                                 | p50    | p95       | p99   |
+| ----------------------------------- | ------ | --------- | ----- |
+| Canlı bağlantı → alıcıda çözülmüş   | 13 ms  | **17 ms** | 22 ms |
+| HTTP (arka plan) → alıcıda çözülmüş | 21 ms  | 25 ms     | 31 ms |
+| Ağ gidiş-dönüş, bilgisayar → sunucu | 112 ms | 244 ms    | —     |
+
+Telefonda doğrulama + çözme 1,19 ms (Faz 1 cihaz ölçümü). Bilgisayardan doğrudan uçtan uca ölçüm
+şirket ağının TLS araya girmesi yüzünden yapılamadı (doğrulama kapatılmadı); iki telefonla
+yapılacak.
+
+### Açık riskler
+
+1. Pil: tam konum paylaşılan çember varsa GPS 5 sn'de bir açık; Android konum servisini arka
+   planda yeniden ayarlamaya izin vermediği için duran telefonda da açık kalır. 8 saatlik test
+   belirleyecek; kötü çıkarsa hareket algılama (Transistorsoft, ücretli lisans, ya da kendi modülümüz).
+2. Bazı Android üreticileri (Xiaomi, Huawei, bazı Samsung ayarları) arka plandaki servisi
+   kapatabilir; gerekirse "pil optimizasyonundan çıkar" yönlendirmesi eklenecek.
+3. Arka plandaki telefona "biri haritana baktı" isteği ulaşmaz (canlı bağlantı kapalı); hareket
+   halinde zaten 5 sn'de bir gönderiyor. Sessiz push ile uyandırma Faz 7'de değerlendirilecek.
+4. Avatarlar iki ölçüm arasında akıcı kaymıyor, yeni konuma geçiyor (Faz 6, harita deneyimi).
+5. Uçtan uca p95 iki gerçek telefonla ölçülmedi (tek telefon); şimdilik sunucu ölçümü + ağ.
+6. Sunucu kimin kimin haritasını ne zaman açtığını ("izle") ve paylaşımın ne zaman durduğunu görür
+   (THREAT_MODEL); içerik ve sebep görünmez.
+7. iOS derlenemiyor (Apple hesabı).
 
 ## Faz 4 — Çemberler & Anahtar Dağıtımı (2026-10-14)
 
@@ -116,7 +197,7 @@ doğrulandı).
    yeniden dokunmak gerekir).
 3. Arkadaşın uygulaması hiç açılmazsa şifreleme "hazırlanıyor" kalır; uygulamayı açınca kendiliğinden
    tamamlanır. Kapalı uygulamayı uyandıran bildirim Faz 7'de.
-4. Canlı bağlantı yalnızca uygulama açıkken; arka planda konum Faz 5/7.
+4. Canlı bağlantı yalnızca uygulama açıkken; arka planda konum Faz 5'te HTTP ile gönderiliyor.
 5. Tek sunucu: olay yayını tek süreçte (Faz 10'da Redis adaptörü).
 6. Kullanıcı kimlikleri (UUIDv7) hesabın açılış zamanını kabaca ele verir; yalnızca aynı
    çemberdekiler görür (THREAT_MODEL).
