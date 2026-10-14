@@ -9,6 +9,7 @@ import { circleMembers, circles } from '../db/schema.js';
 import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
+import { Notifier } from '../push/notifier.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 
 const HOUR = 3600;
@@ -73,6 +74,12 @@ function card(row: CardRow): MemberCard {
   };
 }
 
+/** Active members other than `me`: who hears that someone joined or accepted. */
+export const othersActive = (circle: Circle, me: string) =>
+  circle.members
+    .filter((member) => member.userId !== me && member.status === 'active')
+    .map((member) => member.userId);
+
 /** Who to tell after a change: everyone still in (or invited to) the circle. */
 const audience = (circle: Circle) => circle.members.map((member) => member.userId);
 
@@ -89,6 +96,7 @@ export class CirclesService implements OnModuleInit {
     private readonly events: EventsService,
     private readonly limiter: RateLimiter,
     private readonly lifecycle: DeviceLifecycle,
+    private readonly notifier: Notifier,
   ) {}
 
   onModuleInit(): void {
@@ -178,6 +186,11 @@ export class CirclesService implements OnModuleInit {
       return this.mustRead(tx, circleId, auth.userId);
     });
     await this.changed(circle);
+    await this.notifier.notify(
+      othersActive(circle, auth.userId),
+      circle.kind === 'pair' ? 'friendAccepted' : 'memberJoined',
+      circle.id,
+    );
     return circle;
   }
 
@@ -270,6 +283,11 @@ export class CirclesService implements OnModuleInit {
       return this.mustRead(tx, circleId, auth.userId);
     });
     await this.changed(circle);
+    const invitee = circle.members.find(
+      (member) => member.username === username && member.status === 'invited',
+    );
+    if (invitee !== undefined)
+      await this.notifier.notify([invitee.userId], 'circleInvite', circle.id);
     return circle;
   }
 
@@ -288,6 +306,14 @@ export class CirclesService implements OnModuleInit {
       return this.mustRead(tx, id, auth.userId);
     });
     await this.changed(circle);
+    const other = circle.members.find((member) => member.userId !== auth.userId);
+    if (other !== undefined) {
+      await this.notifier.notify(
+        [other.userId],
+        other.status === 'invited' ? 'friendRequest' : 'friendAccepted',
+        circle.id,
+      );
+    }
     return circle;
   }
 

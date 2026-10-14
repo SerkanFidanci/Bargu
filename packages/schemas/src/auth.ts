@@ -153,3 +153,13 @@ export const apiErrorSchema = z
   .object({ statusCode: z.number().int(), error: z.string(), code: z.string() })
   .strict();
 export type ApiError = z.infer<typeof apiErrorSchema>;
+
+/** This phone's push token (FCM on Android, APNs on iOS) and the language of its notices. */
+export const pushRegistrationSchema = z
+  .object({
+    token: z.string().min(1).max(4096),
+    platform: z.enum(PLATFORMS),
+    locale: localeSchema,
+  })
+  .strict();
+export type PushRegistration = z.infer<typeof pushRegistrationSchema>;

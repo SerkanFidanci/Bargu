@@ -1,12 +1,15 @@
 import { Stack } from 'expo-router';
 
 import { useLiveSession } from '@/features/live/live-session';
+import { usePushNotifications } from '@/features/notifications/use-push';
 
 export const unstable_settings = { initialRouteName: 'index' };
 
 export default function AppLayout() {
   // Keys and the event position live in the encrypted vault: open it before anything reads them.
   const ready = useLiveSession();
+  // Right after sign-in: ask for notifications once and register this phone.
+  usePushNotifications(ready);
   if (!ready) return null;
   return (
     <Stack screenOptions={{ headerShown: false }}>

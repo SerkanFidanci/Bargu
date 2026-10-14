@@ -5,7 +5,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { DatabaseError } from 'pg';
 
 import { ApiError } from '../common/api-error.js';
-import { devices, refreshTokens, securityEvents } from '../db/schema.js';
+import { devices, pushTokens, refreshTokens, securityEvents } from '../db/schema.js';
 import type { Tx } from '../infra/database/database.service.js';
 import type { AttestationKind } from './attestation/attestation.service.js';
 
@@ -91,6 +91,8 @@ export class DeviceRegistry {
       await tx
         .insert(securityEvents)
         .values({ userId, type: 'device_replaced', deviceId: device.deviceId });
+      // The replaced phone gets no more notifications.
+      await tx.delete(pushTokens).where(eq(pushTokens.deviceId, active.id));
     }
 
     try {

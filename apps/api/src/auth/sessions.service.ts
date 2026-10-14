@@ -4,7 +4,7 @@ import type { Session } from '@bargu/schemas';
 import { and, eq, isNull } from 'drizzle-orm';
 
 import { ApiError } from '../common/api-error.js';
-import { devices, refreshTokens, securityEvents } from '../db/schema.js';
+import { devices, pushTokens, refreshTokens, securityEvents } from '../db/schema.js';
 import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { AccessTokens } from './access-tokens.js';
@@ -153,6 +153,8 @@ export class SessionsService {
     const now = new Date();
     await this.database.asUser(auth.userId, async (tx) => {
       await this.revokeFamily(tx, auth.sessionId, now);
+      // A signed-out phone gets no more notifications.
+      await tx.delete(pushTokens).where(eq(pushTokens.deviceId, auth.deviceId));
       await tx
         .update(devices)
         .set({ revokedAt: now, revokedReason: 'logout' })

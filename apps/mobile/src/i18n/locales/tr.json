@@ -147,7 +147,12 @@
       "mapAppearance_light": "Açık",
       "mapAppearance_dark": "Koyu",
       "mapData": "Harita verisi",
-      "mapDataDetail": "© OpenStreetMap katkıcıları · ODbL lisansı"
+      "mapDataDetail": "© OpenStreetMap katkıcıları · ODbL lisansı",
+      "notifications": "Bildirimler",
+      "notifications_enabled": "Açık",
+      "notifications_denied": "Kapalı · açmak için dokun",
+      "notifications_unavailable": "Bu sürümde henüz yok",
+      "notifications_unknown": "Kontrol ediliyor"
     }
   },
   "ui": {
@@ -365,5 +370,8 @@
     "joined": "{{names}} “{{circle}}” çemberine katıldı",
     "keyChanged": "{{names}} için güvenlik numarası değişti. Dokun ve kontrol et.",
     "andMore": "{{text}} (+{{count}})"
+  },
+  "notifications": {
+    "channel": "Arkadaşlar ve çemberler"
   }
 }

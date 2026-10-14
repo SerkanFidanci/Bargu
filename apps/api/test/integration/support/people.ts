@@ -33,7 +33,7 @@ export async function person(test: TestApp, name = 'Test'): Promise<Person> {
 export function as(
   test: TestApp,
   who: Person,
-  method: 'GET' | 'POST' | 'PATCH',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   url: string,
   body?: unknown,
 ): Promise<Response> {

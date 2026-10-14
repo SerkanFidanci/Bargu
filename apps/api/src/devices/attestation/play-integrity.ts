@@ -1,15 +1,10 @@
-import { importPKCS8, SignJWT } from 'jose';
 import { z } from 'zod';
 
-const TOKEN_URL = 'https://oauth2.googleapis.com/token';
+import { GoogleAccessTokens, parseServiceAccount } from '../../infra/google/service-account.js';
+
 const SCOPE = 'https://www.googleapis.com/auth/playintegrity';
 /** A verdict older than this is not accepted (Google recommends a short window). */
 const MAX_VERDICT_AGE_MS = 5 * 60 * 1000;
-
-const serviceAccountSchema = z.object({
-  client_email: z.email(),
-  private_key: z.string().includes('PRIVATE KEY'),
-});
 
 const verdictSchema = z.object({
   tokenPayloadExternal: z.object({
@@ -48,17 +43,19 @@ const fingerprintToBase64url = (fingerprint: string) =>
  * build signed with our certificate, on a device that meets device integrity.
  */
 export class PlayIntegrityVerifier {
-  private readonly account: z.infer<typeof serviceAccountSchema>;
   private readonly fetch: typeof fetch;
   private readonly now: () => number;
-  private accessToken: { value: string; expiresAt: number } | undefined;
+  private readonly tokens: GoogleAccessTokens;
 
   constructor(private readonly config: PlayIntegrityConfig) {
-    this.account = serviceAccountSchema.parse(
-      JSON.parse(Buffer.from(config.serviceAccount, 'base64').toString('utf8')),
-    );
     this.fetch = config.fetch ?? fetch;
     this.now = config.now ?? Date.now;
+    this.tokens = new GoogleAccessTokens(
+      parseServiceAccount(config.serviceAccount),
+      SCOPE,
+      this.fetch,
+      this.now,
+    );
   }
 
   /**
@@ -73,7 +70,7 @@ export class PlayIntegrityVerifier {
         {
           method: 'POST',
           headers: {
-            authorization: `Bearer ${await this.googleAccessToken()}`,
+            authorization: `Bearer ${await this.tokens.get()}`,
             'content-type': 'application/json',
           },
           body: JSON.stringify({ integrity_token: token }),
@@ -107,36 +104,5 @@ export class PlayIntegrityVerifier {
       ) &&
       (deviceIntegrity.deviceRecognitionVerdict ?? []).includes('MEETS_DEVICE_INTEGRITY');
     return valid ? 'valid' : 'invalid';
-  }
-
-  /** OAuth 2.0 JWT bearer grant (RFC 7523) for the service account, cached until near expiry. */
-  private async googleAccessToken(): Promise<string> {
-    const now = this.now();
-    if (this.accessToken !== undefined && this.accessToken.expiresAt - 60_000 > now) {
-      return this.accessToken.value;
-    }
-    const issuedAt = Math.floor(now / 1000);
-    const assertion = await new SignJWT({ scope: SCOPE })
-      .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
-      .setIssuer(this.account.client_email)
-      .setAudience(TOKEN_URL)
-      .setIssuedAt(issuedAt)
-      .setExpirationTime(issuedAt + 3600)
-      .sign(await importPKCS8(this.account.private_key, 'RS256'));
-    const response = await this.fetch(TOKEN_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion,
-      }).toString(),
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (!response.ok) throw new Error('Google token request failed');
-    const body = z
-      .object({ access_token: z.string(), expires_in: z.number() })
-      .parse(await response.json());
-    this.accessToken = { value: body.access_token, expiresAt: now + body.expires_in * 1000 };
-    return body.access_token;
   }
 }

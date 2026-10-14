@@ -2,6 +2,7 @@ import type { Me } from '@bargu/schemas';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  Bell,
   KeyRound,
   Map as MapIcon,
   LogOut,
@@ -24,6 +25,7 @@ import {
 } from '@/features/auth/passkeys';
 import { errorMessage } from '@/features/errors';
 import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
+import { usePushState } from '@/features/notifications/push';
 import { meKey } from '@/features/profile/queries';
 import { feedback } from '@/theme/haptics';
 import { radius, space, touchTarget, useTheme } from '@/theme';
@@ -45,6 +47,7 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
 ) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const push = usePushState((state) => state.state);
   const appearance = useMapAppearance((state) => state.mode);
   const setAppearance = useMapAppearance((state) => state.setMode);
   const createPasskey = async () => {
@@ -111,6 +114,13 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
           onPress={() => void createPasskey()}
         />
       ) : null}
+      <Row
+        icon={Bell}
+        label={t('sheets.me.notifications')}
+        detail={t(`sheets.me.notifications_${push}`)}
+        // Once refused, only the system settings can turn them back on.
+        onPress={push === 'denied' ? () => void Linking.openSettings() : undefined}
+      />
       <Segmented
         testID="map-appearance"
         label={t('sheets.me.mapAppearance')}
@@ -177,7 +187,7 @@ function Row({
   icon: LucideIcon;
   label: string;
   detail?: string;
-  onPress?: () => void;
+  onPress?: (() => void) | undefined;
 }) {
   const { colors } = useTheme();
   const content = (

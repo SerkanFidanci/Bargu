@@ -60,6 +60,11 @@ Kararlar: [ADR 0009](ADR/0009-circles-keys-and-events.md)
 - **Uygulama içi bildirim**: davet geldiğinde, arkadaşlık kabul edildiğinde, biri çembere katıldığında
   veya birinin anahtarı değiştiğinde üstten kayan bildirim + titreşim (dokununca çember açılır);
   uygulama kapalıyken olanlar bir sonraki açılışta bir kez. Alt menüde bekleyen istek rozeti.
+- **Sistem bildirimleri** (proje sahibinin isteğiyle Faz 7'den erken, [ADR 0010](ADR/0010-early-push-notifications.md)):
+  izin giriş biter bitmez istenir; uygulama kapalıyken arkadaşlık isteği, kabul, çember daveti ve
+  katılım bildirimi gelir. Metin içeriksiz (kim/hangi çember yazmaz), push token sunucuda şifreli,
+  Google'a aracısız (FCM HTTP v1). Firebase anahtarı `bargu-set-push` ile sunucuya, uygulama
+  ayarı EAS'a yüklenince açılır.
 - **Görünüm**: çemberler paneli (istekler, arkadaşlar, gruplar, şifreleme rozetleri), çember ekranı,
   davet ekranı, QR kartı (hale animasyonu), tarayıcı (tarama çizgisi), güvenlik numarası (haneler
   sırayla zıplar), kabul ve doğrulamada konfeti + titreşim ([MOTION.md](MOTION.md)).
@@ -109,8 +114,7 @@ doğrulandı).
    yeniden dokunmak gerekir).
 3. Arkadaşın uygulaması hiç açılmazsa şifreleme "hazırlanıyor" kalır; uygulamayı açınca kendiliğinden
    tamamlanır. Kapalı uygulamayı uyandıran bildirim Faz 7'de.
-4. Canlı bağlantı yalnızca uygulama açıkken; arka planda konum Faz 5/7. Uygulama tamamen kapalıyken
-   telefonun sistem bildirimi (push) Faz 7'de; Android için Firebase projesi gerekiyor.
+4. Canlı bağlantı yalnızca uygulama açıkken; arka planda konum Faz 5/7.
 5. Tek sunucu: olay yayını tek süreçte (Faz 10'da Redis adaptörü).
 6. Kullanıcı kimlikleri (UUIDv7) hesabın açılış zamanını kabaca ele verir; yalnızca aynı
    çemberdekiler görür (THREAT_MODEL).

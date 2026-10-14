@@ -147,7 +147,12 @@
       "mapAppearance_light": "Light",
       "mapAppearance_dark": "Dark",
       "mapData": "Map data",
-      "mapDataDetail": "© OpenStreetMap contributors · ODbL licence"
+      "mapDataDetail": "© OpenStreetMap contributors · ODbL licence",
+      "notifications": "Notifications",
+      "notifications_enabled": "On",
+      "notifications_denied": "Off · tap to turn on",
+      "notifications_unavailable": "Not in this version yet",
+      "notifications_unknown": "Checking"
     }
   },
   "ui": {
@@ -365,5 +370,8 @@
     "joined": "{{names}} joined “{{circle}}”",
     "keyChanged": "{{names}}'s safety number changed. Tap to check.",
     "andMore": "{{text}} (+{{count}})"
+  },
+  "notifications": {
+    "channel": "Friends and circles"
   }
 }

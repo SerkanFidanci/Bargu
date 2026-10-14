@@ -33,6 +33,7 @@ export {
   passkeyLoginVerifySchema,
   passkeyRegisterVerifySchema,
   PLATFORMS,
+  pushRegistrationSchema,
   refreshRequestSchema,
   sessionSchema,
   SIGNED_REQUEST_HEADERS,
@@ -46,6 +47,7 @@ export {
   type OtpVerify,
   type PasskeyLoginVerify,
   type PasskeyRegisterVerify,
+  type PushRegistration,
   type RefreshRequest,
   type Session,
 } from './auth.js';

@@ -13,6 +13,9 @@ export default defineConfig({
     setupFiles: ['reflect-metadata'],
     include: ['test/integration/**/*.int-spec.ts'],
     globalSetup: ['test/integration/global-setup.ts'],
+    // Each file runs whole apps (database and queue pools): a few at a time stay well under the
+    // test database's connection limit on many-core machines too.
+    maxWorkers: 4,
     testTimeout: 30_000,
     hookTimeout: 60_000,
   },

@@ -47,6 +47,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   locales: { tr: './native-locales/tr.json', en: './native-locales/en.json' },
   android: {
     package: APP_ID,
+    // Firebase config for push (FCM), provided by an EAS file variable; absent locally (push off).
+    ...(process.env.GOOGLE_SERVICES_JSON === undefined
+      ? {}
+      : { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }),
     adaptiveIcon: {
       // Brand violet behind the pin (scripts/build-icons.mjs renders the layers).
       backgroundColor: BRAND_VIOLET,
@@ -90,6 +94,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     // MapLibre Native; Android keeps its own location engine (no Google Play services).
     '@maplibre/maplibre-react-native',
+    // System notifications for friend and circle news (docs/ADR/0010); white pin on brand violet.
+    [
+      'expo-notifications',
+      {
+        icon: './assets/images/notification-icon.png',
+        color: BRAND_VIOLET,
+        defaultChannel: 'social',
+      },
+    ],
     // QR codes only (adding friends, comparing safety numbers): camera, never the microphone.
     [
       'expo-camera',

@@ -7,6 +7,9 @@ export const QUEUES = {
   /** Transactional email (login codes). Payload sealed with JOB_PAYLOAD_KEY. */
   email: 'email.send',
   emailDead: 'email.send.dead',
+  /** Push notifications (docs/ADR/0010). Payload: user id, kind, circle id; no token, no text. */
+  push: 'push.send',
+  pushDead: 'push.send.dead',
 } as const;
 
 type QueueOptions = Omit<Queue, 'name'>;
@@ -30,6 +33,22 @@ export const QUEUE_DEFINITIONS: readonly (readonly [string, QueueOptions])[] = [
       retentionSeconds: 10 * 60,
       deleteAfterSeconds: 3600,
       deadLetter: QUEUES.emailDead,
+      notify: true,
+    },
+  ],
+  [QUEUES.pushDead, { retentionSeconds: 24 * 3600, deleteAfterSeconds: 24 * 3600 }],
+  [
+    QUEUES.push,
+    {
+      retryLimit: 4,
+      retryDelay: 5,
+      retryBackoff: true,
+      retryDelayMax: 300,
+      expireInSeconds: 60,
+      // News older than an hour is better told by the app itself when it opens.
+      retentionSeconds: 3600,
+      deleteAfterSeconds: 3600,
+      deadLetter: QUEUES.pushDead,
       notify: true,
     },
   ],

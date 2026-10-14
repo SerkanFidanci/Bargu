@@ -6,6 +6,9 @@ import type { Env } from './config/env.js';
 import { EmailWorker } from './jobs/email.worker.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { Mailer } from './jobs/mailer.js';
+import { DatabaseModule } from './infra/database/database.module.js';
+import { PushTokens } from './push/push-tokens.js';
+import { PushWorker } from './push/push.worker.js';
 
 /** The background worker process: runs jobs and maintains the queues. No HTTP. */
 @Module({})
@@ -13,8 +16,13 @@ export class WorkerModule {
   static forRoot(env: Env): DynamicModule {
     return {
       module: WorkerModule,
-      imports: [ConfigModule.forRoot(env), KeysModule, JobsModule.forRole({ supervise: true })],
-      providers: [Mailer, EmailWorker],
+      imports: [
+        ConfigModule.forRoot(env),
+        DatabaseModule,
+        KeysModule,
+        JobsModule.forRole({ supervise: true }),
+      ],
+      providers: [Mailer, EmailWorker, PushTokens, PushWorker],
     };
   }
 }

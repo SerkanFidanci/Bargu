@@ -110,6 +110,8 @@ const outputs = {
   'android-icon-foreground.png': render(1024, { background: null, scale: 0.62 }),
   // Themed icons are tinted by the launcher: one shape, no colour detail.
   'android-icon-monochrome.png': render(1024, { background: null, scale: 0.62, dot: false }),
+  // Android status-bar notification icon: white shape on transparent, filling the square.
+  'notification-icon.png': render(96, { background: null, scale: 0.9, dot: false }),
   // Splash mark, shown small on the violet splash background.
   'splash-icon.png': render(512, { background: null, scale: 1 }),
 };

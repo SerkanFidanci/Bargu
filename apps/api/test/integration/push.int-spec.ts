@@ -1,0 +1,158 @@
+import type { Circle } from '@bargu/schemas';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { pushTokens } from '../../src/db/schema.js';
+import { DatabaseService } from '../../src/infra/database/database.service.js';
+import { PushTokens } from '../../src/push/push-tokens.js';
+import { createTestApp, type TestApp, testEnv } from './support/app.js';
+import { call } from './support/client.js';
+import { as, createCircle, type Person, person } from './support/people.js';
+
+/** A throwaway RSA key in PEM (WebCrypto: test files stay off node:crypto too). */
+async function testPrivateKeyPem(): Promise<string> {
+  const keys = await globalThis.crypto.subtle.generateKey(
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      modulusLength: 2048,
+      publicExponent: Uint8Array.of(1, 0, 1),
+      hash: 'SHA-256',
+    },
+    true,
+    ['sign', 'verify'],
+  );
+  const pkcs8 = Buffer.from(await globalThis.crypto.subtle.exportKey('pkcs8', keys.privateKey));
+  return `-----BEGIN PRIVATE KEY-----
+${pkcs8.toString('base64')}
+-----END PRIVATE KEY-----
+`;
+}
+
+// A throwaway service account: the API only queues pushes, nothing is sent to Google in tests.
+const privateKey = await testPrivateKeyPem();
+const account = Buffer.from(
+  JSON.stringify({
+    type: 'service_account',
+    project_id: 'bargu-test',
+    client_email: 'push@bargu-test.iam.gserviceaccount.com',
+    private_key: privateKey,
+  }),
+).toString('base64');
+
+let test: TestApp;
+
+beforeAll(async () => {
+  test = await createTestApp({ env: testEnv({ FCM_SERVICE_ACCOUNT: account }) });
+});
+afterAll(async () => {
+  await test.close();
+});
+
+const register = (who: Person, token: string) =>
+  as(test, who, 'PUT', '/v1/push', { token, platform: 'android', locale: 'tr' });
+
+/** Push jobs queued for a user: what the worker will send (no names, no text, no token). */
+async function queued(userId: string): Promise<unknown[]> {
+  const { rows } = await test.admin.query<{ data: unknown }>(
+    `SELECT data FROM pgboss.job WHERE name = 'push.send' AND data->>'userId' = $1`,
+    [userId],
+  );
+  return rows.map((row) => row.data);
+}
+
+describe('push tokens', () => {
+  it('are kept per device, sealed at rest, and readable by their owner only', async () => {
+    const [ali, stranger] = await Promise.all([person(test), person(test)]);
+    expect((await register(ali, 'fcm-token-of-ali')).statusCode).toBe(204);
+
+    const { rows } = await test.admin.query<{ dump: string }>(
+      `SELECT row_to_json(p)::text AS dump FROM app.push_tokens p WHERE device_id = $1`,
+      [ali.device.deviceId],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.dump).not.toContain('fcm-token-of-ali');
+    expect(await test.app.get(PushTokens).targetOf(ali.userId)).toMatchObject({
+      token: 'fcm-token-of-ali',
+      locale: 'tr',
+    });
+
+    const seen = await test.app
+      .get(DatabaseService)
+      .asUser(stranger.userId, (tx) => tx.select().from(pushTokens));
+    expect(seen).toEqual([]);
+
+    // A new token replaces the old one.
+    await register(ali, 'fcm-token-of-ali-2');
+    expect((await test.app.get(PushTokens).targetOf(ali.userId))?.token).toBe('fcm-token-of-ali-2');
+  });
+
+  it('refuse unsigned and malformed registrations', async () => {
+    const ali = await person(test);
+    const unsigned = await call(test.app, {
+      method: 'PUT',
+      url: '/v1/push',
+      accessToken: ali.session.accessToken,
+      body: { token: 'x', platform: 'android', locale: 'tr' },
+    });
+    expect(unsigned.statusCode).toBe(401);
+    for (const body of [
+      { token: '', platform: 'android', locale: 'tr' },
+      { token: 'x', platform: 'web', locale: 'tr' },
+      { token: 'x', platform: 'android', locale: 'de' },
+      { token: 'x', platform: 'android', locale: 'tr', extra: 1 },
+    ]) {
+      expect((await as(test, ali, 'PUT', '/v1/push', body)).statusCode).toBe(400);
+    }
+  });
+
+  it('stop when the phone signs out or the user turns them off', async () => {
+    const [ali, veli] = await Promise.all([person(test), person(test)]);
+    await register(ali, 'token-a');
+    await register(veli, 'token-v');
+    expect((await as(test, ali, 'DELETE', '/v1/push')).statusCode).toBe(204);
+    expect(await test.app.get(PushTokens).targetOf(ali.userId)).toBeNull();
+    await call(test.app, {
+      url: '/v1/auth/logout',
+      accessToken: veli.session.accessToken,
+      device: veli.device,
+    });
+    expect(await test.app.get(PushTokens).targetOf(veli.userId)).toBeNull();
+  });
+});
+
+describe('push notifications', () => {
+  it('are queued for requests, acceptances, invitations and joins: kind and circle only', async () => {
+    const [ali, veli, can] = await Promise.all([person(test), person(test), person(test)]);
+    const pair = (
+      await as(test, ali, 'POST', '/v1/friends', { username: veli.username })
+    ).json<Circle>();
+    expect(await queued(veli.userId)).toEqual([
+      { userId: veli.userId, kind: 'friendRequest', circleId: pair.id },
+    ]);
+    await as(test, veli, 'POST', `/v1/circles/${pair.id}/accept`);
+    expect(await queued(ali.userId)).toEqual([
+      { userId: ali.userId, kind: 'friendAccepted', circleId: pair.id },
+    ]);
+
+    const group = await createCircle(test, ali);
+    await as(test, ali, 'POST', `/v1/circles/${group.id}/members`, { username: can.username });
+    expect(await queued(can.userId)).toEqual([
+      { userId: can.userId, kind: 'circleInvite', circleId: group.id },
+    ]);
+    await as(test, can, 'POST', `/v1/circles/${group.id}/accept`);
+    expect(await queued(ali.userId)).toContainEqual({
+      userId: ali.userId,
+      kind: 'memberJoined',
+      circleId: group.id,
+    });
+    // The one acting is never notified of their own doing.
+    expect(await queued(can.userId)).toHaveLength(1);
+  });
+
+  it('do not pile up: the same news about the same circle once a minute', async () => {
+    const [ali, veli] = await Promise.all([person(test), person(test)]);
+    for (let i = 0; i < 3; i++) {
+      await as(test, ali, 'POST', '/v1/friends', { username: veli.username });
+    }
+    expect(await queued(veli.userId)).toHaveLength(1);
+  });
+});

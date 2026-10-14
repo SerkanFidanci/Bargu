@@ -1,5 +1,8 @@
 import { existsSync } from 'node:fs';
+
 import { z } from 'zod';
+
+import { parseServiceAccount } from '../infra/google/service-account.js';
 
 export const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 
@@ -106,8 +109,32 @@ export const envSchema = z
     APP_ATTEST_ENVIRONMENT: z.enum(['development', 'production']).default('production'),
     /** Google service account JSON (base64) allowed to call the Play Integrity API. */
     PLAY_INTEGRITY_SERVICE_ACCOUNT: z.string().optional(),
+    /**
+     * Firebase service account JSON (base64) that sends push notifications (docs/ADR/0010). Push is
+     * off without it; the app keeps working with in-app notices only.
+     */
+    FCM_SERVICE_ACCOUNT: z.preprocess(
+      // Compose passes an unset variable as an empty string: that means "off".
+      (value) => (value === '' ? undefined : value),
+      z.string().max(16_384).optional(),
+    ),
   })
   .superRefine((env, ctx) => {
+    if (env.FCM_SERVICE_ACCOUNT !== undefined) {
+      let projectId: string | undefined;
+      try {
+        projectId = parseServiceAccount(env.FCM_SERVICE_ACCOUNT).project_id;
+      } catch {
+        projectId = undefined;
+      }
+      if (projectId === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['FCM_SERVICE_ACCOUNT'],
+          message: 'must be a base64 Firebase service account key with a project_id',
+        });
+      }
+    }
     // A production build without an explicit APP_ENV would silently get development shortcuts.
     if (
       env.NODE_ENV === 'production' &&

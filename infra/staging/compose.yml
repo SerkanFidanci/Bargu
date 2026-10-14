@@ -47,6 +47,8 @@ x-app-env: &app-env
   WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?}
   WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:?}
   ANDROID_CERT_SHA256: ${ANDROID_CERT_SHA256:-}
+  # Push notifications (docs/ADR/0010): set with `bargu-set-push`; empty means off.
+  FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:-}
   # Store accounts (Apple, Google Play) do not exist yet; production requires attestation.
   DEVICE_ATTESTATION: optional
 
@@ -94,7 +96,8 @@ services:
     healthcheck:
       disable: true
     mem_limit: 384m
-    # egress: the only service that talks to the outside (the mail relay); nothing listens on it.
+    # egress: the only service that talks to the outside (mail relay, push service); nothing
+    # listens on it.
     networks: [backend, egress]
     depends_on:
       postgres:

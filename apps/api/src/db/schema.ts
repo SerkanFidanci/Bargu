@@ -163,6 +163,14 @@ export const keyEnvelopes = app.table('key_envelopes', {
   createdAt: timestamptz('created_at').notNull().defaultNow(),
 });
 
+export const pushTokens = app.table('push_tokens', {
+  deviceId: uuid('device_id').primaryKey(),
+  userId: uuid('user_id').notNull(),
+  tokenSealed: text('token_sealed').notNull(),
+  locale: text('locale', { enum: ['tr', 'en'] }).notNull(),
+  updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   devices,
@@ -173,4 +181,5 @@ export const schema = {
   circleMembers,
   invites,
   keyEnvelopes,
+  pushTokens,
 };

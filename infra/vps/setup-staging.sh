@@ -6,6 +6,7 @@
 #   - the `deploy` user, whose SSH key may run nothing but /usr/local/bin/bargu-deploy
 #   - /usr/local/bin/bargu-deploy (root-owned)
 #   - /usr/local/bin/bargu-set-mail (root-owned; login emails via Mailpit or a Gmail account)
+#   - /usr/local/bin/bargu-set-push (root-owned; push notifications on with a Firebase key, or off)
 #   - /opt/bargu/staging (compose project `bargu-staging`), with secrets generated on the server
 set -eu
 
@@ -45,6 +46,8 @@ chmod 0600 /home/deploy/.ssh/authorized_keys
 install -m 0755 -o root -g root "$src_dir/deploy.sh" /usr/local/bin/bargu-deploy
 # Root-only helper to switch login emails between Mailpit and a Gmail account (docs/ADR/0006).
 install -m 0755 -o root -g root "$src_dir/set-mail.sh" /usr/local/bin/bargu-set-mail
+# Root-only helper to turn push notifications on with a Firebase key, or off (docs/ADR/0010).
+install -m 0755 -o root -g root "$src_dir/set-push.sh" /usr/local/bin/bargu-set-push
 
 # 3. Stack directory and compose file.
 install -d -m 0750 -o deploy -g deploy /opt/bargu "$stack_dir"

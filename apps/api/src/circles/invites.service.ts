@@ -7,8 +7,9 @@ import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
 import { invites } from '../db/schema.js';
 import { DatabaseService } from '../infra/database/database.service.js';
+import { Notifier } from '../push/notifier.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
-import { CirclesService } from './circles.service.js';
+import { CirclesService, othersActive } from './circles.service.js';
 
 /** Invite links live a day and work once (BARGU_PLAN Faz 4: single use, time-limited). */
 export const INVITE_TTL_MS = 24 * 3600 * 1000;
@@ -41,6 +42,7 @@ export class InvitesService {
     private readonly database: DatabaseService,
     private readonly circles: CirclesService,
     private readonly limiter: RateLimiter,
+    private readonly notifier: Notifier,
   ) {}
 
   async create(auth: AuthContext, input: InviteCreate): Promise<Invite> {
@@ -122,6 +124,13 @@ export class InvitesService {
         throw refusal(error);
       });
     await this.circles.announce(auth.userId, circleId);
+    // A friend code: its owner has a new friend. A circle link: the circle has a new member.
+    const circle = await this.circles.get(auth, circleId);
+    await this.notifier.notify(
+      othersActive(circle, auth.userId),
+      circle.kind === 'pair' ? 'friendAdded' : 'memberJoined',
+      circle.id,
+    );
     return { circleId };
   }
 
