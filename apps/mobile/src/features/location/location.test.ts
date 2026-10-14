@@ -100,6 +100,12 @@ describe('when a location is sent', () => {
     expect(shouldSend(last, GALATA, second - 1, true)).toBe(false);
   });
 
+  it('says since when it has stayed, never later than the fix itself', () => {
+    expect(locPayload(GALATA, BATTERY, GALATA.ts - 5_000).since).toBe(GALATA.ts - 5_000);
+    expect(locPayload(GALATA, BATTERY, GALATA.ts + 1).since).toBeUndefined();
+    expect(locPayload(GALATA, BATTERY).since).toBeUndefined();
+  });
+
   it('leaves out values the platform got wrong', () => {
     const payload = locPayload(
       { ...GALATA, acc: -1, spd: -1, hdg: 400 },

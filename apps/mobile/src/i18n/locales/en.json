@@ -174,7 +174,14 @@
       "staleHours": "{{name}}, location from {{hours}} hours ago",
       "ageHours": "{{hours}} h",
       "charging": "charging",
-      "lowBattery": "battery low"
+      "lowBattery": "battery low",
+      "activity": {
+        "settled": "in the same place for a while",
+        "walking": "walking",
+        "running": "running",
+        "cycling": "cycling",
+        "driving": "in a vehicle"
+      }
     },
     "sheet": {
       "close": "Close"

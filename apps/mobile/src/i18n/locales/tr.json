@@ -174,7 +174,14 @@
       "staleHours": "{{name}}, {{hours}} saat önceki konum",
       "ageHours": "{{hours}} sa",
       "charging": "şarj oluyor",
-      "lowBattery": "pili azaldı"
+      "lowBattery": "pili azaldı",
+      "activity": {
+        "settled": "bir süredir aynı yerde",
+        "walking": "yürüyor",
+        "running": "koşuyor",
+        "cycling": "bisiklette",
+        "driving": "araçta"
+      }
     },
     "sheet": {
       "close": "Kapat"

@@ -111,6 +111,24 @@ export const weatherFx = {
 /** "You met": a burst of particles around the user's avatar (BARGU_PLAN §4.3). */
 export const meetFx = { particles: 28, durationMs: 1_400, reach: 72, size: 5 } as const;
 
+/**
+ * How a person's avatar moves with what they are doing (features/map/activity.ts): a step bob when
+ * walking, a quicker bounce and a lean when running, a sway on a bike, a light engine shake in a
+ * car, and a slow ripple when they have stayed in one place for a while. Periods in ms, distances
+ * in px, angles in degrees.
+ */
+export const activityFx = {
+  /** From these speeds (m/s): walking, running, cycling, driving. */
+  speeds: { walk: 0.8, run: 2.2, bike: 4.2, drive: 8 },
+  /** Within this many metres for this long counts as staying in one place. */
+  stay: { radiusM: 100, settledMin: 30 },
+  walk: { periodMs: 520, lift: 2.5, tilt: 3 },
+  run: { periodMs: 320, lift: 3.5, tilt: 4, lean: -7 },
+  bike: { periodMs: 760, tilt: 7, sway: 1.5 },
+  drive: { periodMs: 140, lift: 0.8 },
+  settled: { rippleMs: 3_200, scale: 1.9, opacity: 0.35 },
+} as const;
+
 /** Sequencing of several elements: how they enter one after another and how they react. */
 export const choreography = {
   /** Delay between consecutive elements entering (titles, fields, rows). */

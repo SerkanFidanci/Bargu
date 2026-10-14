@@ -6,6 +6,7 @@ import { Button } from '@/ui/button';
 import { Text } from '@/ui/text';
 
 import { GlidingMarker } from '../map/gliding-marker';
+import { activityOf } from '../map/activity';
 import { MapAvatar } from '../map/map-avatar';
 import { LOW_BATTERY } from '../map/people-layer';
 import { useFrameMeter } from './frame-meter';
@@ -31,6 +32,7 @@ export function SwarmLayer() {
             avatar={person.avatar}
             spd={person.fix.spd}
             hdg={person.fix.hdg}
+            activity={activityOf(person.fix.spd, 0)}
             charging={person.fix.chg}
             lowBattery={!person.fix.chg && person.fix.bat < LOW_BATTERY}
           />

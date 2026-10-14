@@ -12,6 +12,7 @@ import type { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
 import { type Battery, buildEnvelopes, type Fix, type LastSent, shouldSend } from './send';
 import { circleSharing, type SharingSettings, sharedCircles } from './sharing';
+import { nextStay, type Stay } from './stay';
 
 /** What sending needs of a circle; kept in the vault so a background start has it too. */
 export type SendCircle = Pick<Circle, 'id' | 'epoch' | 'myStatus'> & {
@@ -37,7 +38,11 @@ const PUBLISHED_KEY = 'loc:published:v1';
 const publishedSchema = z.array(z.string());
 
 /** This phone's own latest position, for its marker (memory only). */
-export const useMyFix = create<{ fix: Fix | null }>(() => ({ fix: null }));
+export const useMyFix = create<{ fix: Fix | null; since: number | null }>(() => ({
+  fix: null,
+  /** Since when this phone has stayed where it is (stay.ts). */
+  since: null,
+}));
 
 export interface EngineDeps {
   keys: () => KeyStore;
@@ -68,6 +73,7 @@ export function createLocationEngine(deps: EngineDeps) {
   let pending: Fix | null = null;
   let liveUntil = 0;
   let running: Promise<void> | null = null;
+  let stay: Stay | null = null;
 
   const live = () => now() < liveUntil;
   const shared = () =>
@@ -117,6 +123,7 @@ export function createLocationEngine(deps: EngineDeps) {
       keys: deps.keys(),
       device,
       now: at,
+      ...(stay === null ? {} : { since: stay.since }),
     });
     const refused = new Set<string>();
     const outdated: string[] = [];
@@ -163,7 +170,8 @@ export function createLocationEngine(deps: EngineDeps) {
 
   function fix(next: Fix): Promise<void> {
     latest = next;
-    useMyFix.setState({ fix: next });
+    stay = nextStay(stay, next, next.ts);
+    useMyFix.setState({ fix: next, since: stay.since });
     if (shouldSend(last, next, now(), live())) {
       pending = next;
       return pump();
@@ -223,7 +231,8 @@ export function createLocationEngine(deps: EngineDeps) {
       latest = null;
       pending = null;
       liveUntil = 0;
-      useMyFix.setState({ fix: null });
+      stay = null;
+      useMyFix.setState({ fix: null, since: null });
     },
   };
 }

@@ -14,6 +14,7 @@ import type { PersonHandlers } from './person-gestures';
 import { useMeetingWatcher } from './use-meetings';
 import { type Cluster, clusterPeople } from './cluster';
 import { useMapZoom } from './map-zoom';
+import { activityOf } from './activity';
 import { ClusterBubble } from './cluster-bubble';
 
 /**
@@ -64,6 +65,7 @@ export function PeopleLayer({
   const myFix = useMyFix((state) => state.fix);
   const now = useNow();
   const zoom = useMapZoom((state) => state.zoom);
+  const mySince = useMyFix((state) => state.since);
   const people = bestPerPerson(locations).flatMap((entry) => {
     const card = cardOf(circles, entry.userId);
     return card === undefined
@@ -93,6 +95,7 @@ export function PeopleLayer({
           >
             <MapAvatar
               userId={entry.userId}
+              activity={activityOf(loc.spd, loc.since === undefined ? 0 : loc.ts - loc.since)}
               name={memberName(card)}
               avatar={card.avatar}
               staleMinutes={staleMinutes(loc.ts, now)}
@@ -111,6 +114,7 @@ export function PeopleLayer({
         <GlidingMarker id="me" fix={myFix} receivedAt={myFix.ts}>
           <MapAvatar
             userId={me.userId}
+            activity={activityOf(myFix.spd, mySince === null ? 0 : myFix.ts - mySince)}
             name={me.displayName ?? '?'}
             avatar={me.avatar}
             spd={myFix.spd}

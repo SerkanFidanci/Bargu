@@ -64,7 +64,7 @@ export function shouldSend(last: LastSent | null, fix: Fix, now: number, live: b
 }
 
 /** The location message before precision is applied; odd platform values are left out. */
-export function locPayload(fix: Fix, battery: Battery): LocPayload {
+export function locPayload(fix: Fix, battery: Battery, since?: number): LocPayload {
   const payload: LocPayload = {
     kind: 'loc',
     lat: fix.lat,
@@ -76,6 +76,7 @@ export function locPayload(fix: Fix, battery: Battery): LocPayload {
   };
   if (fix.spd !== null && fix.spd >= 0 && fix.spd <= 1_000) payload.spd = fix.spd;
   if (fix.hdg !== null && fix.hdg >= 0 && fix.hdg < 360) payload.hdg = fix.hdg;
+  if (since !== undefined && since <= fix.ts) payload.since = since;
   return payload;
 }
 
@@ -92,8 +93,10 @@ export function buildEnvelopes(input: {
   keys: KeyStore;
   device: DeviceKeys;
   now: number;
+  /** Since when this phone has stayed where it is (stay.ts). */
+  since?: number;
 }): MessageEnvelope[] {
-  const full = locPayload(input.fix, input.battery);
+  const full = locPayload(input.fix, input.battery, input.since);
   return sharedCircles(input.circles, input.settings, input.now).map((circle) => {
     const payload = applyPrecision(full, circleSharing(input.settings, circle.id).precision);
     const senderKey = input.keys.ownKey(circle);

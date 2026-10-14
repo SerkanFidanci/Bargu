@@ -13,7 +13,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { ambient, avatarSize, elevation, radius, space, useTheme } from '@/theme';
+import { activityFx, ambient, avatarSize, elevation, radius, space, useTheme } from '@/theme';
 
 import { Avatar } from './avatar';
 import { Text } from './text';
@@ -29,6 +29,53 @@ export interface AvatarMarkerProps {
   lowBattery?: boolean | undefined;
   /** Whose marker: their profile photo shows when this phone has it. */
   userId?: string | undefined;
+  /** What they seem to be doing: the pin moves accordingly and a small badge says it. */
+  activity?: MarkerActivity | undefined;
+}
+
+/** What someone seems to be doing (features/map/activity.ts decides). */
+export type MarkerActivity = 'still' | 'settled' | 'walking' | 'running' | 'cycling' | 'driving';
+
+const ACTIVITY_BADGE: Record<MarkerActivity, string | null> = {
+  still: null,
+  settled: '📍',
+  walking: '🚶',
+  running: '🏃',
+  cycling: '🚴',
+  driving: '🚗',
+};
+
+/** The loop that drives an activity's motion: one cycle per period, endlessly. */
+function useCycle(periodMs: number | null) {
+  const reduced = useReducedMotion();
+  const phase = useSharedValue(0);
+  useEffect(() => {
+    cancelAnimation(phase);
+    phase.set(0);
+    if (reduced || periodMs === null) return;
+    phase.set(withRepeat(withTiming(1, { duration: periodMs, easing: Easing.linear }), -1, false));
+    return () => {
+      cancelAnimation(phase);
+    };
+  }, [phase, reduced, periodMs]);
+  return phase;
+}
+
+function periodOf(activity: MarkerActivity): number | null {
+  switch (activity) {
+    case 'walking':
+      return activityFx.walk.periodMs;
+    case 'running':
+      return activityFx.run.periodMs;
+    case 'cycling':
+      return activityFx.bike.periodMs;
+    case 'driving':
+      return activityFx.drive.periodMs;
+    case 'settled':
+      return activityFx.settled.rippleMs;
+    case 'still':
+      return null;
+  }
 }
 
 const TAIL = space.sm;
@@ -68,15 +115,44 @@ export function AvatarMarker({
   charging = false,
   lowBattery = false,
   userId,
+  activity = 'still',
 }: AvatarMarkerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const stale = staleMinutes !== undefined;
-  const breath = useLoop(!stale, ambient.breathe.duration);
+  const doing: MarkerActivity = stale ? 'still' : activity;
+  const moving = doing !== 'still' && doing !== 'settled';
+  const breath = useLoop(!stale && !moving, ambient.breathe.duration);
+  const cycle = useCycle(periodOf(doing));
   const pulse = useLoop(lowBattery && !charging && !stale, ambient.pulse.duration);
 
   const breathing = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + breath.get() * (ambient.breathe.scale - 1) }],
+  }));
+  // Walking: a step bob; running: quicker, leaning forward; a bike sways; a car hums.
+  const motion = useAnimatedStyle(() => {
+    const wave = Math.sin(cycle.get() * 2 * Math.PI);
+    let x = 0;
+    let y = 0;
+    let angle = 0;
+    if (doing === 'walking') {
+      y = -Math.abs(wave) * activityFx.walk.lift;
+      angle = wave * activityFx.walk.tilt;
+    } else if (doing === 'running') {
+      y = -Math.abs(wave) * activityFx.run.lift;
+      angle = activityFx.run.lean + wave * activityFx.run.tilt;
+    } else if (doing === 'cycling') {
+      x = wave * activityFx.bike.sway;
+      angle = wave * activityFx.bike.tilt;
+    } else if (doing === 'driving') {
+      y = wave * activityFx.drive.lift;
+    }
+    return { transform: [{ translateX: x }, { translateY: y }, { rotate: `${String(angle)}deg` }] };
+  });
+  // Settled in one place: a slow ripple spreading from the pin.
+  const ripple = useAnimatedStyle(() => ({
+    opacity: doing === 'settled' ? activityFx.settled.opacity * (1 - cycle.get()) : 0,
+    transform: [{ scale: 1 + cycle.get() * (activityFx.settled.scale - 1) }],
   }));
   const pulsing = useAnimatedStyle(() => ({
     opacity: 1 - pulse.get() * (1 - ambient.pulse.minOpacity),
@@ -95,33 +171,53 @@ export function AvatarMarker({
     : lowBattery
       ? t('ui.marker.lowBattery')
       : null;
-  const label = battery === null ? where : `${where}, ${battery}`;
+  const doingLabel = doing === 'still' ? null : t(`ui.marker.activity.${doing}`);
+  const label = [where, doingLabel, battery].filter((part) => part !== null).join(', ');
+  const badge = ACTIVITY_BADGE[doing];
 
   return (
     <View accessible accessibilityLabel={label} style={styles.container}>
-      <Animated.View
-        style={[
-          styles.bubble,
-          { backgroundColor: colors.surfaceRaised, boxShadow: elevation.floating },
-          breathing,
-        ]}
-      >
-        <Avatar avatar={avatar} name={name} size="md" muted={stale} userId={userId} />
-        {lowBattery && !charging && !stale ? (
-          <Animated.View style={[styles.ring, { borderColor: colors.danger }, pulsing]} />
-        ) : null}
-        {charging && !stale ? (
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: colors.success, borderColor: colors.surfaceRaised },
-            ]}
-          >
-            <Zap color={colors.onSuccess} fill={colors.onSuccess} size={10} strokeWidth={2} />
-          </View>
-        ) : null}
+      <Animated.View style={[styles.pin, motion]}>
+        <Animated.View
+          style={[styles.ripple, { borderColor: colors.primary }, ripple]}
+          pointerEvents="none"
+        />
+        <Animated.View
+          style={[
+            styles.bubble,
+            { backgroundColor: colors.surfaceRaised, boxShadow: elevation.floating },
+            breathing,
+          ]}
+        >
+          <Avatar avatar={avatar} name={name} size="md" muted={stale} userId={userId} />
+          {badge === null ? null : (
+            <View
+              style={[
+                styles.activity,
+                { backgroundColor: colors.surfaceRaised, boxShadow: elevation.raised },
+              ]}
+            >
+              <Text variant="caption" allowFontScaling={false} style={styles.activityText}>
+                {badge}
+              </Text>
+            </View>
+          )}
+          {lowBattery && !charging && !stale ? (
+            <Animated.View style={[styles.ring, { borderColor: colors.danger }, pulsing]} />
+          ) : null}
+          {charging && !stale ? (
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: colors.success, borderColor: colors.surfaceRaised },
+              ]}
+            >
+              <Zap color={colors.onSuccess} fill={colors.onSuccess} size={10} strokeWidth={2} />
+            </View>
+          ) : null}
+        </Animated.View>
+        <View style={[styles.tail, { borderTopColor: colors.surfaceRaised }]} />
       </Animated.View>
-      <View style={[styles.tail, { borderTopColor: colors.surfaceRaised }]} />
       {stale ? (
         <View style={[styles.age, { backgroundColor: colors.surfaceRaised }]}>
           <Text variant="caption" color="textMuted" allowFontScaling={false}>
@@ -137,6 +233,26 @@ export function AvatarMarker({
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center' },
+  pin: { alignItems: 'center' },
+  ripple: {
+    position: 'absolute',
+    top: 0,
+    width: BUBBLE,
+    height: BUBBLE,
+    borderRadius: radius.pill,
+    borderWidth: space.xxs,
+  },
+  activity: {
+    position: 'absolute',
+    right: -space.sm,
+    top: -space.sm,
+    width: BADGE + space.xs,
+    height: BADGE + space.xs,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityText: { fontSize: space.md, lineHeight: space.lg },
   bubble: { padding: space.xxs, borderRadius: radius.pill },
   ring: {
     position: 'absolute',

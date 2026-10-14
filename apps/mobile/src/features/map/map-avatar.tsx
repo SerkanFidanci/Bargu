@@ -12,6 +12,7 @@ import Animated, {
 import { avatarPalette, space, spring, timing } from '@/theme';
 import { AvatarMarker, PIN_HEIGHT } from '@/ui/avatar-marker';
 
+import type { Activity } from './activity';
 import { trailLevel } from './glide';
 import { MeetBurst } from './meet-burst';
 import { type PersonHandlers, PersonGestures } from './person-gestures';
@@ -43,6 +44,8 @@ export interface MapAvatarProps {
   above?: ReactNode;
   /** Whose avatar (their profile photo, when this phone has it). */
   userId?: string | undefined;
+  /** What they seem to be doing (activity.ts): the pin moves and a badge says it. */
+  activity?: Activity | undefined;
   /** Tap for the card, hold for the radial menu (others' avatars only). */
   handlers?: PersonHandlers | undefined;
   /** When they last poked this phone: the avatar jumps once. */
@@ -70,6 +73,7 @@ export function MapAvatar({
   pokedAt,
   burst,
   userId,
+  activity,
 }: MapAvatarProps) {
   const lift = useSharedValue(0);
   useEffect(() => {
@@ -88,6 +92,7 @@ export function MapAvatar({
       charging={charging}
       lowBattery={lowBattery}
       userId={userId}
+      activity={activity}
     />
   );
   return (

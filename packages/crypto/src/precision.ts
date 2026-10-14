@@ -43,8 +43,8 @@ function snapToGrid(lat: number, lng: number, cellKm: number): { lat: number; ln
 const MAX_ACCURACY_METRES = 1_000_000;
 
 /**
- * Applies the sender's precision setting before encryption. Below full precision, speed and
- * heading are dropped (they would reveal movement inside the cell) and the accuracy radius is
+ * Applies the sender's precision setting before encryption. Below full precision, speed, heading
+ * and how long they have stayed are dropped (they would reveal movement inside the cell) and the accuracy radius is
  * rounded up to a whole number of cell radii, so it covers the cell without revealing the raw
  * GPS accuracy.
  */

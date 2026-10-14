@@ -5,6 +5,7 @@ import { type ColorTokens, darkColors, lightColors } from './colors';
 export { avatarPalette, avatarText, type ColorTokens, qrColors } from './colors';
 export { avatarSize, elevation, radius, space, touchTarget } from './layout';
 export {
+  activityFx,
   ambient,
   choreography,
   duration,

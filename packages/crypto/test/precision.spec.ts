@@ -12,6 +12,7 @@ const base: LocPayload = {
   acc: 6,
   spd: 3,
   hdg: 120,
+  since: 1_700_000_000_000,
   bat: 50,
   chg: false,
   ts: 1_791_880_000_000,
@@ -47,6 +48,7 @@ describe('applyPrecision', () => {
           const snapped = applyPrecision({ ...base, lat, lng }, level);
           expect(snapped.spd).toBeUndefined();
           expect(snapped.hdg).toBeUndefined();
+          expect(snapped.since).toBeUndefined();
           expect(snapped.acc).toBeGreaterThanOrEqual((cellKm * 1000) / Math.SQRT2);
           expect(snapped.lat).toBeGreaterThanOrEqual(-90);
           expect(snapped.lat).toBeLessThanOrEqual(90);

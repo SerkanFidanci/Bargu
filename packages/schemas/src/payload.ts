@@ -22,6 +22,11 @@ export const locPayloadSchema = z
     bat: z.number().int().min(0).max(100),
     /** Charging. */
     chg: z.boolean(),
+    /**
+     * Since when the sender has stayed within ~100 m of here (their phone keeps track), so every
+     * viewer can show "settled" alike; omitted below full precision.
+     */
+    since: timestamp.optional(),
     ts: timestamp,
   })
   .strict();
