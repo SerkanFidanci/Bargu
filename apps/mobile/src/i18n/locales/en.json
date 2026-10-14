@@ -493,5 +493,17 @@
       "snow": "snow",
       "storm": "thunderstorm"
     }
+  },
+  "profile": {
+    "photo": {
+      "title": "Profile photo",
+      "hint": "Show a photo instead of your emoji if you like. It is encrypted on your phone; only your circles can open it, not even our server.",
+      "choose": "Choose a photo",
+      "change": "Change photo",
+      "remove": "Remove photo, keep the emoji",
+      "saved": "Your photo was sent to your circles, encrypted",
+      "removed": "Photo removed, your emoji shows",
+      "failed": "Could not add the photo. Try again."
+    }
   }
 }

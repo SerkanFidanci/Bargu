@@ -41,6 +41,8 @@ export interface MapAvatarProps {
   lowBattery?: boolean | undefined;
   /** Drawn above the pin (e.g. a status bubble). */
   above?: ReactNode;
+  /** Whose avatar (their profile photo, when this phone has it). */
+  userId?: string | undefined;
   /** Tap for the card, hold for the radial menu (others' avatars only). */
   handlers?: PersonHandlers | undefined;
   /** When they last poked this phone: the avatar jumps once. */
@@ -67,6 +69,7 @@ export function MapAvatar({
   handlers,
   pokedAt,
   burst,
+  userId,
 }: MapAvatarProps) {
   const lift = useSharedValue(0);
   useEffect(() => {
@@ -84,6 +87,7 @@ export function MapAvatar({
       staleMinutes={staleMinutes}
       charging={charging}
       lowBattery={lowBattery}
+      userId={userId}
     />
   );
   return (

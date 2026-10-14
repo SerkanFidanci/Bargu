@@ -179,7 +179,7 @@ export function PersonCard({
         >
           <View style={styles.header}>
             <Animated.View style={[styles.avatar, flying, landed ? null : styles.inFlight]}>
-              <Avatar avatar={person.avatar} name={person.name} size="lg" />
+              <Avatar avatar={person.avatar} name={person.name} size="lg" userId={person.userId} />
             </Animated.View>
             <View style={styles.titles}>
               <Text variant="title2" numberOfLines={1}>

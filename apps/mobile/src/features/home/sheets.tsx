@@ -92,7 +92,7 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
     return (
       <Sheet ref={ref} title={t('sheets.me.title')} testID="me-sheet">
         <Appear style={styles.profile}>
-          <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="lg" />
+          <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="lg" userId={me.userId} />
           <View style={styles.profileText}>
             <Text variant="title2">{me.displayName}</Text>
             <Text variant="callout" color="textMuted">{`@${me.username ?? ''}`}</Text>

@@ -493,5 +493,17 @@
       "snow": "karlı",
       "storm": "fırtınalı"
     }
+  },
+  "profile": {
+    "photo": {
+      "title": "Profil fotoğrafı",
+      "hint": "İstersen emojinin yerine fotoğrafın görünsün. Telefonunda şifrelenir; yalnızca çemberlerin açabilir, sunucumuz bile göremez.",
+      "choose": "Fotoğraf seç",
+      "change": "Fotoğrafı değiştir",
+      "remove": "Fotoğrafı kaldır, emoji kalsın",
+      "saved": "Fotoğrafın çemberlerine şifreli gönderildi",
+      "removed": "Fotoğraf kaldırıldı, emojin görünüyor",
+      "failed": "Fotoğraf eklenemedi. Tekrar dene."
+    }
   }
 }

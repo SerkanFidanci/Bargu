@@ -27,6 +27,7 @@ import { circlesKey } from '../circles/circle-cache';
 import { useCircleKeys } from '../circles/circle-sync';
 import { circleSync, keys, liveRequest, onLiveMessage, onOnline } from '../live/live-session';
 import { queryClient } from '../query-client';
+import { publishProfile, receivedProfile, resetPhotos, restorePhotos } from '../profile/photo';
 import { receivePoke } from '../social/poke';
 import {
   pruneStatuses,
@@ -151,6 +152,9 @@ const receiver = createReceiver({
   store: vault,
   // A poke: a buzz, their avatar bounces, and a line saying who it was.
   onStatus: receivedStatus,
+  onProfile: (userId, profile) => {
+    void receivedProfile(userId, profile).catch(() => undefined);
+  },
   onBump: (circleId, userId, ts) => {
     const name = receivePoke(circleId, userId, ts);
     if (name === null) return;
@@ -168,6 +172,7 @@ export function restoreLocations(): void {
   restored = true;
   receiver.restore();
   restoreStatuses();
+  restorePhotos();
   // Circles left while the app was closed: their members go from the map at once.
   if (cachedCircles() !== undefined) receiver.prune();
 }
@@ -182,6 +187,9 @@ onLiveMessage((name, payload) => {
   } else if (name === 'loc.gone') {
     const parsed = locGoneEventSchema.safeParse(payload);
     if (parsed.success) receiver.gone(parsed.data.circleId, parsed.data.userId);
+  } else if (name === 'profile') {
+    const parsed = statusEventSchema.safeParse(payload);
+    if (parsed.success) receiver.receive(parsed.data.envelope);
   } else if (name === 'status') {
     const parsed = statusEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope);
@@ -210,6 +218,9 @@ onOnline(() => {
       const statuses = statusSnapshotSchema.safeParse(await liveRequest('statuses'));
       if (statuses.success)
         for (const envelope of statuses.data.envelopes) receiver.receive(envelope);
+      const profiles = statusSnapshotSchema.safeParse(await liveRequest('profiles'));
+      if (profiles.success)
+        for (const envelope of profiles.data.envelopes) receiver.receive(envelope);
     } catch {
       // The next connection asks again; live messages keep coming meanwhile.
     }
@@ -243,6 +254,8 @@ queryClient.getQueryCache().subscribe((event) => {
   knownCircles = current;
   receiver.prune();
   pruneStatuses(circles);
+  // New circles and new epochs get the photo key (members who joined could not read the old one).
+  void publishProfile().catch(() => undefined);
   receiver.retryWaiting();
   if (joined || left) void locationEngine.changed();
 });
@@ -251,6 +264,7 @@ onSignedOut(() => {
   locationEngine.reset();
   receiver.reset();
   resetStatuses();
+  resetPhotos();
   knownCircles = new Set();
   sharingLoaded = false;
   restored = false;

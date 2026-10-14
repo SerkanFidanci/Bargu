@@ -39,7 +39,7 @@ export function AvatarStack({ people, max = 3, size = 'sm' }: AvatarStackProps) 
     >
       {shown.map((person, index) => (
         <View key={person.id} style={{ marginLeft: index === 0 ? 0 : -diameter / 3 }}>
-          <Avatar avatar={person.avatar} name={person.name} size={size} ring />
+          <Avatar avatar={person.avatar} name={person.name} size={size} ring userId={person.id} />
         </View>
       ))}
       {rest > 0 ? (

@@ -19,6 +19,7 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0011](0011-location-engine-and-relay.md) | Konum motoru ve şifreli konum aktarıcısı                         | Kabul edildi |
 | [0012](0012-four-digit-login-code.md)     | Dört haneli giriş kodu ve sıkı deneme bütçeleri                  | Kabul edildi |
 | [0013](0013-weather-without-location.md)  | Konumu vermeden hava durumu, haritada Skia efektleri             | Kabul edildi |
+| [0014](0014-encrypted-profile-photos.md)  | Uçtan uca şifreli profil fotoğrafı                               | Kabul edildi |
 
 ## Şablon
 

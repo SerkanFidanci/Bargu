@@ -306,7 +306,12 @@ function Hero({
     <View style={styles.hero}>
       <Animated.View entering={motion.pop}>
         {circle.kind === 'pair' ? (
-          <Avatar avatar={partner?.avatar ?? null} name={title} size="xl" />
+          <Avatar
+            avatar={partner?.avatar ?? null}
+            name={title}
+            size="xl"
+            userId={partner?.userId}
+          />
         ) : (
           <View style={[styles.heroIcon, { backgroundColor: colors.primarySoft }]}>
             <Icon color={colors.primary} size={44} strokeWidth={2} />
@@ -461,7 +466,14 @@ function MemberRow({
   const verifiable = !isMe && member.status === 'active' && member.device !== null;
   return (
     <ListRow
-      leading={<Avatar avatar={member.avatar} name={name} muted={member.status === 'invited'} />}
+      leading={
+        <Avatar
+          avatar={member.avatar}
+          name={name}
+          muted={member.status === 'invited'}
+          userId={member.userId}
+        />
+      }
       title={name}
       subtitle={subtitle === '' ? undefined : subtitle}
       onPress={

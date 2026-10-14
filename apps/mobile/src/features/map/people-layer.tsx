@@ -92,6 +92,7 @@ export function PeopleLayer({
             receivedAt={entry.receivedAt}
           >
             <MapAvatar
+              userId={entry.userId}
               name={memberName(card)}
               avatar={card.avatar}
               staleMinutes={staleMinutes(loc.ts, now)}
@@ -109,6 +110,7 @@ export function PeopleLayer({
       {myFix === null ? null : (
         <GlidingMarker id="me" fix={myFix} receivedAt={myFix.ts}>
           <MapAvatar
+            userId={me.userId}
             name={me.displayName ?? '?'}
             avatar={me.avatar}
             spd={myFix.spd}

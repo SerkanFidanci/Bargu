@@ -58,6 +58,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
+    // The photo picker library declares the microphone (for video); Bargu never records sound.
+    blockedPermissions: ['android.permission.RECORD_AUDIO'],
   },
   plugins: [
     'expo-router',
@@ -116,6 +118,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         isAndroidBackgroundLocationEnabled: false,
         isAndroidForegroundServiceEnabled: true,
         androidForegroundServiceIcon: './assets/images/notification-icon.png',
+      },
+    ],
+    // Profile photo from the library (docs/ADR/0014); never the microphone. Android 13+
+    // uses the system photo picker without any permission.
+    [
+      'expo-image-picker',
+      {
+        // Turkish devices get native-locales/tr.json.
+        photosPermission:
+          'Bargu uses a photo you pick as your profile picture. It is encrypted before it leaves your phone.',
+        // The camera stays for QR codes (expo-camera below); same text, nothing recorded.
+        cameraPermission:
+          "Bargu uses the camera to read your friend's QR code. Nothing is recorded.",
+        microphonePermission: false,
       },
     ],
     // QR codes only (adding friends, comparing safety numbers): camera, never the microphone.

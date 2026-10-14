@@ -58,22 +58,22 @@ sızıntıları tutar. Protokol: [PROTOCOL.md](PROTOCOL.md). Her faz sonunda gü
 
 Sunucu içerik görmez ama şunları görür; belgeleniyor ve kabul ediliyor:
 
-| Sızıntı                         | Ne ortaya çıkar                                    | Azaltma                                                                                 |
-| ------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Çember üyelikleri               | Sosyal graf                                        | v2: MLS / sealed sender değerlendirmesi                                                 |
-| Gönderim zamanları ve sıklığı   | Hareket ediyor mu, durağan mı, canlı modda mı      | Sabit hızlı sahte trafik pil maliyeti yüzünden yok                                      |
-| Zarf boyutu                     | —                                                  | Tüm mesajlar tek boy (512 bayt dolgu)                                                   |
-| "İzle" olayları (canlı mod)     | Kim kimin haritasını açtı                          | —                                                                                       |
-| Konumu geri çekme               | Bir çemberle paylaşımın durduğu an                 | Neden (kapatma, süre, hayalet) görünmez; hassasiyet ve süre ayarları yalnızca telefonda |
-| IP adresleri                    | Yaklaşık konum (ağ seviyesi)                       | Log'lanmaz; kullanıcı VPN kullanabilir                                                  |
-| Kullanıcı adının varlığı        | Bir adın kayıtlı olduğu                            | Ad zaten bulunmak için; hesap başına saatlik sınır                                      |
-| Görünen ad ve avatar (sunucuda) | Ad, renk ve emoji                                  | Fotoğraf yok; şifreli profil ileriki faz                                                |
-| Çember adları                   | Ailenin / grubun adı                               | Davetli anahtar almadan önce görmeli (ADR 0009)                                         |
-| Olay zamanları (canlı kanal)    | Çember değişikliklerinin ne zaman olduğu           | İçerik yok; yalnızca tür ve çember kimliği                                              |
-| Üye kimlikleri (UUIDv7)         | Hesabın yaklaşık açılış zamanı                     | Yalnızca aynı çemberdekiler görür; davetli yalnızca daveti göndereni                    |
-| Arkadaş QR / davet linki        | Linki ilk kullanan arkadaş olur                    | 24 saat, tek kullanım; QR ekranında ekran görüntüsü engeli                              |
-| Bildirim zamanlaması (APNs/FCM) | Olayların zamanı                                   | İçerik sealed box ile gizli                                                             |
-| Sosyal bildirim türü (FCM)      | "Davet edildin", "biri katıldı" gibi tür ve zamanı | İsim ve çember adı yok (ADR 0010); token sunucuda şifreli                               |
+| Sızıntı                         | Ne ortaya çıkar                                                    | Azaltma                                                                                 |
+| ------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Çember üyelikleri               | Sosyal graf                                                        | v2: MLS / sealed sender değerlendirmesi                                                 |
+| Gönderim zamanları ve sıklığı   | Hareket ediyor mu, durağan mı, canlı modda mı                      | Sabit hızlı sahte trafik pil maliyeti yüzünden yok                                      |
+| Zarf boyutu                     | —                                                                  | Tüm mesajlar tek boy (512 bayt dolgu)                                                   |
+| "İzle" olayları (canlı mod)     | Kim kimin haritasını açtı                                          | —                                                                                       |
+| Konumu geri çekme               | Bir çemberle paylaşımın durduğu an                                 | Neden (kapatma, süre, hayalet) görünmez; hassasiyet ve süre ayarları yalnızca telefonda |
+| IP adresleri                    | Yaklaşık konum (ağ seviyesi)                                       | Log'lanmaz; kullanıcı VPN kullanabilir                                                  |
+| Kullanıcı adının varlığı        | Bir adın kayıtlı olduğu                                            | Ad zaten bulunmak için; hesap başına saatlik sınır                                      |
+| Görünen ad ve avatar (sunucuda) | Ad, renk ve emoji; fotoğrafın var olduğu, boyutu ve değişme zamanı | Fotoğraf uçtan uca şifreli (ADR 0014); şifreli profil (ad) ileriki faz                  |
+| Çember adları                   | Ailenin / grubun adı                                               | Davetli anahtar almadan önce görmeli (ADR 0009)                                         |
+| Olay zamanları (canlı kanal)    | Çember değişikliklerinin ne zaman olduğu                           | İçerik yok; yalnızca tür ve çember kimliği                                              |
+| Üye kimlikleri (UUIDv7)         | Hesabın yaklaşık açılış zamanı                                     | Yalnızca aynı çemberdekiler görür; davetli yalnızca daveti göndereni                    |
+| Arkadaş QR / davet linki        | Linki ilk kullanan arkadaş olur                                    | 24 saat, tek kullanım; QR ekranında ekran görüntüsü engeli                              |
+| Bildirim zamanlaması (APNs/FCM) | Olayların zamanı                                                   | İçerik sealed box ile gizli                                                             |
+| Sosyal bildirim türü (FCM)      | "Davet edildin", "biri katıldı" gibi tür ve zamanı                 | İsim ve çember adı yok (ADR 0010); token sunucuda şifreli                               |
 
 ## Gözden geçirme
 

@@ -81,7 +81,12 @@ function FriendRow({
   const motion = useMotion();
   const content = (
     <>
-      <Avatar avatar={friend.avatar} name={friend.name} muted={lockedReason !== undefined} />
+      <Avatar
+        avatar={friend.avatar}
+        name={friend.name}
+        muted={lockedReason !== undefined}
+        userId={friend.userId}
+      />
       <View style={styles.text}>
         <Text variant="bodyStrong" numberOfLines={1}>
           {friend.name}

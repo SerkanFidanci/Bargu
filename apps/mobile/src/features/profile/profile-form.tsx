@@ -26,6 +26,8 @@ export interface ProfileFormProps {
   draft: ProfileDraft;
   onChange: (draft: ProfileDraft) => void;
   nameError: boolean;
+  /** The user (editing an existing profile): the preview shows their photo if they have one. */
+  userId?: string | undefined;
 }
 
 /** Validity of a draft as the server will judge it (same shared schema). */
@@ -34,7 +36,7 @@ export function isValidDisplayName(name: string): boolean {
 }
 
 /** Name, colour and emoji, with a live preview of the map marker friends will see. */
-export function ProfileForm({ draft, onChange, nameError }: ProfileFormProps) {
+export function ProfileForm({ draft, onChange, nameError, userId }: ProfileFormProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const motion = useMotion();
@@ -57,7 +59,7 @@ export function ProfileForm({ draft, onChange, nameError }: ProfileFormProps) {
           key={`${String(draft.avatar.color)}-${draft.avatar.emoji ?? ''}`}
           entering={motion.pop}
         >
-          <AvatarMarker name={draft.displayName || '?'} avatar={draft.avatar} />
+          <AvatarMarker name={draft.displayName || '?'} avatar={draft.avatar} userId={userId} />
         </Animated.View>
         <Text variant="footnote" color="textMuted" importantForAccessibility="no">
           {t('onboarding.profile.preview')}

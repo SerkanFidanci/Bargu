@@ -13,6 +13,7 @@ export const LIVE_MESSAGES = [
   'status',
   'status.gone',
   'weather',
+  'profile',
 ] as const;
 /** How long a request may take before the caller falls back (HTTP, or tries later). */
 const REQUEST_TIMEOUT_MS = 5_000;

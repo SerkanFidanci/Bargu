@@ -204,7 +204,7 @@ function FriendRow({ circle, onPress }: { circle: Circle; onPress: () => void })
   return (
     <ListRow
       testID={`friend-${circle.id}`}
-      leading={<Avatar avatar={partner?.avatar ?? null} name={name} />}
+      leading={<Avatar avatar={partner?.avatar ?? null} name={name} userId={partner?.userId} />}
       title={name}
       subtitle={handleOf(partner)}
       trailing={

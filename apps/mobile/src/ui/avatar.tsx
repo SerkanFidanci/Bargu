@@ -1,8 +1,9 @@
 import type { Avatar as AvatarData } from '@bargu/schemas';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 
 import { avatarPalette, avatarSize, avatarText, useTheme } from '@/theme';
 
+import { useAvatarPhotos } from './avatar-photos';
 import { Text } from './text';
 
 export interface AvatarProps {
@@ -14,6 +15,8 @@ export interface AvatarProps {
   muted?: boolean;
   /** Ring in the screen background colour, so stacked avatars stay separate. */
   ring?: boolean;
+  /** Whose avatar: their profile photo shows instead of the emoji when this phone has it. */
+  userId?: string | undefined;
 }
 
 /** First letter of the name in its own locale casing (`i` → `İ` for Turkish names). */
@@ -22,8 +25,16 @@ export function initialOf(name: string): string {
   return code === undefined ? '?' : String.fromCodePoint(code).toLocaleUpperCase('tr');
 }
 
-export function Avatar({ avatar, name, size = 'md', muted = false, ring = false }: AvatarProps) {
+export function Avatar({
+  avatar,
+  name,
+  size = 'md',
+  muted = false,
+  ring = false,
+  userId,
+}: AvatarProps) {
   const { colors } = useTheme();
+  const photo = useAvatarPhotos((state) => (userId === undefined ? undefined : state[userId]));
   const diameter = avatarSize[size];
   const background = muted ? colors.ghost : avatarPalette[avatar?.color ?? 0];
   return (
@@ -42,6 +53,13 @@ export function Avatar({ avatar, name, size = 'md', muted = false, ring = false 
         },
       ]}
     >
+      {photo === undefined ? null : (
+        <Image
+          source={{ uri: photo }}
+          style={[StyleSheet.absoluteFill, muted ? styles.muted : null]}
+          accessibilityIgnoresInvertColors
+        />
+      )}
       <Text
         // The avatar has a fixed size: its glyph must not grow with the text size setting.
         allowFontScaling={false}
@@ -53,7 +71,7 @@ export function Avatar({ avatar, name, size = 'md', muted = false, ring = false 
         }}
         importantForAccessibility="no"
       >
-        {avatar?.emoji ?? initialOf(name)}
+        {photo === undefined ? (avatar?.emoji ?? initialOf(name)) : ''}
       </Text>
     </View>
   );
@@ -66,4 +84,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  // Stale or invited: the photo fades towards the ghost colour behind it.
+  muted: { opacity: 0.35 },
 });

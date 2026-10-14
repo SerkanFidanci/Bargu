@@ -65,7 +65,7 @@ export function Dock({ me, onCircles, onAdd, onMe, addOpen, requests }: DockProp
         />
       </Animated.View>
       <DockItem label={t('main.dock.me')} onPress={onMe} testID="dock-me">
-        <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="sm" />
+        <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="sm" userId={me.userId} />
       </DockItem>
     </View>
   );

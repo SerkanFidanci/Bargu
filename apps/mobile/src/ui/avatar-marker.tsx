@@ -27,6 +27,8 @@ export interface AvatarMarkerProps {
   charging?: boolean | undefined;
   /** Their battery is nearly empty (not charging): a red ring pulses. */
   lowBattery?: boolean | undefined;
+  /** Whose marker: their profile photo shows when this phone has it. */
+  userId?: string | undefined;
 }
 
 const TAIL = space.sm;
@@ -65,6 +67,7 @@ export function AvatarMarker({
   staleMinutes,
   charging = false,
   lowBattery = false,
+  userId,
 }: AvatarMarkerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -103,7 +106,7 @@ export function AvatarMarker({
           breathing,
         ]}
       >
-        <Avatar avatar={avatar} name={name} size="md" muted={stale} />
+        <Avatar avatar={avatar} name={name} size="md" muted={stale} userId={userId} />
         {lowBattery && !charging && !stale ? (
           <Animated.View style={[styles.ring, { borderColor: colors.danger }, pulsing]} />
         ) : null}

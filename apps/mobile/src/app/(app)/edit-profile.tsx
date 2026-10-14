@@ -11,6 +11,7 @@ import {
   type ProfileDraft,
 } from '@/features/profile/profile-form';
 import { useMe, useUpdateProfile, useUsernameCheck } from '@/features/profile/queries';
+import { PhotoControl } from '@/features/profile/photo-control';
 import { UsernameStatus } from '@/features/profile/username-status';
 import { Button } from '@/ui/button';
 import { TextField } from '@/ui/text-field';
@@ -86,7 +87,9 @@ export default function EditProfileScreen() {
         autoCorrect={false}
         maxLength={21}
       />
+      {me.data === undefined ? null : <PhotoControl userId={me.data.userId} />}
       <ProfileForm
+        userId={me.data?.userId}
         draft={draft}
         onChange={setDraft}
         nameError={!nameOk && draft.displayName !== ''}

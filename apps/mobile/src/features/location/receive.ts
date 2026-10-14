@@ -8,6 +8,7 @@ import {
 import { type Circle, locPayloadSchema, type MessageEnvelope, type Payload } from '@bargu/schemas';
 
 type StatusPayload = Extract<Payload, { kind: 'status' }>;
+type ProfilePayload = Extract<Payload, { kind: 'profile' }>;
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -49,6 +50,8 @@ export interface ReceiverDeps {
   onBump?: (circleId: string, userId: string, ts: number) => void;
   /** A member set or changed their status (emoji and short text). */
   onStatus?: (circleId: string, userId: string, status: StatusPayload) => void;
+  /** A member's profile message (their photo key, docs/ADR/0014). */
+  onProfile?: (userId: string, profile: ProfilePayload) => void;
   now?: () => number;
 }
 
@@ -73,6 +76,7 @@ export function createReceiver({
   store,
   onBump,
   onStatus,
+  onProfile,
   now = Date.now,
 }: ReceiverDeps) {
   let replay: ReplayGuard | null = null;
@@ -150,6 +154,10 @@ export function createReceiver({
       if (payload.kind === 'share_stop') {
         remove(circle.id, sender.userId);
         return 'removed';
+      }
+      if (payload.kind === 'profile') {
+        onProfile?.(sender.userId, payload);
+        return 'shown';
       }
       if (payload.kind === 'status') {
         onStatus?.(circle.id, sender.userId, payload);
