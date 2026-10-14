@@ -5,6 +5,7 @@
 # or files. It only creates:
 #   - the `deploy` user, whose SSH key may run nothing but /usr/local/bin/bargu-deploy
 #   - /usr/local/bin/bargu-deploy (root-owned)
+#   - /usr/local/bin/bargu-set-mail (root-owned; login emails via Mailpit or a Gmail account)
 #   - /opt/bargu/staging (compose project `bargu-staging`), with secrets generated on the server
 set -eu
 
@@ -42,6 +43,8 @@ chmod 0600 /home/deploy/.ssh/authorized_keys
 
 # 2. Deploy entry point, root-owned so the deploy user cannot change it.
 install -m 0755 -o root -g root "$src_dir/deploy.sh" /usr/local/bin/bargu-deploy
+# Root-only helper to switch login emails between Mailpit and a Gmail account (docs/ADR/0006).
+install -m 0755 -o root -g root "$src_dir/set-mail.sh" /usr/local/bin/bargu-set-mail
 
 # 3. Stack directory and compose file.
 install -d -m 0750 -o deploy -g deploy /opt/bargu "$stack_dir"

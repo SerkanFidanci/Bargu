@@ -38,7 +38,8 @@ x-app-env: &app-env
   OTP_KEY: ${OTP_KEY:?}
   EMAIL_LOOKUP_KEY: ${EMAIL_LOOKUP_KEY:?}
   JOB_PAYLOAD_KEY: ${JOB_PAYLOAD_KEY:?}
-  # Mailpit (internal) until a real relay and domain exist: docs/ADR/0006.
+  # Mailpit (internal) by default; `bargu-set-mail` (set-mail.sh) points it at a Gmail account until
+  # a real relay and domain exist: docs/ADR/0006.
   SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
   MAIL_FROM: ${MAIL_FROM:-Bargu <no-reply@bargu.invalid>}
   WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?}
@@ -91,7 +92,8 @@ services:
     healthcheck:
       disable: true
     mem_limit: 384m
-    networks: [backend]
+    # egress: the only service that talks to the outside (the mail relay); nothing listens on it.
+    networks: [backend, egress]
     depends_on:
       postgres:
         condition: service_healthy
@@ -154,6 +156,7 @@ networks:
           gateway: 10.89.10.1
   backend:
     internal: true
+  egress: {}
 
 volumes:
   postgres-data:

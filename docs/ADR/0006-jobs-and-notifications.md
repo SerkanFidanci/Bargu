@@ -48,6 +48,16 @@ giriş kodu e-postaları (Faz 2), push dağıtımı (Faz 7), davet süresi (Faz 
   yapamaz. Başta AB'de bir aktarıcı (Scaleway TEM öneriliyor), ileride temiz IP + port 25 olan bir
   sunucuda kendi posta sunucumuz (örn. Stalwart): koda dokunmadan, yalnızca ayarla. Staging,
   gerçek alan adı gelene kadar iç ağdaki Mailpit'i kullanır.
+- **Geçici: Gmail üzerinden (staging, 2026-10-14)**: telefondan gerçek kodla girilebilsin diye
+  staging bir Gmail hesabının uygulama şifresiyle gönderebilir. Proje sahibi bunu sunucuda kendisi
+  açar (`bargu-set-mail`, `infra/staging/set-mail.sh`): şifre gizli yazılır, önce Gmail'e
+  giriş ve bir deneme e-postası denenir, ancak başarılıysa geçilir. Gönderim 587 + STARTTLS
+  (Hetzner 465 ve 25'i kapatıyor) ve kodda kural: adreste şifre varsa şifreleme zorunlu
+  (`mustUpgradeToTls`). Yalnızca işçi dışarı çıkabilir (`egress` ağı). Outlook.com seçilmedi:
+  kişisel hesaplarda uygulama şifresi kalktı, yalnızca OAuth (Microsoft uygulama kaydı) çalışıyor.
+  Sınırlar ve bedel: günde ~500 alıcı; kodlar ve alıcı adresleri Google'dan geçer; gönderen olarak
+  o Gmail adresi görünür (bu yüzden ayrı bir Gmail hesabı öneriliyor). Gerçek alan adı gelince
+  aktarıcıya geçilir.
 - **E-posta içeriği**: yalnızca düz metin; bağlantı, HTML, izleme pikseli yok. Kod konu satırında
   değil (kilit ekranı önizlemesinde görünmesin).
 - **Push (Faz 7)**: aynı kuyrukla; WebSocket bağlıysa anında WS, değilse APNs / FCM v1 (aracısız),
