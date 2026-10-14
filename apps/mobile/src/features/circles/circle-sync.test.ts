@@ -17,6 +17,7 @@ import type { KeyValueStore } from '../storage/vault';
 import { circlesKey } from './circle-cache';
 import { createCircleSync, useCircleKeys } from './circle-sync';
 import type { circlesApi } from './circles-api';
+import type { Notice } from './notices';
 
 function memoryStore(): KeyValueStore {
   const data = new Map<string, string>();
@@ -75,12 +76,14 @@ function setup() {
     rekey: jest.fn(() => Promise.resolve({ ...circle, epoch: circle.epoch + 1 })),
   };
   const store = new KeyStore(memoryStore(), me);
+  const notify = jest.fn<undefined, [Notice[]]>();
   // No garbage-collection timers: they would outlive the test.
   const queryClient = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
   const sync = createCircleSync({
     queryClient,
     api: api as unknown as typeof circlesApi,
     keys: () => store,
+    notify,
     now: () => NOW,
   });
   /** Bob's sender key for the circle, wrapped for this phone. */
@@ -94,7 +97,7 @@ function setup() {
       sender: bob.device,
       recipient: verifyDeviceKeyBundle(exportDeviceKeyBundle(me.device)),
     });
-  return { me, bob, circle, api, store, queryClient, sync, fromBob };
+  return { me, bob, circle, api, store, queryClient, sync, fromBob, notify };
 }
 
 describe('circle sync', () => {
@@ -164,5 +167,36 @@ describe('circle sync', () => {
     api.list.mockResolvedValueOnce([]);
     await sync.reload();
     expect(store.knownCircles()).toEqual([]);
+  });
+
+  it('announces what other people did, but not the past on the very first load', async () => {
+    const { me, bob, circle, api, sync, notify } = setup();
+    await sync.reload();
+    expect(notify).not.toHaveBeenCalled();
+
+    // An invitation to a group arrives.
+    const invitation: Circle = {
+      ...circle,
+      id: randomUuid(),
+      kind: 'family',
+      name: 'Aile',
+      myStatus: 'invited',
+      members: [{ ...card(me), status: 'invited', device: null }, card(bob)],
+    };
+    api.get.mockResolvedValueOnce(invitation);
+    await sync.apply([
+      { type: 'circle.changed', circleId: invitation.id, epoch: invitation.epoch },
+    ]);
+    expect(notify).toHaveBeenLastCalledWith([
+      { kind: 'invited', circleId: invitation.id, pair: false, from: 'Test', circleName: 'Aile' },
+    ]);
+
+    // Bob shows up with another identity key (new phone, or someone in between).
+    const bobAgain = { userId: bob.userId, device: generateDeviceKeys(randomUuid()) };
+    api.get.mockResolvedValueOnce({ ...circle, epoch: 3, members: [card(me), card(bobAgain)] });
+    await sync.apply([{ type: 'circle.changed', circleId: circle.id, epoch: 3 }]);
+    expect(notify).toHaveBeenLastCalledWith([
+      { kind: 'keyChanged', circleId: circle.id, names: ['Test'] },
+    ]);
   });
 });

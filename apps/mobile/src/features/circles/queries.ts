@@ -1,4 +1,4 @@
-import type { Circle, GROUP_KINDS, MemberCard } from '@bargu/schemas';
+import type { Circle, GROUP_KINDS } from '@bargu/schemas';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -10,6 +10,9 @@ import { errorMessage, isApiError } from '../errors';
 import { circleSync } from '../live/live-session';
 import { circlesKey } from './circle-cache';
 import { circlesApi } from './circles-api';
+import { type Friend, friendsOf, handleOf, memberName, partnerOf } from './names';
+
+export { type Friend, friendsOf, handleOf, memberName, partnerOf };
 
 /** Every circle the user is in or invited to; loaded once, then kept current by events. */
 export function useCircles() {
@@ -29,23 +32,6 @@ export function groupCircles(circles: readonly Circle[]) {
     friends: circles.filter((circle) => circle.kind === 'pair' && circle.myStatus === 'active'),
     groups: circles.filter((circle) => circle.kind !== 'pair' && circle.myStatus === 'active'),
   };
-}
-
-/** For a pair: the other person. For a group: undefined. */
-export function partnerOf(circle: Circle, myUserId: string | null): MemberCard | undefined {
-  if (circle.kind !== 'pair') return undefined;
-  return circle.members.find((member) => member.userId !== myUserId);
-}
-
-/** "@username", or undefined for someone without one yet. */
-export function handleOf(member: Pick<MemberCard, 'username'> | undefined): string | undefined {
-  const username = member?.username ?? null;
-  return username === null ? undefined : `@${username}`;
-}
-
-/** The name to show for a member: display name, else @username. */
-export function memberName(member: Pick<MemberCard, 'displayName' | 'username'>): string {
-  return member.displayName ?? (member.username === null ? '?' : `@${member.username}`);
 }
 
 /** Error toast for a failed circle action; specific codes get their own sentence. */
@@ -129,6 +115,40 @@ export function useInviteByUsername(circleId: string | null) {
     },
     onError: (error) => {
       if (!isApiError(error, 'NOT_FOUND')) onError(error);
+    },
+  });
+}
+
+/** The user's friends, from the cached circles (no request of its own). */
+export function useFriends(): Friend[] {
+  const me = useAuth((state) => state.userId);
+  const circles = useCircles().data;
+  return circles === undefined ? [] : friendsOf(circles, me);
+}
+
+/**
+ * Invites several friends into a group: one invitation each, every one needs its own yes. Stops at
+ * a full circle or the hourly limit; returns who could not be invited.
+ */
+export function useInviteFriends() {
+  return useMutation({
+    mutationFn: async ({ circleId, friends }: { circleId: string; friends: Friend[] }) => {
+      const failed: Friend[] = [];
+      let latest: Circle | null = null;
+      for (const [index, friend] of friends.entries()) {
+        try {
+          latest = await circlesApi.invite(circleId, friend.username);
+        } catch (error) {
+          if (isApiError(error, 'RATE_LIMITED', 'CIRCLE_FULL')) {
+            failed.push(...friends.slice(index));
+            break;
+          }
+          failed.push(friend);
+        }
+      }
+      if (latest !== null) void circleSync.adopt(latest).catch(() => undefined);
+      feedback(failed.length < friends.length ? 'success' : 'error');
+      return { invited: friends.length - failed.length, failed };
     },
   });
 }

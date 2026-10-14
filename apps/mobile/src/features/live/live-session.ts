@@ -5,6 +5,7 @@ import { AppState } from 'react-native';
 import { env } from '@/config/env';
 
 import { api, onSignedOut, sessionRevoked, useAuth } from '../auth/auth-store';
+import { announce } from '../circles/announce';
 import { createCircleSync } from '../circles/circle-sync';
 import { circlesApi } from '../circles/circles-api';
 import { EventStream } from '../events/event-stream';
@@ -25,7 +26,12 @@ export function keys(): KeyStore {
   return keyStore;
 }
 
-export const circleSync = createCircleSync({ queryClient, api: circlesApi, keys });
+export const circleSync = createCircleSync({
+  queryClient,
+  api: circlesApi,
+  keys,
+  notify: announce,
+});
 
 const stream = new EventStream({
   transport: socketTransport(env.apiUrl, (path) => api.socketHandshake(path)),

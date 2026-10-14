@@ -7,6 +7,8 @@ import { isApiError } from '../errors';
 import type { KeyStore } from '../keys/key-store';
 import { cachedCircle, circlesKey, removeCircle, upsertCircle } from './circle-cache';
 import type { circlesApi } from './circles-api';
+import { memberName } from './names';
+import { type Notice, noticesFor, seenOf } from './notices';
 
 export type Trust = 'verified' | 'unverified' | 'changed';
 
@@ -26,6 +28,8 @@ export interface CircleSyncDeps {
   api: typeof circlesApi;
   /** The signed-in user's key store (throws before sign-in: a programming error). */
   keys: () => KeyStore;
+  /** Things other people did (invited, accepted, joined, changed keys) to show in the app. */
+  notify?: (notices: Notice[]) => void;
   now?: () => number;
 }
 
@@ -35,7 +39,13 @@ export interface CircleSyncDeps {
  * identities, send our key to everyone trusted who lacks it, take in theirs, drop what the
  * protocol no longer accepts, and ask for a new epoch once the current one is a day old.
  */
-export function createCircleSync({ queryClient, api, keys, now = Date.now }: CircleSyncDeps) {
+export function createCircleSync({
+  queryClient,
+  api,
+  keys,
+  notify = () => undefined,
+  now = Date.now,
+}: CircleSyncDeps) {
   const queues = new Map<string, Promise<void>>();
   /** Rekey asked once per circle and epoch per run (the server decides; no loops). */
   const rekeysAsked = new Set<string>();
@@ -50,6 +60,20 @@ export function createCircleSync({ queryClient, api, keys, now = Date.now }: Cir
       if (queues.get(circleId) === settled) queues.delete(circleId);
     });
     return next;
+  }
+
+  /**
+   * Remembers what the user now knows of a circle. With `announce`, what changed since last time
+   * because of other people becomes a notice; the user's own actions are recorded silently.
+   */
+  function remember(circle: Circle, announce: boolean): void {
+    const store = keys();
+    const isMe = (userId: string) => store.isMe(userId);
+    if (announce && store.noticesReady()) {
+      const notices = noticesFor(store.seen(circle.id), circle, isMe);
+      if (notices.length > 0) notify(notices);
+    }
+    store.setSeen(circle.id, seenOf(circle, isMe));
   }
 
   function publish(circle: Circle): void {
@@ -90,7 +114,18 @@ export function createCircleSync({ queryClient, api, keys, now = Date.now }: Cir
 
   async function syncKeys(circle: Circle, fetchKeys: boolean, attempt = 0): Promise<void> {
     const store = keys();
-    store.observe(circle);
+    const changed = store.observe(circle);
+    if (changed.length > 0) {
+      notify([
+        {
+          kind: 'keyChanged',
+          circleId: circle.id,
+          names: circle.members
+            .filter((member) => changed.includes(member.userId))
+            .map((member) => memberName(member)),
+        },
+      ]);
+    }
     store.prune(circle.id, circle.epoch);
     if (circle.myStatus !== 'active') {
       publish(circle);
@@ -132,6 +167,7 @@ export function createCircleSync({ queryClient, api, keys, now = Date.now }: Cir
     /** After the user's own action returned the circle (create, accept, invite, remove…). */
     adopt(circle: Circle): Promise<void> {
       upsertCircle(queryClient, circle);
+      remember(circle, false);
       return serial(circle.id, () => syncKeys(circle, circle.myStatus === 'active'));
     },
 
@@ -144,7 +180,9 @@ export function createCircleSync({ queryClient, api, keys, now = Date.now }: Cir
     refresh(circleId: string): Promise<void> {
       return serial(circleId, async () => {
         const circle = await fetchCircle(circleId);
-        if (circle !== null) await syncKeys(circle, true);
+        if (circle === null) return;
+        remember(circle, false);
+        await syncKeys(circle, true);
       });
     },
 
@@ -185,7 +223,9 @@ export function createCircleSync({ queryClient, api, keys, now = Date.now }: Cir
             const circle = entry.fetch
               ? await fetchCircle(circleId)
               : (cachedCircle(queryClient, circleId) ?? null);
-            if (circle !== null) await syncKeys(circle, entry.keys);
+            if (circle === null) return;
+            if (entry.fetch) remember(circle, true);
+            await syncKeys(circle, entry.keys);
           }),
         ),
       );
@@ -202,6 +242,9 @@ export function createCircleSync({ queryClient, api, keys, now = Date.now }: Cir
       for (const circleId of store.knownCircles()) {
         if (!circles.some((circle) => circle.id === circleId)) forget(circleId);
       }
+      // What happened while the app was closed is announced once; the very first load only records.
+      for (const circle of circles) remember(circle, true);
+      store.markNoticesReady();
       const results = await Promise.allSettled(
         circles.map((circle) => serial(circle.id, () => syncKeys(circle, true))),
       );

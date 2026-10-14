@@ -101,7 +101,8 @@
     "dock": {
       "circles": "Çemberler",
       "add": "Ekle",
-      "me": "Ben"
+      "me": "Ben",
+      "circlesWithRequests": "Çemberler, yeni istek: {{count}}"
     },
     "connecting": "Bağlanıyor…",
     "map": "Harita",
@@ -284,7 +285,10 @@
       "name": "Çemberin adı",
       "placeholder_family": "Örn. Aile",
       "placeholder_friends": "Örn. Kampüs ekibi",
-      "create": "Oluştur"
+      "create": "Oluştur",
+      "inviteTitle": "Kimler katılsın?",
+      "inviteBody": "Dokunarak seç; istersen sonra da ekleyebilirsin. Kabul etmeyen hiçbir şey görmez.",
+      "createWith": "Oluştur ve davet et · {{count}} kişi"
     },
     "detail": {
       "goneTitle": "Çember bulunamadı",
@@ -306,10 +310,6 @@
       "acceptKey": "Onayla",
       "acceptKeyTitle": "Yeni anahtarı onaylıyor musun?",
       "acceptKeyBody": "{{name}} telefon değiştirdiyse onaylayabilirsin. En güvenlisi yan yana gelip QR ile karşılaştırmak.",
-      "invite": "Kişi ekle",
-      "inviteUsername": "Kullanıcı adıyla davet et",
-      "inviteQr": "QR",
-      "inviteLink": "Link",
       "shareMessage": "Bargu'da “{{name}}” çemberine katıl: {{link}}",
       "removeTitle": "{{name}} çıkarılsın mı?",
       "removeBody": "Çıkarılan kişi bundan sonraki konumları göremez; yeni anahtarlar yalnızca kalanlara gider.",
@@ -320,7 +320,30 @@
       "unfriend": "Arkadaşlıktan çıkar",
       "unfriendTitle": "{{name}} arkadaşlıktan çıkarılsın mı?",
       "unfriendBody": "İkiniz de birbirinizin konumunu artık göremezsiniz. Yeniden arkadaş olmak için yeni bir istek gerekir.",
-      "withdraw": "İsteği geri çek"
+      "withdraw": "İsteği geri çek",
+      "addPeople": "Kişi ekle",
+      "onlyYouTitle": "Şimdilik sadece sen varsın",
+      "onlyYouBody": "Arkadaşlarını davet et; kabul edenler çembere katılır.",
+      "inviteFriends": "Arkadaşlarını davet et"
+    },
+    "invite": {
+      "title": "Kişi ekle",
+      "friends": "Arkadaşların",
+      "search": "Arkadaş ara",
+      "inCircle": "Çemberde",
+      "pick": "Davet edilecekleri seç",
+      "send": "Davet et · {{count}} kişi",
+      "sent": "Davet gitti: {{count}} kişi. Kabul edince haber vereceğiz.",
+      "partial": "Şu kişilere davet gönderilemedi: {{names}}",
+      "noFriendsTitle": "Henüz arkadaşın yok",
+      "noFriendsBody": "Aşağıdaki yollarla davet edebilirsin. Arkadaş ekledikçe burada tek dokunuşla seçebilirsin.",
+      "otherWays": "Başka yollar",
+      "byUsername": "Kullanıcı adıyla davet et",
+      "byUsernameHint": "Arkadaş listende olmayan biri için",
+      "byQr": "QR kod göster",
+      "byQrHint": "Yanındaysa en hızlısı",
+      "byLink": "Davet linki paylaş",
+      "byLinkHint": "WhatsApp, SMS ya da e-postayla"
     }
   },
   "verify": {
@@ -334,5 +357,13 @@
     "codeLabel": "{{name}} ile güvenlik numarası QR kodu",
     "computing": "Güvenlik numarası hesaplanıyor",
     "digitsLabel": "Güvenlik numarası: {{digits}}"
+  },
+  "notices": {
+    "friendRequest": "{{name}} seni arkadaş olarak eklemek istiyor",
+    "circleInvite": "{{name}} seni “{{circle}}” çemberine davet etti",
+    "nowFriends": "{{name}} ile artık arkadaşsınız",
+    "joined": "{{names}} “{{circle}}” çemberine katıldı",
+    "keyChanged": "{{names}} için güvenlik numarası değişti. Dokun ve kontrol et.",
+    "andMore": "{{text}} (+{{count}})"
   }
 }

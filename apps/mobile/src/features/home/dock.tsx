@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { choreography, elevation, radius, space, spring, touchTarget, useTheme } from '@/theme';
+import { useMotion } from '@/theme/use-motion';
 import { Avatar } from '@/ui/avatar';
 import { IconButton } from '@/ui/icon-button';
 import { PressableScale } from '@/ui/pressable-scale';
@@ -18,10 +19,12 @@ export interface DockProps {
   onMe: () => void;
   /** The add sheet is open: the + turns into a close cross. */
   addOpen: boolean;
+  /** Invitations waiting for an answer, shown as a badge on Circles. */
+  requests: number;
 }
 
 /** The three-item bar at the bottom of the map: Circles · Add · Me (BARGU_PLAN §4.3). */
-export function Dock({ me, onCircles, onAdd, onMe, addOpen }: DockProps) {
+export function Dock({ me, onCircles, onAdd, onMe, addOpen, requests }: DockProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const turn = useSharedValue(0);
@@ -36,8 +39,20 @@ export function Dock({ me, onCircles, onAdd, onMe, addOpen }: DockProps) {
         { backgroundColor: colors.surfaceRaised, boxShadow: elevation.floating },
       ]}
     >
-      <DockItem label={t('main.dock.circles')} onPress={onCircles} testID="dock-circles">
-        <Users color={colors.text} size={24} strokeWidth={2.25} />
+      <DockItem
+        label={t('main.dock.circles')}
+        accessibilityLabel={
+          requests > 0
+            ? t('main.dock.circlesWithRequests', { count: requests })
+            : t('main.dock.circles')
+        }
+        onPress={onCircles}
+        testID="dock-circles"
+      >
+        <View>
+          <Users color={colors.text} size={24} strokeWidth={2.25} />
+          {requests > 0 ? <RequestBadge count={requests} /> : null}
+        </View>
       </DockItem>
       <Animated.View style={turned}>
         <IconButton
@@ -56,13 +71,33 @@ export function Dock({ me, onCircles, onAdd, onMe, addOpen }: DockProps) {
   );
 }
 
+/** A small count over the Circles icon; pops in when a new invitation arrives. */
+function RequestBadge({ count }: { count: number }) {
+  const { colors } = useTheme();
+  const motion = useMotion();
+  return (
+    <Animated.View
+      key={count}
+      entering={motion.pop}
+      style={[styles.badge, { backgroundColor: colors.accent, borderColor: colors.surfaceRaised }]}
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Text variant="caption" color="onAccent" allowFontScaling={false}>
+        {count > 9 ? '9+' : String(count)}
+      </Text>
+    </Animated.View>
+  );
+}
+
 function DockItem({
   label,
+  accessibilityLabel,
   onPress,
   children,
   testID,
 }: {
   label: string;
+  accessibilityLabel?: string;
   onPress: () => void;
   children: React.ReactNode;
   testID: string;
@@ -73,7 +108,7 @@ function DockItem({
       haptic="select"
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       style={styles.item}
     >
       {children}
@@ -93,6 +128,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     marginHorizontal: space.lg,
+  },
+  badge: {
+    position: 'absolute',
+    top: -space.xs,
+    right: -space.md,
+    minWidth: space.lg + space.xs,
+    height: space.lg + space.xs,
+    paddingHorizontal: space.xs,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   item: {
     minWidth: touchTarget + space.xl,

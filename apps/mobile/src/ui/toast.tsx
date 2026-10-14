@@ -17,23 +17,27 @@ interface ToastMessage {
   id: number;
   message: string;
   tone: ToastTone;
+  /** A notice can be tapped to go where it happened (e.g. the circle). */
+  onPress?: (() => void) | undefined;
 }
 
 interface ToastState {
   current: ToastMessage | null;
-  show: (message: string, tone?: ToastTone) => void;
+  show: (message: string, tone?: ToastTone, onPress?: () => void) => void;
   dismiss: (id: number) => void;
 }
 
 /** How long a toast stays when nobody taps it. */
 export const TOAST_VISIBLE_MS = 3500;
+/** A notice about other people (an invitation, someone joined) stays a little longer. */
+export const NOTICE_VISIBLE_MS = 5500;
 
 let nextId = 1;
 
 export const useToasts = create<ToastState>((set) => ({
   current: null,
-  show: (message, tone = 'info') => {
-    set({ current: { id: nextId++, message, tone } });
+  show: (message, tone = 'info', onPress) => {
+    set({ current: { id: nextId++, message, tone, onPress } });
   },
   dismiss: (id) => {
     set((state) => (state.current?.id === id ? { current: null } : state));
@@ -50,6 +54,10 @@ export const toast = {
   },
   error: (message: string) => {
     useToasts.getState().show(message, 'error');
+  },
+  /** Something other people did; tapping it opens where it happened. */
+  notice: (message: string, tone: ToastTone, onPress: () => void) => {
+    useToasts.getState().show(message, tone, onPress);
   },
 };
 
@@ -71,9 +79,12 @@ export function ToastHost() {
     if (current === null) return;
     AccessibilityInfo.announceForAccessibility(current.message);
     if (current.tone === 'success') feedback('success');
-    const timer = setTimeout(() => {
-      dismiss(current.id);
-    }, TOAST_VISIBLE_MS);
+    const timer = setTimeout(
+      () => {
+        dismiss(current.id);
+      },
+      current.onPress === undefined ? TOAST_VISIBLE_MS : NOTICE_VISIBLE_MS,
+    );
     return () => {
       clearTimeout(timer);
     };
@@ -90,6 +101,7 @@ export function ToastHost() {
           accessibilityLiveRegion="polite"
           onPress={() => {
             dismiss(current.id);
+            current.onPress?.();
           }}
           style={[
             styles.toast,

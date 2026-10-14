@@ -8,8 +8,6 @@ import {
   Lock,
   LogOut,
   Pencil,
-  QrCode,
-  Share2,
   ShieldAlert,
   ShieldCheck,
   UserMinus,
@@ -19,12 +17,11 @@ import {
 } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Share, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { useAuth } from '@/features/auth/auth-store';
 import { type Trust, useCircleKeys } from '@/features/circles/circle-sync';
-import { circlesApi } from '@/features/circles/circles-api';
 import {
   handleOf,
   memberName,
@@ -32,7 +29,6 @@ import {
   useCircle,
   useCircleActions,
 } from '@/features/circles/queries';
-import { errorMessage } from '@/features/errors';
 import { circleSync, keys } from '@/features/live/live-session';
 import { isValidDisplayName } from '@/features/profile/profile-form';
 import { radius, space, touchTarget, useTheme } from '@/theme';
@@ -49,7 +45,6 @@ import { ListRow } from '@/ui/list-row';
 import { Screen, SectionTitle } from '@/ui/screen';
 import { Text } from '@/ui/text';
 import { TextField } from '@/ui/text-field';
-import { toast } from '@/ui/toast';
 
 /**
  * One friend or circle: who is in it, whether its encryption is ready, warnings when someone's
@@ -116,15 +111,8 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
     );
   };
 
-  const shareLink = async () => {
-    try {
-      const invite = await circlesApi.createInvite({ kind: 'circle', circleId: circle.id });
-      await Share.share({
-        message: t('circles.detail.shareMessage', { name: circle.name ?? '', link: invite.link }),
-      });
-    } catch (error) {
-      toast.error(errorMessage(error, t));
-    }
+  const openInvite = () => {
+    router.push({ pathname: '/circle/[id]/invite', params: { id: circle.id } });
   };
 
   return (
@@ -205,6 +193,24 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
         </Appear>
       ) : null}
 
+      {active && !pair && others.length === 0 ? (
+        <Appear index={2}>
+          <Notice
+            icon={Users}
+            tone="muted"
+            title={t('circles.detail.onlyYouTitle')}
+            body={t('circles.detail.onlyYouBody')}
+          >
+            <Button
+              testID="invite-first"
+              label={t('circles.detail.inviteFriends')}
+              icon={UserPlus}
+              onPress={openInvite}
+            />
+          </Notice>
+        </Appear>
+      ) : null}
+
       {changed.map((member, index) => (
         <Appear key={member.userId} index={2 + index}>
           <ChangedKeyNotice circle={circle} member={member} />
@@ -243,37 +249,14 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
         </Appear>
       ) : null}
 
-      {active && !pair ? (
-        <Appear index={4} style={styles.section}>
-          <SectionTitle>{t('circles.detail.invite')}</SectionTitle>
+      {active && !pair && others.length > 0 ? (
+        <Appear index={4}>
           <Button
-            label={t('circles.detail.inviteUsername')}
+            testID="add-people"
+            label={t('circles.detail.addPeople')}
             icon={UserPlus}
-            variant="secondary"
-            onPress={() => {
-              router.push({ pathname: '/add/username', params: { circle: circle.id } });
-            }}
+            onPress={openInvite}
           />
-          <View style={styles.row}>
-            <View style={styles.half}>
-              <Button
-                label={t('circles.detail.inviteQr')}
-                icon={QrCode}
-                variant="secondary"
-                onPress={() => {
-                  router.push({ pathname: '/add/qr', params: { circle: circle.id } });
-                }}
-              />
-            </View>
-            <View style={styles.half}>
-              <Button
-                label={t('circles.detail.inviteLink')}
-                icon={Share2}
-                variant="secondary"
-                onPress={() => void shareLink()}
-              />
-            </View>
-          </View>
         </Appear>
       ) : null}
 

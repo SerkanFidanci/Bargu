@@ -101,7 +101,8 @@
     "dock": {
       "circles": "Circles",
       "add": "Add",
-      "me": "Me"
+      "me": "Me",
+      "circlesWithRequests": "Circles, new requests: {{count}}"
     },
     "connecting": "Connecting…",
     "map": "Map",
@@ -284,7 +285,10 @@
       "name": "Circle name",
       "placeholder_family": "e.g. Family",
       "placeholder_friends": "e.g. Campus crew",
-      "create": "Create"
+      "create": "Create",
+      "inviteTitle": "Who should join?",
+      "inviteBody": "Tap to pick; you can add more later. Anyone who hasn't accepted sees nothing.",
+      "createWith": "Create and invite · people: {{count}}"
     },
     "detail": {
       "goneTitle": "Circle not found",
@@ -306,10 +310,6 @@
       "acceptKey": "Accept",
       "acceptKeyTitle": "Accept the new key?",
       "acceptKeyBody": "If {{name}} changed phones, you can accept. Safest is to meet and compare with the QR code.",
-      "invite": "Add people",
-      "inviteUsername": "Invite by username",
-      "inviteQr": "QR",
-      "inviteLink": "Link",
       "shareMessage": "Join “{{name}}” on Bargu: {{link}}",
       "removeTitle": "Remove {{name}}?",
       "removeBody": "They won't see any further locations; new keys go only to those who stay.",
@@ -320,7 +320,30 @@
       "unfriend": "Unfriend",
       "unfriendTitle": "Unfriend {{name}}?",
       "unfriendBody": "Neither of you will see the other's location. Becoming friends again needs a new request.",
-      "withdraw": "Withdraw request"
+      "withdraw": "Withdraw request",
+      "addPeople": "Add people",
+      "onlyYouTitle": "It's just you for now",
+      "onlyYouBody": "Invite your friends; those who accept join the circle.",
+      "inviteFriends": "Invite friends"
+    },
+    "invite": {
+      "title": "Add people",
+      "friends": "Your friends",
+      "search": "Search friends",
+      "inCircle": "In circle",
+      "pick": "Pick who to invite",
+      "send": "Invite · people: {{count}}",
+      "sent": "Invited: {{count}}. We'll let you know when they accept.",
+      "partial": "Could not invite: {{names}}",
+      "noFriendsTitle": "No friends yet",
+      "noFriendsBody": "Invite with one of the ways below. Friends you add show up here, one tap each.",
+      "otherWays": "Other ways",
+      "byUsername": "Invite by username",
+      "byUsernameHint": "For someone not in your friends",
+      "byQr": "Show a QR code",
+      "byQrHint": "Fastest when you're together",
+      "byLink": "Share an invite link",
+      "byLinkHint": "Via WhatsApp, SMS or email"
     }
   },
   "verify": {
@@ -334,5 +357,13 @@
     "codeLabel": "Safety number QR code with {{name}}",
     "computing": "Calculating the safety number",
     "digitsLabel": "Safety number: {{digits}}"
+  },
+  "notices": {
+    "friendRequest": "{{name}} wants to add you as a friend",
+    "circleInvite": "{{name}} invited you to “{{circle}}”",
+    "nowFriends": "You and {{name}} are now friends",
+    "joined": "{{names}} joined “{{circle}}”",
+    "keyChanged": "{{names}}'s safety number changed. Tap to check.",
+    "andMore": "{{text}} (+{{count}})"
   }
 }

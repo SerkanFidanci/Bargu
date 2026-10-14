@@ -14,6 +14,7 @@ export default function AppLayout() {
       <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
       <Stack.Screen name="circle/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="circle/[id]/index" />
+      <Stack.Screen name="circle/[id]/invite" options={{ presentation: 'modal' }} />
       <Stack.Screen name="circle/[id]/verify/[userId]" />
       <Stack.Screen name="add/username" options={{ presentation: 'modal' }} />
       <Stack.Screen name="add/qr" />

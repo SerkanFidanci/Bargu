@@ -11,6 +11,7 @@ import {
 import type { Circle, MemberCard, SenderKeyDistribution } from '@bargu/schemas';
 import { z } from 'zod';
 
+import { type Seen, seenSchema } from '../circles/notices';
 import type { KeyValueStore } from '../storage/vault';
 
 /**
@@ -31,6 +32,8 @@ const k = {
     `recv:${circleId}:${String(epoch)}:${senderDeviceId}`,
   floor: (circleId: string) => `floor:${circleId}`,
   identity: (userId: string) => `identity:${userId}`,
+  seen: (circleId: string) => `seen:${circleId}`,
+  noticesReady: 'seen:ready',
 };
 
 function read<T>(store: KeyValueStore, key: string, schema: z.ZodType<T>): T | null {
@@ -68,8 +71,12 @@ export class KeyStore {
     return userId === this.me.userId;
   }
 
-  /** Records the circle's epoch (never going back) and every member's identity key. */
-  observe(circle: Circle): void {
+  /**
+   * Records the circle's epoch (never going back) and every member's identity key. Returns the
+   * members whose identity key has just changed (to warn the user once).
+   */
+  observe(circle: Circle): string[] {
+    const changed: string[] = [];
     const floorKey = k.floor(circle.id);
     const floor = Number(this.store.get(floorKey) ?? 0);
     if (circle.epoch > floor) this.store.set(floorKey, String(circle.epoch));
@@ -81,11 +88,31 @@ export class KeyStore {
         this.saveIdentity(member.userId, { key: seen, verified: false, changedTo: null });
       } else if (known.key !== seen && known.changedTo !== seen) {
         this.saveIdentity(member.userId, { ...known, changedTo: seen });
+        changed.push(member.userId);
       } else if (known.key === seen && known.changedTo !== null) {
         // Back to the key we knew (e.g. the server stopped substituting one).
         this.saveIdentity(member.userId, { ...known, changedTo: null });
       }
     }
+    return changed;
+  }
+
+  /** What the user was last shown of a circle; in-app notices compare against it. */
+  seen(circleId: string): Seen | null {
+    return read(this.store, k.seen(circleId), seenSchema);
+  }
+
+  setSeen(circleId: string, seen: Seen): void {
+    this.store.set(k.seen(circleId), JSON.stringify(seen));
+  }
+
+  /** False until the first full load: that one only records, it does not announce the past. */
+  noticesReady(): boolean {
+    return this.store.get(k.noticesReady) === '1';
+  }
+
+  markNoticesReady(): void {
+    this.store.set(k.noticesReady, '1');
   }
 
   identity(userId: string): KnownIdentity | null {
@@ -262,7 +289,10 @@ export class KeyStore {
       const epoch = Number(parts[2]);
       if (currentEpoch === null || epoch < currentEpoch - RETAINED_EPOCHS) this.store.delete(key);
     }
-    if (currentEpoch === null) this.store.delete(k.floor(circleId));
+    if (currentEpoch === null) {
+      this.store.delete(k.floor(circleId));
+      this.store.delete(k.seen(circleId));
+    }
   }
 
   private saveIdentity(userId: string, identity: KnownIdentity): void {

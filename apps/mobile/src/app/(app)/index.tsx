@@ -7,6 +7,7 @@ import { Dock } from '@/features/home/dock';
 import { SeersPill } from '@/features/home/seers-pill';
 import { AddSheet } from '@/features/circles/add-sheet';
 import { CirclesSheet } from '@/features/circles/circles-sheet';
+import { useCircles } from '@/features/circles/queries';
 import { MeSheet } from '@/features/home/sheets';
 import { BarguMap } from '@/features/map/bargu-map';
 import { MapCredit } from '@/features/map/map-credit';
@@ -23,6 +24,8 @@ const PILL_HEIGHT = touchTarget + space.lg;
 /** Map-first home: the map, "who sees me" on top, the dock below, everything else in sheets. */
 export default function HomeScreen() {
   const me = useMe();
+  const circleList = useCircles();
+  const requests = circleList.data?.filter((circle) => circle.myStatus === 'invited').length ?? 0;
   const insets = useSafeAreaInsets();
   const circles = useRef<SheetRef>(null);
   const add = useRef<SheetRef>(null);
@@ -67,6 +70,7 @@ export default function HomeScreen() {
         <Dock
           me={me.data}
           addOpen={addOpen}
+          requests={requests}
           onCircles={() => circles.current?.present()}
           onAdd={toggleAdd}
           onMe={() => meSheet.current?.present()}
