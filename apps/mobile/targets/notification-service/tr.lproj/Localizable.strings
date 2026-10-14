@@ -1,0 +1,10 @@
+/* Uzantının açtığı bildirimler (uygulama aynısını src/i18n/locales/tr.json'dan yazar). */
+"arrived" = "%@ vardı";
+"left" = "%@ ayrıldı";
+"poked" = "%@ seni dürttü 👋";
+"notice.friendRequest" = "Yeni bir arkadaşlık isteğin var";
+"notice.friendAccepted" = "Arkadaşlık isteğin kabul edildi";
+"notice.friendAdded" = "Yeni bir arkadaşın var";
+"notice.circleInvite" = "Bir çembere davet edildin";
+"notice.memberJoined" = "Çemberine yeni biri katıldı";
+"notice.memberJoinedIn" = "%@ çemberine yeni biri katıldı";

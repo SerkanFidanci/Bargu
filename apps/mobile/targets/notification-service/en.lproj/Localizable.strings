@@ -1,0 +1,10 @@
+/* Notifications opened by the extension (the app writes the same in src/i18n/locales/en.json). */
+"arrived" = "%@ arrived";
+"left" = "%@ left";
+"poked" = "%@ poked you 👋";
+"notice.friendRequest" = "You have a new friend request";
+"notice.friendAccepted" = "Your friend request was accepted";
+"notice.friendAdded" = "You have a new friend";
+"notice.circleInvite" = "You were invited to a circle";
+"notice.memberJoined" = "Someone joined your circle";
+"notice.memberJoinedIn" = "Someone joined %@";

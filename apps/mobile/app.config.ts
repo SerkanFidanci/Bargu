@@ -13,6 +13,17 @@ const EAS_PROJECT_ID = '56c64a85-3555-4469-a686-4af1c67aa9ce';
  */
 const FONT_DIR = 'node_modules/@expo-google-fonts';
 
+/**
+ * Apple developer team (10 characters), from the EAS environment once the Apple account exists.
+ * Until then iOS builds cannot be signed and the notification extension shares nothing.
+ */
+const APPLE_TEAM_ID = process.env.APPLE_TEAM_ID;
+/**
+ * Keychain group the app shares with its Notification Service Extension (docs/ADR/0016): the
+ * device's X25519 key, the trusted contacts and the mutes, nothing else.
+ */
+const PUSH_KEYCHAIN_GROUP = 'app.bargu.push';
+
 /** Brand violet (src/theme/colors.ts lightColors.primary), for the icon background and splash. */
 const BRAND_VIOLET = '#5B34F2';
 const FONTS = {
@@ -43,6 +54,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: false,
     // Permission texts follow the phone's language (native-locales/*.json).
     infoPlist: { CFBundleAllowMixedLocalizations: true },
+    ...(APPLE_TEAM_ID === undefined ? {} : { appleTeamId: APPLE_TEAM_ID }),
+    entitlements: {
+      'keychain-access-groups': [`$(AppIdentifierPrefix)${PUSH_KEYCHAIN_GROUP}`],
+    },
   },
   locales: { tr: './native-locales/tr.json', en: './native-locales/en.json' },
   android: {
@@ -63,6 +78,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     'expo-router',
+    // The iOS Notification Service Extension (targets/notification-service, docs/ADR/0016).
+    '@bacons/apple-targets',
     [
       'expo-splash-screen',
       {
@@ -153,5 +170,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     eas: { projectId: EAS_PROJECT_ID },
+    // The full keychain group (team prefix included) the app writes for the extension.
+    ...(APPLE_TEAM_ID === undefined
+      ? {}
+      : { iosPushKeychainGroup: `${APPLE_TEAM_ID}.${PUSH_KEYCHAIN_GROUP}` }),
   },
 });

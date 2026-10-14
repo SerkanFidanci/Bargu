@@ -112,6 +112,14 @@ jobs:
         working-directory: packages/crypto/swift
         run: swift test
 
+      # The Notification Service Extension (apps/mobile/targets/notification-service) cannot be
+      # built without an Apple account yet; this proves its sources compile against the iOS SDK.
+      - name: Notification extension type-checks for iOS
+        working-directory: apps/mobile/targets/notification-service
+        run: >-
+          xcrun --sdk iphoneos swiftc -typecheck -parse-as-library
+          -target arm64-apple-ios16.0 -module-name BarguNotificationService *.swift
+
   deploy-staging:
     name: Deploy staging
     needs: [verify, integration, audit]

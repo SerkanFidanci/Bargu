@@ -1,0 +1,10 @@
+{
+  "type": "notification-service",
+  "name": "BarguNotificationService",
+  "bundleIdentifier": ".notification-service",
+  "deploymentTarget": "16.0",
+  "frameworks": ["UserNotifications", "Security"],
+  "entitlements": {
+    "keychain-access-groups": ["$(AppIdentifierPrefix)app.bargu.push"]
+  }
+}
