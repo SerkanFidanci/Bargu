@@ -15,15 +15,15 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Ortamlar
 
-| Ne                 | Nerede                                                                                   |
-| ------------------ | ---------------------------------------------------------------------------------------- |
-| Staging API        | `https://api.46-62-162-70.sslip.io` (geçici ücretsiz domain; bkz. ADR 0003)              |
-| Staging deploy     | `main`'e her yeşil CI → GHCR imajı → migration → API + işçi (otomatik, sağlık kontrollü) |
-| Staging e-posta    | İç ağdaki Mailpit (dışarı açık değil); gerçek aktarıcı domain ile gelecek (ADR 0006)     |
-| Expo / EAS projesi | hesap `otenus`, proje `bargu` (`app.config.ts`)                                          |
-| Android sürümleri  | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır)  |
-| Uygulama kimliği   | `app.bargu` (mağazaya çıkınca değiştirilemez)                                            |
-| Harita dosyaları   | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)    |
+| Ne                 | Nerede                                                                                                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Staging API        | `https://api.46-62-162-70.sslip.io` (geçici ücretsiz domain; bkz. ADR 0003)                                                                                           |
+| Staging deploy     | `main`'e her yeşil CI → GHCR imajı → migration → API + işçi (otomatik, sağlık kontrollü)                                                                              |
+| Staging e-posta    | Varsayılan iç Mailpit. Proje sahibi sunucuda `bargu-set-mail` ile bir Gmail hesabından gerçek gönderime geçirebilir (ADR 0006); `.test` test hesapları hep Mailpit'te |
+| Expo / EAS projesi | hesap `otenus`, proje `bargu` (`app.config.ts`)                                                                                                                       |
+| Android sürümleri  | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır)                                                                               |
+| Uygulama kimliği   | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                         |
+| Harita dosyaları   | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                 |
 
 ## Faz 4 — Çemberler & Anahtar Dağıtımı (2026-10-14)
 
