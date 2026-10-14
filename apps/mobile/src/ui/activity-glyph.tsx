@@ -85,29 +85,30 @@ function Figure({
   running: boolean;
   color: string;
 }) {
-  const pose = (side: 0 | 1) => () => {
-    'worklet';
-    return limbAngles(phase.get(), running, side);
-  };
+  // Only worklets may be called inside these styles (they run on the UI thread): limbAngles is one.
   const legA = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${String(pose(0)().thigh)}deg` }],
+    transform: [{ rotate: `${String(limbAngles(phase.get(), running, 0).thigh)}deg` }],
   }));
   const shinA = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${String(pose(0)().shin)}deg` }],
+    transform: [{ rotate: `${String(limbAngles(phase.get(), running, 0).shin)}deg` }],
   }));
   const legB = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${String(pose(1)().thigh)}deg` }],
+    transform: [{ rotate: `${String(limbAngles(phase.get(), running, 1).thigh)}deg` }],
   }));
   const shinB = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${String(pose(1)().shin)}deg` }],
+    transform: [{ rotate: `${String(limbAngles(phase.get(), running, 1).shin)}deg` }],
   }));
-  const armA = useAnimatedStyle(() => ({ transform: [{ rotate: `${String(pose(0)().arm)}deg` }] }));
+  const armA = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${String(limbAngles(phase.get(), running, 0).arm)}deg` }],
+  }));
   const foreA = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${String(pose(0)().forearm)}deg` }],
+    transform: [{ rotate: `${String(limbAngles(phase.get(), running, 0).forearm)}deg` }],
   }));
-  const armB = useAnimatedStyle(() => ({ transform: [{ rotate: `${String(pose(1)().arm)}deg` }] }));
+  const armB = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${String(limbAngles(phase.get(), running, 1).arm)}deg` }],
+  }));
   const foreB = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${String(pose(1)().forearm)}deg` }],
+    transform: [{ rotate: `${String(limbAngles(phase.get(), running, 1).forearm)}deg` }],
   }));
   const lean = running ? 16 : 5;
   const thigh = running ? 5.5 : 6;
@@ -209,21 +210,18 @@ function Bike({
   color: string;
   frame: string;
 }) {
-  const leg = (side: 0 | 1) => () => {
-    'worklet';
-    return pedalLeg(phase.get(), side);
-  };
+  // pedalLeg is a worklet: safe to call on the UI thread.
   const thighA = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${String(leg(0)().thigh)}deg` }],
+    transform: [{ rotate: `${String(pedalLeg(phase.get(), 0).thigh)}deg` }],
   }));
   const shinA = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${String(leg(0)().shin)}deg` }],
+    transform: [{ rotate: `${String(pedalLeg(phase.get(), 0).shin)}deg` }],
   }));
   const thighB = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${String(leg(1)().thigh)}deg` }],
+    transform: [{ rotate: `${String(pedalLeg(phase.get(), 1).thigh)}deg` }],
   }));
   const shinB = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${String(leg(1)().shin)}deg` }],
+    transform: [{ rotate: `${String(pedalLeg(phase.get(), 1).shin)}deg` }],
   }));
   return (
     <View style={StyleSheet.absoluteFill}>
@@ -259,6 +257,15 @@ function Bike({
   );
 }
 
+/** An exhaust puff at `t` (0–1) of its life: it drifts back, grows and fades. */
+function puffAt(t: number) {
+  'worklet';
+  return {
+    opacity: 0.6 * (1 - t),
+    transform: [{ translateX: -5 * t }, { translateY: -2 * t }, { scale: 0.6 + t }],
+  };
+}
+
 /** Someone in a car: wheels spin and little puffs drift from the exhaust. */
 function Car({
   phase,
@@ -271,16 +278,8 @@ function Car({
   body: string;
   window: string;
 }) {
-  const puff = (offset: number) => () => {
-    'worklet';
-    const t = (phase.get() + offset) % 1;
-    return {
-      opacity: 0.6 * (1 - t),
-      transform: [{ translateX: -5 * t }, { translateY: -2 * t }, { scale: 0.6 + t }],
-    };
-  };
-  const puffA = useAnimatedStyle(puff(0));
-  const puffB = useAnimatedStyle(puff(0.5));
+  const puffA = useAnimatedStyle(() => puffAt(phase.get()));
+  const puffB = useAnimatedStyle(() => puffAt((phase.get() + 0.5) % 1));
   return (
     <View style={StyleSheet.absoluteFill}>
       <Animated.View style={[circle(2.5, 17.5, 3), { backgroundColor: color }, puffA]} />
