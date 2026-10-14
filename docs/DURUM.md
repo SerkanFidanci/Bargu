@@ -12,7 +12,8 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                          |
 | Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı) |
 | Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim) |
-| Faz 5 — Konum Motoru & Relay     | 🚧 Kod bitti, telefonda deneme bekliyor                               |
+| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)         |
+| Faz 6 — Harita Deneyimi          | 🚧 Sürüyor                                                            |
 
 ## Ortamlar
 
@@ -28,8 +29,12 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Faz 5 — Konum Motoru & Relay (2026-10-14)
 
-Kararlar: [ADR 0011](ADR/0011-location-engine-and-relay.md). Durum: kod bitti, telefonda deneme
-bekliyor. Android build: `54141ab5` (`502219b`; sonraki küçük düzeltmeler `99be7b5` bir sonraki build'de).
+Kararlar: [ADR 0011](ADR/0011-location-engine-and-relay.md). Android build: `54141ab5` (`502219b`;
+sonraki küçük düzeltmeler `99be7b5` bir sonraki build'de).
+
+Telefonda (2026-10-14, mobil veri): kendi konumun ve test arkadaşının şifreli konumu haritada
+göründü, "2 kişi seni görüyor" doğru. Proje sahibi fazı onayladı; saha testleri sonraya bırakıldı
+(aşağıda "Sonraya kalan testler").
 
 ### DoD
 
@@ -106,6 +111,16 @@ yapılacak.
 6. Sunucu kimin kimin haritasını ne zaman açtığını ("izle") ve paylaşımın ne zaman durduğunu görür
    (THREAT_MODEL); içerik ve sebep görünmez.
 7. iOS derlenemiyor (Apple hesabı).
+
+### Sonraya kalan testler (proje sahibiyle)
+
+| Test                                                               | Ne zaman              |
+| ------------------------------------------------------------------ | --------------------- |
+| Ekran kilitliyken 10 dk sonra konum gidiyor mu                     | Uygun ilk denemede    |
+| Uçak modu aç/kapa, Wi-Fi ↔ mobil veri sonrası kendiliğinden güncel | Uygun ilk denemede    |
+| 8 saatlik pil raporu (marka ve model ile)                          | Faz 10 öncesi         |
+| İki gerçek telefonla uçtan uca p95                                 | İkinci telefon olunca |
+| iOS kilitli ekran                                                  | Apple hesabı gelince  |
 
 ## Faz 4 — Çemberler & Anahtar Dağıtımı (2026-10-14)
 
