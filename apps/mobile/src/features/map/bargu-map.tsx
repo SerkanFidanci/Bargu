@@ -53,6 +53,8 @@ export function BarguMap({ insets, focus = null, children }: BarguMapProps) {
       compass={false}
       scaleBar={false}
       touchPitch={false}
+      // No compass on screen to point north again: the map keeps north up (trails rely on it).
+      touchRotate={false}
       attribution={false}
     >
       <Camera ref={camera} initialViewState={INITIAL_VIEW} minZoom={3} maxZoom={18} />

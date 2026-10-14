@@ -163,7 +163,9 @@
       "stale": "{{name}}, location from {{minutes}} minutes ago",
       "age": "{{minutes}} min",
       "staleHours": "{{name}}, location from {{hours}} hours ago",
-      "ageHours": "{{hours}} h"
+      "ageHours": "{{hours}} h",
+      "charging": "charging",
+      "lowBattery": "battery low"
     },
     "sheet": {
       "close": "Close"
@@ -204,6 +206,12 @@
       "openSheet": "Open a sample sheet",
       "showToast": "Show a sample toast",
       "toastText": "This is a sample toast."
+    },
+    "swarm": {
+      "link": "Developer: 50 people on the map",
+      "title": "Test: {{count}} fake people on the map (this phone only)",
+      "measure": "Measure frame rate (10 s)",
+      "stop": "Close"
     }
   },
   "scan": {

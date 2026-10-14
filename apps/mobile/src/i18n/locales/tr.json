@@ -163,7 +163,9 @@
       "stale": "{{name}}, {{minutes}} dakika önceki konum",
       "age": "{{minutes}} dk",
       "staleHours": "{{name}}, {{hours}} saat önceki konum",
-      "ageHours": "{{hours}} sa"
+      "ageHours": "{{hours}} sa",
+      "charging": "şarj oluyor",
+      "lowBattery": "pili azaldı"
     },
     "sheet": {
       "close": "Kapat"
@@ -204,6 +206,12 @@
       "openSheet": "Örnek paneli aç",
       "showToast": "Örnek bildirim göster",
       "toastText": "Bu bir örnek bildirim."
+    },
+    "swarm": {
+      "link": "Geliştirici: haritada 50 kişi testi",
+      "title": "Test: haritada {{count}} sahte kişi (yalnızca bu telefonda)",
+      "measure": "Kare hızını ölç (10 sn)",
+      "stop": "Kapat"
     }
   },
   "scan": {

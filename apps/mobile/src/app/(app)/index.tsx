@@ -12,6 +12,8 @@ import { useAuth } from '@/features/auth/auth-store';
 import { useNow } from '@/features/location/clock';
 import { useMyFix } from '@/features/location/engine';
 import { LocationBanner } from '@/features/location/location-banner';
+import { SwarmLayer, SwarmPanel } from '@/features/dev/swarm-panel';
+import { DEV_TOOLS_ENABLED } from '@/config/env';
 import { seersOf, useSharing } from '@/features/location/sharing';
 import { useWatchCircles } from '@/features/location/use-location';
 import { memberName } from '@/features/circles/names';
@@ -75,6 +77,7 @@ export default function HomeScreen() {
         focus={myFix === null ? null : [myFix.lng, myFix.lat]}
       >
         <PeopleLayer me={me.data} circles={circleList.data ?? []} />
+        {DEV_TOOLS_ENABLED ? <SwarmLayer /> : null}
       </BarguMap>
       <MapCredit bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
       <Animated.View
@@ -88,6 +91,7 @@ export default function HomeScreen() {
           onPress={() => circles.current?.present()}
         />
         <LocationBanner />
+        {DEV_TOOLS_ENABLED ? <SwarmPanel /> : null}
       </Animated.View>
       <Animated.View
         entering={motion.enterUpAt(1)}

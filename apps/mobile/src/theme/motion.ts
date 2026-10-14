@@ -51,6 +51,28 @@ export const ambient = {
   qrHalo: { duration: 2000, scale: 1.08 },
 } as const;
 
+/**
+ * People gliding on the map between two locations (BARGU_PLAN §3.3 receiver). Someone moving is
+ * carried on along their heading at their speed until about when the next location is due, never
+ * more than `maxAheadMs` past the last one (dead reckoning); someone still settles into place.
+ */
+export const glide = {
+  /** A still person (or one without speed and heading) moves to the new spot this fast. */
+  settle: duration.slow,
+  /** How far ahead of the last location a moving person is extrapolated, at most. */
+  maxAheadMs: 10_000,
+  /** Expected gap between two locations until the real one is known (send.ts: 5 s moving). */
+  defaultIntervalMs: 5_000,
+  /** Live mode sends about every second: no gap is assumed shorter than this. */
+  minIntervalMs: 900,
+  /** Below this speed (m/s) a person counts as still: no extrapolation, no trail. */
+  movingSpeed: 1,
+  /** Farther than this (m) from where the avatar is shown: jump, do not glide across the city. */
+  teleportM: 2_000,
+  /** Speeds (m/s) from which the trail grows: walking, cycling or running, in a vehicle. */
+  trailSpeeds: [1, 3, 8],
+} as const;
+
 /** Sequencing of several elements: how they enter one after another and how they react. */
 export const choreography = {
   /** Delay between consecutive elements entering (titles, fields, rows). */

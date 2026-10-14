@@ -1,18 +1,19 @@
 import type { Circle, Me, MemberCard } from '@bargu/schemas';
-import { Marker } from '@maplibre/maplibre-react-native';
-
-import { AvatarMarker } from '@/ui/avatar-marker';
 
 import { memberName } from '../circles/names';
 import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
 import { bestPerPerson, useLocations } from '../location/receive';
+import { GlidingMarker } from './gliding-marker';
+import { MapAvatar } from './map-avatar';
 
 /**
  * A location older than this is shown grey with its age. A still phone sends a heartbeat every
  * 5 minutes (send.ts), so two missed ones mean the phone is off, offline or out of reach.
  */
 export const STALE_AFTER_MS = 10 * 60_000;
+/** Below this (%) and not charging, the battery shows as nearly empty (BARGU_PLAN §4.3). */
+export const LOW_BATTERY = 15;
 
 /** Minutes since a location was taken, when old enough to say so. */
 export function staleMinutes(ts: number, now: number): number | undefined {
@@ -30,8 +31,8 @@ function cardOf(circles: readonly Circle[], userId: string): MemberCard | undefi
 
 /**
  * Everyone on the map: one avatar per person (their most precise recent location over all shared
- * circles), and the user's own avatar at the phone's position. Positions update as messages
- * arrive; smooth gliding between them comes with the map experience (Faz 6).
+ * circles), and the user's own avatar at the phone's position. Avatars glide between locations
+ * (gliding-marker.tsx) and show without text whether someone moves, charges or runs out of battery.
  */
 export function PeopleLayer({ me, circles }: { me: Me; circles: readonly Circle[] }) {
   const locations = useLocations();
@@ -42,25 +43,35 @@ export function PeopleLayer({ me, circles }: { me: Me; circles: readonly Circle[
       {bestPerPerson(locations).map((entry) => {
         const card = cardOf(circles, entry.userId);
         if (card === undefined) return null;
+        const { loc } = entry;
         return (
-          <Marker
+          <GlidingMarker
             key={entry.userId}
             id={entry.userId}
-            lngLat={[entry.loc.lng, entry.loc.lat]}
-            anchor="bottom"
+            fix={loc}
+            receivedAt={entry.receivedAt}
           >
-            <AvatarMarker
+            <MapAvatar
               name={memberName(card)}
               avatar={card.avatar}
-              staleMinutes={staleMinutes(entry.loc.ts, now)}
+              staleMinutes={staleMinutes(loc.ts, now)}
+              spd={loc.spd}
+              hdg={loc.hdg}
+              charging={loc.chg}
+              lowBattery={!loc.chg && loc.bat < LOW_BATTERY}
             />
-          </Marker>
+          </GlidingMarker>
         );
       })}
       {myFix === null ? null : (
-        <Marker id="me" lngLat={[myFix.lng, myFix.lat]} anchor="bottom">
-          <AvatarMarker name={me.displayName ?? '?'} avatar={me.avatar} />
-        </Marker>
+        <GlidingMarker id="me" fix={myFix} receivedAt={myFix.ts}>
+          <MapAvatar
+            name={me.displayName ?? '?'}
+            avatar={me.avatar}
+            spd={myFix.spd}
+            hdg={myFix.hdg}
+          />
+        </GlidingMarker>
       )}
     </>
   );

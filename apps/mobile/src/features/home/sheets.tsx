@@ -25,6 +25,9 @@ import {
 } from '@/features/auth/passkeys';
 import { errorMessage } from '@/features/errors';
 import { GhostControl } from '@/features/location/sharing-card';
+import { startSwarm } from '@/features/dev/map-swarm';
+import { useMyFix } from '@/features/location/engine';
+import { INITIAL_VIEW } from '@/features/map/style';
 import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
 import { usePushState } from '@/features/notifications/push';
 import { meKey } from '@/features/profile/queries';
@@ -148,6 +151,16 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void }>(fun
             onPress={() => {
               onClose();
               router.push('/_dev/ui');
+            }}
+          />
+          <Row
+            icon={Wrench}
+            label={t('dev.swarm.link')}
+            onPress={() => {
+              onClose();
+              const fix = useMyFix.getState().fix;
+              const [lng, lat] = INITIAL_VIEW.center;
+              startSwarm(fix ?? { lat, lng });
             }}
           />
           <Row
