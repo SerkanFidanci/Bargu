@@ -42,6 +42,8 @@ export const LABELS = {
   tokenHash: 'bargu/v1/token',
   atRest: 'bargu/v1/at-rest',
   pseudonym: 'bargu/v1/pseudonym',
+  // Profile photos, encrypted on the phone (docs/ADR/0014).
+  profilePhoto: 'bargu/v1/profile-photo',
 } as const;
 
 export type Label = (typeof LABELS)[keyof typeof LABELS];

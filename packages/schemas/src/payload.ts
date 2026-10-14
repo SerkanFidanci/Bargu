@@ -62,6 +62,21 @@ export const statusPayloadSchema = z
   })
   .strict();
 
+/**
+ * The sender's profile photo key (docs/ADR/0014): with it members open the encrypted photo the
+ * server keeps under its `photo.id`. Null: no photo (the emoji avatar shows).
+ */
+export const profilePayloadSchema = z
+  .object({
+    kind: z.literal('profile'),
+    photo: z
+      .object({ id: z.uuid(), key: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })
+      .strict()
+      .nullable(),
+    ts: timestamp,
+  })
+  .strict();
+
 /** Everything a sender can put inside an encrypted envelope (BARGU_PLAN §3.1). */
 export const payloadSchema = z.discriminatedUnion('kind', [
   locPayloadSchema,
@@ -70,6 +85,7 @@ export const payloadSchema = z.discriminatedUnion('kind', [
   placeExitPayloadSchema,
   shareStopPayloadSchema,
   statusPayloadSchema,
+  profilePayloadSchema,
 ]);
 
 export type Payload = z.infer<typeof payloadSchema>;

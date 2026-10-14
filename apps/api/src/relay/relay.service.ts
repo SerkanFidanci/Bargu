@@ -38,6 +38,10 @@ interface Limit {
 const locationKey = (circleId: string) => `loc:${circleId}`;
 /** Latest status per circle member, the same way (its own lifetime per field). */
 const statusKey = (circleId: string) => `status:${circleId}`;
+/** Latest profile message per member (the photo key, docs/ADR/0014). */
+const profileKey = (circleId: string) => `profile:${circleId}`;
+/** Phones publish their profile again on every new epoch; this keeps it for quiet circles. */
+export const PROFILE_TTL_SECONDS = 30 * 24 * 3600;
 
 /** What the relay keeps per member: the location, and the status (emoji + text). */
 const STORES = {
@@ -46,6 +50,12 @@ const STORES = {
     key: statusKey,
     event: 'status',
     gone: 'status.gone',
+    limit: RELAY_LIMITS.statuses,
+  },
+  profile: {
+    key: profileKey,
+    event: 'profile',
+    gone: 'profile.gone',
     limit: RELAY_LIMITS.statuses,
   },
 } as const;
@@ -148,6 +158,16 @@ export class RelayService {
     return { accepted, refused };
   }
 
+  /** Profile messages (the photo key) to the caller's circles. */
+  publishProfile(auth: AuthContext, envelopes: MessageEnvelope[]): Promise<PublishReply> {
+    return this.store('profile', auth, envelopes, PROFILE_TTL_SECONDS);
+  }
+
+  /** The latest profile message of every other member, in every circle the caller is active in. */
+  profiles(auth: AuthContext): Promise<MessageEnvelope[]> {
+    return this.read('profile', auth);
+  }
+
   /** The latest location of every other member, in every circle the caller is active in. */
   snapshot(auth: AuthContext): Promise<MessageEnvelope[]> {
     return this.read('loc', auth);
@@ -242,6 +262,7 @@ export class RelayService {
     const others = [...audience];
     await this.remove('loc', circleId, userId, others);
     await this.remove('status', circleId, userId, others);
+    await this.remove('profile', circleId, userId, others);
   }
 
   private async remove(
@@ -256,7 +277,7 @@ export class RelayService {
 
   /** A whole circle ended (a friendship): nothing of it is kept. */
   async forgetCircle(circleId: string): Promise<void> {
-    await this.redis.del([locationKey(circleId), statusKey(circleId)]);
+    await this.redis.del([locationKey(circleId), statusKey(circleId), profileKey(circleId)]);
   }
 
   /** Signed out or session revoked: the user's dot and status disappear from every circle. */

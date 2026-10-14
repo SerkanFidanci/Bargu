@@ -6,6 +6,7 @@ export {
   placeExitPayloadSchema,
   shareStopPayloadSchema,
   statusPayloadSchema,
+  profilePayloadSchema,
   type LocPayload,
   type Payload,
 } from './payload.js';
@@ -134,3 +135,4 @@ export {
   type StatusPublish,
 } from './locations.js';
 export { type WeatherSnapshot, weatherEventSchema, weatherSnapshotSchema } from './weather.js';
+export { photoSchema, photoUploadSchema, type Photo } from './photos.js';

@@ -70,6 +70,21 @@ export class RelayGateway {
     return this.relay.publishStatus(connection.auth, parsed.data.envelopes, parsed.data.ttlSeconds);
   }
 
+  @SubscribeMessage('profile')
+  async profile(socket: Socket, payload: unknown): Promise<Ack<PublishReply>> {
+    const connection = this.events.connectionOf(socket);
+    const parsed = locationPublishSchema.safeParse(payload);
+    if (connection === undefined || !parsed.success) return { error: 'VALIDATION_FAILED' };
+    return this.relay.publishProfile(connection.auth, parsed.data.envelopes);
+  }
+
+  @SubscribeMessage('profiles')
+  async profiles(socket: Socket): Promise<Ack<{ envelopes: MessageEnvelope[] }>> {
+    const connection = this.events.connectionOf(socket);
+    if (connection === undefined) return { error: 'UNAUTHENTICATED' };
+    return { envelopes: await this.relay.profiles(connection.auth) };
+  }
+
   @SubscribeMessage('statuses')
   async statuses(socket: Socket): Promise<Ack<{ envelopes: MessageEnvelope[] }>> {
     const connection = this.events.connectionOf(socket);

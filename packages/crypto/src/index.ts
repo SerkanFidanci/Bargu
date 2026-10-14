@@ -58,6 +58,12 @@ export {
 } from './auth.js';
 export { openAtRest, sealAtRest } from './at-rest.js';
 export {
+  generatePhotoKey,
+  MAX_PHOTO_BYTES,
+  openProfilePhoto,
+  sealProfilePhoto,
+} from './profile.js';
+export {
   bytesEqual,
   randomUuid,
   sha256,

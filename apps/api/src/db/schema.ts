@@ -171,6 +171,13 @@ export const pushTokens = app.table('push_tokens', {
   updatedAt: timestamptz('updated_at').notNull().defaultNow(),
 });
 
+export const profilePhotos = app.table('profile_photos', {
+  userId: uuid('user_id').primaryKey(),
+  photoId: uuid('photo_id').notNull(),
+  ciphertext: bytea('ciphertext').notNull(),
+  updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   devices,
@@ -182,4 +189,5 @@ export const schema = {
   invites,
   keyEnvelopes,
   pushTokens,
+  profilePhotos,
 };
