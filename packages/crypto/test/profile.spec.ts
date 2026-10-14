@@ -26,6 +26,16 @@ describe('profile photos', () => {
     expect(() => openProfilePhoto(generatePhotoKey(), PHOTO, sealed)).toThrow(BarguCryptoError);
   });
 
+  it('refuses to open malformed data or with a bad key', () => {
+    const key = generatePhotoKey();
+    const sealed = sealProfilePhoto(key, PHOTO, new Uint8Array(100).fill(7));
+    expect(() => openProfilePhoto(new Uint8Array(16), PHOTO, sealed)).toThrow(BarguCryptoError);
+    expect(() => openProfilePhoto(key, PHOTO, sealed.subarray(0, 30))).toThrow(BarguCryptoError);
+    const otherVersion = sealed.slice();
+    otherVersion[0] = 99;
+    expect(() => openProfilePhoto(key, PHOTO, otherVersion)).toThrow(BarguCryptoError);
+  });
+
   it('refuses empty or oversized photos and bad keys', () => {
     const key = generatePhotoKey();
     expect(() => sealProfilePhoto(key, PHOTO, new Uint8Array(0))).toThrow(BarguCryptoError);

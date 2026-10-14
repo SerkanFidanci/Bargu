@@ -13,7 +13,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı) |
 | Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim) |
 | Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)         |
-| Faz 6 — Harita Deneyimi          | 🚧 Sürüyor                                                            |
+| Faz 6 — Harita Deneyimi          | 🚧 Kod bitti, telefonda deneme bekliyor                               |
 
 ## Ortamlar
 
@@ -26,6 +26,82 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Android sürümleri  | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır)                                                                               |
 | Uygulama kimliği   | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                         |
 | Harita dosyaları   | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                 |
+
+## Faz 6 — Harita Deneyimi (2026-10-14)
+
+Kararlar: [ADR 0012](ADR/0012-four-digit-login-code.md) (4 haneli kod),
+[ADR 0013](ADR/0013-weather-without-location.md) (hava durumu),
+[ADR 0014](ADR/0014-encrypted-profile-photos.md) (profil fotoğrafı). Durum: kod bitti, telefonda
+deneme bekliyor.
+
+### DoD
+
+| Ölçüt                        | Durum                                                                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 50 avatarla 60 fps           | Ölçüm aracı hazır ("Ben" → Geliştirici: haritada 50 kişi testi → "Kare hızını ölç"); telefonda ölçülecek. Animasyonların hepsi UI thread'de |
+| Düşük seviye Android cihazda | Proje sahibinin elindeki cihazlarla denenecek                                                                                               |
+
+### Yapılanlar (plan)
+
+- **Akıcı kayma**: avatarlar iki konum arasında hız ve yönle kayar (en çok 10 sn ileri tahmin),
+  duran yerine yumuşakça oturur, uzak sıçramalar animasyonsuz. Hareket UI thread'de.
+- **Ortam durumları**: hızla uzayan iz, şarjda şimşek, pil %15 altında kırmızı nabız, eski konum
+  gri ve yaşıyla. Harita kuzey yukarı sabit (pusula yok).
+- **Hareket türü** (proje sahibinin isteği, herkes aynı görür): yürürken adım sallanması,
+  koşarken hızlı zıplama ve öne eğilme, bisiklette yalpalama, araçta hafif titreşim + uzun iz;
+  30 dakikadır aynı yerdeyse yavaş yayılan halka. Köşede 🚶 🏃 🚴 🚗 📍 rozeti. Ne zamandan beri
+  aynı yerde olduğunu gönderen telefon söyler (yalnızca tam konumda).
+- **Kişi kartı**: avatara dokununca avatar haritadan karta uçar; ne zaman, nerede (yer adı
+  telefonda haritanın kendi etiketlerinden, koordinat hiçbir yere gitmez), ne kadar uzakta, pil,
+  durum. Aşağı kaydırınca / haritaya dokununca / geri tuşuyla kapanır.
+- **Radyal menü**: avatara basılı tut, parmağını kaydırıp bırak: Dürt · Yol tarifi · Profil ·
+  Bildirimler (kişiye özel bildirimler Faz 7'de).
+- **Dürt**: şifreli `bump` mesajı, sunucu saklamaz, dakikada 10; karşı tarafta titreşim, avatarı
+  zıplar, kim olduğu yazar; uygulaması kapalıysa içeriksiz bildirim ("Biri seni dürttü 👋").
+- **Buluşma**: ikisi de tam konum paylaşırken 50 m'ye girince bir kez: titreşim, "X ile
+  buluştunuz! 🎉" ve avatar çevresinde iki renkli parçacık patlaması (Skia).
+- **Durum**: emoji + birkaç kelime, 1/4/24 saat; çember başına şifreli, süresi dolunca sunucudan
+  kendiliğinden silinir. Haritada avatarın üstünde emoji, kartta metin.
+- **Sıvı kümeleme**: ekranda üst üste binen kişiler tek kabarcıkta sıvı gibi birleşir (Skia
+  "goo"), sayı ve avatarlarla; dokununca yakınlaşır.
+
+### Yapılanlar (proje sahibinin ek istekleri)
+
+- **4 haneli giriş kodu** ve yeni kod ekranı: odakta yalnızca ışık, renk sadece sonuçta; son
+  hanede kutular yörüngeye kıvrılıp dönerek tek yeşil kutuya iner (yanlışsa çözülür, kırmızı,
+  sallanır); "Yapıştır" düğmesi (pano yalnızca dokununca okunur). Deneme sınırları sıkılaştırıldı.
+- **Hava durumu**: bulunduğun yerdeki havaya göre haritada yağmur, çisenti, kar, sis, bulut,
+  fırtınada şimşek, açık günde güneş ışıltısı, gece yıldızlar; "☀️ 24°" göstergesi. Konum hiçbir
+  yere gitmez: herkes aynı Türkiye ızgarasını indirir, telefon kendi hücresini bulur.
+- **Profil fotoğrafı**: isteğe bağlı; telefonda şifrelenir, yalnızca çemberler açabilir, sunucu
+  göremez. "Fotoğrafı kaldır" emojiye döner.
+- **Test arkadaşı**: `poke`, `status:☕ kahve`, `nostatus`, `walk` / `run` / `bike` / `drive`,
+  `meet` (yanına gelir, buluşma efekti), `still` (30 dk sonra "yerleşmiş").
+
+### Test sonuçları
+
+| Paket              | Test | Not                                                                                        |
+| ------------------ | ---- | ------------------------------------------------------------------------------------------ |
+| `packages/crypto`  | 131  | + profil fotoğrafı şifreleme, `since` bulanıklaştırmada düşer                              |
+| `packages/schemas` | 72   | 4 haneli kod                                                                               |
+| API entegrasyon    | 123  | + dürt, durum, hava durumu, şifreli fotoğraf (çember dışı göremez), 4 haneli kod sınırları |
+| API birim          | 77   | + hava ızgarası                                                                            |
+| Mobil              | 226  | + kayma, kümeleme, buluşma, menü geometrisi, yer adı, hava, durum, hareket türü            |
+
+### Açık riskler
+
+1. 50 avatarla 60 fps ve düşük seviye cihaz testi henüz telefonda yapılmadı (araç hazır).
+2. **Open-Meteo ücretsiz katmanı ticari olmayan kullanım içindir**: yayından önce ticari plan ya
+   da kendi Open-Meteo sunucumuz gerekir.
+3. 4 haneli kod: hedefli, sabırlı bir saldırgan için yılda ~%10 tahmin riski (ADR 0012); 6 hane
+   aynı sınırlarla ~%0,1.
+4. Konum mesajına `since` eklendi: eski uygulama sürümleri yeni konumları açamaz; herkes yeni
+   sürüme geçmeli (test botu güncellendi).
+5. Tahminle kayma, duran birini en çok birkaç saniye ileride gösterip geri çekebilir.
+6. Yer adı haritanın çizdiği etiketlere bağlı: çok uzaktan bakarken boş kalabilir.
+7. Dürt bildirimi Google üzerinden gider (içeriksiz).
+8. Skia ve fotoğraf paketleri uygulama boyutunu büyüttü.
+9. iOS denenmedi (Apple hesabı).
 
 ## Faz 5 — Konum Motoru & Relay (2026-10-14)
 
