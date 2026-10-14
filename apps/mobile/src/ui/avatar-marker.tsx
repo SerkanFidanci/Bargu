@@ -16,6 +16,7 @@ import Animated, {
 import { activityFx, ambient, avatarSize, elevation, radius, space, useTheme } from '@/theme';
 
 import { Avatar } from './avatar';
+import { ActivityGlyph, GLYPH } from './activity-glyph';
 import { gaitPose, leanSideOf } from './gait';
 import { Text } from './text';
 
@@ -38,15 +39,6 @@ export interface AvatarMarkerProps {
 
 /** What someone seems to be doing (features/map/activity.ts decides). */
 export type MarkerActivity = 'still' | 'settled' | 'walking' | 'running' | 'cycling' | 'driving';
-
-const ACTIVITY_BADGE: Record<MarkerActivity, string | null> = {
-  still: null,
-  settled: '📍',
-  walking: '🚶',
-  running: '🏃',
-  cycling: '🚴',
-  driving: '🚗',
-};
 
 /** The loop that drives an activity's motion: one cycle per period, endlessly. */
 function useCycle(periodMs: number | null) {
@@ -107,7 +99,8 @@ function useLoop(active: boolean, duration: number) {
 }
 
 /**
- * A person on the map: avatar on a small pin, gently "breathing" while their location is live
+ * A person on the map: avatar on a small pin, gently "breathing" while their location is live, or
+ * moving the way they move, with a small drawing of what they are doing (activity-glyph.tsx)
  * (BARGU_PLAN §4.3). Ambient states without text: a bolt while charging, a pulsing red ring when
  * the battery is low, grey with the age when the location is old. Reduce Motion stops the loops.
  */
@@ -196,9 +189,8 @@ export function AvatarMarker({
       : null;
   const doingLabel = doing === 'still' ? null : t(`ui.marker.activity.${doing}`);
   const label = [where, doingLabel, battery].filter((part) => part !== null).join(', ');
-  const badge = ACTIVITY_BADGE[doing];
-  const faceEast =
-    (doing === 'walking' || doing === 'running' || doing === 'cycling') && leanSide > 0.2;
+  // Drawn figures face east by default; west-bound people get them mirrored.
+  const facing: 1 | -1 = leanSide < -0.2 ? -1 : 1;
 
   return (
     <View accessible accessibilityLabel={label} style={styles.container}>
@@ -218,21 +210,14 @@ export function AvatarMarker({
           ]}
         >
           <Avatar avatar={avatar} name={name} size="md" muted={stale} userId={userId} />
-          {badge === null ? null : (
+          {doing === 'still' ? null : (
             <View
               style={[
                 styles.activity,
                 { backgroundColor: colors.surfaceRaised, boxShadow: elevation.raised },
               ]}
             >
-              <Text
-                variant="caption"
-                allowFontScaling={false}
-                // The walker emojis face left: mirrored when heading east, so they face the way.
-                style={[styles.activityText, faceEast ? styles.mirrored : null]}
-              >
-                {badge}
-              </Text>
+              <ActivityGlyph activity={doing} phase={cycle} facing={facing} />
             </View>
           )}
           {lowBattery && !charging && !stale ? (
@@ -280,7 +265,6 @@ const styles = StyleSheet.create({
     height: activityFx.shadow.height,
     borderRadius: activityFx.shadow.height / 2,
   },
-  mirrored: { transform: [{ scaleX: -1 }] },
   ripple: {
     position: 'absolute',
     top: 0,
@@ -289,17 +273,18 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: space.xxs,
   },
+  // The activity drawing sits on the bubble's upper corner, big enough to read its motion.
   activity: {
     position: 'absolute',
-    right: -space.sm,
-    top: -space.sm,
-    width: BADGE + space.xs,
-    height: BADGE + space.xs,
+    right: -GLYPH / 2,
+    top: -GLYPH / 2 + space.xs,
+    width: GLYPH + space.xs,
+    height: GLYPH + space.xs,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  activityText: { fontSize: space.md, lineHeight: space.lg },
   bubble: { padding: space.xxs, borderRadius: radius.pill },
   ring: {
     position: 'absolute',

@@ -119,6 +119,16 @@ export default function UiGalleryScreen() {
             <AvatarMarker name="Ayşe" avatar={PEOPLE[0].avatar} />
             <AvatarMarker name="Can" avatar={PEOPLE[3].avatar} staleMinutes={12} />
           </View>
+          {/* Every activity drawing, moving as on the map (east-bound; the runner west-bound). */}
+          <View style={[styles.row, styles.markers, { backgroundColor: colors.surface }]}>
+            <AvatarMarker name="Ayşe" avatar={PEOPLE[0].avatar} activity="walking" heading={90} />
+            <AvatarMarker name="Bora" avatar={PEOPLE[1].avatar} activity="running" heading={270} />
+            <AvatarMarker name="Can" avatar={PEOPLE[2].avatar} activity="cycling" heading={90} />
+          </View>
+          <View style={[styles.row, styles.markers, { backgroundColor: colors.surface }]}>
+            <AvatarMarker name="Deniz" avatar={PEOPLE[3].avatar} activity="driving" heading={90} />
+            <AvatarMarker name="Ece" avatar={PEOPLE[0].avatar} activity="settled" />
+          </View>
         </Section>
 
         <Section title="Controls">
