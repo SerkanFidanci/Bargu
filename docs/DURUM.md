@@ -29,7 +29,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 ## Faz 5 — Konum Motoru & Relay (2026-10-14)
 
 Kararlar: [ADR 0011](ADR/0011-location-engine-and-relay.md). Durum: kod bitti, telefonda deneme
-bekliyor.
+bekliyor. Android build: `54141ab5` (`502219b`; sonraki küçük düzeltmeler `99be7b5` bir sonraki build'de).
 
 ### DoD
 
