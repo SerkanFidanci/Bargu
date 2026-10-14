@@ -113,6 +113,13 @@ export const envSchema = z
      * Firebase service account JSON (base64) that sends push notifications (docs/ADR/0010). Push is
      * off without it; the app keeps working with in-app notices only.
      */
+    /**
+     * Weather service the worker fetches the grid from (docs/ADR/0013); "off" disables it. Only grid
+     * points are sent there, never a user's location.
+     */
+    WEATHER_URL: z
+      .union([z.literal('off'), z.url({ protocol: /^https$/ })])
+      .default('https://api.open-meteo.com/v1/forecast'),
     FCM_SERVICE_ACCOUNT: z.preprocess(
       // Compose passes an unset variable as an empty string: that means "off".
       (value) => (value === '' ? undefined : value),

@@ -92,6 +92,22 @@ export const orbit = {
   ringDash: [2, 8],
 } as const;
 
+/**
+ * Weather over the map (features/weather, docs/ADR/0013): ambient, never in the way. Counts are at
+ * full intensity; lighter weather draws fewer. Times are one fall / drift / flash cycle.
+ */
+export const weatherFx = {
+  rain: { drops: 70, fallMs: 650, length: 18, tilt: 0.25 },
+  drizzle: { drops: 40, fallMs: 1_000, length: 9, tilt: 0.12 },
+  snow: { flakes: 55, fallMs: 9_000, sway: 16, size: 3.5 },
+  fog: { bands: 3, driftMs: 26_000, opacity: 0.32 },
+  clouds: { puffs: 4, driftMs: 45_000, opacity: 0.16 },
+  /** Lightning: one flash per cycle, this long, at this brightness. */
+  flash: { everyMs: 6_500, ms: 160, opacity: 0.55 },
+  sun: { pulseMs: 5_000, opacity: 0.32 },
+  stars: { count: 18, twinkleMs: 3_200 },
+} as const;
+
 /** Sequencing of several elements: how they enter one after another and how they react. */
 export const choreography = {
   /** Delay between consecutive elements entering (titles, fields, rows). */

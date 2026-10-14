@@ -133,3 +133,4 @@ export {
   type PublishReply,
   type StatusPublish,
 } from './locations.js';
+export { type WeatherSnapshot, weatherEventSchema, weatherSnapshotSchema } from './weather.js';

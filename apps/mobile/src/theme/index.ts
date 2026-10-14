@@ -15,6 +15,7 @@ export {
   spring,
   timing,
   typingDebounceMs,
+  weatherFx,
 } from './motion';
 export { font, typography, type TypographyVariant } from './typography';
 

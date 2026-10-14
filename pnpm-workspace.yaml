@@ -46,6 +46,9 @@ trustPolicyExclude:
 allowBuilds:
   # Nest CLI SWC builder; postinstall only verifies the platform binary.
   '@swc/core': true
+  # Skia (map effects, docs/ADR/0013): postinstall only copies the prebuilt libraries from its own
+  # react-native-skia-android / -apple-* packages into libs/ (no network, no commands; audited).
+  '@shopify/react-native-skia': true
   # Fallback downloader for the native binding, which already arrives via optionalDependencies.
   unrs-resolver: false
 

@@ -155,7 +155,7 @@
       "mapAppearance_light": "Açık",
       "mapAppearance_dark": "Koyu",
       "mapData": "Harita verisi",
-      "mapDataDetail": "© OpenStreetMap katkıcıları · ODbL lisansı",
+      "mapDataDetail": "© OpenStreetMap katkıcıları · ODbL lisansı · Hava durumu: Open-Meteo (CC BY 4.0)",
       "notifications": "Bildirimler",
       "notifications_enabled": "Açık",
       "notifications_denied": "Kapalı · açmak için dokun",
@@ -479,5 +479,17 @@
     "hours": "{{hours}} sa",
     "save": "Paylaş",
     "clear": "Durumu kaldır"
+  },
+  "weather": {
+    "label": "Bulunduğun yerde hava: {{kind}}, {{temperature}} derece",
+    "kinds": {
+      "clear": "açık",
+      "clouds": "bulutlu",
+      "fog": "sisli",
+      "drizzle": "çiseliyor",
+      "rain": "yağmurlu",
+      "snow": "karlı",
+      "storm": "fırtınalı"
+    }
   }
 }

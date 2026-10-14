@@ -5,7 +5,15 @@ import type { TransportFactory } from './event-stream';
 /** Path of the event socket on the API (apps/api events.gateway EVENTS_PATH). */
 export const EVENTS_PATH = '/v1/events';
 /** Live messages the relay pushes (apps/api relay.service). */
-export const LIVE_MESSAGES = ['loc', 'loc.gone', 'watch', 'bump', 'status', 'status.gone'] as const;
+export const LIVE_MESSAGES = [
+  'loc',
+  'loc.gone',
+  'watch',
+  'bump',
+  'status',
+  'status.gone',
+  'weather',
+] as const;
 /** How long a request may take before the caller falls back (HTTP, or tries later). */
 const REQUEST_TIMEOUT_MS = 5_000;
 /** How long the server gets to answer `resume` before the phone reloads instead. */

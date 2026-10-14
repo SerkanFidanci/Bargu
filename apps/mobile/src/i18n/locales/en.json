@@ -155,7 +155,7 @@
       "mapAppearance_light": "Light",
       "mapAppearance_dark": "Dark",
       "mapData": "Map data",
-      "mapDataDetail": "© OpenStreetMap contributors · ODbL licence",
+      "mapDataDetail": "© OpenStreetMap contributors · ODbL licence · Weather: Open-Meteo (CC BY 4.0)",
       "notifications": "Notifications",
       "notifications_enabled": "On",
       "notifications_denied": "Off · tap to turn on",
@@ -479,5 +479,17 @@
     "hours": "{{hours}} h",
     "save": "Share",
     "clear": "Remove status"
+  },
+  "weather": {
+    "label": "Weather where you are: {{kind}}, {{temperature}} degrees",
+    "kinds": {
+      "clear": "clear",
+      "clouds": "cloudy",
+      "fog": "foggy",
+      "drizzle": "drizzle",
+      "rain": "rain",
+      "snow": "snow",
+      "storm": "thunderstorm"
+    }
   }
 }

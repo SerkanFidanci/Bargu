@@ -39,6 +39,8 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
     WEBAUTHN_ORIGINS: 'https://bargu.example.test',
     ANDROID_CERT_SHA256: 'AA'.repeat(32),
     DEVICE_ATTESTATION: 'optional',
+    // Tests never reach the real weather service (weather.int-spec passes its own fetcher).
+    WEATHER_URL: 'off',
     ...overrides,
   });
 }

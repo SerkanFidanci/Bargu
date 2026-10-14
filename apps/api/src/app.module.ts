@@ -13,6 +13,7 @@ import { JobsModule } from './jobs/jobs.module.js';
 import { PushModule } from './push/push.module.js';
 import { RelayModule } from './relay/relay.module.js';
 import { UsersModule } from './users/users.module.js';
+import { WeatherModule } from './weather/weather.module.js';
 
 @Module({})
 export class AppModule {
@@ -33,6 +34,7 @@ export class AppModule {
         CirclesModule,
         PushModule,
         RelayModule,
+        WeatherModule,
       ],
     };
   }

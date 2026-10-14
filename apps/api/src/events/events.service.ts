@@ -61,6 +61,11 @@ export class EventsService {
     if (rooms.length > 0) this.server?.to(rooms).emit(name, payload);
   }
 
+  /** A live message to every connected phone (things that are the same for everyone). */
+  emitAll(name: string, payload: unknown): void {
+    this.server?.emit(name, payload);
+  }
+
   /** Which of these users have the app open right now (a connected socket). */
   async online(userIds: Iterable<string>): Promise<Set<string>> {
     const result = new Set<string>();

@@ -22,6 +22,8 @@ import { MeSheet } from '@/features/home/sheets';
 import { StatusSheet } from '@/features/social/status-sheet';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
 import { usePeopleUi } from '@/features/map/people-ui';
+import { useWeatherHere, WeatherChip } from '@/features/weather/use-weather';
+import { WeatherLayer } from '@/features/weather/weather-layer';
 import { MapCredit } from '@/features/map/map-credit';
 import { useMe } from '@/features/profile/queries';
 import { space, touchTarget } from '@/theme';
@@ -53,6 +55,7 @@ export default function HomeScreen() {
   const now = useNow();
   const map = useRef<BarguMapHandle>(null);
   const people = usePeopleUi(map, circleList.data ?? [], insets.top);
+  const weather = useWeatherHere();
   // While the map is on screen, the circles' phones send live updates.
   useWatchCircles();
   const seers = seersOf(circleList.data ?? [], sharing, myUserId, now).map((member) => ({
@@ -90,6 +93,7 @@ export default function HomeScreen() {
         />
         {DEV_TOOLS_ENABLED ? <SwarmLayer /> : null}
       </BarguMap>
+      {weather === null ? null : <WeatherLayer here={weather} />}
       <MapCredit bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
       <Animated.View
         entering={motion.enterDown}
@@ -101,6 +105,7 @@ export default function HomeScreen() {
           ghost={sharing.ghost !== 'off'}
           onPress={() => circles.current?.present()}
         />
+        {weather === null ? null : <WeatherChip here={weather} />}
         <LocationBanner />
         {DEV_TOOLS_ENABLED ? <SwarmPanel /> : null}
       </Animated.View>

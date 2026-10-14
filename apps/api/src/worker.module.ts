@@ -7,8 +7,10 @@ import { EmailWorker } from './jobs/email.worker.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { Mailer } from './jobs/mailer.js';
 import { DatabaseModule } from './infra/database/database.module.js';
+import { RedisModule } from './infra/redis/redis.module.js';
 import { PushTokens } from './push/push-tokens.js';
 import { PushWorker } from './push/push.worker.js';
+import { WeatherWorker } from './weather/weather.worker.js';
 
 /** The background worker process: runs jobs and maintains the queues. No HTTP. */
 @Module({})
@@ -19,10 +21,11 @@ export class WorkerModule {
       imports: [
         ConfigModule.forRoot(env),
         DatabaseModule,
+        RedisModule,
         KeysModule,
         JobsModule.forRole({ supervise: true }),
       ],
-      providers: [Mailer, EmailWorker, PushTokens, PushWorker],
+      providers: [Mailer, EmailWorker, PushTokens, PushWorker, WeatherWorker],
     };
   }
 }
