@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { mustUpgradeToTls } from './mailer.js';
+import { isTestAddress, mustUpgradeToTls } from './mailer.js';
+
+describe('isTestAddress', () => {
+  it('recognises the reserved .test domain only', () => {
+    expect(isTestAddress('deneme-arkadas@example.test')).toBe(true);
+    expect(isTestAddress('Someone@Sub.Example.TEST ')).toBe(true);
+    expect(isTestAddress('ali@gmail.com')).toBe(false);
+    expect(isTestAddress('ali@test.com')).toBe(false);
+    expect(isTestAddress('ali@contest')).toBe(false);
+  });
+});
 
 describe('mustUpgradeToTls', () => {
   it('lets the local Mailpit run in the clear outside production', () => {

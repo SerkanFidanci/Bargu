@@ -79,6 +79,10 @@ describe('parseEnv', () => {
     ],
     ['production without app certificates', { ...production, ANDROID_CERT_SHA256: '' }],
     [
+      'production routing test mail elsewhere',
+      { ...production, SMTP_TEST_URL: 'smtp://mailpit:1025' },
+    ],
+    [
       'production with a localhost origin',
       { ...production, WEBAUTHN_ORIGINS: 'http://localhost:8081' },
     ],

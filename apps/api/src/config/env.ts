@@ -77,6 +77,12 @@ export const envSchema = z
 
     SMTP_URL: z.url({ protocol: /^smtps?$/ }),
     MAIL_FROM: z.string().min(3).max(200),
+    /**
+     * Where mail to reserved `.test` addresses (test accounts, RFC 6761) goes instead: the
+     * internal Mailpit, so automated checks keep reading their codes when SMTP_URL is a real relay.
+     * Never in production.
+     */
+    SMTP_TEST_URL: z.url({ protocol: /^smtps?$/ }).optional(),
 
     /** Passkey relying party: the registrable domain the app is associated with. */
     WEBAUTHN_RP_ID: z.string().regex(/^[a-z0-9.-]+$/),
@@ -115,6 +121,7 @@ export const envSchema = z
       if (!ok) ctx.addIssue({ code: 'custom', path: [path], message });
     };
     need(env.NODE_ENV === 'production', 'NODE_ENV', 'must be production');
+    need(env.SMTP_TEST_URL === undefined, 'SMTP_TEST_URL', 'must not be set in production');
     need(env.DEVICE_ATTESTATION === 'required', 'DEVICE_ATTESTATION', 'must be required');
     need(env.IOS_APP_ID !== undefined, 'IOS_APP_ID', 'is required in production');
     need(env.ANDROID_CERT_SHA256.length > 0, 'ANDROID_CERT_SHA256', 'is required in production');

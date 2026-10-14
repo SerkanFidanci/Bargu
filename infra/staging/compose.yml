@@ -41,6 +41,8 @@ x-app-env: &app-env
   # Mailpit (internal) by default; `bargu-set-mail` (set-mail.sh) points it at a Gmail account until
   # a real relay and domain exist: docs/ADR/0006.
   SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
+  # Test accounts (`*.test`, never deliverable) always land in Mailpit, whatever SMTP_URL is.
+  SMTP_TEST_URL: smtp://mailpit:1025
   MAIL_FROM: ${MAIL_FROM:-Bargu <no-reply@bargu.invalid>}
   WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?}
   WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:?}
