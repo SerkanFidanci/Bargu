@@ -1,6 +1,6 @@
 # 0010. Sistem bildirimleri (Faz 7'den erken, içeriksiz)
 
-- Durum: Kabul edildi
+- Durum: Yerini [ADR 0016](0016-sealed-push-notifications.md) aldı (bildirimler artık şifreli)
 - Tarih: 2026-10-14
 
 ## Bağlam

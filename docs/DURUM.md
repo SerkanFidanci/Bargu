@@ -13,33 +13,104 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı) |
 | Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim) |
 | Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)         |
-| Faz 6 — Harita Deneyimi          | 🚧 Kod bitti, telefonda deneme bekliyor                               |
+| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                       |
+| Faz 7 — Yerler & Bildirimler     | 🚧 Kod bitti, telefonda deneme bekliyor                               |
 
 ## Ortamlar
 
-| Ne                 | Nerede                                                                                                                                                                |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Staging API        | `https://api.46-62-162-70.sslip.io` (geçici ücretsiz domain; bkz. ADR 0003)                                                                                           |
-| Staging deploy     | `main`'e her yeşil CI → GHCR imajı → migration → API + işçi (otomatik, sağlık kontrollü)                                                                              |
-| Staging e-posta    | Varsayılan iç Mailpit. Proje sahibi sunucuda `bargu-set-mail` ile bir Gmail hesabından gerçek gönderime geçirebilir (ADR 0006); `.test` test hesapları hep Mailpit'te |
-| Expo / EAS projesi | hesap `otenus`, proje `bargu` (`app.config.ts`)                                                                                                                       |
-| Android sürümleri  | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır)                                                                               |
-| Uygulama kimliği   | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                         |
-| Harita dosyaları   | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                 |
+| Ne                      | Nerede                                                                                                                                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Staging API             | `https://api.46-62-162-70.sslip.io` (geçici ücretsiz domain; bkz. ADR 0003)                                                                                                                           |
+| Staging deploy          | `main`'e her yeşil CI → GHCR imajı → migration → API + işçi (otomatik, sağlık kontrollü)                                                                                                              |
+| Staging e-posta         | Varsayılan iç Mailpit. Proje sahibi sunucuda `bargu-set-mail` ile bir Gmail hesabından gerçek gönderime geçirebilir (ADR 0006); `.test` test hesapları hep Mailpit'te                                 |
+| Expo / EAS projesi      | hesap `otenus`, proje `bargu` (`app.config.ts`)                                                                                                                                                       |
+| Android sürümleri       | `development` (dev client, Metro'ya bağlanır), `preview` (bağımsız, staging'e bağlanır)                                                                                                               |
+| Yerel Android derlemesi | EAS'ın aylık ücretsiz hakkı bitince: `scripts/build-android-local.sh` (Docker, aynı imza anahtarı, ~22 dk), `scripts/publish-apk.sh` → `https://api.46-62-162-70.sslip.io/apk/…` (tahmin edilemez ad) |
+| Uygulama kimliği        | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                                                         |
+| Harita dosyaları        | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                                                 |
+
+## Faz 7 — Yerler & Bildirimler (2026-10-14)
+
+Kararlar: [ADR 0015](ADR/0015-encrypted-places-and-arrivals.md) (şifreli yerler, varışı telefon
+algılar), [ADR 0016](ADR/0016-sealed-push-notifications.md) (bildirimler uçtan uca şifreli; ADR
+0010'un yerine). Durum: kod bitti, telefonda deneme bekliyor.
+
+Ara iş (aynı gün): Faz 6'nın son sürümü telefonda çöküyordu (hareketli figürlerde UI thread'de
+çağrılan sıradan bir fonksiyon; hata ayıklama sürümünde yalnızca uyarı). Düzeltildi (`5c7f170`),
+uygulamadaki tüm animasyonlar aynı hata için tarandı. EAS'ın ücretsiz Android hakkı bittiği için
+sürüm bu bilgisayarda derlendi ve sunucudan indirildi; proje sahibi kurdu, çökme yok.
+
+### DoD
+
+| Ölçüt                                                    | Durum                                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TS ile şifrelenen fixture'ı Swift NSE çözer (cross-impl) | ✅ Swift `openPush` TypeScript'in mühürlediği imzalı yer bildirimini ve sunucu haberini açar, başka alıcıya / bilinmeyen gönderene / bozuk gövdeye hayır der (macOS CI, CryptoKit). Eklenti kaynakları iOS SDK'sına karşı derleniyor. iPhone'da deneme Apple hesabıyla |
+| Bildirim içeriği APNs/FCM'de düz görünmez                | ✅ FCM'e giden istek yalnızca şifreli kutu (`data.bargu`, metin yok); APNs'e içeriksiz yer tutucu + kutu (yerel HTTP/2 sunucusuyla test); kuyrukta ad, yer adı, olay türü yok (entegrasyon testi)                                                                      |
+
+### Yapılanlar
+
+- **Yerler**: çember ekranında "Yerler" ve "Yer ekle". Ekleme ekranında harita ve ortada daire:
+  haritayı kaydırmak yeri taşır, dairenin kenarındaki tutamak 100 / 250 / 500 m'ye titreşimle
+  oturur; ad ve simge. Yer telefonda şifrelenir; sunucu adını, konumunu, büyüklüğünü göremez.
+  Ana haritada yerler soluk daire ve simgeyle görünür. Çember başına en çok 30 yer.
+- **Varış ve ayrılış**: telefon kendi konumundan algılar (işletim sisteminin geofence'i yerine;
+  "her zaman" izni gerekmez). Kenarda gidip gelmek "vardı-ayrıldı" yapmaz; zaten oradayken
+  "vardı" denmez. Yalnızca o çembere **tam konum** paylaşırken gider; hayalet modda, paylaşım
+  kapalıyken ya da mahalle/şehir hassasiyetinde gitmez.
+- **Şifreli bildirimler**: her bildirim tek cihaza mühürlü; üyeden geleni (varış, dürtme) onun
+  cihazı imzalar, sunucu "Ali eve vardı" uyduramaz. Google ve Apple içerik görmez; metni telefon
+  kendi dilinde yazar ("🏠 Ev — Ali vardı", "Ali seni dürttü 👋"). Arkadaşlık ve çember haberleri
+  de artık şifreli. Uygulama kapalıyken de çalışır (Android arka plan görevi). Yeni kanal:
+  "Varışlar ve ayrılışlar".
+- **Sessize alma**: kişiye basılı tut → "Bildirimler" → o kişinin varışları / dürtmeleri. Yer
+  ekranında "Bu yerdeki varış ve ayrılışlar". Yalnızca telefonda; sunucu bilmez.
+- **iPhone**: bildirim eklentisi (Swift) yazıldı ve Xcode projesine ekleniyor (Linux'ta üretilip
+  kontrol edildi); APNs gönderimi hazır. Apple hesabı gelince açılır.
+- **Test arkadaşı**: `places` (açabildiği yerler), `arrive` / `arrive:<ad>` (yere varır, sana
+  şifreli bildirim gider), `leave` (ayrılır); dürtmeleri artık şifreli bildirimli.
+
+### Test sonuçları
+
+| Paket              | Test | Not                                                                                                   |
+| ------------------ | ---- | ----------------------------------------------------------------------------------------------------- |
+| `packages/crypto`  | 143  | + imzalı bildirim (alıcıya bağlı, sunucu yalnızca haber), saklanan yer; %100 kapsam                   |
+| `packages/schemas` | 80   | + yer, bildirim gövdesi, cihaz bildirimleri                                                           |
+| Swift (CryptoKit)  | CI   | + imzalı bildirim ve sunucu haberi fixture'ları, katı gövde                                           |
+| API entegrasyon    | 128  | + yerler (sürüm, epoch, sınır, dışarıdaki göremez, veritabanında düz veri yok), şifreli bildirim yolu |
+| API birim          | 81   | + FCM data-only, APNs (HTTP/2), sunucu haberinin mühürlenmesi                                         |
+| Mobil              | 255  | + yer modeli, yer saklama/eşitleme/yeniden mühürleme, varış algılama, bildirim metni, sessize alma    |
+
+### Açık riskler
+
+1. **iPhone denenmedi** (Apple hesabı yok): eklenti derleniyor ve kriptosu CryptoKit'le uyumlu ama
+   gerçek cihazda bildirim akışı Apple hesabıyla denenecek.
+2. Android'de "zorla durdur" yapılan ya da üreticinin sert pil tasarrufu uyguladığı telefonlarda
+   data-only bildirim uygulamayı uyandıramaz; o zaman bildirim gelmez (uygulama açılınca görülür).
+3. iOS'ta sessize alınan bildirimi tamamen gizlemek Apple'ın özel iznini ister; o zamana kadar
+   yerine içeriksiz yer tutucu görünür.
+4. Eski uygulama sürümleri yeni (şifreli) bildirimleri gösteremez: sunucu ve uygulama birlikte
+   güncellendi; herkes yeni sürüme geçmeli.
+5. Yeni üye, epoch değiştikten sonra çevrimiçi bir üye yerleri yeniden mühürleyene kadar yerleri
+   göremez.
+6. Varış algılama konum servisine bağlı: paylaşım açıkken çalışır; telefon uzun süre konum
+   vermezse (pil tasarrufu) varış gecikebilir.
 
 ## Faz 6 — Harita Deneyimi (2026-10-14)
 
 Kararlar: [ADR 0012](ADR/0012-four-digit-login-code.md) (4 haneli kod),
 [ADR 0013](ADR/0013-weather-without-location.md) (hava durumu),
-[ADR 0014](ADR/0014-encrypted-profile-photos.md) (profil fotoğrafı). Durum: kod bitti, telefonda
-deneme bekliyor. Android build: `9f180547` (`039c9a5`; önceki ara sürüm `db1a9fa1`).
+[ADR 0014](ADR/0014-encrypted-profile-photos.md) (profil fotoğrafı). Android build: `eb58aade`
+(`3e2663d`, çizilmiş hareket animasyonları; önceki `9f180547`, `db1a9fa1`).
+
+Proje sahibi fazı 2026-10-14'te onayladı; telefondaki ölçümler (50 avatarla 60 fps, düşük seviye
+Android) en sona bırakıldı. Yeni sürümü kendisi deneyecek.
 
 ### DoD
 
-| Ölçüt                        | Durum                                                                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 50 avatarla 60 fps           | Ölçüm aracı hazır ("Ben" → Geliştirici: haritada 50 kişi testi → "Kare hızını ölç"); telefonda ölçülecek. Animasyonların hepsi UI thread'de |
-| Düşük seviye Android cihazda | Proje sahibinin elindeki cihazlarla denenecek                                                                                               |
+| Ölçüt                        | Durum                                                                                                                                                       |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 50 avatarla 60 fps           | Sona bırakıldı. Ölçüm aracı hazır ("Ben" → Geliştirici: haritada 50 kişi testi → "Kare hızını ölç"); telefonda ölçülecek. Animasyonların hepsi UI thread'de |
+| Düşük seviye Android cihazda | Sona bırakıldı: proje sahibinin cihazlarıyla                                                                                                                |
 
 ### Yapılanlar (plan)
 
@@ -47,10 +118,12 @@ deneme bekliyor. Android build: `9f180547` (`039c9a5`; önceki ara sürüm `db1a
   duran yerine yumuşakça oturur, uzak sıçramalar animasyonsuz. Hareket UI thread'de.
 - **Ortam durumları**: hızla uzayan iz, şarjda şimşek, pil %15 altında kırmızı nabız, eski konum
   gri ve yaşıyla. Harita kuzey yukarı sabit (pusula yok).
-- **Hareket türü** (proje sahibinin isteği, herkes aynı görür): yürürken adım sallanması,
-  koşarken hızlı zıplama ve öne eğilme, bisiklette yalpalama, araçta hafif titreşim + uzun iz;
-  30 dakikadır aynı yerdeyse yavaş yayılan halka. Köşede 🚶 🏃 🚴 🚗 📍 rozeti. Ne zamandan beri
-  aynı yerde olduğunu gönderen telefon söyler (yalnızca tam konumda).
+- **Hareket türü** (proje sahibinin isteği, herkes aynı görür): yürürken ve koşarken adım adım
+  zıplama, ağırlığın sağa sola geçmesi, öne eğilme, gölge ve arkada kalan ayak izleri; bisiklette
+  yalpalama, araçta hafif titreşim + uzun iz; 30 dakikadır aynı yerdeyse yavaş yayılan halka.
+  Köşede emoji yerine kendi çizdiğimiz hareketli figür: kolları ve bacakları sallanan yürüyen ve
+  koşan adam, pedal çeviren bisikletli, tekerlekleri dönüp egzozu tüten araba, yelkovanı dönen
+  saat. Ne zamandan beri aynı yerde olduğunu gönderen telefon söyler (yalnızca tam konumda).
 - **Kişi kartı**: avatara dokununca avatar haritadan karta uçar; ne zaman, nerede (yer adı
   telefonda haritanın kendi etiketlerinden, koordinat hiçbir yere gitmez), ne kadar uzakta, pil,
   durum. Aşağı kaydırınca / haritaya dokununca / geri tuşuyla kapanır.
@@ -82,15 +155,15 @@ deneme bekliyor. Android build: `9f180547` (`039c9a5`; önceki ara sürüm `db1a
 
 | Paket              | Test | Not                                                                                        |
 | ------------------ | ---- | ------------------------------------------------------------------------------------------ |
-| `packages/crypto`  | 131  | + profil fotoğrafı şifreleme, `since` bulanıklaştırmada düşer                              |
+| `packages/crypto`  | 132  | + profil fotoğrafı şifreleme, `since` bulanıklaştırmada düşer                              |
 | `packages/schemas` | 72   | 4 haneli kod                                                                               |
 | API entegrasyon    | 123  | + dürt, durum, hava durumu, şifreli fotoğraf (çember dışı göremez), 4 haneli kod sınırları |
 | API birim          | 77   | + hava ızgarası                                                                            |
-| Mobil              | 226  | + kayma, kümeleme, buluşma, menü geometrisi, yer adı, hava, durum, hareket türü            |
+| Mobil              | 232  | + kayma, kümeleme, buluşma, menü geometrisi, yer adı, hava, durum, hareket türü, çizimler  |
 
 ### Açık riskler
 
-1. 50 avatarla 60 fps ve düşük seviye cihaz testi henüz telefonda yapılmadı (araç hazır).
+1. 50 avatarla 60 fps ve düşük seviye cihaz testi sona bırakıldı (araç hazır).
 2. **Open-Meteo ücretsiz katmanı ticari olmayan kullanım içindir**: yayından önce ticari plan ya
    da kendi Open-Meteo sunucumuz gerekir.
 3. 4 haneli kod: hedefli, sabırlı bir saldırgan için yılda ~%10 tahmin riski (ADR 0012); 6 hane

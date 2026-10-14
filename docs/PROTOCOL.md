@@ -165,14 +165,25 @@ dolgu → JSON → şema. Tekrar penceresi yalnızca başarılı çözmeden sonr
 
 Zod ayrık birleşimi (`kind`), bilinmeyen alan reddedilir ([`packages/schemas`](../packages/schemas)):
 
-| `kind`        | Alanlar                                           |
-| ------------- | ------------------------------------------------- |
-| `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, ts` |
-| `bump`        | `ts`                                              |
-| `place_enter` | `placeId, ts`                                     |
-| `place_exit`  | `placeId, ts`                                     |
-| `share_stop`  | `ts`                                              |
-| `status`      | `emoji? (≤16), text? (≤80), expiresAt, ts`        |
+| `kind`        | Alanlar                                                                    |
+| ------------- | -------------------------------------------------------------------------- |
+| `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, ts`                          |
+| `bump`        | `ts`                                                                       |
+| `place_enter` | `placeId, ts`                                                              |
+| `place_exit`  | `placeId, ts`                                                              |
+| `share_stop`  | `ts`                                                                       |
+| `status`      | `emoji? (≤16), text? (≤80), expiresAt, ts`                                 |
+| `profile`     | `photo` (`{ id, key }` ya da `null`), `ts` (ADR 0014)                      |
+| `place`       | `id, name (≤40), emoji (≤16), lat, lng, radius (50–1000 m), ts` (ADR 0015) |
+
+**Saklanan mesaj (yer).** Bir çemberin yeri, son kaydeden üyenin gönderen anahtarıyla şifrelenmiş
+`place` mesajı olarak sunucuda kalır. Üyeler onu yeni mesajlardan çok sonra tekrar açtığı için
+`decryptStoredMessage` tekrar penceresine bakmaz (imza, çember, epoch ve gönderen yine denetlenir)
+ve yalnızca `place` kabul eder. Tekrar penceresi yerine sürüm kuralı vardır: bir yerin `ts`'i
+yalnızca büyür (düzenleyen `max(şimdi, önceki ts + 1)` yazar); telefon elindekinden eski `ts`'i ve
+silinmiş bir yeri geri almaz. Sunucu yalnızca çemberin **güncel** epoch'uyla mühürlenmiş yeri kabul
+eder; epoch ilerleyince açabilen bir üye yeri kendi yeni anahtarıyla yeniden mühürler (yeni üyeler
+eskisini açamaz).
 
 ## 7. Hassasiyet (şifrelemeden önce, gönderende)
 
@@ -202,19 +213,36 @@ Her 5 baytlık parça (büyük-endian) `mod 100000` → 5 rakam → kişi başı
 `bargu-sn:1:` ‖ base64url(fp₁ ‖ fp₂). Okutulan QR sabit zamanlı karşılaştırılır. Kimlik anahtarı
 değişirse (yeni cihaz) numara değişir; uygulama ortak çemberlerde uyarı gösterir.
 
-## 9. Bildirim (sealed box)
+## 9. Bildirim (sealed box, ADR 0016)
 
 Alıcı cihaz başına, gönderen bilgisi içermeyen kutu:
 
 ```
 shared = X25519(ephSecret, recipient.dhPub)
 key, nonce = HKDF(shared, salt = ephPub ‖ recipient.dhPub, "bargu/v1/push\0", ∅)
-box = 0x01 ‖ ephPub(32) ‖ ChaCha20-Poly1305(key, nonce, aad = 0x01 ‖ ephPub, pt = pad(içerik))
+box = 0x01 ‖ ephPub(32) ‖ ChaCha20-Poly1305(key, nonce, aad = 0x01 ‖ ephPub, pt = pad(iç, 128))
 ```
 
-Base64url olarak gönderilir. iOS'ta bildirim eklentisi yalnızca CryptoKit ile açar; Android'de
-data-only FCM ile headless JS açar. Kutu içeriği gizler; **özgünlük**, içine konan imzalı mesaj
-zarfından gelir.
+Kutunun içi (`sealPush` / `openPush`):
+
+```
+üyeden:    0x01 ‖ senderDeviceId(16) ‖ sig(64) ‖ gövde
+           sig = Ed25519("bargu/v1/push-sig\0" ‖ recipientDeviceId(16) ‖ senderDeviceId(16) ‖ gövde)
+sunucudan: 0x00 ‖ gövde
+gövde (JSON) = { kind: "place", circleId, placeId, event: "enter" | "exit", name, emoji, ts }
+             | { kind: "bump", circleId, ts }
+             | { kind: "notice", notice, circleId, ts }
+```
+
+- Üyenin bildirimi, uygulamanın o cihaz için güvendiği kimlik anahtarıyla imzalı olmalı ve
+  **alıcının** cihaz kimliğini kapsar (başka birine yeniden mühürlenemez); asla `notice` olamaz.
+- Sunucunun kendi haberleri (`notice`) imzasızdır ve yalnızca tür + çember söyler (sunucu bu
+  olayları zaten bilir); metni uygulama kendi dilinde yazar.
+- Tazelik (`ts`, 1 saat) ve tekrar (kutunun geçici anahtarı) alıcıda denetlenir.
+
+Base64url olarak gönderilir (en çok 1.100 karakter). Android'de data-only FCM ile arka plan görevi,
+iOS'ta bildirim eklentisi (yalnızca CryptoKit) açar; Google ve Apple yalnızca şifreli kutuyu, iOS'ta
+ayrıca içeriksiz bir yer tutucu metni görür.
 
 ## 10. Değişmezler (testlerle korunur)
 

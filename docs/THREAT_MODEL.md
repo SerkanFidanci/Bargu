@@ -39,6 +39,9 @@ sızıntıları tutar. Protokol: [PROTOCOL.md](PROTOCOL.md). Her faz sonunda gü
 | Tedarik zinciri                       | Kilitli lockfile, 24 saat / 7 gün yayın karantinası, yayın kanıtı düşüş engeli, install script izin listesi, gitleaks, Semgrep, CodeQL, audit, SHA sabitleme                                                                                                                                                    | ✅ Faz 0                                                                          |
 | Harita / adres sağlayıcısı            | Karo, yazı tipi ve simgeler kendi sunucumuzda (görüntülenen bölge = konum); stilde başka adres olmadığı testle zorunlu; adres çözme (geocoding) cihazda / self-host                                                                                                                                             | Harita ✅ Faz 3; geocoding Faz 6                                                  |
 | Hava durumu servisi                   | Servise yalnızca sabit Türkiye ızgarası gider (140 nokta); telefon herkese aynı dosyayı indirip kendi hücresini yerelde bulur (ADR 0013)                                                                                                                                                                        | ✅ Faz 6                                                                          |
+| Bildirim servisleri (Google, Apple)   | Her bildirim tek cihaza mühürlü kutu; üyenin bildirimi imzalı (alıcıya bağlı), sunucunun haberi yalnızca tür + çember; FCM data-only, APNs içeriksiz yer tutucu; metni telefon yazar (ADR 0016)                                                                                                                 | ✅ Faz 7 (iOS cihazda deneme Apple hesabıyla)                                     |
+| Sahte "eve vardı" (sunucu)            | Varış bildirimi gönderen cihazın kimlik anahtarıyla imzalı; telefon yalnızca güvendiği cihazı kabul eder; sunucu yalnızca `notice` gönderebilir                                                                                                                                                                 | ✅ Faz 7                                                                          |
+| Yerlerin sızması / geri alınması      | Yer adı, konumu, yarıçapı şifreli (gönderen anahtarı); yalnızca aktif üyeler okur (RLS); güncel epoch zorunlu; `ts` yalnızca büyür, silinen yer geri gelmez (ADR 0015)                                                                                                                                          | ✅ Faz 7                                                                          |
 | Zayıf rastgelelik                     | Yalnızca işletim sistemi CSPRNG'si; yoksa hata (güvensiz yedek yok)                                                                                                                                                                                                                                             | ✅ Faz 1                                                                          |
 
 ## Kriptografik sınırlar (bilinçli tercihler)
@@ -58,22 +61,23 @@ sızıntıları tutar. Protokol: [PROTOCOL.md](PROTOCOL.md). Her faz sonunda gü
 
 Sunucu içerik görmez ama şunları görür; belgeleniyor ve kabul ediliyor:
 
-| Sızıntı                         | Ne ortaya çıkar                                                    | Azaltma                                                                                 |
-| ------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| Çember üyelikleri               | Sosyal graf                                                        | v2: MLS / sealed sender değerlendirmesi                                                 |
-| Gönderim zamanları ve sıklığı   | Hareket ediyor mu, durağan mı, canlı modda mı                      | Sabit hızlı sahte trafik pil maliyeti yüzünden yok                                      |
-| Zarf boyutu                     | —                                                                  | Tüm mesajlar tek boy (512 bayt dolgu)                                                   |
-| "İzle" olayları (canlı mod)     | Kim kimin haritasını açtı                                          | —                                                                                       |
-| Konumu geri çekme               | Bir çemberle paylaşımın durduğu an                                 | Neden (kapatma, süre, hayalet) görünmez; hassasiyet ve süre ayarları yalnızca telefonda |
-| IP adresleri                    | Yaklaşık konum (ağ seviyesi)                                       | Log'lanmaz; kullanıcı VPN kullanabilir                                                  |
-| Kullanıcı adının varlığı        | Bir adın kayıtlı olduğu                                            | Ad zaten bulunmak için; hesap başına saatlik sınır                                      |
-| Görünen ad ve avatar (sunucuda) | Ad, renk ve emoji; fotoğrafın var olduğu, boyutu ve değişme zamanı | Fotoğraf uçtan uca şifreli (ADR 0014); şifreli profil (ad) ileriki faz                  |
-| Çember adları                   | Ailenin / grubun adı                                               | Davetli anahtar almadan önce görmeli (ADR 0009)                                         |
-| Olay zamanları (canlı kanal)    | Çember değişikliklerinin ne zaman olduğu                           | İçerik yok; yalnızca tür ve çember kimliği                                              |
-| Üye kimlikleri (UUIDv7)         | Hesabın yaklaşık açılış zamanı                                     | Yalnızca aynı çemberdekiler görür; davetli yalnızca daveti göndereni                    |
-| Arkadaş QR / davet linki        | Linki ilk kullanan arkadaş olur                                    | 24 saat, tek kullanım; QR ekranında ekran görüntüsü engeli                              |
-| Bildirim zamanlaması (APNs/FCM) | Olayların zamanı                                                   | İçerik sealed box ile gizli                                                             |
-| Sosyal bildirim türü (FCM)      | "Davet edildin", "biri katıldı" gibi tür ve zamanı                 | İsim ve çember adı yok (ADR 0010); token sunucuda şifreli                               |
+| Sızıntı                         | Ne ortaya çıkar                                                         | Azaltma                                                                                 |
+| ------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Çember üyelikleri               | Sosyal graf                                                             | v2: MLS / sealed sender değerlendirmesi                                                 |
+| Gönderim zamanları ve sıklığı   | Hareket ediyor mu, durağan mı, canlı modda mı                           | Sabit hızlı sahte trafik pil maliyeti yüzünden yok                                      |
+| Zarf boyutu                     | —                                                                       | Tüm mesajlar tek boy (512 bayt dolgu)                                                   |
+| "İzle" olayları (canlı mod)     | Kim kimin haritasını açtı                                               | —                                                                                       |
+| Konumu geri çekme               | Bir çemberle paylaşımın durduğu an                                      | Neden (kapatma, süre, hayalet) görünmez; hassasiyet ve süre ayarları yalnızca telefonda |
+| IP adresleri                    | Yaklaşık konum (ağ seviyesi)                                            | Log'lanmaz; kullanıcı VPN kullanabilir                                                  |
+| Kullanıcı adının varlığı        | Bir adın kayıtlı olduğu                                                 | Ad zaten bulunmak için; hesap başına saatlik sınır                                      |
+| Görünen ad ve avatar (sunucuda) | Ad, renk ve emoji; fotoğrafın var olduğu, boyutu ve değişme zamanı      | Fotoğraf uçtan uca şifreli (ADR 0014); şifreli profil (ad) ileriki faz                  |
+| Çember adları                   | Ailenin / grubun adı                                                    | Davetli anahtar almadan önce görmeli (ADR 0009)                                         |
+| Olay zamanları (canlı kanal)    | Çember değişikliklerinin ne zaman olduğu                                | İçerik yok; yalnızca tür ve çember kimliği                                              |
+| Üye kimlikleri (UUIDv7)         | Hesabın yaklaşık açılış zamanı                                          | Yalnızca aynı çemberdekiler görür; davetli yalnızca daveti göndereni                    |
+| Arkadaş QR / davet linki        | Linki ilk kullanan arkadaş olur                                         | 24 saat, tek kullanım; QR ekranında ekran görüntüsü engeli                              |
+| Bildirim zamanlaması (APNs/FCM) | Bildirim gittiği an ve kutunun boyutu                                   | İçerik ve gönderen mühürlü (ADR 0016); kutu 128 baytlık bloklara dolgulu                |
+| Yerler (sunucuda)               | Bir çemberde kaç yer olduğu, ne zaman değiştiği, kimin kaydettiği       | Ad, konum, yarıçap şifreli (ADR 0015)                                                   |
+| Varış / ayrılış olayları        | Bir üyenin bir yere girdiği ya da çıktığı an (hangisi, hangi yer değil) | Yalnızca tam konum paylaşılan çembere gider; sunucu saklamaz                            |
 
 ## Gözden geçirme
 
