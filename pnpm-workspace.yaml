@@ -55,6 +55,12 @@ allowBuilds:
 # Exact versions in package.json; the lockfile is the source of truth.
 savePrefix: ''
 
+# @bacons/apple-targets (iOS notification extension target, docs/ADR/0016) reaches an old @expo/plist
+# whose @xmldom/xmldom 0.7 has ReDoS / injection advisories. Same API as the @expo/plist Expo SDK 57
+# itself uses (xmldom 0.8.15, patched); only read at prebuild time on our own Info.plist files.
+overrides:
+  '@bacons/xcode>@expo/plist': 0.8.1
+
 # Audit exceptions: only advisories with no patched release, reviewed and justified. Re-check on every
 # Expo SDK upgrade; remove an entry as soon as a fix ships (Renovate will propose the bump).
 audit:
