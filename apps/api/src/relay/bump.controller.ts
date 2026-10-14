@@ -17,6 +17,6 @@ export class BumpController {
     @CurrentAuth() auth: AuthContext,
     @Body(new ZodPipe(bumpRequestSchema)) body: z.infer<typeof bumpRequestSchema>,
   ): Promise<BumpReply> {
-    return this.relay.bump(auth, body.envelope);
+    return this.relay.bump(auth, body.envelope, body.pushes);
   }
 }

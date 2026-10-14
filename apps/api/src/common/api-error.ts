@@ -38,6 +38,10 @@ export type ApiErrorCode =
   | 'EPOCH_STALE'
   | 'KEYS_INVALID'
   | 'UNAVAILABLE'
+  /** Someone saved a newer version first (places): read it again, then change that one. */
+  | 'VERSION_CONFLICT'
+  /** The circle already has as many places as allowed. */
+  | 'PLACES_FULL'
   | 'INTERNAL';
 
 export class ApiError extends HttpException {

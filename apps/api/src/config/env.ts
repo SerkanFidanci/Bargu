@@ -125,8 +125,47 @@ export const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.string().max(16_384).optional(),
     ),
+    /**
+     * Apple push (docs/ADR/0016): the .p8 key from the Apple developer account (base64 of the PEM),
+     * its id and the team id; all three or none. Off until the account exists.
+     */
+    APNS_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.base64().max(4_096).optional(),
+    ),
+    APNS_KEY_ID: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z
+        .string()
+        .regex(/^[A-Z0-9]{10}$/)
+        .optional(),
+    ),
+    APNS_TEAM_ID: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z
+        .string()
+        .regex(/^[A-Z0-9]{10}$/)
+        .optional(),
+    ),
+    /** The app's bundle id (apps/mobile app.config.ts). */
+    APNS_TOPIC: z
+      .string()
+      .regex(/^[a-z0-9.-]+$/)
+      .default('app.bargu'),
+    /** Development (dev client) builds talk to the sandbox. */
+    APNS_HOST: z
+      .enum(['api.push.apple.com', 'api.sandbox.push.apple.com'])
+      .default('api.push.apple.com'),
   })
   .superRefine((env, ctx) => {
+    const apns = [env.APNS_KEY, env.APNS_KEY_ID, env.APNS_TEAM_ID].filter((v) => v !== undefined);
+    if (apns.length !== 0 && apns.length !== 3) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['APNS_KEY'],
+        message: 'APNS_KEY, APNS_KEY_ID and APNS_TEAM_ID go together',
+      });
+    }
     if (env.FCM_SERVICE_ACCOUNT !== undefined) {
       let projectId: string | undefined;
       try {

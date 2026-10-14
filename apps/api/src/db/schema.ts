@@ -167,6 +167,9 @@ export const pushTokens = app.table('push_tokens', {
   deviceId: uuid('device_id').primaryKey(),
   userId: uuid('user_id').notNull(),
   tokenSealed: text('token_sealed').notNull(),
+  platform: text('platform', { enum: ['android', 'ios'] })
+    .notNull()
+    .default('android'),
   locale: text('locale', { enum: ['tr', 'en'] }).notNull(),
   updatedAt: timestamptz('updated_at').notNull().defaultNow(),
 });
@@ -175,6 +178,14 @@ export const profilePhotos = app.table('profile_photos', {
   userId: uuid('user_id').primaryKey(),
   photoId: uuid('photo_id').notNull(),
   ciphertext: bytea('ciphertext').notNull(),
+  updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+});
+
+export const places = app.table('places', {
+  id: uuid('id').primaryKey(),
+  circleId: uuid('circle_id').notNull(),
+  envelope: jsonb('envelope').notNull(),
+  version: integer('version').notNull().default(1),
   updatedAt: timestamptz('updated_at').notNull().defaultNow(),
 });
 
@@ -190,4 +201,5 @@ export const schema = {
   keyEnvelopes,
   pushTokens,
   profilePhotos,
+  places,
 };

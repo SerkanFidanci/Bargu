@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { FcmClient, FcmRejected } from './fcm.js';
-import { PUSH_KINDS, pushText } from './push-texts.js';
+import { placeholderText } from './push-texts.js';
 
 /** A throwaway RSA key in PEM (WebCrypto: test files stay off node:crypto too). */
 async function testPrivateKeyPem(): Promise<string> {
@@ -41,15 +41,10 @@ function client(send: (body: unknown) => Response) {
   return { fcm: new FcmClient(account, fetchMock as unknown as typeof fetch), fetchMock };
 }
 
-const message = {
-  token: 'device-token',
-  ...pushText('circleInvite', 'tr'),
-  data: { kind: 'circleInvite', circleId: '0190a8a0-0000-7000-8000-0000000000c1' },
-  tag: 'circleInvite:0190a8a0-0000-7000-8000-0000000000c1',
-};
+const message = { token: 'device-token', sealed: 'AQ-sealed_box' };
 
 describe('FcmClient', () => {
-  it('sends a high-priority notification on the friends channel, authorised as our account', async () => {
+  it('sends the sealed box data-only and high priority, authorised as our account', async () => {
     let sent: unknown;
     const { fcm, fetchMock } = client((body) => {
       sent = body;
@@ -59,15 +54,12 @@ describe('FcmClient', () => {
     const [url, init] = fetchMock.mock.calls[1] ?? [];
     expect(url).toBe('https://fcm.googleapis.com/v1/projects/bargu-test/messages:send');
     expect((init?.headers as Record<string, string>).authorization).toBe('Bearer google-token');
+    // No notification block, no text: Google carries only the sealed box (docs/ADR/0016).
     expect(sent).toEqual({
       message: {
         token: 'device-token',
-        notification: { title: 'Bargu', body: 'Bir çembere davet edildin' },
-        data: message.data,
-        android: {
-          priority: 'HIGH',
-          notification: { channel_id: 'social', tag: message.tag },
-        },
+        data: { bargu: 'AQ-sealed_box' },
+        android: { priority: 'HIGH', ttl: '3600s' },
       },
     });
     // The Google access token is reused, not fetched per message.
@@ -92,15 +84,9 @@ describe('FcmClient', () => {
   });
 });
 
-describe('push texts', () => {
-  it('say what happened, never who or where', () => {
-    for (const kind of PUSH_KINDS) {
-      for (const locale of ['tr', 'en'] as const) {
-        const { title, body } = pushText(kind, locale);
-        expect(title).toBe('Bargu');
-        expect(body).not.toMatch(/\{\{|\}\}|%s/);
-        expect(body.length).toBeGreaterThan(5);
-      }
-    }
+describe('placeholder texts (iPhone, until the extension opens the box)', () => {
+  it("say only that there is something, in the phone's language", () => {
+    expect(placeholderText('tr')).toEqual({ title: 'Bargu', body: 'Yeni bir bildirimin var' });
+    expect(placeholderText('en')).toEqual({ title: 'Bargu', body: 'You have a new notification' });
   });
 });

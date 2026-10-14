@@ -11,6 +11,7 @@ import { DatabaseModule } from './infra/database/database.module.js';
 import { RedisModule } from './infra/redis/redis.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { PhotosModule } from './photos/photos.module.js';
+import { PlacesModule } from './places/places.module.js';
 import { PushModule } from './push/push.module.js';
 import { RelayModule } from './relay/relay.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -37,6 +38,7 @@ export class AppModule {
         RelayModule,
         WeatherModule,
         PhotosModule,
+        PlacesModule,
       ],
     };
   }

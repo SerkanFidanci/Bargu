@@ -11,7 +11,11 @@ import { DatabaseService } from '../infra/database/database.service.js';
 const SEAL_CONTEXT = 'push/token';
 
 export interface PushTarget {
+  userId: string;
   deviceId: string;
+  /** The device's X25519 key: server notices are sealed to it (docs/ADR/0016). */
+  dhKey: Uint8Array;
+  platform: 'android' | 'ios';
   token: string;
   locale: 'tr' | 'en';
 }
@@ -36,10 +40,21 @@ export class PushTokens {
     await this.database.asUser(auth.userId, (tx) =>
       tx
         .insert(pushTokens)
-        .values({ deviceId: auth.deviceId, userId: auth.userId, tokenSealed, locale: input.locale })
+        .values({
+          deviceId: auth.deviceId,
+          userId: auth.userId,
+          tokenSealed,
+          platform: input.platform,
+          locale: input.locale,
+        })
         .onConflictDoUpdate({
           target: pushTokens.deviceId,
-          set: { tokenSealed, locale: input.locale, updatedAt: new Date() },
+          set: {
+            tokenSealed,
+            platform: input.platform,
+            locale: input.locale,
+            updatedAt: new Date(),
+          },
         }),
     );
   }
@@ -57,7 +72,9 @@ export class PushTokens {
         .select({
           deviceId: pushTokens.deviceId,
           tokenSealed: pushTokens.tokenSealed,
+          platform: pushTokens.platform,
           locale: pushTokens.locale,
+          dhKey: devices.dhKey,
         })
         .from(pushTokens)
         .innerJoin(devices, eq(devices.id, pushTokens.deviceId))
@@ -68,6 +85,13 @@ export class PushTokens {
     const token = new TextDecoder().decode(
       openAtRest(this.keys.jobPayloadKey, row.tokenSealed, SEAL_CONTEXT),
     );
-    return { deviceId: row.deviceId, token, locale: row.locale };
+    return {
+      userId,
+      deviceId: row.deviceId,
+      dhKey: new Uint8Array(row.dhKey),
+      platform: row.platform,
+      token,
+      locale: row.locale,
+    };
   }
 }

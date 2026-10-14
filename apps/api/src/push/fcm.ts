@@ -3,17 +3,11 @@ import { z } from 'zod';
 import { GoogleAccessTokens, type ServiceAccount } from '../infra/google/service-account.js';
 
 const SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
-/** Android notification channel created by the app (apps/mobile notifications/push.ts). */
-export const ANDROID_CHANNEL = 'social';
 
 export interface PushMessage {
   token: string;
-  title: string;
-  body: string;
-  /** Opaque keys for the app (what happened, which circle); never names or content. */
-  data: Record<string, string>;
-  /** Notifications with the same tag replace each other on the phone (no pile-up). */
-  tag: string;
+  /** The sealed notification (docs/PROTOCOL.md §7): the app opens it and words it itself. */
+  sealed: string;
 }
 
 /** `sent`; `unregistered`: the token is dead (app removed, data cleared), forget it. */
@@ -32,7 +26,9 @@ const errorSchema = z.object({
 
 /**
  * Firebase Cloud Messaging HTTP v1, called directly with our own service account (no third-party
- * push relay). Android gets a high-priority notification on the friends-and-circles channel.
+ * push relay). Data-only and high priority (docs/ADR/0016): the app wakes, opens the sealed box and
+ * shows the notification itself, so Google carries ciphertext and never a text. The key is not
+ * "title", "body" or "message": expo-notifications would display those as they are.
  */
 export class FcmClient {
   private readonly tokens: GoogleAccessTokens;
@@ -57,12 +53,9 @@ export class FcmClient {
         body: JSON.stringify({
           message: {
             token: message.token,
-            notification: { title: message.title, body: message.body },
-            data: message.data,
-            android: {
-              priority: 'HIGH',
-              notification: { channel_id: ANDROID_CHANNEL, tag: message.tag },
-            },
+            data: { bargu: message.sealed },
+            // Older than an hour is better told by the app itself when it opens.
+            android: { priority: 'HIGH', ttl: '3600s' },
           },
         }),
         signal: AbortSignal.timeout(10_000),

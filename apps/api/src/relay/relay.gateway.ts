@@ -59,7 +59,7 @@ export class RelayGateway {
     const connection = this.events.connectionOf(socket);
     const parsed = bumpRequestSchema.safeParse(payload);
     if (connection === undefined || !parsed.success) return { error: 'VALIDATION_FAILED' };
-    return this.relay.bump(connection.auth, parsed.data.envelope);
+    return this.relay.bump(connection.auth, parsed.data.envelope, parsed.data.pushes);
   }
 
   @SubscribeMessage('status')

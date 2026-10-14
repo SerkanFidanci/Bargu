@@ -1,6 +1,6 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { verifyMessageEnvelope } from '@bargu/crypto';
-import type { BumpReply, MessageEnvelope, PublishReply } from '@bargu/schemas';
+import type { BumpReply, DevicePushes, MessageEnvelope, PublishReply } from '@bargu/schemas';
 import { messageEnvelopeSchema, RELAY_REFUSALS } from '@bargu/schemas';
 import { and, eq, inArray } from 'drizzle-orm';
 
@@ -27,6 +27,8 @@ export const RELAY_LIMITS = {
   bumps: { limit: 10, windowSeconds: 60 },
   /** Status changes per device and circle: people set one now and then. */
   statuses: { limit: 6, windowSeconds: 60 },
+  /** Arrivals and departures per device and circle (a phone notices them, debounced). */
+  placeEvents: { limit: 20, windowSeconds: 600 },
 } as const;
 
 interface Limit {
@@ -218,27 +220,54 @@ export class RelayService {
 
   /**
    * A poke: forwarded at once to the circle's other members who are online, kept nowhere. Those
-   * whose app is closed get a content-free notification (docs/ADR/0010).
+   * whose app is closed get the sealed notification the sender's phone made for them.
    */
-  async bump(auth: AuthContext, envelope: MessageEnvelope): Promise<BumpReply> {
+  bump(
+    auth: AuthContext,
+    envelope: MessageEnvelope,
+    pushes: DevicePushes = [],
+  ): Promise<BumpReply> {
+    return this.forward(auth, envelope, pushes, 'bump', `bump:${auth.userId}`, RELAY_LIMITS.bumps);
+  }
+
+  /**
+   * A member arrived at or left one of the circle's places (docs/ADR/0015): forwarded like a poke,
+   * never stored. The server cannot tell which place, or whether it was an arrival.
+   */
+  placeEvent(
+    auth: AuthContext,
+    envelope: MessageEnvelope,
+    pushes: DevicePushes,
+  ): Promise<BumpReply> {
+    return this.forward(
+      auth,
+      envelope,
+      pushes,
+      'place',
+      `place:${auth.deviceId}`,
+      RELAY_LIMITS.placeEvents,
+    );
+  }
+
+  private async forward(
+    auth: AuthContext,
+    envelope: MessageEnvelope,
+    pushes: DevicePushes,
+    event: string,
+    limitKey: string,
+    limit: Limit,
+  ): Promise<BumpReply> {
     const membership = (await this.memberships(auth.userId, [envelope.circleId])).get(
       envelope.circleId,
     );
-    const code = await this.check(
-      auth,
-      envelope,
-      membership,
-      `bump:${auth.userId}`,
-      RELAY_LIMITS.bumps,
-    );
+    const code = await this.check(auth, envelope, membership, limitKey, limit);
     if (code !== null || membership === undefined) return { refused: code ?? 'NOT_MEMBER' };
-    this.events.emitLive(membership.others, 'bump', { envelope });
+    this.events.emitLive(membership.others, event, { envelope });
+    // Notifications only for members of this circle whose app is not connected; the worker hands
+    // each to its device only if that is still the member's current one.
     const online = await this.events.online(membership.others);
-    await this.notifier.notify(
-      membership.others.filter((userId) => !online.has(userId)),
-      'bump',
-      envelope.circleId,
-    );
+    const offline = new Set(membership.others.filter((userId) => !online.has(userId)));
+    await this.notifier.forward(pushes.filter((push) => offline.has(push.userId)));
     return { ok: true };
   }
 

@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { type DevicePushes, PUSH_NOTICES, type PushNotice, sealedPushSchema } from '@bargu/schemas';
 import type { PgBoss } from 'pg-boss';
 import { z } from 'zod';
 
@@ -6,11 +7,30 @@ import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { QUEUES } from '../jobs/queues.js';
 import { JOB_QUEUE } from '../jobs/tokens.js';
-import { PUSH_KINDS, type PushKind } from './push-texts.js';
 
-export const pushJobSchema = z
-  .object({ userId: z.uuid(), kind: z.enum(PUSH_KINDS), circleId: z.uuid() })
-  .strict();
+/**
+ * A queued notification (docs/ADR/0016). `notice`: news the server announces itself (it seals
+ * kind and circle for the device when sending). `sealed`: a member's phone sealed it for one
+ * device; the server only carries it, if that device is still the user's current one.
+ */
+export const pushJobSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      type: z.literal('notice'),
+      userId: z.uuid(),
+      notice: z.enum(PUSH_NOTICES),
+      circleId: z.uuid(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('sealed'),
+      userId: z.uuid(),
+      deviceId: z.uuid(),
+      sealed: sealedPushSchema,
+    })
+    .strict(),
+]);
 export type PushJob = z.infer<typeof pushJobSchema>;
 
 /** The same news about the same circle reaches a phone at most once a minute. */
@@ -29,20 +49,35 @@ export class Notifier {
     @Inject(JOB_QUEUE) private readonly boss: PgBoss,
     @Inject(ENV) env: Env,
   ) {
-    this.enabled = env.FCM_SERVICE_ACCOUNT !== undefined;
+    this.enabled = env.FCM_SERVICE_ACCOUNT !== undefined || env.APNS_KEY !== undefined;
   }
 
-  async notify(userIds: Iterable<string>, kind: PushKind, circleId: string): Promise<void> {
-    if (!this.enabled) return;
+  async notify(userIds: Iterable<string>, notice: PushNotice, circleId: string): Promise<void> {
     for (const userId of new Set(userIds)) {
-      try {
-        await this.boss.send(QUEUES.push, { userId, kind, circleId } satisfies PushJob, {
-          singletonKey: `${userId}:${kind}:${circleId}`,
-          singletonSeconds: PUSH_THROTTLE_SECONDS,
-        });
-      } catch (error) {
-        this.logger.warn(`push not queued: ${error instanceof Error ? error.name : 'unknown'}`);
-      }
+      await this.queue(
+        { type: 'notice', userId, notice, circleId },
+        `${userId}:${notice}:${circleId}`,
+      );
+    }
+  }
+
+  /** Sealed notifications a member's phone made for others (already checked to be offline members). */
+  async forward(pushes: DevicePushes): Promise<void> {
+    for (const { userId, deviceId, sealed } of pushes) {
+      await this.queue({ type: 'sealed', userId, deviceId, sealed }, null);
+    }
+  }
+
+  private async queue(job: PushJob, singletonKey: string | null): Promise<void> {
+    if (!this.enabled) return;
+    try {
+      await this.boss.send(
+        QUEUES.push,
+        job,
+        singletonKey === null ? {} : { singletonKey, singletonSeconds: PUSH_THROTTLE_SECONDS },
+      );
+    } catch (error) {
+      this.logger.warn(`push not queued: ${error instanceof Error ? error.name : 'unknown'}`);
     }
   }
 }
