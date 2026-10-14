@@ -108,6 +108,12 @@ export async function stopTracking(): Promise<void> {
   }
 }
 
+/** The phone's last known position (no GPS start), e.g. to centre the map before any fix. */
+export async function lastKnownFix(): Promise<Fix | null> {
+  const location = await Location.getLastKnownPositionAsync();
+  return location === null ? null : fixOf(location);
+}
+
 /**
  * Live mode while the app is open: GPS once a second on top of the location service, for as long
  * as someone watches. Returns the stop function.

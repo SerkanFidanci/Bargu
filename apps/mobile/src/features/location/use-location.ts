@@ -7,10 +7,12 @@ import i18n from '@/i18n';
 import { useCircles } from '../circles/queries';
 import { liveRequest, useConnection } from '../live/live-session';
 import { usePushState } from '../notifications/push';
+import { useMyFix } from './engine';
 import { locationEngine, restoreLocations, useLiveUntil } from './location-session';
-import { needsGps, useSharing } from './sharing';
+import { useSharing } from './sharing';
 import {
   checkLocationPermission,
+  lastKnownFix,
   requestLocationPermission,
   startTracking,
   stopTracking,
@@ -89,6 +91,17 @@ export function useLocationSession(ready: boolean): void {
     void requestLocationPermission();
   }, [ready, permission, push]);
 
+  // Where the map should look before the first fix (nothing is sent from this).
+  useEffect(() => {
+    if (!ready || permission !== 'granted' || useMyFix.getState().fix !== null) return;
+    void lastKnownFix().then(
+      (fix) => {
+        if (fix !== null && useMyFix.getState().fix === null) useMyFix.setState({ fix });
+      },
+      () => undefined,
+    );
+  }, [ready, permission]);
+
   useEffect(() => {
     // Android starts the service only from the foreground; once on, it outlives the screen.
     if (!ready || !active || permission !== 'granted' || circles === undefined) return;
@@ -97,7 +110,7 @@ export function useLocationSession(ready: boolean): void {
       return;
     }
     void startTracking({
-      gps: needsGps(circles, sharing, Date.now()),
+      gps: locationEngine.gps(),
       title: i18n.t('location.service.title'),
       body: i18n.t('location.service.body'),
     }).catch(() => undefined);

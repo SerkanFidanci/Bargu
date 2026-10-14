@@ -20,7 +20,7 @@ import { useCircleKeys } from '../circles/circle-sync';
 import { circleSync, keys, liveRequest, onLiveMessage, onOnline } from '../live/live-session';
 import { queryClient } from '../query-client';
 import { isVaultOpen, vault } from '../storage/vault';
-import { createLocationEngine, LIVE_MS, type SendCircle } from './engine';
+import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle } from './engine';
 import { createReceiver } from './receive';
 import {
   DEFAULT_SHARING,
@@ -35,7 +35,12 @@ import { stopTracking } from './tracker';
 /** Circles as sending needs them, kept for a background start (no circle list in memory then). */
 const CIRCLES_KEY = 'loc:circles:v1';
 const sendCirclesSchema = z.array(
-  z.object({ id: z.string(), epoch: z.number(), myStatus: z.enum(MEMBER_STATUSES) }),
+  z.object({
+    id: z.string(),
+    epoch: z.number(),
+    myStatus: z.enum(MEMBER_STATUSES),
+    withOthers: z.boolean(),
+  }),
 );
 
 function cachedCircles(): Circle[] | undefined {
@@ -44,7 +49,8 @@ function cachedCircles(): Circle[] | undefined {
 
 function sendCircles(): readonly SendCircle[] {
   const cached = cachedCircles();
-  if (cached !== undefined) return cached;
+  const me = useAuth.getState().userId;
+  if (cached !== undefined) return cached.map((circle) => toSendCircle(circle, me));
   if (!isVaultOpen()) return [];
   const raw = vault().get(CIRCLES_KEY);
   const parsed = sendCirclesSchema.safeParse(raw === undefined ? [] : JSON.parse(raw));
@@ -189,7 +195,8 @@ queryClient.getQueryCache().subscribe((event) => {
   if (event.query.queryHash !== CIRCLES_HASH || event.type !== 'updated') return;
   const circles = cachedCircles();
   if (circles === undefined || !isVaultOpen()) return;
-  const minimal: SendCircle[] = circles.map(({ id, epoch, myStatus }) => ({ id, epoch, myStatus }));
+  const me = useAuth.getState().userId;
+  const minimal: SendCircle[] = circles.map((circle) => toSendCircle(circle, me));
   vault().set(CIRCLES_KEY, JSON.stringify(minimal));
   const current = new Set(
     circles.filter((circle) => circle.myStatus === 'active').map((circle) => circle.id),

@@ -11,10 +11,23 @@ import { create } from 'zustand';
 import type { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
 import { type Battery, buildEnvelopes, type Fix, type LastSent, shouldSend } from './send';
-import { type SharingSettings, sharedCircles } from './sharing';
+import { circleSharing, type SharingSettings, sharedCircles } from './sharing';
 
 /** What sending needs of a circle; kept in the vault so a background start has it too. */
-export type SendCircle = Pick<Circle, 'id' | 'epoch' | 'myStatus'>;
+export type SendCircle = Pick<Circle, 'id' | 'epoch' | 'myStatus'> & {
+  /** Someone else is active in it (nobody to send to otherwise, e.g. a request not accepted). */
+  withOthers: boolean;
+};
+
+/** The sending view of a circle for the signed-in user. */
+export function toSendCircle(circle: Circle, me: string | null): SendCircle {
+  return {
+    id: circle.id,
+    epoch: circle.epoch,
+    myStatus: circle.myStatus,
+    withOthers: circle.members.some((member) => member.userId !== me && member.status === 'active'),
+  };
+}
 
 /** Someone looked at a circle: this phone sends about once a second for this long. */
 export const LIVE_MS = 2 * 60_000;
@@ -57,7 +70,12 @@ export function createLocationEngine(deps: EngineDeps) {
   let running: Promise<void> | null = null;
 
   const live = () => now() < liveUntil;
-  const shared = () => sharedCircles(deps.circles(), deps.sharing(), now());
+  const shared = () =>
+    sharedCircles(
+      deps.circles().filter((circle) => circle.withOthers),
+      deps.sharing(),
+      now(),
+    );
 
   function published(): Set<string> {
     const raw = deps.store().get(PUBLISHED_KEY);
@@ -170,6 +188,15 @@ export function createLocationEngine(deps: EngineDeps) {
     /** Whether any circle gets this phone's location now (else the location service can stop). */
     active(): boolean {
       return shared().length > 0;
+    },
+
+    /**
+     * Whether GPS is worth its battery: some circle gets the exact location. Neighbourhood and
+     * city cells (1 and 10 km) are well served by Wi-Fi and cell positioning.
+     */
+    gps(): boolean {
+      const settings = deps.sharing();
+      return shared().some((circle) => circleSharing(settings, circle.id).precision === 'exact');
     },
 
     /** Back online: the newest unsent fix goes out. */

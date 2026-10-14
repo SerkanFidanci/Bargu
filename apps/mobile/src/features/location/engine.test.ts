@@ -1,6 +1,6 @@
 import type { MessageEnvelope, PublishReply } from '@bargu/schemas';
 
-import { createLocationEngine, LIVE_MS, type SendCircle } from './engine';
+import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle } from './engine';
 import { SEND_RULES } from './send';
 import { DEFAULT_SHARING, type SharingSettings } from './sharing';
 import { circleOf, GALATA, moved, nth, type Person, somebody } from './test-support';
@@ -10,7 +10,9 @@ const START = 1_800_000_000_000;
 function setup(circleCount = 2) {
   const me: Person = somebody();
   const friend = somebody();
-  const circles: SendCircle[] = Array.from({ length: circleCount }, () => circleOf([me, friend]));
+  const circles: SendCircle[] = Array.from({ length: circleCount }, () =>
+    toSendCircle(circleOf([me, friend]), me.userId),
+  );
   let settings: SharingSettings = DEFAULT_SHARING;
   let now = START;
   let offline = false;
@@ -197,5 +199,19 @@ describe('location engine', () => {
     }));
     await t.engine.fix(fixAt(0));
     expect(t.outdated).toEqual([[old.id]]);
+  });
+
+  it('sends nothing to a circle with nobody else in it (a request not accepted yet)', async () => {
+    const t = setup(2);
+    const lone = nth(t.circles, 1);
+    t.circles[1] = { ...lone, withOthers: false };
+    await t.engine.fix(fixAt(0));
+    expect(t.published.flat().map((envelope) => envelope.circleId)).toEqual([nth(t.circles).id]);
+    expect(t.engine.gps()).toBe(true);
+    t.set({
+      ghost: 'off',
+      circles: { [nth(t.circles).id]: { sharing: true, precision: 'city', until: null } },
+    });
+    expect(t.engine.gps()).toBe(false);
   });
 });
