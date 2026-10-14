@@ -32,7 +32,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 Kararlar: [ADR 0012](ADR/0012-four-digit-login-code.md) (4 haneli kod),
 [ADR 0013](ADR/0013-weather-without-location.md) (hava durumu),
 [ADR 0014](ADR/0014-encrypted-profile-photos.md) (profil fotoğrafı). Durum: kod bitti, telefonda
-deneme bekliyor.
+deneme bekliyor. Android build: `9f180547` (`039c9a5`; önceki ara sürüm `db1a9fa1`).
 
 ### DoD
 
