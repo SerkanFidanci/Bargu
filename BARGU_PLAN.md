@@ -313,7 +313,8 @@ Faz 8'den sonra proje sahibinin isteğiyle yapılıyor (yapım aşamasında).
 - Her üyenin izi çeyrek saatlik parçalar hâlinde telefonda, o çemberin geçmiş anahtarıyla şifrelenir. Sunucu parçaları 14 gün saklar, sonra siler. Sunucu konum görmez; yalnızca kimin izi olduğunu, hangi çeyrek saat olduğunu ve parçanın boyutunu (üç boydan biri) görür.
 - **Ücretli (Bargu+):** çemberde Bargu+ abonesi ya da denemesi süren biri varsa üyeler son 14 günü görür (karar 2026-10-15). Ödeyeni kalmayan çember zaten duraklar (Faz 9B).
 - Üyeler bir çemberin geçmişini yalnızca katıldıkları andan sonrası için görür; kendi izlerini her zaman görür.
-- Yalnızca o çembere tam konum paylaşılırken kaydedilir; hayalet modda, paylaşım kapalıyken ya da mahalle/şehir hassasiyetinde kaydedilmez.
+- Yalnızca o çembere tam konum paylaşılırken kaydedilir; hayalet modda, paylaşım kapalıyken ya da mahalle/şehir hassasiyetinde kaydedilmez. Hayalet moda geçince ya da paylaşım durunca henüz gönderilmemiş son parça da atılır: hiçbir şey gitmez (karar 2026-10-15, QA G6).
+- Kapatma, o anda süren gönderimle yarışmaz: kapattıktan sonra sunucuya hiçbir parça yazılmaz (QA G1; Faz 8 onayından önce).
 - **Kapalı başlar:** paylaşan kişi o çember için açıkça açmadıkça hiçbir iz kaydedilmez ve gönderilmez. Çembere katılmak geçmişe onay sayılmaz.
 - **Kimin gördüğünü görür:** paylaşan kişi, geçmişinin hangi çemberlerde açık olduğunu ve onu kimlerin görebildiğini her an görür. Çembere yeni üye girince "artık X de geçmişini görebilir" bildirimi gelir; 7 günlük paylaşım hatırlatmasında geçmiş de yazar.
 - Tek dokunuşla kapatılır; kapatınca sunucudaki parçalar da silinir.
@@ -332,8 +333,18 @@ Faz 8'den sonra proje sahibinin isteğiyle yapılıyor (yapım aşamasında).
 - **Hukuki görüş (hemen başlar, 1 Kasım 2026'dan önce; proje sahibi):** 5651 sayılı kanunun "sosyal ağ sağlayıcı" tanımı "konum" paylaşımını açıkça sayıyor. 15 yaş altı yönetmeliği 1 Kasım 2026'da yürürlükte; mevcut hesaplar 31 Mart 2027'ye kadar yaş doğrulamalı. Avukat görüşüne göre ADR: yaş sınırı (15+ / 18+), yaş doğrulama yolu (gerekirse e-Devlet yaş belirteci), 15–18 yaş için kapalı varsayılanlar ve ebeveyn araçları.
 - **KVKK 2026 kuralları:** her amaç için ayrı rıza (konum paylaşımı, arka planda konum, her bildirim türü ayrı); aydınlatma metni ile rıza metni ayrı, birleşik "okudum, kabul ediyorum" kutusu yok. Rıza hiçbir zaman ilgisiz bir özelliğin şartı olmaz.
 - **Yurt dışı sunucu:** KVKK standart sözleşmesi imzalanır, 5 iş günü içinde KVKK'ya bildirilir. Şifreleme konumu korur ama hesap, çember üyeliği ve bildirim token'ı yine kişisel veridir.
+- **Faz 8 test bulguları** (QA raporları `QA-RAPOR-Faz8-ve-planlama.md` ve `QA-RAPOR-2-Cember-gecmisi.md`; proje sahibi 2026-10-15'te Faz 9'a bıraktı):
+  - **O2 + O3, etkinlik QR güvenliği:** sahip, etkinliğin bütün davetlerini (başka üyenin ürettiği QR dahil) iptal edebilsin ya da yalnızca sahip QR üretsin; "Yeni kod" iptal başarısızsa uyarsın. THREAT_MODEL'deki "Ele geçen etkinlik QR'ı" satırı buna göre düzelir.
+  - **O5, hatırlatıcı temizliği:** etkinlik bitince, ayrılınca ya da hesaptan çıkınca çıkış hatırlatıcısı iptal edilir ve telefondaki meeting:* kayıtları silinir.
+  - **O4, planlama belgelerinde sunucu yetkisi:** buluşma belgesi hep ortak, oy satırı anket + yazara bağlı, anketi yalnızca başlatan ya da sahip kapatır, üye başına belge kotası.
+  - **O1, süpürme ölçeği:** çok etkinlik aynı anda bitince süpürme kilit süresini aşmasın (tek geçişte tarama ya da çember anahtar indeksi, sahip belirteçli kilit, "şimdi bitir" yalnızca kendi çemberini temizler).
+  - **O6, QR ile katıl–ayrıl döngüsü:** aynı QR ile kişi başına tek giriş, epoch üretimine hız sınırı.
+  - **O7:** 50 kişilik etkinlik yük testi. D1–D10 küçük bulgular iş listesine.
+  - **G2, yeni izleyici uyarısı uygulama kapalıyken:** geçmişi açık çemberlerde "yeni biri katıldı" bildirimi "artık geçmişini görebilir" desin ya da arka plan işleyicisi kontrol etsin.
+  - **G3, geçmiş listeleme sınırı:** istek başına aralık ve parça sınırı, kullanıcı başına hız sınırı.
+  - **G4, G5, G7–G10:** iş listesine (hassasiyet düşünce anahtar ile bayrak tutarlılığı, yeniden kurulumda eski parçaları silebilme, toplu katılımda bildirim yağmuru, ağ hatasını "veri yok" gibi göstermeme).
 - Store: iOS privacy manifest + nutrition label, Play background location beyanı + video, Data safety formu.
-- **DoD:** OWASP MASVS-PRIVACY checklist tamam; hukuki görüş ve yaş ADR'si yazılı; rıza ekranları amaç başına ayrı (test).
+- **DoD:** OWASP MASVS-PRIVACY checklist tamam; hukuki görüş ve yaş ADR'si yazılı; rıza ekranları amaç başına ayrı (test); Faz 8 QA bulgularından O2, O3, O4, O5, G2 ve G3 kapalı ve test oturumunun ilgili senaryoları yeşil.
 
 ### Faz 9B — Para Modeli & Yayın Öncesi Ürün
 Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırması (Bölüm 0).
