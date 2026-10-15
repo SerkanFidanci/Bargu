@@ -28,7 +28,14 @@ import { api, onSignedOut, useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
 import { memberName } from '../circles/names';
 import { useCircleKeys } from '../circles/circle-sync';
-import { circleSync, keys, liveRequest, onLiveMessage, onOnline } from '../live/live-session';
+import {
+  circleSync,
+  keys,
+  liveRequest,
+  onFirstLoad,
+  onLiveMessage,
+  onOnline,
+} from '../live/live-session';
 import { loadMuteSettings } from '../notifications/mute-session';
 import { isMuted } from '../notifications/mutes';
 import { loadContacts } from '../notifications/push-contacts';
@@ -53,8 +60,12 @@ import {
   isSharingWith,
   loadSharing,
   saveSharing,
+  SHARING_REVIEW_KEY,
   type SharingSettings,
   useSharing,
+  useSharingReview,
+  withAllShared,
+  withNothingShared,
 } from './sharing';
 import { stopTracking } from './tracker';
 
@@ -191,6 +202,27 @@ export const locationEngine = createLocationEngine({
 /** An arrival or departure older than this when it arrives (it waited for a key) is not shown. */
 const PLACE_EVENT_FRESH_MS = 10 * 60_000;
 
+// A reinstall or a new phone: earlier choices stayed on the old phone, so nothing is shared with
+// the circles the account is already in until the user chooses (before anything is sent).
+onFirstLoad((circles) => {
+  const active = circles.filter((circle) => circle.myStatus === 'active').map((c) => c.id);
+  updateSharing((current) => withNothingShared(current, active));
+  vault().set(SHARING_REVIEW_KEY, '1');
+  useSharingReview.setState({ pending: true });
+});
+
+/** The user chose after a reinstall: all circles get the location again, or they pick each. */
+export function finishSharingReview(shareAll: boolean): void {
+  if (shareAll) {
+    const active = (cachedCircles() ?? [])
+      .filter((circle) => circle.myStatus === 'active')
+      .map((circle) => circle.id);
+    updateSharing((current) => withAllShared(current, active));
+  }
+  if (isVaultOpen()) vault().delete(SHARING_REVIEW_KEY);
+  useSharingReview.setState({ pending: false });
+}
+
 /** Changes one circle's sharing (or the ghost mode); takes effect at once. */
 export function updateSharing(change: (current: SharingSettings) => SharingSettings): void {
   const next = change(loadSharingSettings());
@@ -205,8 +237,8 @@ const receiver = createReceiver({
   store: vault,
   // A poke: a buzz, their avatar bounces, and a line saying who it was.
   onStatus: receivedStatus,
-  onProfile: (userId, profile) => {
-    void receivedProfile(userId, profile).catch(() => undefined);
+  onProfile: (userId, profile, senderDeviceId) => {
+    void receivedProfile(userId, profile, senderDeviceId).catch(() => undefined);
   },
   // Someone arrived at or left a place: a line saying who and where, unless muted.
   onPlace: (circleId, userId, event) => {
@@ -237,6 +269,9 @@ let restored = false;
 /** The open app's start: settings and the last known locations from the vault, once per run. */
 export function restoreLocations(): void {
   loadSharingSettings();
+  if (isVaultOpen() && vault().get(SHARING_REVIEW_KEY) === '1') {
+    useSharingReview.setState({ pending: true });
+  }
   if (restored) return;
   restored = true;
   receiver.restore();
@@ -303,6 +338,8 @@ onOnline(() => {
 // Keys arrived or trust changed: messages that waited for them get another try.
 useCircleKeys.subscribe(() => {
   receiver.retryWaiting();
+  // A member's new phone just became trusted: their photo key may be due back to them.
+  if (isVaultOpen()) void publishProfile().catch(() => undefined);
 });
 
 let knownCircles = new Set<string>();
@@ -341,6 +378,7 @@ onSignedOut(() => {
   sharingLoaded = false;
   restored = false;
   useSharing.setState(DEFAULT_SHARING, true);
+  useSharingReview.setState({ pending: false });
   useLiveUntil.setState({ until: 0 });
   void stopTracking().catch(() => undefined);
 });

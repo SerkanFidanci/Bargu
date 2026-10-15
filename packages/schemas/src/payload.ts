@@ -67,6 +67,8 @@ export const statusPayloadSchema = z
   })
   .strict();
 
+const photoKeySchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
+
 /**
  * The sender's profile photo key (docs/ADR/0014): with it members open the encrypted photo the
  * server keeps under its `photo.id`. Null: no photo (the emoji avatar shows).
@@ -74,10 +76,17 @@ export const statusPayloadSchema = z
 export const profilePayloadSchema = z
   .object({
     kind: z.literal('profile'),
-    photo: z
-      .object({ id: z.uuid(), key: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })
-      .strict()
-      .nullable(),
+    photo: z.object({ id: z.uuid(), key: photoKeySchema }).strict().nullable(),
+    /**
+     * Photo keys of members whose phone changed (reinstall, new phone), handed back so their new
+     * phone can open its own photo again; it checks the key against the photo the server holds.
+     * At most two per message (the padded size); more go with the next one.
+     */
+    returns: z
+      .array(z.object({ userId: z.uuid(), id: z.uuid(), key: photoKeySchema }).strict())
+      .min(1)
+      .max(2)
+      .optional(),
     ts: timestamp,
   })
   .strict();

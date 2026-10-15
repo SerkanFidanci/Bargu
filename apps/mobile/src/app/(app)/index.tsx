@@ -12,6 +12,7 @@ import { useAuth } from '@/features/auth/auth-store';
 import { useNow } from '@/features/location/clock';
 import { useMyFix } from '@/features/location/engine';
 import { LocationBanner } from '@/features/location/location-banner';
+import { NewPhoneCard } from '@/features/location/new-phone-card';
 import { SwarmLayer, SwarmPanel } from '@/features/dev/swarm-panel';
 import { DEV_TOOLS_ENABLED } from '@/config/env';
 import { seersOf, useSharing } from '@/features/location/sharing';
@@ -112,6 +113,7 @@ export default function HomeScreen() {
         />
         {weather === null ? null : <WeatherChip here={weather} />}
         <LocationBanner />
+        <NewPhoneCard onChoose={() => circles.current?.present()} />
         {DEV_TOOLS_ENABLED ? <SwarmPanel /> : null}
       </Animated.View>
       <Animated.View

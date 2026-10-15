@@ -37,3 +37,14 @@ yüz, yer ve kimlik bilgisi demektir.
 - Fotoğrafın ilk kez görünmesi için arkadaşın uygulamasının açık olup profil mesajını alması
   gerekir (canlı ya da bağlanınca).
 - Yeni telefona geçişte fotoğraf anahtarı taşınmaz; kullanıcı fotoğrafı yeniden seçer.
+
+## Ek (2026-10-15, Faz 7): yeniden kurulumda fotoğraf geri gelir
+
+Uygulamayı silip yeniden kurmak (ya da yeni telefon) cihaz anahtarlarını ve fotoğrafın anahtarını
+siler; fotoğraf herkeste dururken sahibinin kendi telefonunda kayboluyordu. Anahtarı sunucuda
+tutmak şifrelemeyi bozacağı için **çember arkadaşları geri verir**: fotoğrafın anahtarını bilen bir
+telefon, sahibinin cihazının değiştiğini görünce (yeni cihaz güvenilir olduktan sonra, yani
+değişen kimlik kabul edilince) anahtarı kendi `profile` mesajının `returns` alanında (en çok iki
+kişi) geri gönderir. Yeni telefon anahtarı yalnızca sunucunun o an tuttuğu fotoğrafı açabiliyorsa
+kabul eder (kimlik eşleşmeli, AEAD açılmalı), sonra fotoğrafı kendi mesajıyla yeniden duyurur.
+Sunucu yine bir şey görmez. Hiç çemberi olmayan biri fotoğrafı yeniden ekler.

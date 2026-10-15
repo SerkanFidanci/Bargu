@@ -11,6 +11,8 @@ import {
   seersOf,
   sharedCircles,
   type SharingSettings,
+  withAllShared,
+  withNothingShared,
 } from './sharing';
 import {
   card,
@@ -35,6 +37,20 @@ function settingsWith(
 
 describe('sharing settings', () => {
   const circleId = randomUuid();
+
+  it('start with nothing shared on a new phone, keeping choices it already has', () => {
+    const known = randomUuid();
+    const fresh = withNothingShared(
+      settingsWith({ [known]: { sharing: true, precision: 'city', until: null } }),
+      [known, circleId],
+    );
+    expect(isSharingWith(fresh, circleId, NOW)).toBe(false);
+    expect(fresh.circles[known]).toEqual({ sharing: true, precision: 'city', until: null });
+    // "Share with all": every circle gets the exact location again.
+    const all = withAllShared(fresh, [known, circleId]);
+    expect(all.circles[circleId]).toEqual({ sharing: true, precision: 'exact', until: null });
+    expect(all.circles[known]?.precision).toBe('exact');
+  });
 
   it('shares with a joined circle by default, until a timed share runs out', () => {
     expect(isSharingWith(DEFAULT_SHARING, circleId, NOW)).toBe(true);

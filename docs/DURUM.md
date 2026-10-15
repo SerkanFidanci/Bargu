@@ -68,7 +68,14 @@ sürüm bu bilgisayarda derlendi ve sunucudan indirildi; proje sahibi kurdu, ç�
 - **iPhone**: bildirim eklentisi (Swift) yazıldı ve Xcode projesine ekleniyor (Linux'ta üretilip
   kontrol edildi); APNs gönderimi hazır. Apple hesabı gelince açılır.
 - **Test arkadaşı**: `places` (açabildiği yerler), `arrive` / `arrive:<ad>` (yere varır, sana
-  şifreli bildirim gider), `leave` (ayrılır); dürtmeleri artık şifreli bildirimli.
+  şifreli bildirim gider), `leave` (ayrılır); dürtmeleri artık şifreli bildirimli. Eski epoch'ta
+  kalan yerleri yeniden mühürler, arkadaşının fotoğraf anahtarını saklar ve telefonu değişince geri
+  verir (gerçek bir arkadaş telefonu gibi).
+- **Yeniden kurulum / yeni telefon** (proje sahibinin gözlemi, 2026-10-15): fotoğraf her yeniden
+  kurulumda kayboluyordu. Artık çember arkadaşlarının telefonları anahtarı şifreli olarak geri
+  verir; fotoğraf kendiliğinden döner (ADR 0014 eki). Gizlilik ayarları da yalnızca eski kurulumda
+  kaldığı için yeni kurulum artık **hiçbir çembere konum göndermeden** başlar; haritada "Hepsiyle
+  paylaş" ya da "Çemberleri tek tek seç" kartı çıkar (önceden sessizce herkese tam konum gidiyordu).
 
 ### Test sonuçları
 

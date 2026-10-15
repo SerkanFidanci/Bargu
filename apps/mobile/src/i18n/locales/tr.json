@@ -463,6 +463,12 @@
       "offDetail": "Çemberlerin seni seçtiğin ayrıntıda görüyor.",
       "freezeDetail": "Son konumun haritada kalır, yenisi gönderilmez.",
       "hideDetail": "Herkesin haritasından kaybolursun, konum gönderilmez."
+    },
+    "newPhone": {
+      "title": "Bu telefonda konumun kimseyle paylaşılmıyor",
+      "body": "Uygulama yeniden kuruldu. Gizlilik ayarların eski kurulumda kaldı; bu yüzden konumun sen seçene kadar hiçbir çembere gitmiyor.",
+      "shareAll": "Hepsiyle paylaş (tam konum)",
+      "choose": "Çemberleri tek tek seç"
     }
   },
   "map": {

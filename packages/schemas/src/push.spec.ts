@@ -119,3 +119,25 @@ describe('push bodies', () => {
     expect(bumpRequestSchema.parse({ envelope, pushes: [] }).pushes).toEqual([]);
   });
 });
+
+describe('profile messages', () => {
+  const photo = { id: uuid, key: 'A'.repeat(43) };
+
+  it("may hand back up to two members' photo keys", () => {
+    const given = { userId: uuid, id: uuid, key: 'B'.repeat(43) };
+    const profile = { kind: 'profile', photo: null, returns: [given, given], ts: 1 };
+    expect(payloadSchema.parse(profile)).toEqual(profile);
+    expect(payloadSchema.safeParse({ ...profile, returns: [given, given, given] }).success).toBe(
+      false,
+    );
+    expect(payloadSchema.safeParse({ ...profile, returns: [] }).success).toBe(false);
+    expect(
+      payloadSchema.safeParse({ ...profile, returns: [{ ...given, key: 'short' }] }).success,
+    ).toBe(false);
+    expect(payloadSchema.parse({ kind: 'profile', photo, ts: 1 })).toEqual({
+      kind: 'profile',
+      photo,
+      ts: 1,
+    });
+  });
+});

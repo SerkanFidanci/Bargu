@@ -27,6 +27,7 @@ import { circlesKey } from '../circles/circle-cache';
 import { keys, liveRequest } from '../live/live-session';
 import { queryClient } from '../query-client';
 import { isVaultOpen, vault } from '../storage/vault';
+import { type PhotoReturn, returnsFor, withCurrentDevices } from './photo-returns';
 
 type ProfilePayload = Extract<Payload, { kind: 'profile' }>;
 
@@ -45,7 +46,10 @@ const imageKey = (userId: string) => `photo:img:${userId}`;
 
 const mineSchema = z.object({ id: z.string(), key: z.string(), image: z.string() }).strict();
 const cachedSchema = z.object({ id: z.string(), image: z.string() }).strict();
-const keysSchema = z.record(z.string(), z.object({ id: z.string(), key: z.string() }).strict());
+const keysSchema = z.record(
+  z.string(),
+  z.object({ id: z.string(), key: z.string(), deviceId: z.string().optional() }).strict(),
+);
 const publishedSchema = z.record(z.string(), z.string());
 
 /** base64 (the image tools) ↔ base64url (our encoding). */
@@ -111,41 +115,85 @@ async function send(envelopes: MessageEnvelope[]): Promise<void> {
 /**
  * Tells circles the current photo key (or that there is none), encrypted per circle. Done for
  * every circle whose epoch changed since (new members get it), so `force` only after a change.
+ * Also hands back the photo keys of members whose phone changed (photo-returns.ts).
  */
 export async function publishProfile(force = false): Promise<void> {
   const device = useAuth.getState().device;
+  const me = useAuth.getState().userId;
   if (device === null || !isVaultOpen()) return;
   const mine = read(MINE_KEY, mineSchema.nullable(), null);
   const published = read(PUBLISHED_KEY, publishedSchema, {});
-  const circles = circlesWithOthers().filter(
-    (circle) => force || published[circle.id] !== `${String(circle.epoch)}:${mine?.id ?? '-'}`,
-  );
-  if (circles.length === 0) return;
-  // Without a photo, nothing to tell a circle that never heard of one.
-  if (mine === null && !force) {
-    const next = { ...published };
-    for (const circle of circles) next[circle.id] = `${String(circle.epoch)}:-`;
-    vault().set(PUBLISHED_KEY, JSON.stringify(next));
-    return;
-  }
-  const payload: ProfilePayload = {
-    kind: 'profile',
-    photo: mine === null ? null : { id: mine.id, key: mine.key },
-    ts: Date.now(),
-  };
   const store = keys();
-  const envelopes = circles.map(
-    (circle) =>
+  const all = circlesWithOthers();
+  const known = withCurrentDevices(read(KEYS_KEY, keysSchema, {}), all);
+  const marker = (circle: Circle) => `${String(circle.epoch)}:${mine?.id ?? '-'}`;
+  const due = all
+    .map((circle) => ({
+      circle,
+      returns: returnsFor(circle, known, (member) => store.trusted(member), me),
+    }))
+    .filter(
+      ({ circle, returns }) =>
+        returns.length > 0 || force || published[circle.id] !== marker(circle),
+    );
+  vault().set(KEYS_KEY, JSON.stringify(known));
+  if (due.length === 0) return;
+  const next = { ...published };
+  const envelopes: MessageEnvelope[] = [];
+  const returned = new Set<string>();
+  for (const { circle, returns } of due) {
+    next[circle.id] = marker(circle);
+    // Without a photo or anything to give back, nothing to tell a circle that never heard of one.
+    if (mine === null && !force && returns.length === 0) continue;
+    const payload: ProfilePayload = {
+      kind: 'profile',
+      photo: mine === null ? null : { id: mine.id, key: mine.key },
+      ...(returns.length === 0 ? {} : { returns }),
+      ts: Date.now(),
+    };
+    for (const given of returns) returned.add(given.userId);
+    envelopes.push(
       encryptMessage({
         state: { senderKey: store.ownKey(circle), nextSeq: store.reserveSeq(circle) },
         sender: device,
         payload,
       }).envelope,
-  );
-  await send(envelopes);
-  const next = { ...published };
-  for (const circle of circles) next[circle.id] = `${String(circle.epoch)}:${mine?.id ?? '-'}`;
+    );
+  }
+  if (envelopes.length > 0) await send(envelopes);
   vault().set(PUBLISHED_KEY, JSON.stringify(next));
+  if (returned.size > 0) {
+    // Given back to their current phone: not again, unless it changes once more.
+    vault().set(
+      KEYS_KEY,
+      JSON.stringify(withCurrentDevices(read(KEYS_KEY, keysSchema, {}), all, returned)),
+    );
+  }
+}
+
+/**
+ * A circle-mate handed back this user's own photo key (this phone was reinstalled or is new): kept
+ * only if it opens the photo the server holds for this user right now.
+ */
+async function recoverOwnPhoto(given: PhotoReturn): Promise<void> {
+  const userId = useAuth.getState().userId;
+  if (userId === null || hasOwnPhoto()) return;
+  const photo = photoSchema.parse(await api.authed(`/v1/users/${userId}/photo`));
+  if (photo.photoId !== given.id) return;
+  let image: Uint8Array;
+  try {
+    image = openProfilePhoto(
+      fromBase64url(given.key, 32),
+      photo.photoId,
+      fromBase64url(photo.ciphertext),
+    );
+  } catch {
+    return;
+  }
+  const image64 = toBase64url(image);
+  vault().set(MINE_KEY, JSON.stringify({ id: given.id, key: given.key, image: image64 }));
+  usePhotos.setState({ [userId]: dataUri(image64) });
+  await publishProfile(true);
 }
 
 /** Sets a new profile photo: encrypted here, uploaded, its key sent to every circle. */
@@ -191,7 +239,14 @@ export function hasOwnPhoto(): boolean {
  * A member's profile message: remember the key, fetch and open the photo if it is new. The photo
  * is decrypted here and kept in the encrypted vault; the server only ever had ciphertext.
  */
-export async function receivedProfile(userId: string, profile: ProfilePayload): Promise<void> {
+export async function receivedProfile(
+  userId: string,
+  profile: ProfilePayload,
+  senderDeviceId?: string,
+): Promise<void> {
+  const me = useAuth.getState().userId;
+  const mineBack = profile.returns?.find((given) => given.userId === me);
+  if (mineBack !== undefined) await recoverOwnPhoto(mineBack).catch(() => undefined);
   const known = read(KEYS_KEY, keysSchema, {});
   if (profile.photo === null) {
     const rest = Object.fromEntries(Object.entries(known).filter(([id]) => id !== userId));
@@ -200,7 +255,10 @@ export async function receivedProfile(userId: string, profile: ProfilePayload): 
     dropPhoto(userId);
     return;
   }
-  vault().set(KEYS_KEY, JSON.stringify({ ...known, [userId]: profile.photo }));
+  vault().set(
+    KEYS_KEY,
+    JSON.stringify({ ...known, [userId]: { ...profile.photo, deviceId: senderDeviceId } }),
+  );
   const cached = read(imageKey(userId), cachedSchema.nullable(), null);
   if (cached?.id === profile.photo.id) return;
   const photo = photoSchema.parse(await api.authed(`/v1/users/${userId}/photo`));

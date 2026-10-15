@@ -115,3 +115,33 @@ export function endOfDay(now: number): number {
 
 /** The settings as the screens see them; changed only through `updateSharing` (live-session). */
 export const useSharing = create<SharingSettings>(() => DEFAULT_SHARING);
+
+/**
+ * A reinstalled app (or a new phone) knows none of the user's earlier choices, which stayed only
+ * on the old phone. Rather than the default (full precision to every circle), it starts sharing
+ * with none of the circles the account is already in, until the user chooses again.
+ */
+export function withNothingShared(
+  settings: SharingSettings,
+  circleIds: readonly string[],
+): SharingSettings {
+  const circles = { ...settings.circles };
+  for (const id of circleIds) {
+    circles[id] ??= { sharing: false, precision: 'exact', until: null };
+  }
+  return { ...settings, circles };
+}
+
+/** "Share with all of them": every listed circle gets the full location again, without end. */
+export function withAllShared(
+  settings: SharingSettings,
+  circleIds: readonly string[],
+): SharingSettings {
+  const circles = { ...settings.circles };
+  for (const id of circleIds) circles[id] = { sharing: true, precision: 'exact', until: null };
+  return { ...settings, circles };
+}
+
+/** Whether to ask the user to choose again what each circle gets (see withNothingShared). */
+export const useSharingReview = create<{ pending: boolean }>(() => ({ pending: false }));
+export const SHARING_REVIEW_KEY = 'sharing:review:v1';

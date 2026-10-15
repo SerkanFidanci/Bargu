@@ -52,7 +52,7 @@ export interface ReceiverDeps {
   /** A member set or changed their status (emoji and short text). */
   onStatus?: (circleId: string, userId: string, status: StatusPayload) => void;
   /** A member's profile message (their photo key, docs/ADR/0014). */
-  onProfile?: (userId: string, profile: ProfilePayload) => void;
+  onProfile?: (userId: string, profile: ProfilePayload, senderDeviceId: string) => void;
   /** A member arrived at or left one of the circle's places (docs/ADR/0015). */
   onPlace?: (circleId: string, userId: string, event: PlaceEventPayload) => void;
   now?: () => number;
@@ -160,7 +160,7 @@ export function createReceiver({
         return 'removed';
       }
       if (payload.kind === 'profile') {
-        onProfile?.(sender.userId, payload);
+        onProfile?.(sender.userId, payload, envelope.senderDeviceId);
         return 'shown';
       }
       if (payload.kind === 'status') {

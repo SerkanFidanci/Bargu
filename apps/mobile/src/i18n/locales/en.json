@@ -463,6 +463,12 @@
       "offDetail": "Your circles see you at the detail you chose.",
       "freezeDetail": "Your last location stays on the map; no new one is sent.",
       "hideDetail": "You disappear from everyone’s map; no location is sent."
+    },
+    "newPhone": {
+      "title": "Your location is shared with no one on this phone",
+      "body": "The app was reinstalled. Your privacy settings stayed with the old install, so your location goes to no circle until you choose.",
+      "shareAll": "Share with all (exact location)",
+      "choose": "Choose circle by circle"
     }
   },
   "map": {

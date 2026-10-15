@@ -30,6 +30,11 @@ export interface CircleSyncDeps {
   keys: () => KeyStore;
   /** Things other people did (invited, accepted, joined, changed keys) to show in the app. */
   notify?: (notices: Notice[]) => void;
+  /**
+   * The very first load on this phone found circles the account is already in (a reinstall or a
+   * new phone): called before anything shows or sends them, so settings can be made safe first.
+   */
+  firstLoad?: (circles: Circle[]) => void;
   now?: () => number;
 }
 
@@ -44,6 +49,7 @@ export function createCircleSync({
   api,
   keys,
   notify = () => undefined,
+  firstLoad = () => undefined,
   now = Date.now,
 }: CircleSyncDeps) {
   const queues = new Map<string, Promise<void>>();
@@ -239,8 +245,11 @@ export function createCircleSync({
     /** Reloads every circle and syncs all of them (first connection, or a gap in events). */
     async reload(): Promise<void> {
       const circles = await api.list();
-      queryClient.setQueryData<Circle[]>(circlesKey, circles);
       const store = keys();
+      if (!store.noticesReady() && circles.some((circle) => circle.myStatus === 'active')) {
+        firstLoad(circles);
+      }
+      queryClient.setQueryData<Circle[]>(circlesKey, circles);
       for (const circleId of store.knownCircles()) {
         if (!circles.some((circle) => circle.id === circleId)) forget(circleId);
       }

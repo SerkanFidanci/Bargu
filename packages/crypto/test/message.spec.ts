@@ -141,6 +141,25 @@ describe('encryptMessage / decryptMessage', () => {
         expiresAt: maxTs,
         ts: maxTs,
       },
+      {
+        kind: 'place',
+        id: ids.place,
+        name: 'ࠀ'.repeat(40),
+        emoji: '❤'.repeat(16),
+        lat: -longest,
+        lng: -longest,
+        radius: 1_000,
+        ts: maxTs,
+      },
+      {
+        kind: 'profile',
+        photo: { id: ids.place, key: 'A'.repeat(43) },
+        returns: [
+          { userId: ids.aliceUser, id: ids.place, key: 'B'.repeat(43) },
+          { userId: ids.bobUser, id: ids.place, key: 'C'.repeat(43) },
+        ],
+        ts: maxTs,
+      },
     ];
     for (const payload of payloads) {
       const { envelope } = encryptMessage({

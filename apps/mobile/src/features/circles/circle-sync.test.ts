@@ -77,6 +77,7 @@ function setup() {
   };
   const store = new KeyStore(memoryStore(), me);
   const notify = jest.fn<undefined, [Notice[]]>();
+  const firstLoad = jest.fn<undefined, [Circle[]]>();
   // No garbage-collection timers: they would outlive the test.
   const queryClient = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
   const sync = createCircleSync({
@@ -84,6 +85,7 @@ function setup() {
     api: api as unknown as typeof circlesApi,
     keys: () => store,
     notify,
+    firstLoad,
     now: () => NOW,
   });
   /** Bob's sender key for the circle, wrapped for this phone. */
@@ -97,7 +99,7 @@ function setup() {
       sender: bob.device,
       recipient: verifyDeviceKeyBundle(exportDeviceKeyBundle(me.device)),
     });
-  return { me, bob, circle, api, store, queryClient, sync, fromBob, notify };
+  return { me, bob, circle, api, store, queryClient, sync, fromBob, notify, firstLoad };
 }
 
 describe('circle sync', () => {
@@ -159,6 +161,27 @@ describe('circle sync', () => {
     await expect(
       sync.apply([{ type: 'circle.changed', circleId: circle.id, epoch: circle.epoch }]),
     ).rejects.toThrow();
+  });
+
+  it('tells a new phone about circles it is already in, before they reach the cache', async () => {
+    const { circle, queryClient, sync, firstLoad } = setup();
+    firstLoad.mockImplementation(() => {
+      // Settings are made safe before anything can be sent to these circles.
+      expect(queryClient.getQueryData(circlesKey)).toBeUndefined();
+      return undefined;
+    });
+    await sync.reload();
+    expect(firstLoad).toHaveBeenCalledWith([circle]);
+    // Only the very first load on this phone: later reloads are ordinary.
+    await sync.reload();
+    expect(firstLoad).toHaveBeenCalledTimes(1);
+  });
+
+  it('says nothing to a brand-new account (no circles yet)', async () => {
+    const { api, sync, firstLoad } = setup();
+    api.list.mockResolvedValueOnce([]);
+    await sync.reload();
+    expect(firstLoad).not.toHaveBeenCalled();
   });
 
   it('reload drops circles this phone still had keys for but is no longer in', async () => {

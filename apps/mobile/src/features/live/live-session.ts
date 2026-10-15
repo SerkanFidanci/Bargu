@@ -1,4 +1,4 @@
-import type { ServerEvent } from '@bargu/schemas';
+import type { Circle, ServerEvent } from '@bargu/schemas';
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
@@ -64,11 +64,25 @@ export function keys(): KeyStore {
   return keyStore;
 }
 
+const firstLoadListeners = new Set<(circles: readonly Circle[]) => void>();
+
+/**
+ * This phone's first load found circles the account is already in (reinstall, new phone); runs
+ * before they show or get anything. Returns the unsubscribe.
+ */
+export function onFirstLoad(listener: (circles: readonly Circle[]) => void): () => void {
+  firstLoadListeners.add(listener);
+  return () => firstLoadListeners.delete(listener);
+}
+
 export const circleSync = createCircleSync({
   queryClient,
   api: circlesApi,
   keys,
   notify: announce,
+  firstLoad: (circles) => {
+    for (const listener of firstLoadListeners) listener(circles);
+  },
 });
 
 const stream = new EventStream({
