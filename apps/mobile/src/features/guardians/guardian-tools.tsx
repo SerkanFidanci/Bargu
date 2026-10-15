@@ -85,18 +85,35 @@ export function GuardianTools({ view }: { view: GuardianView }) {
           day: 'numeric',
           month: 'long',
         });
+  // Display names only (QA 5b G-1); someone who set none is described, not named.
+  const someone = t('guardians.tools.someone');
   const what = (request: GuardianRequest) => {
     switch (request.kind) {
       case 'friend':
-        return t('guardians.tools.askFriend', { name: request.name ?? '' });
+        return t('guardians.tools.askFriend', { name: request.name ?? someone });
       case 'group':
         return t('guardians.tools.askGroup', {
           name: request.name ?? '',
           count: request.memberCount ?? 0,
-          by: request.by ?? '',
+          by: request.by ?? someone,
         });
       case 'event':
-        return t('guardians.tools.askEvent', { name: request.name ?? '', by: request.by ?? '' });
+        return t('guardians.tools.askEvent', {
+          name: request.name ?? '',
+          by: request.by ?? someone,
+        });
+      case 'befriends':
+        return t('guardians.tools.askBefriends', { by: request.by ?? someone });
+      case 'joins':
+        return t('guardians.tools.askJoins', {
+          by: request.by ?? someone,
+          name: request.name ?? '',
+        });
+      case 'invites':
+        return t('guardians.tools.askInvites', {
+          by: request.by ?? someone,
+          name: request.name ?? '',
+        });
       case 'gone':
         return t('guardians.tools.askGone');
     }

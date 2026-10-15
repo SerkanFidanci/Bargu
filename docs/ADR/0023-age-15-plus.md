@@ -107,6 +107,11 @@ Proje sahibinin kararları (PM üzerinden, 2026-10-15):
   arkadaş isteği ve gruba davet yalnızca bu ayara bakar. Böylece "alınmış ama bulunamadı" yalnızca
   "bu kişi bulunmak istemiyor" demektir. Ayar "Ben → Gizlilik ve hesap → Bulunabilirlik"tedir
   (`GET/PUT /v1/me/findable`).
+  - **Kabul edilen kalan risk (QA 5b G-2):** 18+ hesaplar varsayılan olarak bulunabilir olduğu için
+    "alınmış ama bulunamadı" sonucu hâlâ olasılık olarak 15–17'ye işaret eder. Kesin değildir
+    (ayarı kapatan yetişkinler de aynı görünür) ve saatte sınırlı kontrol vardır. Kapatmak için ya
+    herkes varsayılan olarak bulunamaz olmalı (arkadaş eklemeyi zorlaştırır) ya da müsaitlik
+    kontrolü kaldırılmalıdır; ikisi de seçilmedi.
 
 ### 2. Belirteç ve geçiş dönemi
 
@@ -200,8 +205,11 @@ ekranda görür. Ebeveyn bağlantısı konum vermez; ebeveyn çocuğun konumunu 
 - **Ebeveynin gördüğü:**
   - çocuğun kullanıcı adı, adı, yaş grubu, bağlantı tarihi;
   - son 7 günün günlük kullanım süresi (dakika);
-  - çocuğun çemberleri ve içindeki kişiler (ad ve kullanıcı adı), yani çocuğun konumunu
-    görebilecek herkes;
+  - çocuğun çemberleri ve içindeki kişiler, yani çocuğun konumunu görebilecek herkes. Yalnızca
+    görünen adları gösterilir, kullanıcı adları gösterilmez (proje sahibinin kararı, QA 5b G-1):
+    ebeveyn bu kişileri aratıp bulamaz. Onay bekleyen isteklerde de davet edenin ve arkadaşın
+    yalnızca görünen adı gösterilir. Bu kişiler bundan habersizdir; /gizlilik bunu herkes için
+    yazar;
   - bekleyen onay istekleri;
   - koyduğu ayarlar.
 - **Ebeveynin görmediği:** konum, konum geçmişi, durum mesajı, yerler, etkinlik belgeleri. Bunlar
@@ -249,6 +257,22 @@ Uygulama (5c, migration 0023):
   saklanmaz, normal cevap döner. Ebeveyn "Onayla" deyince sunucu katılımı çocuğun adına yapar
   (`POST .../requests/:id/approve`); kod bu arada çalışmaz olduysa `409 REQUEST_FAILED`. "Onaylama"
   isteği siler. Cevapsız istek 7 gün sonra işçiyle silinir.
+- **İki yön (QA 5c F-2, migration 0024):** "Yeni kişi onayı" çocuğun çevresine giren herkes için
+  geçerlidir, yalnızca çocuğun katılması için değil:
+  - **Çocuk katılmak ister** (başkasının kodu, linki ya da kullanıcı adıyla arkadaşlık isteği):
+    istek saklanır, çocuk `403 GUARDIAN_APPROVAL` alır.
+  - **Biri çocuğun koduyla gelir** (çocuğun grup ya da etkinlik QR'ı, arkadaş kodu): gelen kişi
+    katılmaz, bekleyen üyelik olarak istek saklanır ve `403 APPROVAL_PENDING` alır. Bu cevap yalnızca
+    bir onay beklendiğini söyler; kimin onayı ya da neden olduğunu söylemez. Yine de gelen kişi, kodu
+    verenin bir onaya bağlı olduğunu çıkarabilir; bu kabul edilen bir sınırdır. Ebeveyn onaylarsa
+    sunucu katılımı gelen kişinin adına yapar, kişi çemberin olayıyla haber alır.
+  - **Çocuk kullanıcı adıyla davet eder** (kendi grubuna): davet gitmez, istek saklanır, çocuk
+    `403 GUARDIAN_APPROVAL` alır; ebeveyn onaylarsa davet çocuğun adına gider.
+  - Çocuğun kendi ebeveyni bu kurala takılmaz (çocuğun koduyla gelebilir, davet edilebilir).
+  - Çocuğun bulunduğu bir gruba başka bir üyenin koduyla ya da davetiyle gelen kişi onay beklemez;
+    ebeveyn onu görünümde görür, çocuk gruptan çıkabilir.
+  - İki 15–17 kişi birbirinin koduyla eşleşirse önce gelenin, sonra kodu verenin ebeveyni onaylar.
+  - Ebeveyne giden görünümde istekler yalnızca görünen adlarla yazar (QA 5b G-1).
 - **Kullanım süresi** (`app.usage_days`): Çocuğun telefonu uygulamanın ön planda kaldığı süreyi kendi
   takviminin günü için sayar (şifreli kasada, yeniden başlatmada sıfırlanmaz). Uygulama arka plana
   geçince ve açıkken en çok 15 dakikada bir günün toplamını gönderir (`PUT /v1/guardians/usage`).
@@ -257,7 +281,9 @@ Uygulama (5c, migration 0023):
   olayıyla yeniler. Sınır dolunca uygulamanın yerine "Bugünlük süren doldu" ekranı gelir; konum
   paylaşımı arka planda sürer, "Paylaşımı durdur" düğmesi vardır. Ertesi gün kendiliğinden açılır.
   Telefon değiştirilmiş bir uygulamayla bunu atlatabilir; sınır bir güvenlik değil, ebeveynin
-  koyduğu bir kuraldır.
+  koyduğu bir kuraldır. Son bilinen kurallar ve günün sayacı şifreli kasada tutulur; uygulama
+  çevrimdışı açılsa da sınır geçerlidir (QA 5c F-1). Telefonun saati geri alınarak ya da uygulama
+  verisi silinerek sayaç sıfırlanabilir; bu da aynı bilinen sınırdır.
 - **Son bağlantı bitince** ayarlar, istekler ve dakikalar veritabanı tetikleyicisiyle silinir.
 
 ### 6. İtiraz (md. 10)

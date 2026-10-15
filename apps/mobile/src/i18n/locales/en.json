@@ -18,7 +18,8 @@
     "sessionEnded": "You were signed out. Sign in again.",
     "ageRequired": "Choose your age band first. Go back and try again.",
     "friendInviteOnly": "At 15–17 you can join an event only with a friend’s QR code. Add the organiser as a friend first.",
-    "guardianApproval": "Waiting for your parent’s yes. You join once they say yes, and you will hear it."
+    "guardianApproval": "Waiting for your parent’s yes. You join once they say yes, and you will hear it.",
+    "approvalPending": "Joining with this invite needs an approval. Once given, it shows in your list."
   },
   "intro": {
     "skip": "Skip",
@@ -948,9 +949,9 @@
     "tools": {
       "requestsTitle": "Waiting for a yes",
       "noRequests": "Nothing is waiting.",
-      "askFriend": "Friendship: @{{name}}",
-      "askGroup": "Group: {{name}} ({{count}} people), invited by @{{by}}",
-      "askEvent": "Event: {{name}}, invited by @{{by}}",
+      "askFriend": "Friendship: {{name}}",
+      "askGroup": "Group: {{name}} ({{count}} people), invited by {{by}}",
+      "askEvent": "Event: {{name}}, invited by {{by}}",
       "askGone": "An invite that no longer works",
       "approve": "Say yes",
       "decline": "Say no",
@@ -973,8 +974,13 @@
       "limitIs": "Daily limit: {{minutes}} min",
       "defaults": "The default settings since the link was made.",
       "changedBy": "Last changed by {{name}}, {{date}}",
-      "saved": "Settings saved; your child was told."
-    }
+      "saved": "Settings saved; your child was told.",
+      "someone": "someone without a name",
+      "askBefriends": "{{by}} wants to be your child’s friend with their friend code",
+      "askJoins": "{{by}} wants to join {{name}} with your child’s code",
+      "askInvites": "Your child wants to invite {{by}} into {{name}}"
+    },
+    "unnamed": "Someone without a name"
   },
   "screenTime": {
     "upTitle": "Time is up for today",

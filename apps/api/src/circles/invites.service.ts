@@ -137,19 +137,21 @@ export class InvitesService {
    */
   async accept(auth: AuthContext, token: string): Promise<{ circleId: string }> {
     await this.limit(`invite-preview:${auth.userId}`, INVITE_LIMITS.previewsPerHour);
-    return this.redeem(auth, hashToken(token), false);
+    return this.redeem(auth, hashToken(token), {});
   }
 
   /**
-   * Comes in with a code (its hash): the caller's own, or a 15-17 child's once a parent said yes
-   * (`approved`, docs/ADR/0023 §5). Otherwise a child who needs that yes is asked to wait.
+   * Comes in with a code (its hash). With "a yes for new people" (docs/ADR/0023 §5) it may wait for
+   * a parent: the caller's own, when the caller is such a child (`own` skips it: that parent said
+   * yes), and the code owner's, when the code was made by such a child (`admit` skips it).
    */
   async redeem(
     auth: Pick<AuthContext, 'userId'>,
     tokenHash: Uint8Array,
-    approved: boolean,
+    approved: { own?: boolean; admit?: boolean },
   ): Promise<{ circleId: string }> {
-    if (!approved) await this.askGuardians(auth.userId, tokenHash);
+    if (approved.own !== true) await this.askGuardians(auth.userId, tokenHash);
+    if (approved.admit !== true) await this.askToAdmit(auth.userId, tokenHash);
     const { circleId, fresh } = await this.database
       .asUser(auth.userId, async (tx) => {
         // Someone 15-17 comes into an event only with a friend's code (docs/ADR/0023).
@@ -197,6 +199,24 @@ export class InvitesService {
     await this.events.publish([userId, ...parents], { type: 'guardians.changed' });
     await this.notifier.notify(parents, 'guardianApproval', userId);
     throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
+  }
+
+  /**
+   * The code was made by a 15-17 child whose parent says yes to new people (QA 5c F-2): the caller
+   * waits for that yes. The answer says only that it waits, not whose or why.
+   */
+  private async askToAdmit(userId: string, tokenHash: Uint8Array): Promise<void> {
+    const asked = await this.database.asUser(userId, (tx) =>
+      tx.execute<{ guardian_id: string; child_id: string }>(
+        sql`SELECT * FROM app.ask_guardians_to_admit(${tokenHash})`,
+      ),
+    );
+    const [first] = asked.rows;
+    if (first === undefined) return;
+    const parents = asked.rows.map((row) => row.guardian_id);
+    await this.events.publish([first.child_id, ...parents], { type: 'guardians.changed' });
+    await this.notifier.notify(parents, 'guardianApproval', first.child_id);
+    throw new ApiError(HttpStatus.FORBIDDEN, 'APPROVAL_PENDING');
   }
 
   async revoke(auth: AuthContext, inviteId: string): Promise<void> {

@@ -72,12 +72,20 @@ export type GuardianSettings = z.infer<typeof guardianSettingsSchema>;
 export const guardianRequestSchema = z
   .object({
     id: z.uuid(),
-    /** gone: the code stopped working meanwhile (a yes would do nothing). */
-    kind: z.enum(['friend', 'group', 'event', 'gone']),
-    /** The group's or event's name, or the friend's username. */
+    /**
+     * The child asks: friend (to befriend `name`), group / event (to join `name`, made by `by`).
+     * Someone comes to the child (QA 5c F-2): befriends (`by` used the child's friend code), joins
+     * (`by` used the child's code for `name`), invites (the child invites `by` into `name`).
+     * gone: the code stopped working meanwhile (a yes would do nothing).
+     */
+    kind: z.enum(['friend', 'group', 'event', 'befriends', 'joins', 'invites', 'gone']),
+    /**
+     * The group's or event's name, or the friend's display name. Never a username: a parent cannot
+     * look anyone up (the owner's decision on QA 5b G-1).
+     */
     name: z.string().nullable(),
     memberCount: z.number().int().nullable(),
-    /** Who made the code (username), when it was a code. */
+    /** Who made the code (display name), when it was a code. */
     by: z.string().nullable(),
     createdAt: z.number().int(),
   })
@@ -93,7 +101,14 @@ export type GuardianRules = z.infer<typeof guardianRulesSchema>;
 /** The minutes the app was open on a day of the child's phone (its own calendar). */
 export const usageReportSchema = z
   .object({
-    day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    day: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      // A day that exists (QA 5c F-3): 2026-13-45 is refused, not left to the database.
+      .refine((day) => {
+        const date = new Date(`${day}T00:00:00Z`);
+        return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(day);
+      }),
     minutes: z.number().int().min(0).max(1440),
   })
   .strict();
@@ -114,11 +129,8 @@ export const guardianViewSchema = z
           kind: z.enum(CIRCLE_KINDS),
           /** Null for a friendship (a pair): its one other member is the friend. */
           name: z.string().nullable(),
-          members: z.array(
-            z
-              .object({ username: z.string().nullable(), displayName: z.string().nullable() })
-              .strict(),
-          ),
+          /** Display names only: a parent cannot look these people up (QA 5b G-1). */
+          members: z.array(z.object({ displayName: z.string().nullable() }).strict()),
         })
         .strict(),
     ),

@@ -55,44 +55,45 @@ interface LinkRow extends Record<string, unknown> {
 /** Row of app.guardian_requests_of() (migrations/0023). */
 interface RequestRow extends Record<string, unknown> {
   id: string;
-  kind: 'invite' | 'friend';
+  kind: 'invite' | 'friend' | 'admit' | 'member';
   circle_kind: 'pair' | 'friends' | 'family' | 'event' | null;
   circle_name: string | null;
   member_count: number | null;
-  inviter_username: string | null;
-  username: string | null;
+  code_works: boolean;
+  inviter_display_name: string | null;
+  other_display_name: string | null;
   created_at: string;
 }
 
+/** A waiting request as both sides see it: display names only (QA 5b G-1). */
 function request(row: RequestRow): GuardianRequest {
-  const at = new Date(row.created_at).getTime();
-  if (row.kind === 'friend') {
-    return {
-      id: row.id,
-      kind: 'friend',
-      name: row.username,
-      memberCount: null,
-      by: null,
-      createdAt: at,
-    };
-  }
-  // A code: a friend's (no circle), a group's or an event's; gone when it stopped working.
-  const kind =
-    row.inviter_username === null
-      ? 'gone'
-      : row.circle_kind === null || row.circle_kind === 'pair'
-        ? 'friend'
-        : row.circle_kind === 'event'
-          ? 'event'
-          : 'group';
-  return {
+  const base = {
     id: row.id,
-    kind,
-    name: kind === 'friend' ? row.inviter_username : row.circle_name,
     memberCount: row.member_count,
-    by: row.inviter_username,
-    createdAt: at,
+    createdAt: new Date(row.created_at).getTime(),
   };
+  const circle = row.circle_kind === null || row.circle_kind === 'pair' ? null : row.circle_kind;
+  switch (row.kind) {
+    case 'friend':
+      return { ...base, kind: 'friend', name: row.other_display_name, by: null };
+    case 'member':
+      return { ...base, kind: 'invites', name: row.circle_name, by: row.other_display_name };
+    case 'admit':
+      if (!row.code_works) return { ...base, kind: 'gone', name: null, by: null };
+      return circle === null
+        ? { ...base, kind: 'befriends', name: null, by: row.other_display_name }
+        : { ...base, kind: 'joins', name: row.circle_name, by: row.other_display_name };
+    case 'invite':
+      if (!row.code_works) return { ...base, kind: 'gone', name: null, by: null };
+      return circle === null
+        ? { ...base, kind: 'friend', name: row.inviter_display_name, by: row.inviter_display_name }
+        : {
+            ...base,
+            kind: circle === 'event' ? 'event' : 'group',
+            name: row.circle_name,
+            by: row.inviter_display_name,
+          };
+  }
 }
 
 interface CardRow extends Record<string, unknown> {
@@ -318,7 +319,8 @@ export class GuardiansService {
           name: circle.name,
           members: circle.members
             .filter((member) => member.userId !== childId && member.status === 'active')
-            .map((member) => ({ username: member.username, displayName: member.displayName })),
+            // Display names only (QA 5b G-1): a parent cannot look these people up.
+            .map((member) => ({ displayName: member.displayName })),
         })),
     };
   }
@@ -366,9 +368,11 @@ export class GuardiansService {
       }
       const result = await tx.execute<{
         child_id: string;
-        kind: 'invite' | 'friend';
+        kind: 'invite' | 'friend' | 'admit' | 'member';
         token_hash: Buffer | null;
         username: string | null;
+        newcomer_id: string | null;
+        circle_id: string | null;
       }>(sql`SELECT * FROM app.take_guardian_request(${requestId})`);
       const [row] = result.rows;
       if (row?.child_id !== found.row.child_id) {
@@ -380,21 +384,43 @@ export class GuardiansService {
     let done = false;
     if (yes) {
       try {
-        if (taken.kind === 'invite' && taken.token_hash !== null) {
-          await this.invites.redeem({ userId: childId }, new Uint8Array(taken.token_hash), true);
-        } else if (taken.username !== null) {
-          await this.circles.requestFriend({ userId: childId }, taken.username, true);
-        }
+        await this.carryOut(taken);
         done = true;
-      } catch {
-        // The code expired, the circle filled up, the name is gone: nothing to do any more.
-        done = false;
+      } catch (error) {
+        // The way in now waits for another child's parent (two 15-17s): this yes is given.
+        // Otherwise the code expired, the circle filled up, the name is gone: nothing to do.
+        done = error instanceof ApiError && error.code === 'APPROVAL_PENDING';
       }
     }
     await this.changed([childId, ...(await this.parentsOf(childId))]);
     await this.notifier.notify([childId], done ? 'guardianApproved' : 'guardianDeclined', linkId);
     if (yes && !done) throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
     return { done };
+  }
+
+  /** Does what a parent said yes to, as whoever asked for it. */
+  private async carryOut(taken: {
+    child_id: string;
+    kind: 'invite' | 'friend' | 'admit' | 'member';
+    token_hash: Buffer | null;
+    username: string | null;
+    newcomer_id: string | null;
+    circle_id: string | null;
+  }): Promise<void> {
+    const child = { userId: taken.child_id };
+    const hash = taken.token_hash === null ? null : new Uint8Array(taken.token_hash);
+    if (taken.kind === 'invite' && hash !== null) {
+      await this.invites.redeem(child, hash, { own: true });
+    } else if (taken.kind === 'friend' && taken.username !== null) {
+      await this.circles.requestFriend(child, taken.username, true);
+    } else if (taken.kind === 'admit' && hash !== null && taken.newcomer_id !== null) {
+      // The newcomer comes in with the child's code; their own parent (if any) already said yes.
+      await this.invites.redeem({ userId: taken.newcomer_id }, hash, { own: true, admit: true });
+    } else if (taken.kind === 'member' && taken.circle_id !== null && taken.username !== null) {
+      await this.circles.inviteUser(child, taken.circle_id, taken.username, true);
+    } else {
+      throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
+    }
   }
 
   /** The child's own rules, as the phone applies them (docs/ADR/0023 §5). */

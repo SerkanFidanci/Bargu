@@ -131,6 +131,7 @@ export default function PrivacyScreen() {
         now,
         (await fetchAge()).age,
         await guardiansApi.list(),
+        await fetchFindable(),
       );
       const saved = await saveExport(exportName(now), JSON.stringify(file, null, 2));
       if (saved) toast.success(t('privacy.exported'));

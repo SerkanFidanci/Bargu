@@ -67,9 +67,7 @@ export default function GuardianViewScreen() {
 
   const people = (circles: Circles) =>
     circles.map((circle, index) => {
-      const names = circle.members.map(
-        (member) => member.displayName ?? `@${member.username ?? ''}`,
-      );
+      const names = circle.members.map((member) => member.displayName ?? t('guardians.unnamed'));
       return (
         <View
           key={`${circle.kind}-${String(index)}`}

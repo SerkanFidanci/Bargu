@@ -375,8 +375,15 @@ export class CirclesService implements OnModuleInit {
   }
 
   /** Invites someone into a group by username; they join only if they accept. */
-  async inviteUser(auth: AuthContext, circleId: string, username: string): Promise<Circle> {
+  async inviteUser(
+    auth: Pick<AuthContext, 'userId'>,
+    circleId: string,
+    username: string,
+    /** A parent already said yes (docs/ADR/0023 §5, QA 5c F-2). */
+    approved = false,
+  ): Promise<Circle> {
     await this.limit(auth.userId);
+    if (!approved) await this.askGuardiansForMember(auth.userId, circleId, username);
     const circle = await this.database.asUser(auth.userId, async (tx) => {
       // Into an event only its admins invite (docs/ADR/0020; app.invite_user holds it too).
       const before = await this.mustRead(tx, circleId, auth.userId);
@@ -465,6 +472,24 @@ export class CirclesService implements OnModuleInit {
     const asked = await this.database.asUser(userId, (tx) =>
       tx.execute<{ guardian: string }>(
         sql`SELECT app.ask_guardians_for_friend(${username}) AS guardian`,
+      ),
+    );
+    const parents = asked.rows.map((row) => row.guardian);
+    if (parents.length === 0) return;
+    await this.events.publish([userId, ...parents], { type: 'guardians.changed' });
+    await this.notifier.notify(parents, 'guardianApproval', userId);
+    throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
+  }
+
+  /** A 15-17 child invites someone by username: that waits for a parent's yes too (QA 5c F-2). */
+  private async askGuardiansForMember(
+    userId: string,
+    circleId: string,
+    username: string,
+  ): Promise<void> {
+    const asked = await this.database.asUser(userId, (tx) =>
+      tx.execute<{ guardian: string }>(
+        sql`SELECT app.ask_guardians_for_member(${circleId}, ${username}) AS guardian`,
       ),
     );
     const parents = asked.rows.map((row) => row.guardian);

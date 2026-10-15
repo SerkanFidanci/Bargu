@@ -18,7 +18,8 @@
     "sessionEnded": "Oturumun kapandı. Tekrar giriş yap.",
     "ageRequired": "Önce yaş grubunu seç. Geri dönüp yeniden dene.",
     "friendInviteOnly": "15–17 yaşında bir etkinliğe yalnızca bir arkadaşının QR koduyla katılabilirsin. Etkinliği düzenleyeni önce arkadaş olarak ekle.",
-    "guardianApproval": "Ebeveyninin onayı bekleniyor. Onaylayınca katılırsın ve haber alırsın."
+    "guardianApproval": "Ebeveyninin onayı bekleniyor. Onaylayınca katılırsın ve haber alırsın.",
+    "approvalPending": "Bu davetle katılmak için bir onay gerekiyor. Onaylanınca listende görünür."
   },
   "intro": {
     "skip": "Geç",
@@ -948,9 +949,9 @@
     "tools": {
       "requestsTitle": "Onay bekleyenler",
       "noRequests": "Onay bekleyen bir şey yok.",
-      "askFriend": "Arkadaşlık: @{{name}}",
-      "askGroup": "Grup: {{name}} ({{count}} kişi), davet eden @{{by}}",
-      "askEvent": "Etkinlik: {{name}}, davet eden @{{by}}",
+      "askFriend": "Arkadaşlık: {{name}}",
+      "askGroup": "Grup: {{name}} ({{count}} kişi), davet eden {{by}}",
+      "askEvent": "Etkinlik: {{name}}, davet eden {{by}}",
       "askGone": "Artık geçerli olmayan bir davet",
       "approve": "Onayla",
       "decline": "Onaylama",
@@ -973,8 +974,13 @@
       "limitIs": "Günlük süre sınırı: {{minutes}} dk",
       "defaults": "Bağlantı kurulduğundan beri varsayılan ayarlar.",
       "changedBy": "Son değiştiren: {{name}}, {{date}}",
-      "saved": "Ayarlar kaydedildi; çocuğuna haber verildi."
-    }
+      "saved": "Ayarlar kaydedildi; çocuğuna haber verildi.",
+      "someone": "adı yazılmamış biri",
+      "askBefriends": "{{by}}, çocuğunun arkadaş koduyla arkadaşı olmak istiyor",
+      "askJoins": "{{by}}, çocuğunun koduyla {{name}} çemberine katılmak istiyor",
+      "askInvites": "Çocuğun {{by}} kişisini {{name}} çemberine davet etmek istiyor"
+    },
+    "unnamed": "Adı yazılmamış biri"
   },
   "screenTime": {
     "upTitle": "Bugünlük süren doldu",

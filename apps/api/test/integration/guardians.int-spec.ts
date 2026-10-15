@@ -79,7 +79,7 @@ describe('guardian links (docs/ADR/0023 §4)', () => {
     expect(parents).toMatchObject({
       child: { username: child.username },
       ageBand: '15-17',
-      circles: [{ kind: 'family', name: 'Okul', members: [{ username: friend.username }] }],
+      circles: [{ kind: 'family', name: 'Okul', members: [{ displayName: 'Bora' }] }],
     });
     const childs = (await as(test, child, 'GET', `/v1/guardians/${taken.id}`)).json<GuardianView>();
     expect(childs.circles).toEqual(parents.circles);
@@ -88,6 +88,8 @@ describe('guardian links (docs/ADR/0023 §4)', () => {
     for (const word of ['envelope', 'lat', 'lng', 'userId', 'email']) {
       expect(body).not.toContain(word);
     }
+    // Display names only: a parent cannot look the friend up (QA 5b G-1).
+    expect(JSON.stringify(parents.circles)).not.toContain(friend.username);
   });
 
   it('take a code only from 15-17, by 18+, once, at most two parents', async () => {
@@ -280,9 +282,8 @@ describe('guardian tools (docs/ADR/0023 §5)', () => {
     expect(waiting.json()).toMatchObject({ code: 'GUARDIAN_APPROVAL' });
     expect((await join(child, friendCode)).statusCode).toBe(403);
     const asked = await viewOf(parent, link);
-    expect(asked.requests).toMatchObject([
-      { kind: 'friend', name: friend.username, by: friend.username },
-    ]);
+    expect(asked.requests).toMatchObject([{ kind: 'friend', name: 'Bora', by: 'Bora' }]);
+    expect(JSON.stringify(asked.requests)).not.toContain(friend.username);
     expect((await viewOf(child, link)).requests).toEqual(asked.requests);
     const [request] = asked.requests;
     if (request === undefined) throw new Error('no request');
@@ -300,7 +301,7 @@ describe('guardian tools (docs/ADR/0023 §5)', () => {
     const groupCode = await codeFrom(stranger, { kind: 'circle', circleId: group.id });
     expect((await join(child, groupCode)).statusCode).toBe(403);
     const [groupRequest] = (await viewOf(parent, link)).requests;
-    expect(groupRequest).toMatchObject({ kind: 'group', name: 'Kulüp', by: stranger.username });
+    expect(groupRequest).toMatchObject({ kind: 'group', name: 'Kulüp', by: 'Fikret' });
     expect((await answer(parent, link, groupRequest?.id ?? '', false)).json()).toEqual({
       done: false,
     });
@@ -311,7 +312,7 @@ describe('guardian tools (docs/ADR/0023 §5)', () => {
       (await as(test, child, 'POST', '/v1/friends', { username: stranger.username })).json(),
     ).toMatchObject({ code: 'GUARDIAN_APPROVAL' });
     const [byName] = (await viewOf(parent, link)).requests;
-    expect(byName).toMatchObject({ kind: 'friend', name: stranger.username, by: null });
+    expect(byName).toMatchObject({ kind: 'friend', name: 'Fikret', by: null });
 
     // A code that stopped working meanwhile: the yes says so.
     const late = await codeFrom(friend, {
@@ -325,6 +326,54 @@ describe('guardian tools (docs/ADR/0023 §5)', () => {
     expect((await answer(parent, link, gone?.id ?? '', true)).json()).toMatchObject({
       code: 'REQUEST_FAILED',
     });
+  });
+
+  it('make someone coming to the child wait as well: the child’s codes and invitations (QA 5c F-2)', async () => {
+    const [child, parent, ali, bora, cem] = await Promise.all([
+      teenager(),
+      adult(),
+      adult('Ali'),
+      adult('Bora'),
+      adult('Cem'),
+    ]);
+    const link = await linked(child, parent);
+    const group = await createCircle(test, child, 'Sınıf');
+    const childsCode = await codeFrom(child, { kind: 'circle', circleId: group.id });
+
+    // With the child's group code: waits, and says only that.
+    const waiting = await join(ali, childsCode);
+    expect(waiting.statusCode).toBe(403);
+    expect(waiting.json()).toMatchObject({ code: 'APPROVAL_PENDING' });
+    expect(JSON.stringify(waiting.json())).not.toMatch(/guardian|age|15/i);
+    const [joins] = (await viewOf(parent, link)).requests;
+    expect(joins).toMatchObject({ kind: 'joins', name: 'Sınıf', by: 'Ali' });
+    expect((await answer(parent, link, joins?.id ?? '', true)).json()).toEqual({ done: true });
+    expect((await as(test, ali, 'GET', `/v1/circles/${group.id}`)).statusCode).toBe(200);
+
+    // With the child's friend code: no.
+    const friendCode = await codeFrom(child, { kind: 'friend' });
+    expect((await join(bora, friendCode)).json()).toMatchObject({ code: 'APPROVAL_PENDING' });
+    const [befriends] = (await viewOf(parent, link)).requests;
+    expect(befriends).toMatchObject({ kind: 'befriends', by: 'Bora' });
+    await answer(parent, link, befriends?.id ?? '', false);
+    const boras = (await as(test, bora, 'GET', '/v1/circles')).json<{ circles: Circle[] }>();
+    expect(boras.circles.some((circle) => circle.kind === 'pair')).toBe(false);
+
+    // The child invites by username: waits, then the invitation goes out.
+    const invited = await as(test, child, 'POST', `/v1/circles/${group.id}/members`, {
+      username: cem.username,
+    });
+    expect(invited.json()).toMatchObject({ code: 'GUARDIAN_APPROVAL' });
+    const [invites] = (await viewOf(parent, link)).requests;
+    expect(invites).toMatchObject({ kind: 'invites', name: 'Sınıf', by: 'Cem' });
+    await answer(parent, link, invites?.id ?? '', true);
+    const cems = (await as(test, cem, 'GET', `/v1/circles/${group.id}`)).json<Circle>();
+    expect(cems.myStatus).toBe('invited');
+
+    // The child's own parent comes in at once.
+    const forParent = await codeFrom(child, { kind: 'circle', circleId: group.id });
+    expect((await join(parent, forParent)).statusCode).toBe(200);
+    expect(JSON.stringify((await viewOf(parent, link)).requests)).not.toContain('username');
   });
 
   it('are set by a parent only, read by the child, and the same on both sides', async () => {
@@ -386,6 +435,8 @@ describe('guardian tools (docs/ADR/0023 §5)', () => {
     expect((await viewOf(parent, link)).usage).toEqual([{ day: today, minutes: 42 }]);
     expect((await viewOf(child, link)).usage).toEqual([{ day: today, minutes: 42 }]);
     expect((await report(child, today, 2000)).statusCode).toBe(400);
+    // A day that does not exist is a bad request, not a server error (QA 5c F-3).
+    expect((await report(child, '2026-13-45', 5)).statusCode).toBe(400);
 
     await as(test, parent, 'POST', `/v1/guardians/${link.id}/end`);
     const left = await test.admin.query(

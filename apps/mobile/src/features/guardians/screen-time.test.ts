@@ -1,6 +1,15 @@
 import type { GuardianRules } from '@bargu/schemas';
 
-import { addOpen, dailyLimit, localDay, minutesToday, timeIsUp } from './screen-time';
+import {
+  addOpen,
+  dailyLimit,
+  loadRules,
+  localDay,
+  minutesToday,
+  RULES_KEY,
+  saveRules,
+  timeIsUp,
+} from './screen-time';
 
 const at = (day: number, hour: number, minute = 0) =>
   new Date(2026, 9, day, hour, minute).getTime();
@@ -34,5 +43,23 @@ describe('screen time (docs/ADR/0023 §5)', () => {
     // The next day it opens again.
     expect(timeIsUp(linked(60), count, at(17, 8))).toBe(false);
     expect(dailyLimit(linked(120))).toBe(120);
+  });
+
+  it('keeps the last rules on the phone, so a start offline still has the limit (QA 5c F-1)', () => {
+    const kept = new Map<string, string>();
+    const store = {
+      get: (key: string) => kept.get(key),
+      set: (key: string, value: string) => kept.set(key, value),
+      delete: (key: string) => kept.delete(key),
+      keys: () => [...kept.keys()],
+      clear: () => {
+        kept.clear();
+      },
+    };
+    expect(loadRules(store)).toBeNull();
+    saveRules(store, linked(30));
+    expect(loadRules(store)).toEqual(linked(30));
+    kept.set(RULES_KEY, '{not json');
+    expect(loadRules(store)).toBeNull();
   });
 });

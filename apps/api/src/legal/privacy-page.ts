@@ -62,6 +62,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 </ul>
 
 <h2>4. Kimlerle paylaşırız?</h2>
+<p>15–17 yaşındaki bir arkadaşının ebeveyni, onun çemberlerindeki kişilerin görünen adlarını görebilir; kullanıcı adlarını, konumlarını ya da başka bir bilgilerini göremez.</p>
 <p>Verilerini <strong>satmayız, reklam için paylaşmayız</strong>. Yalnızca hizmeti çalıştıran sağlayıcılar vardır: barındırma (Hetzner, Almanya), bildirim (Google Firebase Cloud Messaging; içerik şifreli olduğu için konumunu okuyamaz), e-posta gönderimi ([e-posta servisi, ülke]) ve hava durumu (yalnızca sabit bir ızgara sorgulanır, konumun gitmez). Yurt dışındaki sağlayıcılara aktarım KVKK m.9'a uygun yapılır.</p>
 
 <h2>5. Ne kadar saklarız?</h2>
@@ -82,7 +83,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li>Konum geçmişi senin için kapalıdır.</li>
 <li>Bir etkinliğe yalnızca bir arkadaşının QR kodu ya da linkiyle katılabilirsin.</li>
 <li>İstersen bir ya da iki ebeveynini ekleyebilirsin (Ben → Ebeveyn bağlantısı). Ebeveynin yaş grubunu, bağlantı tarihini ve çemberlerindeki kişileri görür; konumunu, geçmişini, yerlerini ve durumunu göremez. Ne gördüğünü sen de aynı ekranda görürsün. Bağlantıyı bitirmek istersen ebeveynine haber gider; onaylarsa hemen, onaylamazsa 7 gün sonra biter.</li>
-<li>Ebeveynin, yeni biriyle arkadaş olmana ya da bir gruba veya etkinliğe katılmana onay isteyebilir ve günlük bir süre sınırı koyabilir. Sınır dolunca uygulama ertesi güne kadar kapanır; konum paylaşımın sürer, istersen durdurabilirsin. Ebeveynin uygulamanın günde kaç dakika açık kaldığını görür. Her değişiklikte haber alırsın.</li>
+<li>Ebeveynin, yeni biriyle arkadaş olmana, bir gruba veya etkinliğe katılmana ya da birinin senin kodunla veya davetinle yanına gelmesine onay isteyebilir ve günlük bir süre sınırı koyabilir. Sınır dolunca uygulama ertesi güne kadar kapanır; konum paylaşımın sürer, istersen durdurabilirsin. Ebeveynin uygulamanın günde kaç dakika açık kaldığını görür. Her değişiklikte haber alırsın.</li>
 <li>Reklam, profil çıkarma, öneri ya da herkese açık profil yoktur (zaten kimse için yok).</li>
 <li>Yanlış bir yaş grubu seçtiysen ve 18 yaşındaysan bize [destek e-postası] adresinden yaz; bir kişi bakar.</li>
 </ul>
@@ -127,6 +128,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 </ul>
 
 <h2>4. Who receives it</h2>
+<p>The parent of a friend aged 15–17 can see the display names of the people in that friend's circles; not their usernames, locations or anything else.</p>
 <p>We <strong>do not sell</strong> your data or share it for ads. Only providers that run the service: hosting (Hetzner, Germany), notifications (Google Firebase Cloud Messaging; content is encrypted), email delivery ([provider, country]) and weather (a fixed grid only; your location is not sent). Transfers abroad follow KVKK Article 9.</p>
 
 <h2>5. Retention</h2>
@@ -147,7 +149,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li>Location history is off for you.</li>
 <li>You can join an event only with a friend's QR code or link.</li>
 <li>If you like, you can add one or two parents (Me → Parent link). A parent sees your age band, since when you are linked and the people in your circles; never your location, history, places or status. You see what they see on the same screen. If you want to end the link, your parent is told; it ends at once if they agree, otherwise in 7 days.</li>
-<li>Your parent can ask that new friendships, groups or events wait for their yes, and can set a daily time limit. When it is reached, the app closes until the next day; your location keeps being shared, and you can stop it. Your parent sees how many minutes a day the app was open. You are told about every change.</li>
+<li>Your parent can ask that new friendships, groups or events, and people coming with your code or invitation, wait for their yes, and can set a daily time limit. When it is reached, the app closes until the next day; your location keeps being shared, and you can stop it. Your parent sees how many minutes a day the app was open. You are told about every change.</li>
 <li>No ads, profiling, suggestions or public profiles (for anyone).</li>
 <li>If you chose the wrong age band and are 18, write to [support email]; a person will look at it.</li>
 </ul>

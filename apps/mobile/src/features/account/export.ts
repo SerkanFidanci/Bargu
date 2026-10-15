@@ -1,6 +1,7 @@
 import {
   type AccountExport,
   type AgeState,
+  type FindableState,
   type GuardianLink,
   HISTORY_KEEP_MS,
 } from '@bargu/schemas';
@@ -32,6 +33,7 @@ export function exportFile(
   now: number,
   age: AgeState['age'] = null,
   guardians: readonly GuardianLink[] = [],
+  findable: FindableState | null = null,
 ) {
   return {
     format: 'bargu-export',
@@ -39,6 +41,8 @@ export function exportFile(
     exportedAt: new Date(now).toISOString(),
     account: server.account,
     ageBand: age === null ? null : { band: age.band, method: age.method, at: age.at },
+    // "Kullanıcı adımla bulunabilirim" (docs/ADR/0023, QA 5b G-3).
+    findableByUsername: findable === null ? null : findable.findable,
     // docs/ADR/0023 §4: the parent links, as this account is in them.
     guardianLinks: guardians.map((link) => ({
       role: link.role,

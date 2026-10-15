@@ -55,6 +55,8 @@ export type ApiErrorCode =
   | 'ALREADY_GUARDIAN'
   /** Something new for a 15-17 child waits for a parent's yes (docs/ADR/0023 §5). */
   | 'GUARDIAN_APPROVAL'
+  /** Coming in with a code waits for the code owner's parent (says nothing more, QA 5c F-2). */
+  | 'APPROVAL_PENDING'
   /** A parent said yes, but the code or the name no longer works. */
   | 'REQUEST_FAILED'
   | 'CIRCLE_FULL'

@@ -8,7 +8,15 @@ import { onSignedOut } from '../auth/auth-store';
 import { queryClient } from '../query-client';
 import { isVaultOpen, vault } from '../storage/vault';
 import { guardianRulesKey, guardiansApi } from './guardians-api';
-import { addOpen, localDay, minutesToday, type ScreenTime, timeIsUp } from './screen-time';
+import {
+  addOpen,
+  loadRules,
+  localDay,
+  minutesToday,
+  saveRules,
+  type ScreenTime,
+  timeIsUp,
+} from './screen-time';
 
 /** Kept on this phone (encrypted vault): today's minutes, so a restart does not reset them. */
 const SCREEN_TIME_KEY = 'screen-time:v1';
@@ -73,15 +81,17 @@ export async function refreshRules(): Promise<void> {
       staleTime: 0,
     });
     useScreenTime.setState({ rules });
+    if (isVaultOpen()) saveRules(vault(), rules);
   } catch {
-    // Offline: the rules known so far stay.
+    // Offline: the rules known so far (kept in the vault) stay.
   }
 }
 
 function start(): void {
   if (started) return;
   started = true;
-  useScreenTime.setState({ count: load(), now: Date.now() });
+  // The last rules known first: started offline, the limit still holds (QA 5c F-1).
+  useScreenTime.setState({ count: load(), rules: loadRules(vault()), now: Date.now() });
   if (AppState.currentState === 'active') openedAt = Date.now();
   void refreshRules();
   AppState.addEventListener('change', (state) => {

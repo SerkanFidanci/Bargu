@@ -1,4 +1,27 @@
-import type { GuardianRules } from '@bargu/schemas';
+import { type GuardianRules, guardianRulesSchema } from '@bargu/schemas';
+
+import type { KeyValueStore } from '../storage/vault';
+
+/**
+ * The last rules the server gave, kept on the phone (encrypted vault, QA 5c F-1): an app started
+ * offline still counts the minutes and closes at the limit.
+ */
+export const RULES_KEY = 'screen-time:rules:v1';
+
+export function loadRules(store: KeyValueStore): GuardianRules | null {
+  const raw = store.get(RULES_KEY);
+  if (raw === undefined) return null;
+  try {
+    const parsed = guardianRulesSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveRules(store: KeyValueStore, rules: GuardianRules): void {
+  store.set(RULES_KEY, JSON.stringify(rules));
+}
 
 /** How long the app was open on one day of the phone's calendar (docs/ADR/0023 §5). */
 export interface ScreenTime {

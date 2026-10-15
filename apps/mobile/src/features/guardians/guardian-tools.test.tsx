@@ -40,7 +40,7 @@ const view = (role: 'child' | 'guardian'): GuardianView => ({
   settings: { approveNewPeople: true, dailyLimitMinutes: 60, updatedAt: 3, updatedBy: 'anne' },
   usage: [{ day: '2026-10-15', minutes: 42 }],
   requests: [
-    { id: REQUEST, kind: 'group', name: 'Kulüp', memberCount: 4, by: 'fikret', createdAt: 4 },
+    { id: REQUEST, kind: 'group', name: 'Kulüp', memberCount: 4, by: 'Fikret', createdAt: 4 },
   ],
 });
 
@@ -70,7 +70,7 @@ beforeEach(() => {
 describe('guardian tools on the shared view (docs/ADR/0023 §5)', () => {
   it('let a parent answer and see the minutes', async () => {
     await show('guardian');
-    expect(screen.getByText('Grup: Kulüp (4 kişi), davet eden @fikret')).toBeTruthy();
+    expect(screen.getByText('Grup: Kulüp (4 kişi), davet eden Fikret')).toBeTruthy();
     expect(screen.getByText('42 dk')).toBeTruthy();
     await fireEvent.press(screen.getByTestId(`guardian-approve-${REQUEST}`));
     await waitFor(() => {
@@ -80,7 +80,7 @@ describe('guardian tools on the shared view (docs/ADR/0023 §5)', () => {
 
   it("show the child the same, without the parent's buttons", async () => {
     await show('child');
-    expect(screen.getByText('Grup: Kulüp (4 kişi), davet eden @fikret')).toBeTruthy();
+    expect(screen.getByText('Grup: Kulüp (4 kişi), davet eden Fikret')).toBeTruthy();
     expect(screen.getByText('Ebeveyninin onayını bekliyor.')).toBeTruthy();
     expect(screen.queryByTestId(`guardian-approve-${REQUEST}`)).toBeNull();
     expect(screen.queryByTestId('guardian-approve-new')).toBeNull();
