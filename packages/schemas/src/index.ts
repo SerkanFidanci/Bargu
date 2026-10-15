@@ -104,6 +104,7 @@ export {
   circlesSchema,
   deliveredEventSchema,
   epochSchema,
+  EVENT_DURATION_MS,
   GROUP_KINDS,
   inviteAcceptedSchema,
   inviteCreateSchema,

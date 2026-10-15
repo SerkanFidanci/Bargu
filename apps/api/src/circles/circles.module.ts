@@ -5,6 +5,7 @@ import { PushModule } from '../push/push.module.js';
 import { RelayModule } from '../relay/relay.module.js';
 import { CirclesController } from './circles.controller.js';
 import { CirclesService } from './circles.service.js';
+import { EventExpiry } from './event-expiry.js';
 import { InvitesService } from './invites.service.js';
 import { KeysService } from './keys.service.js';
 import { ProfilesService } from './profiles.service.js';
@@ -13,7 +14,7 @@ import { ProfilesService } from './profiles.service.js';
 @Module({
   imports: [AuthModule, PushModule, RelayModule],
   controllers: [CirclesController],
-  providers: [CirclesService, InvitesService, KeysService, ProfilesService],
-  exports: [CirclesService],
+  providers: [CirclesService, InvitesService, KeysService, ProfilesService, EventExpiry],
+  exports: [CirclesService, EventExpiry],
 })
 export class CirclesModule {}

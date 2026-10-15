@@ -262,7 +262,8 @@
       "circleBody": "Bu kodu okutan kişi çembere katılabilir. Tek kullanımlık, 24 saat geçerli.",
       "share": "Link olarak paylaş",
       "renew": "Yeni kod",
-      "connected": "{{name}} ile artık arkadaşsınız!"
+      "connected": "{{name}} ile artık arkadaşsınız!",
+      "eventBody": "Etkinlik bitene kadar geçerli: okutan herkes katılır (en çok 50 kişi). Sadece birlikte olduğun kişilere göster."
     }
   },
   "invite": {
@@ -274,7 +275,9 @@
     "join": "Katıl",
     "invalid": "Bu davet geçersiz ya da süresi dolmuş",
     "invalidBody": "Davet linkleri tek kullanımlık ve 24 saat geçerli. Arkadaşından yenisini iste.",
-    "already": "Zaten bu çemberdesin."
+    "already": "Zaten bu çemberdesin.",
+    "eventEnds": "Bitiş: {{time}} · Bitince her şey silinir",
+    "eventBody": "Katılırsan etkinlik bitene kadar konumunuzu birbirinizle paylaşırsınız; her şey uçtan uca şifreli. Etkinlik bitince çember herkesten silinir."
   },
   "circles": {
     "kinds": {
@@ -320,7 +323,9 @@
       "create": "Oluştur",
       "inviteTitle": "Kimler katılsın?",
       "inviteBody": "Dokunarak seç; istersen sonra da ekleyebilirsin. Kabul etmeyen hiçbir şey görmez.",
-      "createWith": "Oluştur ve davet et · {{count}} kişi"
+      "createWith": "Oluştur ve davet et · {{count}} kişi",
+      "placeholder_event": "Örn. Konser",
+      "body_event": "Bir konser, gezi, maç… Bitiş saati gelince çember kendiliğinden silinir."
     },
     "detail": {
       "goneTitle": "Çember bulunamadı",
@@ -376,6 +381,23 @@
       "byQrHint": "Yanındaysa en hızlısı",
       "byLink": "Davet linki paylaş",
       "byLinkHint": "WhatsApp, SMS ya da e-postayla"
+    },
+    "event": {
+      "ends": "Ne zaman bitsin?",
+      "end_hours1": "1 saat",
+      "end_hours3": "3 saat",
+      "end_tonight": "Bu gece",
+      "end_tomorrow": "Yarın gece",
+      "end_week": "1 hafta",
+      "endsAt": "Bitiş: {{time}}",
+      "left": "{{hours}} sa {{minutes}} dk kaldı",
+      "leftMinutes": "{{minutes}} dk kaldı",
+      "note": "Etkinlik bitince bu çember ve içindeki her şey (konumlar, yerler, anahtarlar) herkesten silinir.",
+      "endNow": "Etkinliği şimdi bitir",
+      "endConfirmTitle": "Etkinlik şimdi bitsin mi?",
+      "endConfirmBody": "Çember herkes için hemen silinir; geri alınamaz.",
+      "ended": "Etkinlik bitti",
+      "qr": "QR ile davet et"
     }
   },
   "verify": {

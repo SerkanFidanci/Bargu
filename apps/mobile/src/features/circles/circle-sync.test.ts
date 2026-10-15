@@ -177,6 +177,17 @@ describe('circle sync', () => {
     expect(firstLoad).toHaveBeenCalledTimes(1);
   });
 
+  it('drops an event circle that ended early (the event names no circle: the list tells)', async () => {
+    const { circle, api, queryClient, store, sync } = setup();
+    await sync.reload();
+    expect(store.knownCircles()).toEqual([circle.id]);
+    api.list.mockResolvedValueOnce([]);
+    await sync.apply([{ type: 'circles.reload' }]);
+    expect(queryClient.getQueryData(circlesKey)).toEqual([]);
+    // Its keys are thrown away with it.
+    expect(store.knownCircles()).toEqual([]);
+  });
+
   it('says nothing to a brand-new account (no circles yet)', async () => {
     const { api, sync, firstLoad } = setup();
     api.list.mockResolvedValueOnce([]);

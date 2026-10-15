@@ -140,6 +140,21 @@ export class EventsService {
     return { events: [], snapshot: true, cursor: latest?.id ?? null };
   }
 
+  /**
+   * Removes every stored event that names a circle from these users' streams (an event circle
+   * ended: nothing about it may stay, docs/ADR/0017). Phones that missed them reload anyway.
+   */
+  async forgetCircle(userIds: Iterable<string>, circleId: string): Promise<void> {
+    for (const userId of new Set(userIds)) {
+      const key = streamKey(userId);
+      const entries = (await this.redis.xRange(key, '-', '+')) ?? [];
+      const naming = entries
+        .filter((entry) => (entry.message.e ?? '').includes(circleId))
+        .map((entry) => entry.id);
+      if (naming.length > 0) await this.redis.xDel(key, naming);
+    }
+  }
+
   /** Closes a device's live connections (logout, device replaced). */
   disconnectDevice(deviceId: string): void {
     this.server?.in(deviceRoom(deviceId)).disconnectSockets(true);

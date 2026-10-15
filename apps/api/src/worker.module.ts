@@ -11,6 +11,9 @@ import { RedisModule } from './infra/redis/redis.module.js';
 import { PushTokens } from './push/push-tokens.js';
 import { PushWorker } from './push/push.worker.js';
 import { WeatherWorker } from './weather/weather.worker.js';
+import { EventExpiry } from './circles/event-expiry.js';
+import { EventSweeper } from './circles/event-sweeper.js';
+import { EventsService } from './events/events.service.js';
 
 /** The background worker process: runs jobs and maintains the queues. No HTTP. */
 @Module({})
@@ -25,7 +28,16 @@ export class WorkerModule {
         KeysModule,
         JobsModule.forRole({ supervise: true }),
       ],
-      providers: [Mailer, EmailWorker, PushTokens, PushWorker, WeatherWorker],
+      providers: [
+        Mailer,
+        EmailWorker,
+        PushTokens,
+        PushWorker,
+        WeatherWorker,
+        EventsService,
+        EventExpiry,
+        EventSweeper,
+      ],
     };
   }
 }

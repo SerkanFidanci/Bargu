@@ -8,6 +8,8 @@ import Animated from 'react-native-reanimated';
 import { circlesApi } from '@/features/circles/circles-api';
 import { inviteTokenFrom } from '@/features/circles/invite-link';
 import { errorMessage, isApiError } from '@/features/errors';
+import { endClock } from '@/features/circles/event-ui';
+import { useNow } from '@/features/location/clock';
 import { circleSync } from '@/features/live/live-session';
 import { space } from '@/theme';
 import { feedback } from '@/theme/haptics';
@@ -27,7 +29,8 @@ import { toast } from '@/ui/toast';
  * shared until the user accepts here.
  */
 export default function InviteScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const now = useNow();
   const motion = useMotion();
   const params = useLocalSearchParams<{ token: string }>();
   // Links arrive from outside the app: the token is checked like any other input.
@@ -131,9 +134,18 @@ export default function InviteScreen() {
                 </Text>
               </Appear>
             )}
+            {data.circle?.expiresAt === undefined ? null : (
+              <Appear index={2}>
+                <Text variant="bodyStrong" align="center">
+                  {t('invite.eventEnds', {
+                    time: endClock(data.circle.expiresAt, now, i18n.language),
+                  })}
+                </Text>
+              </Appear>
+            )}
             <Appear index={3}>
               <Text variant="callout" color="textMuted" align="center">
-                {t('invite.body')}
+                {data.circle?.expiresAt === undefined ? t('invite.body') : t('invite.eventBody')}
               </Text>
             </Appear>
           </>

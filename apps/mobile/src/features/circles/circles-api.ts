@@ -1,8 +1,8 @@
 import {
   type Circle,
+  type CircleCreate,
   circleSchema,
   circlesSchema,
-  type GROUP_KINDS,
   type Invite,
   inviteAcceptedSchema,
   type InvitePreview,
@@ -24,10 +24,12 @@ export const circlesApi = {
   async get(id: string): Promise<Circle> {
     return circleSchema.parse(await api.authed(`/v1/circles/${id}`));
   },
-  async create(kind: (typeof GROUP_KINDS)[number], name: string): Promise<Circle> {
-    return circleSchema.parse(
-      await api.authed('/v1/circles', { method: 'POST', body: { kind, name } }),
-    );
+  async create(input: CircleCreate): Promise<Circle> {
+    return circleSchema.parse(await api.authed('/v1/circles', { method: 'POST', body: input }));
+  },
+  /** The owner ends an event circle now (docs/ADR/0017). */
+  async end(id: string): Promise<void> {
+    await api.authed(`/v1/circles/${id}/end`, { method: 'POST' });
   },
   async rename(id: string, name: string): Promise<Circle> {
     return circleSchema.parse(
@@ -75,6 +77,10 @@ export const circlesApi = {
     return invitePreviewSchema.parse(
       await api.authed('/v1/invites/preview', { method: 'POST', body: { token } }),
     );
+  },
+  /** A link or QR code stops working (renewed; an event's code would otherwise last to the end). */
+  async revokeInvite(id: string): Promise<void> {
+    await api.authed(`/v1/invites/${id}/revoke`, { method: 'POST' });
   },
   async acceptInvite(token: string): Promise<string> {
     return inviteAcceptedSchema.parse(

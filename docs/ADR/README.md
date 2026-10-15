@@ -22,6 +22,7 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0014](0014-encrypted-profile-photos.md)      | Uçtan uca şifreli profil fotoğrafı                               | Kabul edildi     |
 | [0015](0015-encrypted-places-and-arrivals.md) | Şifreli yerler; varış ve ayrılışı telefon algılar                | Kabul edildi     |
 | [0016](0016-sealed-push-notifications.md)     | Bildirimler uçtan uca şifreli (ADR 0010'un yerine)               | Kabul edildi     |
+| [0017](0017-event-circles.md)                 | Etkinlik çemberleri: süreli, QR ile katılım, bitince iz kalmaz   | Kabul edildi     |
 
 ## Şablon
 

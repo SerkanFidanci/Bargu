@@ -98,7 +98,12 @@ export default function ShowQrScreen() {
             label={t('add.qr.renew')}
             icon={RefreshCw}
             variant="ghost"
-            onPress={() => void invite.refetch()}
+            onPress={() => {
+              // The old code stops working: a group's lasts a day, an event's to its end.
+              const old = invite.data?.id;
+              if (old !== undefined) void circlesApi.revokeInvite(old).catch(() => undefined);
+              void invite.refetch();
+            }}
             loading={invite.isFetching}
           />
         </>
@@ -124,7 +129,11 @@ export default function ShowQrScreen() {
       </View>
       <Appear index={2}>
         <Text variant="callout" color="textMuted" align="center">
-          {circleId === null ? t('add.qr.body') : t('add.qr.circleBody')}
+          {circleId === null
+            ? t('add.qr.body')
+            : circle?.expiresAt === undefined
+              ? t('add.qr.circleBody')
+              : t('add.qr.eventBody')}
         </Text>
       </Appear>
     </Screen>

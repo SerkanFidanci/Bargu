@@ -262,7 +262,8 @@
       "circleBody": "Whoever scans this code can join the circle. Single use, valid for 24 hours.",
       "share": "Share as a link",
       "renew": "New code",
-      "connected": "You and {{name}} are now friends!"
+      "connected": "You and {{name}} are now friends!",
+      "eventBody": "Valid until the event ends: everyone who scans it joins (up to 50 people). Only show it to people you are with."
     }
   },
   "invite": {
@@ -274,7 +275,9 @@
     "join": "Join",
     "invalid": "This invitation is invalid or has expired",
     "invalidBody": "Invite links work once and for 24 hours. Ask your friend for a new one.",
-    "already": "You're already in this circle."
+    "already": "You're already in this circle.",
+    "eventEnds": "Ends: {{time}} · Everything is deleted then",
+    "eventBody": "If you join, you share your locations with each other until the event ends; everything is end-to-end encrypted. When it ends, the circle is deleted for everyone."
   },
   "circles": {
     "kinds": {
@@ -320,7 +323,9 @@
       "create": "Create",
       "inviteTitle": "Who should join?",
       "inviteBody": "Tap to pick; you can add more later. Anyone who hasn't accepted sees nothing.",
-      "createWith": "Create and invite · people: {{count}}"
+      "createWith": "Create and invite · people: {{count}}",
+      "placeholder_event": "E.g. Concert",
+      "body_event": "A concert, a trip, a match… When its end comes, the circle deletes itself."
     },
     "detail": {
       "goneTitle": "Circle not found",
@@ -376,6 +381,23 @@
       "byQrHint": "Fastest when you're together",
       "byLink": "Share an invite link",
       "byLinkHint": "Via WhatsApp, SMS or email"
+    },
+    "event": {
+      "ends": "When does it end?",
+      "end_hours1": "1 hour",
+      "end_hours3": "3 hours",
+      "end_tonight": "Tonight",
+      "end_tomorrow": "Tomorrow night",
+      "end_week": "1 week",
+      "endsAt": "Ends: {{time}}",
+      "left": "{{hours}} h {{minutes}} min left",
+      "leftMinutes": "{{minutes}} min left",
+      "note": "When the event ends, this circle and everything in it (locations, places, keys) is deleted for everyone.",
+      "endNow": "End the event now",
+      "endConfirmTitle": "End the event now?",
+      "endConfirmBody": "The circle is deleted for everyone at once; this cannot be undone.",
+      "ended": "Event ended",
+      "qr": "Invite with a QR code"
     }
   },
   "verify": {

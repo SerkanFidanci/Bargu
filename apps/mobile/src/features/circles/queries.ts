@@ -1,4 +1,4 @@
-import type { Circle, GROUP_KINDS } from '@bargu/schemas';
+import type { Circle, CircleCreate } from '@bargu/schemas';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -78,10 +78,17 @@ export function useCircleActions() {
       onError,
     }),
     create: useMutation({
-      mutationFn: async (input: { kind: (typeof GROUP_KINDS)[number]; name: string }) =>
-        adopt(await circlesApi.create(input.kind, input.name)),
+      mutationFn: async (input: CircleCreate) => adopt(await circlesApi.create(input)),
       onSuccess: () => {
         feedback('success');
+      },
+      onError,
+    }),
+    /** The owner ends an event now: gone for everyone, its keys thrown away here. */
+    end: useMutation({
+      mutationFn: async (circleId: string) => {
+        await circlesApi.end(circleId);
+        circleSync.drop(circleId);
       },
       onError,
     }),

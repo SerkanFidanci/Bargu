@@ -203,9 +203,15 @@ export function createCircleSync({
     /** Events in order; several about one circle collapse into one fetch. Throws if any failed. */
     async apply(events: ServerEvent[]): Promise<void> {
       const work = new Map<string, { fetch: boolean; keys: boolean; gone: boolean }>();
+      let reloadAll = false;
       for (const event of events) {
         // Places have their own sync (features/places); the circle itself did not change.
         if (event.type === 'places.changed') continue;
+        // An event circle ended early: the server names no ended circle, the list tells which.
+        if (event.type === 'circles.reload') {
+          reloadAll = true;
+          continue;
+        }
         const entry = work.get(event.circleId) ?? { fetch: false, keys: false, gone: false };
         if (event.type === 'circle.gone') {
           entry.gone = true;
@@ -240,6 +246,7 @@ export function createCircleSync({
       if (results.some((result) => result.status === 'rejected')) {
         throw new Error('some events could not be applied');
       }
+      if (reloadAll) await this.reload();
     },
 
     /** Reloads every circle and syncs all of them (first connection, or a gap in events). */

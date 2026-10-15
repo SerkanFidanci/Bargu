@@ -16,9 +16,24 @@ export const MAX_CIRCLE_MEMBERS = 50;
 /** Circle names follow the display-name rules (visible to invitees before they join). */
 export const circleNameSchema = displayNameSchema;
 
-export const circleCreateSchema = z
-  .object({ kind: z.enum(GROUP_KINDS), name: circleNameSchema })
-  .strict();
+/**
+ * An event circle (BARGU_PLAN Faz 8) lasts from a quarter of an hour to a week; when it ends, the
+ * server deletes it and everything in it, and the phones throw its keys away (docs/ADR/0017).
+ */
+export const EVENT_DURATION_MS = { min: 15 * 60_000, max: 7 * 24 * 3600_000 } as const;
+
+export const circleCreateSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('friends'), name: circleNameSchema }).strict(),
+  z.object({ kind: z.literal('family'), name: circleNameSchema }).strict(),
+  z
+    .object({
+      kind: z.literal('event'),
+      name: circleNameSchema,
+      /** When it ends (Unix ms); checked against EVENT_DURATION_MS on the server. */
+      endsAt: z.number().int().positive(),
+    })
+    .strict(),
+]);
 export type CircleCreate = z.infer<typeof circleCreateSchema>;
 
 export const circleRenameSchema = z.object({ name: circleNameSchema }).strict();
@@ -61,6 +76,9 @@ export const circleSchema = z
     myRole: z.enum(MEMBER_ROLES),
     myStatus: z.enum(MEMBER_STATUSES),
     members: z.array(memberCardSchema).max(MAX_CIRCLE_MEMBERS),
+    /** Event circles only: when it began and when it ends and is deleted (Unix ms). */
+    startedAt: z.number().int().optional(),
+    expiresAt: z.number().int().optional(),
   })
   .strict();
 export type Circle = z.infer<typeof circleSchema>;
@@ -101,7 +119,13 @@ export const invitePreviewSchema = z
     kind: z.enum(['circle', 'friend']),
     inviter: publicProfileSchema,
     circle: z
-      .object({ name: z.string().nullable(), kind: z.enum(CIRCLE_KINDS), memberCount: z.number() })
+      .object({
+        name: z.string().nullable(),
+        kind: z.enum(CIRCLE_KINDS),
+        memberCount: z.number(),
+        /** Event circles: when it ends (everything in it is deleted then). */
+        expiresAt: z.number().int().optional(),
+      })
       .strict()
       .nullable(),
   })
@@ -152,6 +176,11 @@ export const serverEventSchema = z.discriminatedUnion('type', [
     .strict(),
   /** A place of the circle was saved or deleted: the app fetches that circle's places. */
   z.object({ type: z.literal('places.changed'), circleId: z.uuid() }).strict(),
+  /**
+   * Some circle of the user ended (an event circle the owner closed): reload the list. Names no
+   * circle on purpose: nothing about an ended circle stays on the server (docs/ADR/0017).
+   */
+  z.object({ type: z.literal('circles.reload') }).strict(),
 ]);
 export type ServerEvent = z.infer<typeof serverEventSchema>;
 

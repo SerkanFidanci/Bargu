@@ -30,7 +30,9 @@ import { Sheet, type SheetRef } from '@/ui/sheet';
 import { Skeleton } from '@/ui/skeleton';
 
 import { useAuth } from '../auth/auth-store';
+import { useNow } from '../location/clock';
 import { useCircleKeys } from './circle-sync';
+import { EventBadge, timeLeftText } from './event-ui';
 import {
   groupCircles,
   handleOf,
@@ -222,18 +224,29 @@ function FriendRow({ circle, onPress }: { circle: Circle; onPress: () => void })
 function GroupRow({ circle, onPress }: { circle: Circle; onPress: () => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const now = useNow();
   const active = circle.members.filter((member) => member.status === 'active');
   const Icon = circle.kind === 'family' ? Heart : Users;
+  const members = t('circles.sheet.memberCount', { count: active.length });
   return (
     <ListRow
       testID={`group-${circle.id}`}
       leading={
-        <View style={[styles.groupIcon, { backgroundColor: colors.primarySoft }]}>
-          <Icon color={colors.primary} size={22} strokeWidth={2.25} />
-        </View>
+        circle.expiresAt === undefined ? (
+          <View style={[styles.groupIcon, { backgroundColor: colors.primarySoft }]}>
+            <Icon color={colors.primary} size={22} strokeWidth={2.25} />
+          </View>
+        ) : (
+          // An event: its countdown ring (BARGU_PLAN §4.3).
+          <EventBadge circle={circle} now={now} size={44} />
+        )
       }
       title={circle.name ?? ''}
-      subtitle={t('circles.sheet.memberCount', { count: active.length })}
+      subtitle={
+        circle.expiresAt === undefined
+          ? members
+          : `${timeLeftText(t, circle.expiresAt, now)} · ${members}`
+      }
       trailing={
         <AvatarStack
           people={active.map((member) => ({

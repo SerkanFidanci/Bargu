@@ -8,7 +8,9 @@ import { env } from '@/config/env';
 
 import { api, bootstrapAuth, onSignedOut, sessionRevoked, useAuth } from '../auth/auth-store';
 import { announce } from '../circles/announce';
+import { circlesKey } from '../circles/circle-cache';
 import { createCircleSync } from '../circles/circle-sync';
+import { endedEvents, nextEventEnd } from '../circles/event-time';
 import { circlesApi } from '../circles/circles-api';
 import { EventStream } from '../events/event-stream';
 import { socketTransport } from '../events/socket-transport';
@@ -137,6 +139,29 @@ function lazyVault() {
     },
   };
 }
+
+/**
+ * Event circles end on this phone on time, whether or not the server's notice gets through: the
+ * circle goes from every screen and its keys are thrown away (docs/ADR/0017).
+ */
+let eventTimer: ReturnType<typeof setTimeout> | null = null;
+function endEventsDue(): void {
+  if (eventTimer !== null) clearTimeout(eventTimer);
+  eventTimer = null;
+  const circles = queryClient.getQueryData<Circle[]>(circlesKey) ?? [];
+  const now = Date.now();
+  for (const circleId of endedEvents(circles, now)) circleSync.drop(circleId);
+  const next = nextEventEnd(circles, now);
+  // Timers longer than about 24 days overflow; events last a week at most anyway.
+  if (next !== null) eventTimer = setTimeout(endEventsDue, Math.min(next - now + 500, 2 ** 31 - 1));
+}
+const CIRCLES_HASH = JSON.stringify(circlesKey);
+queryClient.getQueryCache().subscribe((event) => {
+  if (event.query.queryHash === CIRCLES_HASH && event.type === 'updated') endEventsDue();
+});
+AppState.addEventListener('change', (state) => {
+  if (state === 'active') endEventsDue();
+});
 
 // Nothing of one account may survive into the next sign-in: connection, keys, position.
 onSignedOut(() => {

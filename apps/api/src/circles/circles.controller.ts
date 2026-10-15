@@ -31,6 +31,7 @@ import { z } from 'zod';
 import { type AuthContext, CurrentAuth } from '../auth/request-context.js';
 import { ZodPipe } from '../common/zod.pipe.js';
 import { CirclesService } from './circles.service.js';
+import { EventExpiry } from './event-expiry.js';
 import { InvitesService } from './invites.service.js';
 import { KeysService } from './keys.service.js';
 import { ProfilesService } from './profiles.service.js';
@@ -49,6 +50,7 @@ export class CirclesController {
     private readonly invites: InvitesService,
     private readonly keys: KeysService,
     private readonly profiles: ProfilesService,
+    private readonly expiry: EventExpiry,
   ) {}
 
   @Get('circles')
@@ -94,6 +96,13 @@ export class CirclesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   leave(@CurrentAuth() auth: AuthContext, @Param('id', idPipe) id: string): Promise<void> {
     return this.circles.leave(auth, id);
+  }
+
+  /** The owner ends an event circle now: deleted with everything in it (docs/ADR/0017). */
+  @Post('circles/:id/end')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  end(@CurrentAuth() auth: AuthContext, @Param('id', idPipe) id: string): Promise<void> {
+    return this.expiry.endNow(auth, id);
   }
 
   @Post('circles/:id/rekey')

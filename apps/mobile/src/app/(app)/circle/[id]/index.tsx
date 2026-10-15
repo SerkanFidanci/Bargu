@@ -30,6 +30,9 @@ import {
   useCircleActions,
 } from '@/features/circles/queries';
 import { circleSync, keys } from '@/features/live/live-session';
+import { EventCard } from '@/features/circles/event-card';
+import { EventBadge } from '@/features/circles/event-ui';
+import { useNow } from '@/features/location/clock';
 import { SharingCard } from '@/features/location/sharing-card';
 import { PlacesCard } from '@/features/places/places-card';
 import { isValidDisplayName } from '@/features/profile/profile-form';
@@ -195,6 +198,12 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
         </Appear>
       ) : null}
 
+      {active && circle.expiresAt !== undefined ? (
+        <Appear index={2}>
+          <EventCard circle={circle} />
+        </Appear>
+      ) : null}
+
       {active ? (
         <Appear index={2}>
           <SharingCard circleId={circle.id} name={pair ? title : null} />
@@ -308,11 +317,15 @@ function Hero({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const motion = useMotion();
+  const now = useNow();
   const Icon = circle.kind === 'family' ? Heart : Users;
   return (
     <View style={styles.hero}>
       <Animated.View entering={motion.pop}>
-        {circle.kind === 'pair' ? (
+        {circle.expiresAt !== undefined ? (
+          // An event: its countdown ring, emptying until the end.
+          <EventBadge circle={circle} now={now} size={96} />
+        ) : circle.kind === 'pair' ? (
           <Avatar
             avatar={partner?.avatar ?? null}
             name={title}

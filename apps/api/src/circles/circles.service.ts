@@ -1,6 +1,12 @@
 import { HttpStatus, Injectable, type OnModuleInit } from '@nestjs/common';
 import { REKEY_INTERVAL_MS } from '@bargu/crypto';
-import { AVATAR_EMOJIS, type Circle, type CircleCreate, type MemberCard } from '@bargu/schemas';
+import {
+  AVATAR_EMOJIS,
+  type Circle,
+  type CircleCreate,
+  EVENT_DURATION_MS,
+  type MemberCard,
+} from '@bargu/schemas';
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
@@ -141,11 +147,24 @@ export class CirclesService implements OnModuleInit {
     return circle;
   }
 
-  async create(auth: AuthContext, input: CircleCreate): Promise<Circle> {
+  async create(auth: AuthContext, input: CircleCreate, now = Date.now()): Promise<Circle> {
+    // An event ends between a quarter of an hour and a week from now (docs/ADR/0017).
+    const expiresAt =
+      input.kind === 'event'
+        ? new Date(
+            Math.min(
+              Math.max(input.endsAt, now + EVENT_DURATION_MS.min),
+              now + EVENT_DURATION_MS.max,
+            ),
+          )
+        : null;
+    if (input.kind === 'event' && expiresAt?.getTime() !== input.endsAt) {
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+    }
     return this.database.asUser(auth.userId, async (tx) => {
       const [created] = await tx
         .insert(circles)
-        .values({ kind: input.kind, name: input.name, createdBy: auth.userId })
+        .values({ kind: input.kind, name: input.name, createdBy: auth.userId, expiresAt })
         .returning({ id: circles.id });
       if (created === undefined) throw new Error('circle insert returned nothing');
       await tx.insert(circleMembers).values({
@@ -506,6 +525,9 @@ export class CirclesService implements OnModuleInit {
       myRole: mine.role,
       myStatus: mine.status,
       members,
+      ...(row.expiresAt === null
+        ? {}
+        : { startedAt: row.createdAt.getTime(), expiresAt: row.expiresAt.getTime() }),
     };
   }
 }

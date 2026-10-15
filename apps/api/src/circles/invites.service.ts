@@ -13,6 +13,11 @@ import { CirclesService, othersActive } from './circles.service.js';
 
 /** Invite links live a day and work once (BARGU_PLAN Faz 4: single use, time-limited). */
 export const INVITE_TTL_MS = 24 * 3600 * 1000;
+/**
+ * An event's QR code (BARGU_PLAN Faz 8) lets up to this many people join, until the event ends:
+ * one code shown at the event (docs/ADR/0017).
+ */
+export const EVENT_INVITE_USES = 50;
 export const INVITE_LIMITS = { createdPerHour: 30, previewsPerHour: 120 } as const;
 /** What the QR code and shared link carry; opens the app (universal links come with the domain). */
 export const inviteLink = (token: string) => `bargu://i/${token}`;
@@ -29,6 +34,7 @@ interface PreviewRow extends Record<string, unknown> {
   circle_name: string | null;
   circle_kind: 'pair' | 'friends' | 'family' | 'event' | null;
   member_count: number | null;
+  circle_expires_at: Date | null;
 }
 
 /**
@@ -48,12 +54,17 @@ export class InvitesService {
   async create(auth: AuthContext, input: InviteCreate): Promise<Invite> {
     await this.limit(`invite-create:${auth.userId}`, INVITE_LIMITS.createdPerHour);
     const token = generateToken();
-    const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
-    const id = await this.database.asUser(auth.userId, async (tx) => {
+    const { id, expiresAt } = await this.database.asUser(auth.userId, async (tx) => {
+      let expires = new Date(Date.now() + INVITE_TTL_MS);
+      let maxUses = 1;
       if (input.kind === 'circle') {
         const circle = await this.circles.read(tx, input.circleId, auth.userId);
         if (circle?.myStatus !== 'active' || circle.kind === 'pair') {
           throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+        }
+        if (circle.expiresAt !== undefined) {
+          expires = new Date(circle.expiresAt);
+          maxUses = EVENT_INVITE_USES;
         }
       }
       const [row] = await tx
@@ -63,11 +74,12 @@ export class InvitesService {
           circleId: input.kind === 'circle' ? input.circleId : null,
           tokenHash: hashToken(token),
           createdBy: auth.userId,
-          expiresAt,
+          expiresAt: expires,
+          maxUses,
         })
         .returning({ id: invites.id });
       if (row === undefined) throw new Error('invite insert returned nothing');
-      return row.id;
+      return { id: row.id, expiresAt: expires };
     });
     return { id, token, link: inviteLink(token), expiresAt: expiresAt.getTime() };
   }
@@ -103,7 +115,14 @@ export class InvitesService {
       circle:
         row.circle_kind === null
           ? null
-          : { name: row.circle_name, kind: row.circle_kind, memberCount: row.member_count ?? 0 },
+          : {
+              name: row.circle_name,
+              kind: row.circle_kind,
+              memberCount: row.member_count ?? 0,
+              ...(row.circle_expires_at === null
+                ? {}
+                : { expiresAt: new Date(row.circle_expires_at).getTime() }),
+            },
     };
   }
 
