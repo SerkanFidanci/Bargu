@@ -11,3 +11,7 @@
 "late" = "%1$@ yaklaşık %2$ld dk gecikecek";
 "notice.memberJoinedHistory" = "Çemberine yeni biri katıldı; artık o da konum geçmişini görebilir";
 "notice.memberJoinedHistoryIn" = "%@ çemberine yeni biri katıldı; artık o da konum geçmişini görebilir";
+"notice.memberJoinedSees" = "Çemberine yeni biri katıldı; artık o da konumunu görebilir";
+"notice.memberJoinedSeesIn" = "%@ çemberine yeni biri katıldı; artık o da konumunu görebilir";
+"notice.memberJoinedBoth" = "Çemberine yeni biri katıldı; artık o da konumunu ve konum geçmişini görebilir";
+"notice.memberJoinedBothIn" = "%@ çemberine yeni biri katıldı; artık o da konumunu ve konum geçmişini görebilir";

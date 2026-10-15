@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
-import { MEETINGS_CHANNEL, PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
+import { MEETINGS_CHANNEL, PLACES_CHANNEL, PRIVACY_CHANNEL, SOCIAL_CHANNEL } from './channels';
 
 export { SOCIAL_CHANNEL };
 
@@ -33,6 +33,7 @@ export interface PushRegistration {
   channelName: string;
   placesChannelName: string;
   meetingsChannelName: string;
+  privacyChannelName: string;
 }
 
 /**
@@ -45,6 +46,7 @@ export async function enablePush({
   channelName,
   placesChannelName,
   meetingsChannelName,
+  privacyChannelName,
 }: PushRegistration): Promise<PushState> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(SOCIAL_CHANNEL, {
@@ -58,6 +60,10 @@ export async function enablePush({
     await Notifications.setNotificationChannelAsync(MEETINGS_CHANNEL, {
       name: meetingsChannelName,
       importance: Notifications.AndroidImportance.HIGH,
+    });
+    await Notifications.setNotificationChannelAsync(PRIVACY_CHANNEL, {
+      name: privacyChannelName,
+      importance: Notifications.AndroidImportance.DEFAULT,
     });
   }
   let permission = await Notifications.getPermissionsAsync();
@@ -82,6 +88,13 @@ function set(state: PushState): PushState {
 }
 
 /** The circle a tapped notification is about, if it names one. */
+/** A screen a tapped notification opens instead of a circle (the weekly reminder: who sees you). */
+export function routeOfResponse(response: Notifications.NotificationResponse): '/seers' | null {
+  const data: unknown = response.notification.request.content.data;
+  if (typeof data !== 'object' || data === null) return null;
+  return (data as Record<string, unknown>).route === 'seers' ? '/seers' : null;
+}
+
 export function circleOfResponse(response: Notifications.NotificationResponse): string | null {
   const data: unknown = response.notification.request.content.data;
   if (typeof data !== 'object' || data === null) return null;

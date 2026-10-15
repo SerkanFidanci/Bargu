@@ -93,6 +93,19 @@ export function withoutGoneCircles(
 }
 
 /** Whether this phone sends its location to a circle right now. */
+/** What a circle sees of this phone: the live location right now, the location history. */
+export interface SeenThere {
+  location: boolean;
+  history: boolean;
+}
+
+export function seenThere(settings: SharingSettings, circleId: string, now: number): SeenThere {
+  return {
+    location: isSharingWith(settings, circleId, now),
+    history: circleSharing(settings, circleId).history === true,
+  };
+}
+
 export function isSharingWith(settings: SharingSettings, circleId: string, now: number): boolean {
   if (settings.ghost !== 'off') return false;
   const sharing = circleSharing(settings, circleId);
@@ -125,6 +138,21 @@ export function needsGps(
 }
 
 /** "Who sees me": everyone active in a circle this phone shares with (BARGU_PLAN §4.1). */
+/** Who sees this phone's location right now, circle by circle (the "Seni görenler" screen). */
+export function seersByCircle(
+  circles: readonly Circle[],
+  settings: SharingSettings,
+  me: string,
+  now: number,
+): { circle: Circle; seers: Circle['members'] }[] {
+  return sharedCircles(circles, settings, now)
+    .map((circle) => ({
+      circle,
+      seers: circle.members.filter((member) => member.userId !== me && member.status === 'active'),
+    }))
+    .filter(({ seers }) => seers.length > 0);
+}
+
 export function seersOf(
   circles: readonly Circle[],
   settings: SharingSettings,

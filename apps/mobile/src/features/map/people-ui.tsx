@@ -1,6 +1,8 @@
 import type { Circle } from '@bargu/schemas';
 import { type RefObject, useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Alert } from 'react-native';
+import { router } from 'expo-router';
 
 import { duration } from '@/theme/motion';
 import { feedback } from '@/theme/haptics';
@@ -11,6 +13,10 @@ import type { SheetRef } from '@/ui/sheet';
 import { useLocations } from '../location/receive';
 import { MuteSheet } from '../notifications/mute-sheet';
 import { poke } from '../social/poke';
+import { circlesApi } from '../circles/circles-api';
+import { errorMessage } from '../errors';
+import { circleSync } from '../live/live-session';
+import { startMeetingWith } from '../plan/quick-meeting';
 import type { BarguMapHandle } from './bargu-map';
 import { type PersonView, personView, runPersonAction } from './person-actions';
 import { PersonCard } from './person-card';
@@ -61,10 +67,53 @@ export function usePeopleUi(
     [t],
   );
 
+  const meet = useCallback(
+    (person: PersonView) => {
+      const username = person.username;
+      if (username === null) return;
+      Alert.alert(t('map.meetUp.title', { name: person.name }), t('map.meetUp.body'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('map.meetUp.start'),
+          onPress: () => {
+            void startMeetingWith(
+              { username, name: person.name },
+              (name) => t('map.meetUp.name', { name }),
+              {
+                create: (input) => circlesApi.create(input),
+                invite: (id, who) => circlesApi.invite(id, who),
+                adopt: (circle) => {
+                  void circleSync.adopt(circle).catch(() => undefined);
+                },
+              },
+              Date.now(),
+            ).then(
+              (event) => {
+                feedback('success');
+                closeCard();
+                toast.success(t('map.meetUp.started', { name: person.name }));
+                router.push({ pathname: '/circle/[id]', params: { id: event.id } });
+              },
+              (error: unknown) => {
+                feedback('error');
+                toast.error(errorMessage(error, t));
+              },
+            );
+          },
+        },
+      ]);
+    },
+    [t],
+  );
+
   const act = useCallback(
-    (userId: string, action: PersonAction) => {
+    (userId: string, action: PersonAction | 'meet') => {
       const person = personView(userId, circles, useLocations.getState());
       if (person === null) return;
+      if (action === 'meet') {
+        meet(person);
+        return;
+      }
       if (action === 'profile') closeCard();
       runPersonAction(action, person, {
         poke: (who) => void sendPoke(who),
@@ -74,7 +123,7 @@ export function usePeopleUi(
         },
       });
     },
-    [circles, sendPoke],
+    [circles, sendPoke, meet],
   );
 
   const handlersFor = useCallback(

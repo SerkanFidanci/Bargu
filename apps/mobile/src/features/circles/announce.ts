@@ -5,6 +5,7 @@ import { feedback } from '@/theme/haptics';
 import { useCelebration } from '@/ui/confetti';
 import { toast, type ToastTone } from '@/ui/toast';
 
+import { seenThere, useSharing } from '../location/sharing';
 import type { Notice } from './notices';
 
 function describe(notice: Notice): { text: string; tone: ToastTone } {
@@ -38,7 +39,16 @@ function describe(notice: Notice): { text: string; tone: ToastTone } {
  * a notice sliding in from the top, a haptic, confetti for a new friend. Tapping it opens the
  * circle. Several at once show the first and how many more.
  */
-export function announce(notices: Notice[]): void {
+export function announce(all: Notice[]): void {
+  // Someone joining a group that sees this phone's location or history is told as "X artık
+  // konumunu görebilir" (location-session checkViewers), not twice.
+  const settings = useSharing.getState();
+  const now = Date.now();
+  const notices = all.filter((notice) => {
+    if (notice.kind !== 'joined') return true;
+    const seen = seenThere(settings, notice.circleId, now);
+    return !seen.location && !seen.history;
+  });
   const [first] = notices;
   if (first === undefined) return;
   const { text, tone } = describe(first);

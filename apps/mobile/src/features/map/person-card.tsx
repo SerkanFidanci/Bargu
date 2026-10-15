@@ -2,6 +2,7 @@ import {
   BatteryCharging,
   BatteryLow,
   BatteryMedium,
+  Flag,
   Hand,
   History,
   type LucideIcon,
@@ -75,7 +76,7 @@ export function PersonCard({
   from: ScreenPoint;
   /** Place name, once the map has it (null: none nearby, undefined: still looking). */
   place: string | null | undefined;
-  onAction: (action: PersonAction) => void;
+  onAction: (action: PersonAction | 'meet') => void;
   /** The card's height, so the map keeps the person visible above it. */
   onHeight: (height: number) => void;
 }) {
@@ -228,6 +229,15 @@ export function PersonCard({
               primary
               onPress={() => {
                 onAction('poke');
+              }}
+            />
+            <ActionTile
+              testID="card-meet"
+              label={t('map.actions.meet')}
+              icon={Flag}
+              disabled={person.username === null}
+              onPress={() => {
+                onAction('meet');
               }}
             />
             <ActionTile

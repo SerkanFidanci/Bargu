@@ -1,10 +1,18 @@
 import type { ReactNode } from 'react';
-import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  type PressableProps,
+  type StyleProp,
+  StyleSheet,
+  type ViewStyle,
+} from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { press, spring } from '@/theme';
 import { feedback } from '@/theme/haptics';
 import type { HapticKind } from '@/theme/motion';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export interface PressableScaleProps extends Omit<PressableProps, 'style' | 'children'> {
   style?: StyleProp<ViewStyle>;
@@ -15,7 +23,9 @@ export interface PressableScaleProps extends Omit<PressableProps, 'style' | 'chi
 
 /**
  * A pressable that shrinks slightly while held. The scale runs on the UI thread (Reanimated);
- * with Reduce Motion the spring settles instantly, so only the dimming remains.
+ * with Reduce Motion the spring settles instantly, so only the dimming remains. Its style is the
+ * pressable's own, so layout works as on any view (`flex: 1` in a row, `alignSelf`), and a
+ * style's own opacity (a disabled control) is kept, the press dimming on top of it.
  */
 export function PressableScale({
   style,
@@ -28,15 +38,21 @@ export function PressableScale({
   ...props
 }: PressableScaleProps) {
   const pressed = useSharedValue(0);
-  const animated = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 - pressed.get() * (1 - press.scale) }],
-    opacity: 1 - pressed.get() * (1 - press.opacity),
-  }));
+  const flat = StyleSheet.flatten(style);
+  const base = typeof flat.opacity === 'number' ? flat.opacity : 1;
+  const animated = useAnimatedStyle(
+    () => ({
+      transform: [{ scale: 1 - pressed.get() * (1 - press.scale) }],
+      opacity: base * (1 - pressed.get() * (1 - press.opacity)),
+    }),
+    [base],
+  );
 
   return (
-    <Pressable
+    <AnimatedPressable
       {...props}
       disabled={disabled}
+      style={[style, animated]}
       onPressIn={(event) => {
         pressed.set(withSpring(1, spring.snappy));
         onPressIn?.(event);
@@ -51,7 +67,7 @@ export function PressableScale({
         onPress?.(event);
       }}
     >
-      <Animated.View style={[style, animated]}>{children}</Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedPressable>
   );
 }

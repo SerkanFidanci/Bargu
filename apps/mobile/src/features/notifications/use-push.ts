@@ -7,7 +7,7 @@ import i18n, { resolveLanguage } from '@/i18n';
 
 import { api } from '../auth/auth-store';
 import { registerPushTask } from './background-push';
-import { circleOfResponse, enablePush } from './push';
+import { circleOfResponse, enablePush, routeOfResponse } from './push';
 
 /** The server sends this phone its notices in this language, to this token (apps/api push). */
 async function register(token: string): Promise<void> {
@@ -22,6 +22,11 @@ async function register(token: string): Promise<void> {
 }
 
 function open(response: Notifications.NotificationResponse): void {
+  const route = routeOfResponse(response);
+  if (route !== null) {
+    router.push(route);
+    return;
+  }
   const circleId = circleOfResponse(response);
   if (circleId !== null) router.push({ pathname: '/circle/[id]', params: { id: circleId } });
 }
@@ -39,6 +44,7 @@ export function usePushNotifications(ready: boolean): void {
       channelName: i18n.t('notifications.channel'),
       placesChannelName: i18n.t('notifications.placesChannel'),
       meetingsChannelName: i18n.t('notifications.meetingsChannel'),
+      privacyChannelName: i18n.t('notifications.privacyChannel'),
     });
     // Notifications arrive sealed and data-only (docs/ADR/0016): this task opens and shows them.
     if (Platform.OS === 'android') void registerPushTask().catch(() => undefined);

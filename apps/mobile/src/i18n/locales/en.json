@@ -102,7 +102,7 @@
   "main": {
     "seers": {
       "none": "Nobody can see you",
-      "hint": "Shows who can see you",
+      "hint": "Shows who sees you; you can stop it all from there",
       "count": "Seen by {{count}}",
       "ghost": "You are a ghost"
     },
@@ -165,7 +165,9 @@
       "statusNone": "Share an emoji and a few words",
       "history": "My location history",
       "historyOff": "Off",
-      "historyOn": "On in {{count}} circles"
+      "historyOn": "On in {{count}} circles",
+      "security": "Security",
+      "securityDetail": "App lock, lost phone, events"
     }
   },
   "ui": {
@@ -449,7 +451,11 @@
       "memberJoined": "Someone joined your circle",
       "memberJoinedIn": "Someone joined {{circle}}",
       "memberJoinedHistory": "Someone joined your circle; they can now see your location history too",
-      "memberJoinedHistoryIn": "Someone joined {{circle}}; they can now see your location history too"
+      "memberJoinedHistoryIn": "Someone joined {{circle}}; they can now see your location history too",
+      "memberJoinedSees": "Someone joined your circle; they can now see your location too",
+      "memberJoinedSeesIn": "Someone joined {{circle}}; they can now see your location too",
+      "memberJoinedBoth": "Someone joined your circle; they can now see your location and location history too",
+      "memberJoinedBothIn": "Someone joined {{circle}}; they can now see your location and location history too"
     },
     "mute": {
       "title": "Notifications from {{name}}",
@@ -458,7 +464,8 @@
       "hint": "What you turn off goes quiet on this phone only; the server never learns whom you muted."
     },
     "meetingsChannel": "Meetings",
-    "late": "{{name}} will be about {{minutes}} min late"
+    "late": "{{name}} will be about {{minutes}} min late",
+    "privacyChannel": "Privacy reminders"
   },
   "location": {
     "service": {
@@ -519,6 +526,16 @@
       "body": "The app was reinstalled. Your privacy settings stayed with the old install, so your location goes to no circle until you choose.",
       "shareAll": "Share with all (exact location)",
       "choose": "Choose circle by circle"
+    },
+    "newViewer": "{{name}} can now see your location in {{circle}}",
+    "newViewerBoth": "{{name}} can now see your location and location history in {{circle}}",
+    "reminder": {
+      "title": "Weekly reminder",
+      "location": "{{count}} people see your location ({{circles}})",
+      "history": "{{count}} people see your location history",
+      "ok": "OK",
+      "edit": "Change",
+      "notification": "Have a look at who sees your location; stop it with one tap if you like."
     }
   },
   "map": {
@@ -528,7 +545,8 @@
       "profile": "Profile",
       "notifications": "Notifications",
       "close": "Close the menu",
-      "history": "History"
+      "history": "History",
+      "meet": "Meet"
     },
     "card": {
       "noLocation": "Location not visible right now",
@@ -550,7 +568,14 @@
       "failed": "Could not poke. Check your connection."
     },
     "meet": "You and {{name}} met! 🎉",
-    "cluster": "{{count}} people together: {{names}}. Tap to zoom in."
+    "cluster": "{{count}} people together: {{names}}. Tap to zoom in.",
+    "meetUp": {
+      "title": "Set up a meeting with {{name}}?",
+      "body": "A meeting you run is set up and an invitation goes out. Choose the time and place right away. It ends on its own in 3 hours, and everything is deleted then.",
+      "start": "Set up",
+      "name": "Meeting with {{name}}",
+      "started": "Meeting with {{name}} set up; choose the time and place"
+    }
   },
   "places": {
     "title": "Places",
@@ -699,5 +724,50 @@
     "viewersHint": "Each circle only sees the history you turned on for it; people cannot see what came before they joined.",
     "turnOff": "Turn off here",
     "newViewer": "{{name}} can now see your location history in {{circle}}"
+  },
+  "security": {
+    "title": "Security",
+    "events": "Recent security events",
+    "eventsEmpty": "No security events in the last 90 days.",
+    "eventsFailed": "Could not load the security events. Check your connection.",
+    "thisPhone": "This phone",
+    "otherPhone_android": "Another Android phone",
+    "otherPhone_ios": "Another iPhone",
+    "event_login_otp": "Signed in with an email code",
+    "event_login_passkey": "Signed in with a passkey",
+    "event_device_replaced": "Signed in on a new phone; the previous one was removed",
+    "event_refresh_reuse": "Your session was used suspiciously and ended",
+    "event_passkey_added": "Passkey added",
+    "event_logout": "Signed out",
+    "lock": {
+      "toggle": "App lock",
+      "hint": "When on, Bargu asks for Face ID, a fingerprint or your phone’s passcode when it starts and after more than a minute in the background. It only covers the screen; your location sharing carries on behind it.",
+      "promptOn": "Confirm to turn the app lock on",
+      "promptOff": "Confirm to turn the app lock off",
+      "prompt": "Confirm to open Bargu",
+      "unavailable": "This phone has no screen lock. Set one up in the phone’s settings first.",
+      "on": "App lock is on",
+      "off": "App lock is off",
+      "title": "Bargu is locked",
+      "body": "Use Face ID, a fingerprint or your phone’s passcode to carry on.",
+      "unlock": "Unlock"
+    }
+  },
+  "seers": {
+    "title": "Who sees you",
+    "summary": "{{count}} people in {{circles}} circles see your location right now.",
+    "nobody": "Nobody sees your location right now",
+    "nobodyBody": "Once you share with a circle, who sees you is listed here.",
+    "stopAll": "Stop all",
+    "stopAllHint": "Your location leaves everyone’s map at once, nothing is sent and no history is written. Carry on with one tap whenever you like.",
+    "stopped": "Sharing stopped; you are off everyone’s map",
+    "stoppedTitle": "Sharing is stopped",
+    "resume": "Carry on sharing",
+    "resumed": "Sharing started again",
+    "history": "{{count}} people in {{circles}} circles can see your location history",
+    "historyWho": "Who sees my history?",
+    "deleteHistory": "Delete my history too",
+    "deleteHistoryTitle": "Delete your location history?",
+    "deleteHistoryBody": "Location history turns off in every circle and the copy on the server is deleted. This cannot be undone."
   }
 }

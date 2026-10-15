@@ -3,6 +3,7 @@ import i18n from '@/i18n';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import { Hand } from 'lucide-react-native';
+import { type StyleProp, StyleSheet, type ViewStyle } from 'react-native';
 import { useState } from 'react';
 
 import { typography } from '@/theme';
@@ -31,7 +32,13 @@ describe('Text', () => {
 describe('ActionTile', () => {
   it('keeps its name on one line, shrinking a little rather than breaking it (Faz 9)', async () => {
     const onPress = jest.fn();
-    await render(<ActionTile label="Yol tarifi" icon={Hand} onPress={onPress} />);
+    await render(<ActionTile testID="tile" label="Yol tarifi" icon={Hand} onPress={onPress} />);
+    // Its style is the pressable's own: four of them share a row equally (person card, Faz 9).
+    expect(
+      StyleSheet.flatten(screen.getByTestId('tile').props.style as StyleProp<ViewStyle>),
+    ).toMatchObject({
+      flex: 1,
+    });
     const label = screen.getByText('Yol tarifi');
     expect(label.props.numberOfLines).toBe(1);
     expect(label.props.adjustsFontSizeToFit).toBe(true);

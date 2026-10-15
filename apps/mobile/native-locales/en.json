@@ -4,6 +4,7 @@
     "NSLocationWhenInUseUsageDescription": "Bargu shares your location, end-to-end encrypted, only with the circles you choose.",
     "NSLocationAlwaysAndWhenInUseUsageDescription": "So your circles can see you while the app is closed. Your location is end-to-end encrypted.",
     "NSLocationAlwaysUsageDescription": "So your circles can see you while the app is closed. Your location is end-to-end encrypted.",
-    "NSPhotoLibraryUsageDescription": "Bargu uses a photo you pick as your profile picture. It is encrypted before it leaves your phone."
+    "NSPhotoLibraryUsageDescription": "Bargu uses a photo you pick as your profile picture. It is encrypted before it leaves your phone.",
+    "NSFaceIDUsageDescription": "Bargu uses Face ID to unlock the app when you turn on the app lock."
   }
 }

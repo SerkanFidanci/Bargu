@@ -72,7 +72,7 @@ enum PushOpener {
   static func open(
     sealed: String, now: Date,
     device: PushShare.Device?, contacts: PushShare.Contacts?, mutes: PushShare.Mutes?,
-    history: [String]? = nil
+    history: [String]? = nil, live: [String]? = nil
   ) -> ShownPush? {
     guard let device, let contacts,
       let secret = try? Encoding.base64url(device.dhSecretKey, length: 32),
@@ -90,18 +90,19 @@ enum PushOpener {
     switch body.kind {
     case .notice:
       let circle = contacts.circles[body.circleId]?.name ?? ""
-      // Someone new in a circle that gets the history: they can see it too (docs/ADR/0019).
-      let seesHistory = body.notice == "memberJoined" && (history ?? []).contains(body.circleId)
+      // Someone new in a circle that sees the location or the history: they can see it too
+      // (Faz 9, docs/ADR/0019).
+      let joined = body.notice == "memberJoined"
+      let seesLive = joined && (live ?? []).contains(body.circleId)
+      let seesHistory = joined && (history ?? []).contains(body.circleId)
+      let what = seesLive && seesHistory ? "Both" : seesLive ? "Sees" : seesHistory ? "History" : ""
       let text: String
-      if seesHistory {
-        text =
-          circle.isEmpty
-          ? localized("notice.memberJoinedHistory")
-          : String(format: localized("notice.memberJoinedHistoryIn"), circle)
-      } else if body.notice == "memberJoined" && !circle.isEmpty {
-        text = String(format: localized("notice.memberJoinedIn"), circle)
-      } else {
+      if !joined {
         text = localized("notice.\(body.notice ?? "")")
+      } else if circle.isEmpty {
+        text = localized("notice.memberJoined\(what)")
+      } else {
+        text = String(format: localized("notice.memberJoined\(what)In"), circle)
       }
       return .show(title: "Bargu", body: text, circleId: body.circleId, thread: "social")
     case .bump:

@@ -4,6 +4,7 @@
     "NSLocationWhenInUseUsageDescription": "Bargu konumunu uçtan uca şifreli olarak, yalnızca seçtiğin çemberlerle paylaşır.",
     "NSLocationAlwaysAndWhenInUseUsageDescription": "Uygulama kapalıyken de çemberlerin seni görebilsin diye. Konumun uçtan uca şifrelenir.",
     "NSLocationAlwaysUsageDescription": "Uygulama kapalıyken de çemberlerin seni görebilsin diye. Konumun uçtan uca şifrelenir.",
-    "NSPhotoLibraryUsageDescription": "Bargu, seçtiğin fotoğrafı profil resmin yapar. Telefonundan çıkmadan önce şifrelenir."
+    "NSPhotoLibraryUsageDescription": "Bargu, seçtiğin fotoğrafı profil resmin yapar. Telefonundan çıkmadan önce şifrelenir.",
+    "NSFaceIDUsageDescription": "Bargu, uygulama kilidini açtığında uygulamayı Face ID ile açmak için kullanır."
   }
 }

@@ -2,6 +2,8 @@ import type { PushBody } from '@bargu/schemas';
 
 import i18n from '@/i18n';
 
+import type { SeenThere } from '../location/sharing';
+
 import { MEETINGS_CHANNEL, PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
 import type { PushContacts } from './push-contacts';
 
@@ -23,20 +25,29 @@ export function pushText(
   body: PushBody,
   senderDeviceId: string | null,
   contacts: PushContacts,
-  /** Whether this phone's location history goes to a circle (docs/ADR/0019). */
-  historyIn: (circleId: string) => boolean = () => false,
+  /** What a circle sees of this phone: live location, history (Faz 9, docs/ADR/0019). */
+  seenIn: (circleId: string) => SeenThere = () => ({ location: false, history: false }),
 ): ShownPush | null {
   if (body.kind === 'notice') {
     const circle = contacts.circles[body.circleId]?.name ?? '';
-    // Someone new in a circle that gets the history: they can see it too (BARGU_PLAN, QA G2).
-    const history = body.notice === 'memberJoined' && historyIn(body.circleId);
-    const text = history
-      ? circle === ''
-        ? i18n.t('notifications.notice.memberJoinedHistory')
-        : i18n.t('notifications.notice.memberJoinedHistoryIn', { circle })
-      : body.notice === 'memberJoined' && circle !== ''
-        ? i18n.t('notifications.notice.memberJoinedIn', { circle })
-        : i18n.t(`notifications.notice.${body.notice}`);
+    // Someone new in a circle that sees the location or the history: they can see it too
+    // (BARGU_PLAN Faz 9, QA G2).
+    const seen =
+      body.notice === 'memberJoined' ? seenIn(body.circleId) : { location: false, history: false };
+    const what =
+      seen.location && seen.history
+        ? 'Both'
+        : seen.location
+          ? 'Sees'
+          : seen.history
+            ? 'History'
+            : '';
+    const text =
+      body.notice !== 'memberJoined'
+        ? i18n.t(`notifications.notice.${body.notice}`)
+        : circle === ''
+          ? i18n.t(`notifications.notice.memberJoined${what}`)
+          : i18n.t(`notifications.notice.memberJoined${what}In`, { circle });
     return {
       title: 'Bargu',
       body: text,

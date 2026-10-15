@@ -10,6 +10,7 @@ import {
   type LucideIcon,
   Pencil,
   Smile,
+  ShieldCheck,
   Smartphone,
   Wrench,
 } from 'lucide-react-native';
@@ -164,6 +165,15 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
             value,
             label: t(`sheets.me.mapAppearance_${value}`),
           }))}
+        />
+        <Row
+          icon={ShieldCheck}
+          label={t('sheets.me.security')}
+          detail={t('sheets.me.securityDetail')}
+          onPress={() => {
+            onClose();
+            router.push('/security');
+          }}
         />
         <Row
           icon={Smartphone}

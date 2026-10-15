@@ -17,6 +17,7 @@ import {
   statusGoneEventSchema,
   statusSnapshotSchema,
   watchEventSchema,
+  type MemberCard,
 } from '@bargu/schemas';
 import * as Battery from 'expo-battery';
 import { z } from 'zod';
@@ -60,7 +61,10 @@ import { useDocs } from '../plan/docs';
 import { docs } from '../plan/docs-session';
 import { createMeetings, lateEvent, useLates } from '../plan/meeting';
 import { cancelAllReminders, cancelReminder, remindToLeave } from '../plan/reminders';
-import { shareHistoryWithExtension } from '../notifications/extension-share';
+import {
+  shareHistoryWithExtension,
+  shareLiveWithExtension,
+} from '../notifications/extension-share';
 import { queryClient } from '../query-client';
 import { publishProfile, receivedProfile, resetPhotos, restorePhotos } from '../profile/photo';
 import { receivePoke } from '../social/poke';
@@ -88,7 +92,20 @@ import {
   withAllShared,
   withNothingShared,
   withoutGoneCircles,
+  type SeenThere,
+  seenThere,
+  seersByCircle,
 } from './sharing';
+import { forgetMembers, knownMembers, newLiveViewers, rememberMembers } from './seen-by';
+import {
+  anyoneSees,
+  lastReview,
+  reminderAt,
+  reminderSummary,
+  saveReview,
+  useSharingReminder,
+} from './sharing-reminder';
+import { cancelSharingReminder, scheduleSharingReminder } from './sharing-reminder-notification';
 import { stopTracking } from './tracker';
 
 /** Circles as sending needs them, kept for a background start (no circle list in memory then). */
@@ -370,21 +387,126 @@ function forgetGoneCircles(isGone: (circleId: string) => boolean): void {
     updateSharing((current) => withoutGoneCircles(current, isGone));
     for (const circleId of gone) setKnownViewers(vault(), circleId, null);
   }
+  forgetMembers(vault(), isGone);
   void meetings.forget(isGone).catch(() => undefined);
 }
 
-/** Someone new can see the history ("artık X de geçmişini görebilir"): told once, then known. */
+/**
+ * Someone new can see this phone's location, its history, or both ("X artık konumunu görebilir",
+ * BARGU_PLAN Faz 9, docs/ADR/0019): told once, in one sentence, then known.
+ */
 function checkViewers(circles: readonly Circle[]): void {
   const me = useAuth.getState().userId;
   if (me === null) return;
-  const audience = historyAudience(circles, loadSharingSettings(), me);
-  for (const { circle, viewer } of newViewers(knownViewers(vault()), audience)) {
-    tellNewViewer(
-      i18n.t('history.newViewer', { name: memberName(viewer), circle: circle.name ?? '' }),
-      circle.id,
-    );
+  const settings = loadSharingSettings();
+  const audience = historyAudience(circles, settings, me);
+  const live = newLiveViewers(knownMembers(vault()), circles, settings, me, Date.now());
+  const history = newViewers(knownViewers(vault()), audience);
+  const key = (circleId: string, userId: string) => `${circleId}:${userId}`;
+  const historyKeys = new Set(history.map(({ circle, viewer }) => key(circle.id, viewer.userId)));
+  const liveKeys = new Set(live.map(({ circle, viewer }) => key(circle.id, viewer.userId)));
+  const tell = (
+    text: 'location.newViewer' | 'location.newViewerBoth' | 'history.newViewer',
+    circle: Circle,
+    viewer: MemberCard,
+  ) => {
+    tellNewViewer(i18n.t(text, { name: memberName(viewer), circle: circle.name ?? '' }), circle.id);
+  };
+  for (const { circle, viewer } of live) {
+    const both = historyKeys.has(key(circle.id, viewer.userId));
+    tell(both ? 'location.newViewerBoth' : 'location.newViewer', circle, viewer);
+  }
+  for (const { circle, viewer } of history) {
+    if (!liveKeys.has(key(circle.id, viewer.userId))) tell('history.newViewer', circle, viewer);
   }
   rememberViewers(vault(), audience);
+  rememberMembers(vault(), circles, me);
+}
+
+/**
+ * What the iOS extension words "someone new can see your location / history" from (QA G2): the
+ * circles that see the live location now and those with history on. Kept current on every change,
+ * when a timed share ends and when the app starts (QA B3).
+ */
+function shareSeenWithExtension(settings: SharingSettings): void {
+  const now = Date.now();
+  const ids = (pick: (seen: SeenThere) => boolean) =>
+    Object.keys(settings.circles).filter((circleId) => pick(seenThere(settings, circleId, now)));
+  void shareHistoryWithExtension(ids((seen) => seen.history)).catch(() => undefined);
+  void shareLiveWithExtension(ids((seen) => seen.location)).catch(() => undefined);
+}
+
+/**
+ * The weekly "who sees you" reminder (BARGU_PLAN Faz 9): counted from the first start, the
+ * notification set for a week after the last look while anyone sees the location or its history,
+ * taken back while nobody does. Set again on every change of who sees what.
+ */
+let reminderPlanned: number | null | undefined;
+function planSharingReminder(): void {
+  const me = useAuth.getState().userId;
+  if (me === null || !isVaultOpen()) return;
+  let reviewedAt = lastReview(vault());
+  if (reviewedAt === null) {
+    reviewedAt = Date.now();
+    saveReview(vault(), reviewedAt);
+  } else if (useSharingReminder.getState().reviewedAt !== reviewedAt) {
+    useSharingReminder.setState({ reviewedAt }, true);
+  }
+  const circles = cachedCircles();
+  if (circles === undefined) return;
+  const settings = loadSharingSettings();
+  const now = Date.now();
+  const summary = reminderSummary(
+    seersByCircle(circles, settings, me, now),
+    historyAudience(circles, settings, me),
+    (circle) => circle.name ?? '',
+  );
+  const at = anyoneSees(summary) && reminderAt(reviewedAt) > now ? reminderAt(reviewedAt) : null;
+  if (at === reminderPlanned) return;
+  reminderPlanned = at;
+  if (at === null) {
+    void cancelSharingReminder().catch(() => undefined);
+    return;
+  }
+  void scheduleSharingReminder(at, {
+    title: i18n.t('location.reminder.title'),
+    body: i18n.t('location.reminder.notification'),
+  }).catch(() => undefined);
+}
+
+/** The user looked ("Tamam", "Düzenle"): a new week counts from now. */
+export function reviewSharing(): void {
+  if (!isVaultOpen()) return;
+  saveReview(vault(), Date.now());
+  planSharingReminder();
+}
+
+/**
+ * "Tümünü durdur" (BARGU_PLAN Faz 9): one tap, the location leaves every map and nothing more is
+ * sent or written (ghost "hide"; the history waiting to go is dropped, ADR 0019).
+ */
+export function stopSharing(): void {
+  updateSharing((current) => ({ ...current, ghost: 'hide' }));
+}
+
+/** "Paylaşmaya devam et": every circle gets what the user chose for it again. */
+export function resumeSharing(): void {
+  updateSharing((current) => ({ ...current, ghost: 'off' }));
+}
+
+/**
+ * "Geçmişimi de sil": history off in every circle, the server's copies deleted ("later" when some
+ * wait for a connection).
+ */
+export async function forgetAllHistory(): Promise<'off' | 'later'> {
+  const circleIds = Object.entries(loadSharingSettings().circles)
+    .filter(([, sharing]) => sharing.history === true)
+    .map(([circleId]) => circleId);
+  let later = false;
+  for (const circleId of circleIds) {
+    if ((await setHistory(circleId, false)) === 'later') later = true;
+  }
+  return later ? 'later' : 'off';
 }
 
 /** Changes one circle's sharing (or the ghost mode); takes effect at once. */
@@ -396,11 +518,8 @@ export function updateSharing(change: (current: SharingSettings) => SharingSetti
   saveSharing(vault(), next);
   history.sharingChanged();
   watchSharingEnd();
-  // The iOS extension words "someone new can see your history" from this (G2).
-  const withHistory = Object.entries(next.circles)
-    .filter(([, sharing]) => sharing.history === true)
-    .map(([circleId]) => circleId);
-  void shareHistoryWithExtension(withHistory).catch(() => undefined);
+  shareSeenWithExtension(next);
+  planSharingReminder();
   void locationEngine.changed();
 }
 
@@ -422,6 +541,7 @@ function watchSharingEnd(): void {
       sharingEndTimer = null;
       if (!isVaultOpen()) return;
       history.sharingChanged();
+      shareSeenWithExtension(loadSharingSettings());
       watchSharingEnd();
     },
     Math.min(Math.min(...ends) - now + 500, 2 ** 31 - 1),
@@ -479,6 +599,8 @@ export function restoreLocations(): void {
   // What sharing stopped for while the app was closed (a timed share over) goes before anything.
   if (isVaultOpen()) {
     history.sharingChanged();
+    planSharingReminder();
+    shareSeenWithExtension(loadSharingSettings());
     watchSharingEnd();
   }
   if (isVaultOpen() && vault().get(SHARING_REVIEW_KEY) === '1') {
@@ -584,6 +706,7 @@ queryClient.getQueryCache().subscribe((event) => {
   receiver.prune();
   pruneStatuses(circles);
   checkViewers(circles);
+  planSharingReminder();
   // New circles and new epochs get the photo key (members who joined could not read the old one).
   void publishProfile().catch(() => undefined);
   receiver.retryWaiting();
@@ -594,6 +717,9 @@ onSignedOut(() => {
   if (sharingEndTimer !== null) clearTimeout(sharingEndTimer);
   sharingEndTimer = null;
   void cancelAllReminders().catch(() => undefined);
+  void cancelSharingReminder().catch(() => undefined);
+  reminderPlanned = undefined;
+  useSharingReminder.setState({ reviewedAt: null }, true);
   locationEngine.reset();
   meetings.reset();
   history.reset();

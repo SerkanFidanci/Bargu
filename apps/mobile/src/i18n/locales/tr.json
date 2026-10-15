@@ -102,7 +102,7 @@
   "main": {
     "seers": {
       "none": "Seni kimse görmüyor",
-      "hint": "Kimlerin seni gördüğünü açar",
+      "hint": "Kimlerin seni gördüğünü açar; oradan tümünü durdurabilirsin",
       "count": "{{count}} kişi seni görüyor",
       "ghost": "Hayalet modundasın"
     },
@@ -165,7 +165,9 @@
       "statusNone": "Bir emoji ve birkaç kelime paylaş",
       "history": "Konum geçmişim",
       "historyOff": "Kapalı",
-      "historyOn": "{{count}} çemberde açık"
+      "historyOn": "{{count}} çemberde açık",
+      "security": "Güvenlik",
+      "securityDetail": "Uygulama kilidi, kaybolan telefon, olaylar"
     }
   },
   "ui": {
@@ -449,7 +451,11 @@
       "memberJoined": "Çemberine yeni biri katıldı",
       "memberJoinedIn": "{{circle}} çemberine yeni biri katıldı",
       "memberJoinedHistory": "Çemberine yeni biri katıldı; artık o da konum geçmişini görebilir",
-      "memberJoinedHistoryIn": "{{circle}} çemberine yeni biri katıldı; artık o da konum geçmişini görebilir"
+      "memberJoinedHistoryIn": "{{circle}} çemberine yeni biri katıldı; artık o da konum geçmişini görebilir",
+      "memberJoinedSees": "Çemberine yeni biri katıldı; artık o da konumunu görebilir",
+      "memberJoinedSeesIn": "{{circle}} çemberine yeni biri katıldı; artık o da konumunu görebilir",
+      "memberJoinedBoth": "Çemberine yeni biri katıldı; artık o da konumunu ve konum geçmişini görebilir",
+      "memberJoinedBothIn": "{{circle}} çemberine yeni biri katıldı; artık o da konumunu ve konum geçmişini görebilir"
     },
     "mute": {
       "title": "{{name}} için bildirimler",
@@ -458,7 +464,8 @@
       "hint": "Kapattıkların yalnızca bu telefonda susar; sunucu kimi sessize aldığını bilmez."
     },
     "meetingsChannel": "Buluşmalar",
-    "late": "{{name}} yaklaşık {{minutes}} dk gecikecek"
+    "late": "{{name}} yaklaşık {{minutes}} dk gecikecek",
+    "privacyChannel": "Gizlilik hatırlatmaları"
   },
   "location": {
     "service": {
@@ -519,6 +526,16 @@
       "body": "Uygulama yeniden kuruldu. Gizlilik ayarların eski kurulumda kaldı; bu yüzden konumun sen seçene kadar hiçbir çembere gitmiyor.",
       "shareAll": "Hepsiyle paylaş (tam konum)",
       "choose": "Çemberleri tek tek seç"
+    },
+    "newViewer": "{{name}} artık {{circle}} çemberinde konumunu görebilir",
+    "newViewerBoth": "{{name}} artık {{circle}} çemberinde konumunu ve konum geçmişini görebilir",
+    "reminder": {
+      "title": "Haftalık hatırlatma",
+      "location": "Konumunu {{count}} kişi görüyor ({{circles}})",
+      "history": "konum geçmişini {{count}} kişi görüyor",
+      "ok": "Tamam",
+      "edit": "Düzenle",
+      "notification": "Konumunu kimlerin gördüğüne bir bak; istersen tek dokunuşla durdur."
     }
   },
   "map": {
@@ -528,7 +545,8 @@
       "profile": "Profil",
       "notifications": "Bildirimler",
       "close": "Menüyü kapat",
-      "history": "Geçmiş"
+      "history": "Geçmiş",
+      "meet": "Buluş"
     },
     "card": {
       "noLocation": "Konumu şu an görünmüyor",
@@ -550,7 +568,14 @@
       "failed": "Dürtülemedi. Bağlantını kontrol et."
     },
     "meet": "{{name}} ile buluştunuz! 🎉",
-    "cluster": "{{count}} kişi bir arada: {{names}}. Yakınlaştırmak için dokun."
+    "cluster": "{{count}} kişi bir arada: {{names}}. Yakınlaştırmak için dokun.",
+    "meetUp": {
+      "title": "{{name}} ile buluşma kurulsun mu?",
+      "body": "Senin yönettiğin bir buluşma kurulur ve davet gider. Saati ve yeri hemen seçersin. 3 saat sonra kendiliğinden biter, bitince her şey silinir.",
+      "start": "Kur",
+      "name": "{{name}} ile buluşma",
+      "started": "{{name}} ile buluşma kuruldu; saat ve yeri seç"
+    }
   },
   "places": {
     "title": "Yerler",
@@ -698,6 +723,51 @@
     "viewersEmptyBody": "Bir çemberin ekranında \"Konum geçmişi\"ni açarsan, o çemberdekiler son 14 günü görebilir.",
     "viewersHint": "Her çember yalnızca kendisi için açtığın geçmişi görür; kişiler katıldıkları andan öncesini göremez.",
     "turnOff": "Bu çemberde kapat",
-    "newViewer": "Artık {{name}} de {{circle}} çemberindeki konum geçmişini görebilir"
+    "newViewer": "{{name}} artık {{circle}} çemberinde konum geçmişini görebilir"
+  },
+  "security": {
+    "title": "Güvenlik",
+    "events": "Son güvenlik olayları",
+    "eventsEmpty": "Son 90 günde bir güvenlik olayı yok.",
+    "eventsFailed": "Güvenlik olayları yüklenemedi. Bağlantını kontrol et.",
+    "thisPhone": "Bu telefon",
+    "otherPhone_android": "Başka bir Android telefon",
+    "otherPhone_ios": "Başka bir iPhone",
+    "event_login_otp": "E-posta koduyla giriş yapıldı",
+    "event_login_passkey": "Geçiş anahtarıyla giriş yapıldı",
+    "event_device_replaced": "Yeni bir telefonla giriş yapıldı; önceki telefon çıkarıldı",
+    "event_refresh_reuse": "Oturumun şüpheli biçimde kullanıldı ve kapatıldı",
+    "event_passkey_added": "Geçiş anahtarı eklendi",
+    "event_logout": "Çıkış yapıldı",
+    "lock": {
+      "toggle": "Uygulama kilidi",
+      "hint": "Açıksa Bargu açılışta ve bir dakikadan uzun arka planda kaldıktan sonra Face ID, parmak izi ya da telefon şifreni ister. Yalnızca ekranı korur; konum paylaşımın arkada sürer.",
+      "promptOn": "Uygulama kilidini açmak için doğrula",
+      "promptOff": "Uygulama kilidini kapatmak için doğrula",
+      "prompt": "Bargu’yu açmak için doğrula",
+      "unavailable": "Bu telefonda ekran kilidi yok. Önce telefonun ayarlarından bir kilit kur.",
+      "on": "Uygulama kilidi açıldı",
+      "off": "Uygulama kilidi kapatıldı",
+      "title": "Bargu kilitli",
+      "body": "Devam etmek için Face ID, parmak izi ya da telefon şifreni kullan.",
+      "unlock": "Kilidi aç"
+    }
+  },
+  "seers": {
+    "title": "Seni görenler",
+    "summary": "Konumunu şu an {{circles}} çemberde {{count}} kişi görüyor.",
+    "nobody": "Konumunu şu an kimse görmüyor",
+    "nobodyBody": "Bir çemberle paylaşmaya başlarsan kimlerin gördüğü burada yazar.",
+    "stopAll": "Tümünü durdur",
+    "stopAllHint": "Konumun herkesin haritasından hemen kaybolur, konum gönderilmez ve geçmiş yazılmaz. İstediğinde tek dokunuşla devam edersin.",
+    "stopped": "Paylaşım durdu; konumun herkesin haritasından kalktı",
+    "stoppedTitle": "Paylaşım durduruldu",
+    "resume": "Paylaşmaya devam et",
+    "resumed": "Paylaşım yeniden başladı",
+    "history": "Konum geçmişini {{circles}} çemberde {{count}} kişi görebiliyor",
+    "historyWho": "Geçmişimi kimler görüyor?",
+    "deleteHistory": "Geçmişimi de sil",
+    "deleteHistoryTitle": "Konum geçmişin silinsin mi?",
+    "deleteHistoryBody": "Bütün çemberlerde konum geçmişi kapanır ve sunucudaki kopyası silinir. Bu geri alınamaz."
   }
 }

@@ -16,6 +16,7 @@ import { EventStream } from '../events/event-stream';
 import { socketTransport } from '../events/socket-transport';
 import { KeyStore } from '../keys/key-store';
 import { queryClient } from '../query-client';
+import { resetAppLock, restoreAppLock } from '../security/app-lock';
 import { destroyVault, openVault, vault } from '../storage/vault';
 
 let keyStore: KeyStore | null = null;
@@ -181,6 +182,7 @@ AppState.addEventListener('change', (state) => {
 
 // Nothing of one account may survive into the next sign-in: connection, keys, position.
 onSignedOut(() => {
+  resetAppLock();
   stream.reset();
   setOnline(false);
   keyStore = null;
@@ -200,6 +202,8 @@ export function useLiveSession(): boolean {
     openVault().then(
       () => {
         if (!active) return;
+        // Before anything shows: a locked app shows nothing until the phone confirms its owner.
+        restoreAppLock(vault());
         setReady(true);
         if (AppState.currentState === 'active') stream.start();
       },

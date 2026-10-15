@@ -20,6 +20,8 @@ export const EXTENSION_ITEMS = {
   mutes: 'mutes',
   /** Circles with location history on: "someone new can see your history" (docs/ADR/0019). */
   history: 'history',
+  /** Circles that see the live location now: "someone new can see your location" (Faz 9). */
+  live: 'live',
 } as const;
 
 function options(): SecureStore.SecureStoreOptions | null {
@@ -47,6 +49,10 @@ export function shareWithExtension(contacts: PushContacts): Promise<void> {
 
 export function shareHistoryWithExtension(circleIds: readonly string[]): Promise<void> {
   return put(EXTENSION_ITEMS.history, circleIds);
+}
+
+export function shareLiveWithExtension(circleIds: readonly string[]): Promise<void> {
+  return put(EXTENSION_ITEMS.live, circleIds);
 }
 
 export function shareMutesWithExtension(mutes: Mutes): Promise<void> {

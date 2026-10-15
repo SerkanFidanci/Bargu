@@ -24,6 +24,7 @@ const run = () =>
     channelName: 'Arkadaşlar ve çemberler',
     placesChannelName: 'Varışlar ve ayrılışlar',
     meetingsChannelName: 'Buluşmalar',
+    privacyChannelName: 'Gizlilik hatırlatmaları',
   });
 
 beforeEach(() => {

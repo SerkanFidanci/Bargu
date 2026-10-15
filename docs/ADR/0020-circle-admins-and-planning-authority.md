@@ -85,4 +85,6 @@ Proje sahibinin kararları (PM üzerinden, 2026-10-15): dört soruda da öneri s
 - **Migration'lar:**
   - 0013: kişi başına tek giriş;
   - 0014: belge türleri ve belge yetkisi;
-  - 0015: yöneticiler ve etkinlik davetleri.
+  - 0015: yöneticiler ve etkinlik davetleri;
+  - 0016: kabul tekrarlanabilir; aynı kodla yeniden gelen istek aynı çemberi döndürür (QA B2, ADR 0009
+    eki).

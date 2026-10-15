@@ -77,15 +77,29 @@ describe('notification texts', () => {
     ).toBe('Bir çembere davet edildin');
   });
 
-  it('warn that a newcomer will see the location history too, in a circle that keeps it (Faz 9 G2)', () => {
+  it('warn that a newcomer will see the location, its history, or both (Faz 9, G2)', () => {
     const joined = { kind: 'notice', notice: 'memberJoined', circleId: circle.id, ts: 1 } as const;
-    const kept = (circleId: string) => circleId === circle.id;
-    expect(pushText(joined, null, contacts, kept)?.body).toBe(
+    const seen = (location: boolean, history: boolean) => (circleId: string) => ({
+      location: circleId === circle.id && location,
+      history: circleId === circle.id && history,
+    });
+    expect(pushText(joined, null, contacts, seen(false, true))?.body).toBe(
       'Aile çemberine yeni biri katıldı; artık o da konum geçmişini görebilir',
     );
-    expect(pushText(joined, null, contacts, () => false)?.body).toBe(
+    expect(pushText(joined, null, contacts, seen(true, false))?.body).toBe(
+      'Aile çemberine yeni biri katıldı; artık o da konumunu görebilir',
+    );
+    expect(pushText(joined, null, contacts, seen(true, true))?.body).toBe(
+      'Aile çemberine yeni biri katıldı; artık o da konumunu ve konum geçmişini görebilir',
+    );
+    expect(pushText(joined, null, contacts, seen(false, false))?.body).toBe(
       'Aile çemberine yeni biri katıldı',
     );
+    // An unknown circle (no name): the same, without its name.
+    const elsewhere = { ...joined, circleId: placeId };
+    expect(
+      pushText(elsewhere, null, contacts, () => ({ location: true, history: false }))?.body,
+    ).toBe('Çemberine yeni biri katıldı; artık o da konumunu görebilir');
   });
 });
 

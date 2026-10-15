@@ -9,6 +9,7 @@ import {
   endOfDay,
   isSharingWith,
   needsGps,
+  seersByCircle,
   seersOf,
   sharedCircles,
   type SharingSettings,
@@ -105,6 +106,20 @@ describe('sharing settings', () => {
     const seers = seersOf([shared, notShared], settings, me.userId, NOW);
     expect(seers.map((member) => member.userId)).toEqual([ada.userId]);
     expect(seersOf([shared], settingsWith({}, 'hide'), me.userId, NOW)).toEqual([]);
+  });
+
+  it('groups who sees me by circle, and nobody once all is stopped (Faz 9)', () => {
+    const [me, ada, bo] = [somebody(), somebody(), somebody()];
+    const family = circleOf([me, ada]);
+    const team = circleOf([me, bo]);
+    const alone = circleOf([me]);
+    const groups = seersByCircle([family, team, alone], DEFAULT_SHARING, me.userId, NOW);
+    expect(groups.map(({ circle, seers }) => [circle.id, seers.map((m) => m.userId)])).toEqual([
+      [family.id, [ada.userId]],
+      [team.id, [bo.userId]],
+    ]);
+    const stopped = { ...DEFAULT_SHARING, ghost: 'hide' as const };
+    expect(seersByCircle([family, team], stopped, me.userId, NOW)).toEqual([]);
   });
 
   it('ends "until tonight" at the last millisecond of the local day', () => {

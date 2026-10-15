@@ -11,6 +11,8 @@ export interface PersonView {
   userId: string;
   name: string;
   handle: string | undefined;
+  /** Their username, for an invitation ("Buluş"); null when they have none yet. */
+  username: string | null;
   avatar: MemberCard['avatar'];
   /** Their best location now, if any circle shares it with this phone. */
   location: ReceivedLocation | null;
@@ -38,6 +40,7 @@ export function personView(
     userId,
     name: memberName(card),
     handle: handleOf(card),
+    username: card.username,
     avatar: card.avatar,
     location: bestPerPerson(mine)[0] ?? null,
     circleId: pair?.id ?? shared[0]?.id ?? null,

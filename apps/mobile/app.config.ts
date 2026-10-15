@@ -152,6 +152,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     // QR codes only (adding friends, comparing safety numbers): camera, never the microphone.
+    // The optional app lock (Faz 9, docs/ADR/0021): Face ID, fingerprint or the phone's passcode.
+    [
+      'expo-local-authentication',
+      {
+        // Turkish devices get native-locales/tr.json.
+        faceIDPermission: 'Bargu uses Face ID to unlock the app when you turn on the app lock.',
+      },
+    ],
     [
       'expo-camera',
       {

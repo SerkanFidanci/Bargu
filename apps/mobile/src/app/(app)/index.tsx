@@ -4,6 +4,8 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Dock } from '@/features/home/dock';
+import { router } from 'expo-router';
+
 import { SeersPill } from '@/features/home/seers-pill';
 import { AddSheet } from '@/features/circles/add-sheet';
 import { CirclesSheet } from '@/features/circles/circles-sheet';
@@ -19,6 +21,7 @@ import { seersOf, useSharing } from '@/features/location/sharing';
 import { useWatchCircles } from '@/features/location/use-location';
 import { memberName } from '@/features/circles/names';
 import { PeopleLayer } from '@/features/map/people-layer';
+import { SharingReminderCard } from '@/features/location/sharing-reminder-card';
 import { PlacesLayer } from '@/features/places/places-layer';
 import { usePlaces } from '@/features/places/places';
 import { useDocs } from '@/features/plan/docs';
@@ -119,11 +122,14 @@ export default function HomeScreen() {
         <SeersPill
           seers={seers}
           ghost={sharing.ghost !== 'off'}
-          onPress={() => circles.current?.present()}
+          onPress={() => {
+            router.push('/seers');
+          }}
         />
         {weather === null ? null : <WeatherChip here={weather} />}
         <LocationBanner />
         <NewPhoneCard onChoose={() => circles.current?.present()} />
+        <SharingReminderCard />
         {DEV_TOOLS_ENABLED ? <SwarmPanel /> : null}
       </Animated.View>
       <Animated.View

@@ -122,6 +122,40 @@ export const meSchema = z
   .strict();
 export type Me = z.infer<typeof meSchema>;
 
+/** What the security events list names (app.security_events); phones skip types they do not know. */
+export const SECURITY_EVENT_TYPES = [
+  'login_otp',
+  'login_passkey',
+  'device_replaced',
+  'refresh_reuse',
+  'passkey_added',
+  'logout',
+] as const;
+/** How far back the list goes, and how many at most. */
+export const SECURITY_EVENTS_DAYS = 90;
+export const SECURITY_EVENTS_MAX = 100;
+
+/**
+ * One security event of the account (Faz 9): what happened and when, and on which kind of phone
+ * (this one or another). No IP address, no place: the server keeps none.
+ */
+export const securityEventSchema = z
+  .object({
+    id: z.uuid(),
+    type: z.enum(SECURITY_EVENT_TYPES),
+    at: z.number().int(),
+    device: z
+      .object({ platform: z.enum(PLATFORMS), current: z.boolean() })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+export type SecurityEvent = z.infer<typeof securityEventSchema>;
+/** The list as sent; each event is checked on its own by the phone. */
+export const securityEventsSchema = z
+  .object({ events: z.array(z.unknown()).max(SECURITY_EVENTS_MAX) })
+  .strict();
+
 /** WebAuthn JSON from the platform authenticator; verified field by field by the server library. */
 const webAuthnResponseSchema = z
   .object({

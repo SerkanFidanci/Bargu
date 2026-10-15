@@ -11,3 +11,7 @@
 "late" = "%1$@ will be about %2$ld min late";
 "notice.memberJoinedHistory" = "Someone joined your circle; they can now see your location history too";
 "notice.memberJoinedHistoryIn" = "Someone joined %@; they can now see your location history too";
+"notice.memberJoinedSees" = "Someone joined your circle; they can now see your location too";
+"notice.memberJoinedSeesIn" = "Someone joined %@; they can now see your location too";
+"notice.memberJoinedBoth" = "Someone joined your circle; they can now see your location and location history too";
+"notice.memberJoinedBothIn" = "Someone joined %@; they can now see your location and location history too";

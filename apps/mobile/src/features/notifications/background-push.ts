@@ -8,7 +8,7 @@ import { toast } from '@/ui/toast';
 
 import { useAuth } from '../auth/auth-store';
 import { ensureSession } from '../live/live-session';
-import { circleSharing, loadSharing } from '../location/sharing';
+import { loadSharing, seenThere } from '../location/sharing';
 import { vault } from '../storage/vault';
 import { isMuted, loadMutes } from './mutes';
 import { identityOf, loadContacts } from './push-contacts';
@@ -59,11 +59,8 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
   store.set(SEEN_KEY, JSON.stringify([...seen, mark].slice(-SEEN_KEEP)));
 
   const sharing = loadSharing(store);
-  const shown = pushText(
-    opened.body,
-    opened.senderDeviceId,
-    contacts,
-    (circleId) => circleSharing(sharing, circleId).history === true,
+  const shown = pushText(opened.body, opened.senderDeviceId, contacts, (circleId) =>
+    seenThere(sharing, circleId, now),
   );
   if (shown === null) return 'refused';
   const { body } = opened;

@@ -168,7 +168,7 @@ function Dot({
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  top: { alignItems: 'flex-end', paddingHorizontal: space.lg },
+  top: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: space.lg },
   page: {
     flex: 1,
     alignItems: 'center',
