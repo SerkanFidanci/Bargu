@@ -14,7 +14,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim) |
 | Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)         |
 | Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                       |
-| Faz 7 — Yerler & Bildirimler     | 🚧 Kod bitti, telefonda deneme bekliyor                               |
+| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                      |
 
 ## Ortamlar
 
@@ -33,8 +33,12 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 Kararlar: [ADR 0015](ADR/0015-encrypted-places-and-arrivals.md) (şifreli yerler, varışı telefon
 algılar), [ADR 0016](ADR/0016-sealed-push-notifications.md) (bildirimler uçtan uca şifreli; ADR
-0010'un yerine). Durum: kod bitti, staging'de, telefonda deneme bekliyor. Android: yerel derleme
-`eb227cb` (staging'den indirilir, tüm CI yeşil: Swift/CryptoKit ve iOS eklentisi dahil).
+0010'un yerine). Android: yerel derleme `a84a014` (staging'den indirilir; tüm CI yeşil:
+Swift/CryptoKit ve iOS eklentisi dahil).
+
+Proje sahibi fazı 2026-10-15'te onayladı; telefondaki denemeler (yer ekleme, uygulama kapalıyken
+"vardı" bildirimi, sessize alma, yeniden kurulumda fotoğrafın dönmesi) sona bırakıldı (aşağıdaki
+tabloda).
 
 Ara iş (aynı gün): Faz 6'nın son sürümü telefonda çöküyordu (hareketli figürlerde UI thread'de
 çağrılan sıradan bir fonksiyon; hata ayıklama sürümünde yalnızca uyarı). Düzeltildi (`5c7f170`),
@@ -271,13 +275,17 @@ yapılacak.
 
 ### Sonraya kalan testler (proje sahibiyle)
 
-| Test                                                               | Ne zaman              |
-| ------------------------------------------------------------------ | --------------------- |
-| Ekran kilitliyken 10 dk sonra konum gidiyor mu                     | Uygun ilk denemede    |
-| Uçak modu aç/kapa, Wi-Fi ↔ mobil veri sonrası kendiliğinden güncel | Uygun ilk denemede    |
-| 8 saatlik pil raporu (marka ve model ile)                          | Faz 10 öncesi         |
-| İki gerçek telefonla uçtan uca p95                                 | İkinci telefon olunca |
-| iOS kilitli ekran                                                  | Apple hesabı gelince  |
+| Test                                                                   | Ne zaman              |
+| ---------------------------------------------------------------------- | --------------------- |
+| Ekran kilitliyken 10 dk sonra konum gidiyor mu                         | Uygun ilk denemede    |
+| Uçak modu aç/kapa, Wi-Fi ↔ mobil veri sonrası kendiliğinden güncel     | Uygun ilk denemede    |
+| 8 saatlik pil raporu (marka ve model ile)                              | Faz 10 öncesi         |
+| İki gerçek telefonla uçtan uca p95                                     | İkinci telefon olunca |
+| iOS kilitli ekran                                                      | Apple hesabı gelince  |
+| Yer ekle; test arkadaşı `arrive` / `leave`: kapalı uygulamada bildirim | Uygun ilk denemede    |
+| Kişi ve yer sessize alma                                               | Uygun ilk denemede    |
+| Yeniden kurulum: fotoğraf geri geliyor, paylaşım kartı çıkıyor         | Uygun ilk denemede    |
+| iPhone bildirim eklentisi (şifreli bildirimi açıyor mu)                | Apple hesabı gelince  |
 
 ## Faz 4 — Çemberler & Anahtar Dağıtımı (2026-10-14)
 
