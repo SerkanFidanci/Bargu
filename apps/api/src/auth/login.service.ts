@@ -1,5 +1,11 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import type { DeviceRegistration, OtpVerify, PasskeyLoginVerify, Session } from '@bargu/schemas';
+import type {
+  AgeBand,
+  DeviceRegistration,
+  OtpVerify,
+  PasskeyLoginVerify,
+  Session,
+} from '@bargu/schemas';
 import { and, eq, isNull } from 'drizzle-orm';
 
 import { ApiError } from '../common/api-error.js';
@@ -48,6 +54,7 @@ export class LoginService {
       emailHmac,
       device,
       attested,
+      body.ageBand,
     );
     await this.attestation.consume(body.device);
     await this.lifecycle.notify({
@@ -96,14 +103,28 @@ export class LoginService {
     emailHmac: Uint8Array,
     device: VerifiedDevice,
     attested: Awaited<ReturnType<AttestationService['verify']>>,
+    ageBand: AgeBand | undefined,
   ): Promise<{ session: Session; replacedDeviceId: string | null; newDevice: boolean }> {
     // Two attempts: a concurrent first login with the same address may create the account first.
     for (let attempt = 0; ; attempt++) {
       const existing = await this.database.userIdForEmail(emailHmac);
+      // A new account says its age band (docs/ADR/0023); under 15 the app never gets this far.
+      // Asked after the code, so that the answer says nothing about whether an account exists.
+      if (existing === null && ageBand === undefined) {
+        throw new ApiError(HttpStatus.BAD_REQUEST, 'AGE_REQUIRED');
+      }
       const userId = existing ?? (await this.database.newId());
       try {
         const started = await this.database.asUser(userId, async (tx) => {
-          if (existing === null) await tx.insert(users).values({ id: userId, emailHmac });
+          if (existing === null) {
+            await tx.insert(users).values({
+              id: userId,
+              emailHmac,
+              ageBand,
+              ageMethod: 'declared',
+              ageSetAt: new Date(),
+            });
+          }
           return this.activate(tx, userId, device, attested, 'login_otp', existing === null);
         });
         return {

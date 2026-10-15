@@ -129,7 +129,7 @@ describe('the account web page (docs/ADR/0021)', () => {
       emailLookupKey(test.app.get(AuthKeys).emailLookupKey, someone.email),
     ).toString('hex');
     const redis = test.app.get<RedisClient>(REDIS);
-    const elsewhere = test.app.get(ClientLimits).clientId(ELSEWHERE);
+    const elsewhere = test.app.get(ClientLimits).networkId(ELSEWHERE);
     await redis.set(
       `rl:web-fail-n:${address}:${elsewhere}`,
       String(WEB_LIMITS.failuresPerNetworkDay),
@@ -206,6 +206,22 @@ describe('the account web page (docs/ADR/0021)', () => {
       (await call(test.app, { url: '/v1/web/revoke-device', body: { token: remember } }))
         .statusCode,
     ).toBe(401);
+  });
+
+  it('counts an IPv6 /48 as one network: many /64s of it are not many networks (QA 4 K2a)', async () => {
+    const someone = await person(test);
+    const binding = newBinding();
+    const ask = (ip: string) =>
+      call(test.app, {
+        url: '/v1/web/code',
+        body: { email: someone.email, locale: 'tr', binding },
+        ip,
+      });
+    for (let i = 0; i < WEB_LIMITS.requestsPerNetworkDay; i += 1) {
+      expect((await ask(`2001:db8:77:${String(i + 1)}::1`)).statusCode).toBe(202);
+    }
+    expect((await ask('2001:db8:77:ff::1')).statusCode).toBe(429);
+    expect((await ask('2001:db8:78:1::1')).statusCode).toBe(202);
   });
 
   it('serves its page with nothing from elsewhere and a strict content policy', async () => {

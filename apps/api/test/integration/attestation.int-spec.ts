@@ -59,7 +59,7 @@ async function verify(device: DeviceKeys, device_: object, code?: string, challe
   const otp = challengeId ?? (await requestCode(test, uniqueEmail(), device)).challengeId;
   return call(test.app, {
     url: '/v1/auth/otp/verify',
-    body: { challengeId: otp, code: code ?? codeFor(test, otp), device: device_ },
+    body: { challengeId: otp, code: code ?? codeFor(test, otp), device: device_, ageBand: '18+' },
     device,
   });
 }

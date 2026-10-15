@@ -1,6 +1,8 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   type AccountExport,
+  type AgeBand,
+  type AgeState,
   HISTORY_CONSENT_VERSION,
   type HistoryConsent,
   PRIVACY_NOTICE_VERSION,
@@ -220,50 +222,109 @@ export class AccountService {
     }
     const { state, told } = await this.database.asUser(auth.userId, async (tx) => {
       if (input.given) {
+        // 15-17: no location history at all (docs/ADR/0023).
+        if ((await this.ageOf(tx, auth.userId))?.band === '15-17') {
+          throw new ApiError(HttpStatus.FORBIDDEN, 'AGE_RESTRICTED');
+        }
         await this.give(tx, auth.userId, 'history', input.version);
         return { state: await this.readPrivacy(tx, auth.userId), told: [] };
       }
-      await tx
-        .update(consents)
-        .set({ withdrawnAt: new Date() })
-        .where(
-          and(
-            eq(consents.userId, auth.userId),
-            eq(consents.purpose, 'history'),
-            isNull(consents.withdrawnAt),
-          ),
-        );
-      // The trail goes with the consent, in the same step: a phone that is offline cannot leave
-      // it readable to its circles (QA Faz 9 slice 4, K3).
-      const dropped = await tx
-        .delete(historyChunks)
-        .where(eq(historyChunks.userId, auth.userId))
-        .returning({ circleId: historyChunks.circleId });
-      const circleIds = [...new Set(dropped.map((row) => row.circleId))];
-      const others =
-        circleIds.length === 0
-          ? []
-          : await tx
-              .select({ circleId: circleMembers.circleId, userId: circleMembers.userId })
-              .from(circleMembers)
-              .where(
-                and(
-                  inArray(circleMembers.circleId, circleIds),
-                  eq(circleMembers.status, 'active'),
-                  ne(circleMembers.userId, auth.userId),
-                ),
-              );
-      return { state: await this.readPrivacy(tx, auth.userId), told: others };
+      const dropped = await this.withdrawHistory(tx, auth.userId);
+      return { state: await this.readPrivacy(tx, auth.userId), told: dropped };
     });
-    // Whoever has the circle's history open sees the trail go, as with "Geçmişimi sil".
+    this.tellHistoryGone(auth.userId, told);
+    return state;
+  }
+
+  /** The account's age band (docs/ADR/0023). */
+  age(auth: AuthContext): Promise<AgeState> {
+    return this.database.asUser(auth.userId, async (tx) => ({
+      age: await this.ageOf(tx, auth.userId),
+    }));
+  }
+
+  /**
+   * Says the age band: once for an account that never did, or 18+ to 15-17 at any time. Older than
+   * said needs a person to look (or, later, the e-Devlet age token): 403 AGE_REVIEW_REQUIRED.
+   * Becoming 15-17 ends location history like withdrawn consent.
+   */
+  async setAge(auth: AuthContext, band: AgeBand): Promise<AgeState> {
+    const { state, told } = await this.database.asUser(auth.userId, async (tx) => {
+      const [me] = await tx
+        .select({ band: users.ageBand, method: users.ageMethod })
+        .from(users)
+        .where(eq(users.id, auth.userId))
+        .for('update');
+      if (me === undefined) throw new ApiError(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED');
+      if (me.band === band) return { state: { age: await this.ageOf(tx, auth.userId) }, told: [] };
+      if (me.method === 'token' || me.band === '15-17') {
+        throw new ApiError(HttpStatus.FORBIDDEN, 'AGE_REVIEW_REQUIRED');
+      }
+      await tx
+        .update(users)
+        .set({ ageBand: band, ageMethod: 'declared', ageSetAt: new Date() })
+        .where(eq(users.id, auth.userId));
+      const dropped = band === '15-17' ? await this.withdrawHistory(tx, auth.userId) : [];
+      return { state: { age: await this.ageOf(tx, auth.userId) }, told: dropped };
+    });
+    this.tellHistoryGone(auth.userId, told);
+    return state;
+  }
+
+  private async ageOf(tx: Tx, userId: string): Promise<AgeState['age']> {
+    const [row] = await tx
+      .select({ band: users.ageBand, method: users.ageMethod, at: users.ageSetAt })
+      .from(users)
+      .where(eq(users.id, userId));
+    // The three are set together (a check in migration 0020).
+    if (row?.band === undefined || row.band === null || row.method === null || row.at === null) {
+      return null;
+    }
+    return { band: row.band, method: row.method, at: row.at.getTime() };
+  }
+
+  /**
+   * Withdraws consent to history and deletes the trail in the same step: a phone that is offline
+   * cannot leave it readable to its circles (QA Faz 9 slice 4, K3). Returns who to tell.
+   */
+  private async withdrawHistory(tx: Tx, userId: string) {
+    await tx
+      .update(consents)
+      .set({ withdrawnAt: new Date() })
+      .where(
+        and(
+          eq(consents.userId, userId),
+          eq(consents.purpose, 'history'),
+          isNull(consents.withdrawnAt),
+        ),
+      );
+    const dropped = await tx
+      .delete(historyChunks)
+      .where(eq(historyChunks.userId, userId))
+      .returning({ circleId: historyChunks.circleId });
+    const circleIds = [...new Set(dropped.map((row) => row.circleId))];
+    if (circleIds.length === 0) return [];
+    return tx
+      .select({ circleId: circleMembers.circleId, userId: circleMembers.userId })
+      .from(circleMembers)
+      .where(
+        and(
+          inArray(circleMembers.circleId, circleIds),
+          eq(circleMembers.status, 'active'),
+          ne(circleMembers.userId, userId),
+        ),
+      );
+  }
+
+  /** Whoever has the circle's history open sees the trail go, as with "Geçmişimi sil". */
+  private tellHistoryGone(userId: string, told: { circleId: string; userId: string }[]): void {
     const byCircle = new Map<string, string[]>();
-    for (const { circleId, userId } of told) {
-      byCircle.set(circleId, [...(byCircle.get(circleId) ?? []), userId]);
+    for (const member of told) {
+      byCircle.set(member.circleId, [...(byCircle.get(member.circleId) ?? []), member.userId]);
     }
     for (const [circleId, userIds] of byCircle) {
-      this.events.emitLive(userIds, 'history', { circleId, userId: auth.userId });
+      this.events.emitLive(userIds, 'history', { circleId, userId });
     }
-    return state;
   }
 
   private async give(tx: Tx, userId: string, purpose: 'notice' | 'history', version: number) {

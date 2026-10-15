@@ -29,6 +29,7 @@ import { toast } from '@/ui/toast';
 
 import { api, onSignedOut, useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
+import { circlesApi } from '../circles/circles-api';
 import { memberName } from '../circles/names';
 import { useCircleKeys } from '../circles/circle-sync';
 import { isApiError } from '../errors';
@@ -90,6 +91,7 @@ import {
   useSharing,
   useSharingReview,
   withAllShared,
+  withNewCirclesOff,
   withNothingShared,
   withoutGoneCircles,
   type SeenThere,
@@ -517,6 +519,26 @@ export async function forgetAllHistory(): Promise<'off' | 'later'> {
     if ((await setHistory(circleId, false)) === 'later') later = true;
   }
   return later ? 'later' : 'off';
+}
+
+/**
+ * The rules of 15-17 on this phone (docs/ADR/0023): no location history (the server already
+ * deleted its copy and takes none), and circles joined from now on start unshared.
+ */
+export async function applyMinorRules(): Promise<void> {
+  // The circles already in must be known, or they would count as new and stop being shared.
+  const circles =
+    cachedCircles() ??
+    (await queryClient.query({ queryKey: circlesKey, queryFn: () => circlesApi.list() })) ??
+    [];
+  const active = circles
+    .filter((circle) => circle.myStatus === 'active')
+    .map((circle) => circle.id);
+  updateSharing((current) => withNewCirclesOff(current, active));
+  const historyLeft = Object.values(loadSharingSettings().circles).some(
+    (sharing) => sharing.history === true,
+  );
+  if (historyLeft) await forgetAllHistory();
 }
 
 /** Changes one circle's sharing (or the ghost mode); takes effect at once. */

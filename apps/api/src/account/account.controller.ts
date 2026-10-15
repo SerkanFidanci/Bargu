@@ -1,6 +1,9 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Put, Req } from '@nestjs/common';
 import {
   type AccountExport,
+  type AgeState,
+  type AgeUpdate,
+  ageUpdateSchema,
   type HistoryConsent,
   historyConsentSchema,
   type NoticeRead,
@@ -76,6 +79,21 @@ export class AccountController {
     @Body(new ZodPipe(noticeReadSchema)) body: NoticeRead,
   ): Promise<PrivacyState> {
     return this.account.readNotice(auth, body.version);
+  }
+
+  /** The age band (docs/ADR/0023): only the person's own. */
+  @Get('me/age')
+  age(@CurrentAuth() auth: AuthContext): Promise<AgeState> {
+    return this.account.age(auth);
+  }
+
+  @Put('me/age')
+  @HttpCode(HttpStatus.OK)
+  setAge(
+    @CurrentAuth() auth: AuthContext,
+    @Body(new ZodPipe(ageUpdateSchema)) body: AgeUpdate,
+  ): Promise<AgeState> {
+    return this.account.setAge(auth, body.band);
   }
 
   @Put('me/privacy/history')

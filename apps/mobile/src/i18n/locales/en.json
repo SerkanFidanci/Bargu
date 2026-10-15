@@ -15,7 +15,9 @@
     "network": "No connection. Check your internet and try again.",
     "rateLimited": "Too many attempts. Wait a little and try again.",
     "unknown": "Something went wrong. Try again.",
-    "sessionEnded": "You were signed out. Sign in again."
+    "sessionEnded": "You were signed out. Sign in again.",
+    "ageRequired": "Choose your age band first. Go back and try again.",
+    "friendInviteOnly": "At 15–17 you can join an event only with a friend’s QR code. Add the organiser as a friend first."
   },
   "intro": {
     "skip": "Skip",
@@ -846,5 +848,33 @@
     "deleteSureBody": "Your account and all your data will be deleted for good. This cannot be undone.",
     "delete": "Delete my account",
     "deleted": "Your account was deleted"
+  },
+  "age": {
+    "title": "How old are you?",
+    "lead": "Bargu is for 15 and older; privacy is stricter for 15–17. We do not ask for your birth date. Only your age band is kept, and nobody else sees it.",
+    "adult": "18 or older",
+    "teen": "15–17",
+    "under": "Under 15",
+    "teenHint": "Nobody can find you by your username, your location history stays off, your location starts off in a new circle, and you join events only with a friend’s QR code.",
+    "continue": "Continue",
+    "tooYoungTitle": "Bargu is for 15 and older",
+    "tooYoungBody": "You cannot use Bargu before you are 15; this is a legal limit. No account was opened and nothing about you was sent. If you chose by mistake, go back and fix it.",
+    "back": "Back",
+    "checkTitle": "Your age band",
+    "checkLead": "New rules ask us to learn every account’s age band once. We do not ask for your birth date; only your age band is kept, and nobody else sees it.",
+    "under15Title": "Bargu is for 15 and older",
+    "under15Body": "People under 15 cannot use Bargu. Your account and all your data will be deleted; this cannot be undone.",
+    "under15Delete": "Delete my account",
+    "under15Deleted": "Your account was deleted.",
+    "saved": "Your age band was saved.",
+    "sectionTitle": "Age band",
+    "current": "Your age band: {{band}}. Nobody else can see it.",
+    "unknown": "You have not said your age band yet.",
+    "tell": "Tell your age band",
+    "toTeen": "Change to 15–17",
+    "toTeenTitle": "Change to 15–17?",
+    "toTeenBody": "Nobody will find you by your username, your location history is turned off and deleted, and your location starts off in new circles. Going back to 18 or older needs you to write to us.",
+    "toAdultHint": "If you have turned 18 or chose by mistake, write to the address in the privacy notice; a person will look at it.",
+    "noHistory": "Location history is off for 15–17."
   }
 }

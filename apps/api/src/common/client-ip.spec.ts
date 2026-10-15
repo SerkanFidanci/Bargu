@@ -18,4 +18,12 @@ describe('clientBucket', () => {
     expect(clientBucket('::1')).toBe('0000:0000:0000:0000::/64');
     expect(clientBucket('2001:db8::')).toBe('2001:0db8:0000:0000::/64');
   });
+
+  it('can count a whole /48 as one network (QA 4 K2a)', () => {
+    const bucket = '2001:0db8:0001::/48';
+    expect(clientBucket('2001:db8:1:2::1', 48)).toBe(bucket);
+    expect(clientBucket('2001:db8:1:ffff::9', 48)).toBe(bucket);
+    expect(clientBucket('2001:db8:2:2::1', 48)).not.toBe(bucket);
+    expect(clientBucket('203.0.113.7', 48)).toBe('203.0.113.7');
+  });
 });

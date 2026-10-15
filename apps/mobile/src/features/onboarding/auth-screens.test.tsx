@@ -38,14 +38,38 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
 }));
 
+import AgeScreen from '@/app/(auth)/age';
 import CodeScreen from '@/app/(auth)/code';
 import EmailScreen from '@/app/(auth)/email';
+import { useAgeAnswer } from '@/features/account/age-answer';
 
 beforeAll(async () => {
   await i18n.changeLanguage('tr');
 });
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+describe('age step (docs/ADR/0023)', () => {
+  it('asks with nothing chosen, and under 15 goes nowhere near the server', async () => {
+    await render(<AgeScreen />);
+    await fireEvent.press(screen.getByTestId('age-continue'));
+    expect(mockPush).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByText("15'ten küçük"));
+    await fireEvent.press(screen.getByTestId('age-continue'));
+    expect(mockPush).toHaveBeenCalledWith('/too-young');
+    expect(mockRequestCode).not.toHaveBeenCalled();
+  });
+
+  it('keeps 15–17 for the code, says what changes, and moves on to the email', async () => {
+    await render(<AgeScreen />);
+    await fireEvent.press(screen.getByTestId('age-15-17'));
+    expect(screen.getByText(/kullanıcı adınla bulamaz/)).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('age-continue'));
+    expect(useAgeAnswer.getState().answer).toBe('15-17');
+    expect(mockPush).toHaveBeenCalledWith('/email');
+    useAgeAnswer.setState({ answer: null });
+  });
 });
 
 describe('email step', () => {

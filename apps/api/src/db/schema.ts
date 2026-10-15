@@ -45,6 +45,10 @@ export const users = app.table('users', {
   displayName: text('display_name'),
   avatarColor: smallint('avatar_color'),
   avatarEmoji: text('avatar_emoji'),
+  /** docs/ADR/0023: '15-17' or '18+', how it was learnt ('declared', 'token') and when. */
+  ageBand: text('age_band').$type<'15-17' | '18+'>(),
+  ageMethod: text('age_method').$type<'declared' | 'token'>(),
+  ageSetAt: timestamptz('age_set_at'),
   createdAt: timestamptz('created_at').notNull().defaultNow(),
   deletedAt: timestamptz('deleted_at'),
 });

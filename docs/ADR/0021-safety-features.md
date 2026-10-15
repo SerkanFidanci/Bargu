@@ -78,7 +78,7 @@ buluşmanın bir arkadaşla kolayca başlatılamadığını söyledi; kişi kart
   - Kod girişteki 4 haneli koddan ayrıdır: `bargu/v1/web-code` etiketiyle türetilir
     (PROTOCOL.md), yalnızca bu sayfada geçer ve sayfanın sekme için ürettiği rastgele değere
     (binding) bağlıdır.
-  - Kendi sınırları vardır. Bütçeler adres ve ağ (IPv4 ya da IPv6 /64, takma adla) başına
+  - Kendi sınırları vardır. Bütçeler adres ve ağ (IPv4 adresi ya da IPv6 /48, takma adla) başına
     tutulur; yalnızca adresi bilen biri, sahibin kendi ağından girmesini engelleyemez (QA 3b N1):
     - kod istekleri: adres+ağ başına günde 3; adres başına (bütün ağlar) günde 50;
     - kod başına 3 deneme; yanlış kod adres+ağ başına günde 10, adres başına (bütün ağlar) günde 150.
@@ -92,6 +92,10 @@ buluşmanın bir arkadaşla kolayca başlatılamadığını söyledi; kişi kart
     Karar:
     - Ağ başına günlük kod isteği 10'dan 3'e indi. Sahibe bir günde bir ağdan 3 kod yeter; tavanı
       bitirmek artık en az 17 ağ ister (önce 5).
+    - Bu sayfada IPv6 ağı /64'e değil /48'e göre sayılır (QA dilim 4 K2a). Bir /48'i olan, 65536 ayrı
+      /64'ten 17 "ağ" çıkaramaz. Bedeli: aynı /48'i paylaşan (aynı operatördeki) biri, sahibin o
+      ağdaki günlük 3 kodunu harcayabilir; sahip başka bir ağdan (Wi-Fi, mobil) ya da hatırlanan
+      tarayıcıyla devam eder. Girişin ve diğer uçların sınırları /64'te kalır.
     - **Hatırlanan tarayıcı:** Kodla bir kez giren tarayıcı rastgele bir değer saklar (sayfanın
       kendi deposunda, 180 gün, hesap başına en yeni 5). Bu değeri gösteren tarayıcı adresin bütün
       ağlar tavanlarına takılmaz; ağ başına sınırlar yine geçerlidir. Değer tek başına hiçbir şey

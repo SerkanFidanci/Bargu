@@ -40,6 +40,14 @@ export type ApiErrorCode =
   | 'CREATOR_ADMIN'
   /** Location history needs the user's explicit consent first (docs/ADR/0022). */
   | 'CONSENT_REQUIRED'
+  /** A new account says its age band first (docs/ADR/0023). */
+  | 'AGE_REQUIRED'
+  /** Not for 15-17 (location history, docs/ADR/0023). */
+  | 'AGE_RESTRICTED'
+  /** Older than said takes a person (or the age token), not a tap (docs/ADR/0023). */
+  | 'AGE_REVIEW_REQUIRED'
+  /** Someone 15-17 comes into an event only with a friend's code (docs/ADR/0023). */
+  | 'FRIEND_INVITE_ONLY'
   | 'CIRCLE_FULL'
   | 'EPOCH_STALE'
   | 'KEYS_INVALID'

@@ -15,7 +15,9 @@
     "network": "Bağlantı yok. İnternetini kontrol edip tekrar dene.",
     "rateLimited": "Çok fazla deneme oldu. Biraz bekleyip tekrar dene.",
     "unknown": "Bir şeyler ters gitti. Tekrar dene.",
-    "sessionEnded": "Oturumun kapandı. Tekrar giriş yap."
+    "sessionEnded": "Oturumun kapandı. Tekrar giriş yap.",
+    "ageRequired": "Önce yaş grubunu seç. Geri dönüp yeniden dene.",
+    "friendInviteOnly": "15–17 yaşında bir etkinliğe yalnızca bir arkadaşının QR koduyla katılabilirsin. Etkinliği düzenleyeni önce arkadaş olarak ekle."
   },
   "intro": {
     "skip": "Geç",
@@ -846,5 +848,33 @@
     "deleteSureBody": "Hesabın ve bütün verilerin kalıcı olarak silinecek. Bu geri alınamaz.",
     "delete": "Hesabımı sil",
     "deleted": "Hesabın silindi"
+  },
+  "age": {
+    "title": "Kaç yaşındasın?",
+    "lead": "Bargu 15 yaş ve üstü içindir; 15–17 yaş için gizlilik daha sıkıdır. Doğum tarihini sormuyoruz. Yalnızca yaş grubun saklanır ve kimseye gösterilmez.",
+    "adult": "18 veya üstü",
+    "teen": "15–17",
+    "under": "15'ten küçük",
+    "teenHint": "Seni kimse kullanıcı adınla bulamaz, konum geçmişin kapalı olur, yeni bir çemberde konumun kapalı başlar ve bir etkinliğe yalnızca arkadaşının QR koduyla katılırsın.",
+    "continue": "Devam",
+    "tooYoungTitle": "Bargu 15 yaşından itibaren",
+    "tooYoungBody": "Bargu'yu 15 yaşından önce kullanamazsın; bu yasal bir sınır. Hesap açılmadı ve hiçbir bilgin gönderilmedi. Yanlış seçtiysen geri dönüp düzeltebilirsin.",
+    "back": "Geri",
+    "checkTitle": "Yaş grubun",
+    "checkLead": "Yeni kurallar gereği her hesabın yaş grubunu bir kez soruyoruz. Doğum tarihini sormuyoruz; yalnızca yaş grubun saklanır ve kimseye gösterilmez.",
+    "under15Title": "Bargu 15 yaşından itibaren",
+    "under15Body": "15 yaşından küçükler Bargu kullanamaz. Hesabın ve bütün verilerin silinecek; bu geri alınamaz.",
+    "under15Delete": "Hesabımı sil",
+    "under15Deleted": "Hesabın silindi.",
+    "saved": "Yaş grubun kaydedildi.",
+    "sectionTitle": "Yaş grubu",
+    "current": "Yaş grubun: {{band}}. Başka kimse göremez.",
+    "unknown": "Yaş grubunu henüz söylemedin.",
+    "tell": "Yaş grubunu söyle",
+    "toTeen": "15–17 olarak değiştir",
+    "toTeenTitle": "15–17 olarak değiştirilsin mi?",
+    "toTeenBody": "Kullanıcı adınla bulunmazsın, konum geçmişin kapanır ve silinir, yeni çemberlerde konumun kapalı başlar. 18 veya üstüne dönmek için bize yazman gerekir.",
+    "toAdultHint": "18 yaşına girdiysen ya da yanlış seçtiysen gizlilik metnindeki adresten bize yaz; bir kişi bakar.",
+    "noHistory": "15–17 yaşında konum geçmişi kapalıdır."
   }
 }

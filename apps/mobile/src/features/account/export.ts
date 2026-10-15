@@ -1,4 +1,4 @@
-import { type AccountExport, HISTORY_KEEP_MS } from '@bargu/schemas';
+import { type AccountExport, type AgeState, HISTORY_KEEP_MS } from '@bargu/schemas';
 import { Directory } from 'expo-file-system';
 
 import type { TracePoint } from '../history/trail-model';
@@ -21,12 +21,18 @@ export interface PhoneHeld {
  * this phone's part opened here: its own location history, the places and event documents of its
  * circles, its choices. Nobody else's location or history (not the user's data).
  */
-export function exportFile(server: AccountExport, phone: PhoneHeld, now: number) {
+export function exportFile(
+  server: AccountExport,
+  phone: PhoneHeld,
+  now: number,
+  age: AgeState['age'] = null,
+) {
   return {
     format: 'bargu-export',
     version: 1,
     exportedAt: new Date(now).toISOString(),
     account: server.account,
+    ageBand: age === null ? null : { band: age.band, method: age.method, at: age.at },
     devices: server.devices,
     circles: server.circles,
     securityEvents: server.securityEvents,

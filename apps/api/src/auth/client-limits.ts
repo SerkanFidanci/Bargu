@@ -38,6 +38,14 @@ export class ClientLimits {
     return pseudonym(this.keys.emailLookupKey, 'client', clientBucket(ip));
   }
 
+  /**
+   * The same for budgets that must not multiply with the addresses one owns: IPv6 counts by /48
+   * (QA 4 K2a). Used for what the account web page allows one address.
+   */
+  networkId(ip: string): string {
+    return pseudonym(this.keys.emailLookupKey, 'client', clientBucket(ip, 48));
+  }
+
   async enforce(endpoint: keyof typeof CLIENT_LIMITS, ip: string): Promise<void> {
     const result = await this.limiter.hit(
       `${endpoint}:${this.clientId(ip)}`,

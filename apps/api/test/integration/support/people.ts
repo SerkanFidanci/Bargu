@@ -1,6 +1,6 @@
 import { type DeviceKeys, randomUuid } from '@bargu/crypto';
 import { HISTORY_CONSENT_VERSION } from '@bargu/schemas';
-import type { Circle, Session } from '@bargu/schemas';
+import type { AgeBand, Circle, Session } from '@bargu/schemas';
 import type { Response } from 'light-my-request';
 
 import type { TestApp } from './app.js';
@@ -15,9 +15,13 @@ export interface Person {
   username: string;
 }
 
-export async function person(test: TestApp, name = 'Test'): Promise<Person> {
+export async function person(
+  test: TestApp,
+  name = 'Test',
+  ageBand: AgeBand = '18+',
+): Promise<Person> {
   const email = uniqueEmail();
-  const { session, device } = await login(test, email);
+  const { session, device } = await login(test, email, undefined, ageBand);
   const username = `p${randomUuid().replaceAll('-', '').slice(-12)}`;
   const response = await call(test.app, {
     method: 'PATCH',

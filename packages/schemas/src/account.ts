@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { PLATFORMS, SECURITY_EVENT_TYPES } from './auth.js';
+import { AGE_METHODS, ageBandSchema, PLATFORMS, SECURITY_EVENT_TYPES } from './auth.js';
 import { CIRCLE_KINDS, MEMBER_ROLES, MEMBER_STATUSES } from './circles.js';
 import { avatarSchema } from './profile.js';
 
@@ -24,6 +24,21 @@ export type PrivacyState = z.infer<typeof privacyStateSchema>;
 
 export const noticeReadSchema = z.object({ version: z.number().int().positive() }).strict();
 export type NoticeRead = z.infer<typeof noticeReadSchema>;
+
+/** The account's age band (docs/ADR/0023); `age` is null until the person said. */
+export const ageStateSchema = z
+  .object({
+    age: z
+      .object({ band: ageBandSchema, method: z.enum(AGE_METHODS), at: z.number().int() })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+export type AgeState = z.infer<typeof ageStateSchema>;
+
+/** Saying it (once), or moving to 15-17; older than said takes a person or the age token. */
+export const ageUpdateSchema = z.object({ band: ageBandSchema }).strict();
+export type AgeUpdate = z.infer<typeof ageUpdateSchema>;
 
 /** Gives (`given: true`, with the version shown) or withdraws explicit consent. */
 export const historyConsentSchema = z

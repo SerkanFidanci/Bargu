@@ -15,6 +15,7 @@ import { create } from 'zustand';
 import { env } from '@/config/env';
 import { resolveLanguage } from '@/i18n';
 
+import { answeredBand } from '../account/age-answer';
 import { createApiClient } from './api-client';
 import { createDeviceKeys, deleteDeviceKeys, loadDeviceKeys } from './device-key-store';
 import { createSecureSessionStore } from './session-store';
@@ -146,12 +147,15 @@ export async function requestCode(email: string): Promise<OtpChallenge> {
 export async function verifyCode(challengeId: string, code: string): Promise<Session> {
   const device = useAuth.getState().device;
   if (device === null) throw new Error('verifyCode before requestCode');
+  const ageBand = answeredBand();
   const response = await api.public('/v1/auth/otp/verify', {
     method: 'POST',
     body: {
       challengeId,
       code,
       device: { platform: platform(), bundle: exportDeviceKeyBundle(device) },
+      // Opens a new account with its band (docs/ADR/0023); ignored for an existing one.
+      ...(ageBand === undefined ? {} : { ageBand }),
     },
   });
   return startSession(response);

@@ -23,7 +23,7 @@ export default function NoticeScreen() {
           label={t('notice.read')}
           onPress={() => {
             useNoticeRead.setState({ version: PRIVACY_NOTICE_VERSION });
-            router.push('/email');
+            router.push('/age');
           }}
         />
       }

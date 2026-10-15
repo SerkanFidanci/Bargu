@@ -33,6 +33,11 @@ const sharingSchema = z
     /** freeze: others keep the last location; hide: it disappears from their maps. */
     ghost: z.enum(GHOST_MODES),
     circles: z.record(z.string(), circleSharingSchema),
+    /**
+     * What a circle joined from now on gets: the location (default), or nothing until the user
+     * chooses (15-17, docs/ADR/0023).
+     */
+    newCircles: z.enum(['share', 'off']).optional(),
   })
   .strict();
 export type SharingSettings = z.infer<typeof sharingSchema>;
@@ -59,8 +64,28 @@ export function saveSharing(store: KeyValueStore, settings: SharingSettings): vo
   store.set(SHARING_KEY, JSON.stringify(settings));
 }
 
+/** A circle the user has not chosen for yet, when new circles start unshared. */
+const NOT_SHARED: CircleSharing = { sharing: false, precision: 'exact', until: null };
+
 export function circleSharing(settings: SharingSettings, circleId: string): CircleSharing {
-  return settings.circles[circleId] ?? DEFAULT_CIRCLE_SHARING;
+  return (
+    settings.circles[circleId] ??
+    (settings.newCircles === 'off' ? NOT_SHARED : DEFAULT_CIRCLE_SHARING)
+  );
+}
+
+/**
+ * 15-17 (docs/ADR/0023): a circle joined from now on starts unshared, and the user turns it on.
+ * The circles already shared with stay as they are: their current choice is written down first.
+ */
+export function withNewCirclesOff(
+  settings: SharingSettings,
+  circleIds: readonly string[],
+): SharingSettings {
+  if (settings.newCircles === 'off') return settings;
+  const circles = { ...settings.circles };
+  for (const id of circleIds) circles[id] ??= circleSharing(settings, id);
+  return { ...settings, circles, newCircles: 'off' };
 }
 
 /**

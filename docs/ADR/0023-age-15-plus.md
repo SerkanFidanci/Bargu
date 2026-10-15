@@ -81,13 +81,16 @@ Proje sahibinin kararları (PM üzerinden, 2026-10-15):
   kullanamazsın" yazar. Yanlış seçen geri dönüp düzeltebilir; beyan kontrol edilemez, bu bilinen
   bir sınırdır (bkz. 2).
 - **Sunucuya giden:** Giriş kodu doğrulanırken yaş grubu (`15-17` ya da `18+`). Hesap yeni açılıyorsa
-  yaş grubu zorunludur (yoksa `400 AGE_REQUIRED`, kod harcanmaz). Hesap varsa ve yaş grubu zaten
-  kayıtlıysa gönderilen değer yok sayılır.
+  yaş grubu zorunludur; yoksa `400 AGE_REQUIRED` döner. Bu cevap kod doğrulandıktan sonra verilir
+  (kod harcanır); önce verilseydi adresin hesabı olup olmadığını belli ederdi. Hesap varsa giriş
+  sırasında gönderilen değer yok sayılır.
 - **Saklanan:** `users.age_band` (`15-17` / `18+`), `age_method` (`declared`, sonra `token`) ve
   `age_set_at`. Doğum tarihi ya da yaşın kendisi saklanmaz (KVKK md. 4 veri azaltma). Yaş grubu
   dışa aktarılan dosyaya girer ve hesapla silinir.
-- **Mevcut hesaplar:** Güncellemeden sonra uygulama bir kez aynı soruyu sorar (`PUT /v1/me/age`).
-  "15'ten küçük" seçen için hesap silme akışı (ADR 0022) açıklama ve son onayla çalışır.
+- **Mevcut hesaplar:** Yaş grubu olmayan hesapta uygulama girişten sonra, giriş öncesi verilen
+  cevabı bir kez yazar (`PUT /v1/me/age`); cevap yoksa (uygulama güncellenmiş, giriş yapılmamış)
+  aynı soruyu sorar. "15'ten küçük" seçen için hesap silme akışı (ADR 0022) açıklama ve son onayla
+  çalışır. Cevapsız kapatılırsa bir sonraki açılışta yeniden sorulur.
 - **Grup değişikliği:**
   - 18+ → 15–17: kişi kendisi değiştirebilir (daha korumalı).
   - 15–17 → 18+: belirteç gelene kadar uygulamadan yapılamaz. Destek e-postasıyla, insan
@@ -243,7 +246,10 @@ kullanır.
 - Beyan doğrulama değildir. Belirteç gelene kadar kapalı test sürer; takvim kılavuza bağlıdır.
 - Gerçek ebeveynlik doğrulanamaz; iki taraflı yüz yüze onay ve çocuğun her şeyi görmesi bunu
   hafifletir.
-- Eski uygulama sürümleri yeni hesap açamaz (yaş grubu gönderemez).
+- Eski uygulama sürümleri yeni hesap açamaz (yaş grubu gönderemez). Staging test botu var olan
+  hesabıyla girer, etkilenmez.
+- Etkinliğin QR'ını yalnızca yöneticileri açar (ADR 0020); bu yüzden 15–17 bir etkinliğe, yöneticisi
+  arkadaşıysa girer.
 
 ## Ürün soruları (PM ve proje sahibi, 2026-10-15)
 

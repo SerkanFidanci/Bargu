@@ -18,6 +18,7 @@ jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
 }));
 
+import { useAgeAnswer } from '../account/age-answer';
 import {
   api,
   bootstrapAuth,
@@ -87,9 +88,13 @@ describe('sign-in', () => {
     const request = JSON.parse(bodyOf(calls[0]?.init)) as { identityKey: string };
     expect(request.identityKey).toHaveLength(43);
 
+    // The age band answered before the email opens a new account with it (docs/ADR/0023).
+    useAgeAnswer.setState({ answer: '15-17' });
     await verifyCode(challengeId, '12345678');
+    useAgeAnswer.setState({ answer: null });
     const verify = calls[1];
     expect(verify?.path).toBe('/v1/auth/otp/verify');
+    expect((JSON.parse(bodyOf(verify?.init)) as { ageBand?: string }).ageBand).toBe('15-17');
     expect(
       verifyRequestSignature(
         device?.identity.publicKey ?? new Uint8Array(),

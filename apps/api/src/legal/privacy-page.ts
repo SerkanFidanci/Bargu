@@ -48,6 +48,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li><strong>Cihaz anahtarları, bildirim kodu, cihaz doğrulaması:</strong> hesabın telefonuna bağlanması, bildirim gönderme, sahte uygulamaları engelleme. Gizli anahtarlar telefondan çıkmaz.</li>
 <li><strong>Güvenlik olayları:</strong> girişler, telefon değişimi, çıkış; son 90 gün uygulamada sana gösterilir. IP adresi tutulmaz.</li>
 <li><strong>Aydınlatma ve rıza kayıtları:</strong> bu metni okuduğun ve konum geçmişine rıza verdiğin ya da geri çektiğin zaman.</li>
+<li><strong>Yaş grubun:</strong> "15–17" ya da "18 veya üstü" ve bunu ne zaman söylediğin. Doğum tarihin ya da yaşın sorulmaz, tutulmaz. Yaş grubun başka kullanıcılara gösterilmez.</li>
 </ul>
 <p>Kullanmadıklarımız: rehber, telefon numarası, mikrofon, reklam kimliği, analitik ya da izleme kitaplığı. IP adresi yalnızca hız sınırı için anlık ve takma adla işlenir, kayda geçmez.</p>
 
@@ -62,7 +63,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <p>Verilerini <strong>satmayız, reklam için paylaşmayız</strong>. Yalnızca hizmeti çalıştıran sağlayıcılar vardır: barındırma (Hetzner, Almanya), bildirim (Google Firebase Cloud Messaging; içerik şifreli olduğu için konumunu okuyamaz), e-posta gönderimi ([e-posta servisi, ülke]) ve hava durumu (yalnızca sabit bir ızgara sorgulanır, konumun gitmez). Yurt dışındaki sağlayıcılara aktarım KVKK m.9'a uygun yapılır.</p>
 
 <h2>5. Ne kadar saklarız?</h2>
-<p>Canlı konum zarfı en çok 24 saat; konum geçmişi (açtıysan) en çok 14 gün; etkinlik çemberleri bitince silinir; güvenlik olayları 90 gün gösterilir. Hesap bilgilerin hesabını silene kadar tutulur.</p>
+<p>Canlı konum zarfı en çok 24 saat; konum geçmişi (açtıysan) en çok 14 gün; etkinlik çemberleri bitince silinir; güvenlik olayları 90 gün sonra silinir. Hesap bilgilerin hesabını silene kadar tutulur.</p>
 
 <h2>6. Hesabını silme ve verini indirme</h2>
 <p>Uygulamada: <strong>Ben → Gizlilik ve hesap → Hesabımı sil</strong>. Uygulamaya erişemiyorsan <a href="/hesap">hesap sayfasından</a> e-postana gelen kodla silebilirsin. Silince hesabın hemen kullanılamaz olur, çemberlerinden çıkarsın (yönettiğin bir grupta yöneticilik en eski üyeye geçer), telefonun kapanır; hesabın ve ona bağlı bütün veriler birkaç dakika içinde, en geç 7 gün içinde kalıcı olarak silinir. Çembere eklediğin yerler o çemberin ortak bilgisidir ve çemberde kalır; istersen silmeden önce kaldırabilirsin. Verilerinin bir kopyasını <strong>Ben → Gizlilik ve hesap → Verilerimi indir</strong> ile alabilirsin.</p>
@@ -71,7 +72,16 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <p>Verinin işlenip işlenmediğini öğrenme, bilgi isteme, düzeltme, silme, aktarılan kişileri öğrenme, itiraz ve zarar giderim isteme haklarına sahipsin. [destek e-postası] adresine yaz; en geç 30 gün içinde yanıtlarız. Kişisel Verileri Koruma Kurumu'na (kvkk.gov.tr) da başvurabilirsin.</p>
 
 <h2>8. Çocuklar</h2>
-<p>Bargu <strong>15 yaşından küçükler tarafından kullanılamaz</strong>. 15–18 yaş için ek kurallar uygulamaya eklendiğinde burada duyurulur. 15 yaşından küçük birinin hesap açtığını öğrenirsek hesabı kapatırız.</p>
+<p>Bargu <strong>15 yaşından küçükler tarafından kullanılamaz</strong>. Hesap açarken yaş grubun sorulur; 15'ten küçüksen hesap açılmaz. 15 yaşından küçük birinin hesap açtığını öğrenirsek hesabı kapatırız.</p>
+<h3>15–17 yaş için kısaca</h3>
+<ul>
+<li>Seni kimse kullanıcı adınla bulamaz. Seni yalnızca QR kodunu ya da davet linkini verdiğin kişiler ekleyebilir.</li>
+<li>Yeni katıldığın bir çemberde konumun kapalı başlar; paylaşıp paylaşmamaya sen karar verirsin.</li>
+<li>Konum geçmişi senin için kapalıdır.</li>
+<li>Bir etkinliğe yalnızca bir arkadaşının QR kodu ya da linkiyle katılabilirsin.</li>
+<li>Reklam, profil çıkarma, öneri ya da herkese açık profil yoktur (zaten kimse için yok).</li>
+<li>Yanlış bir yaş grubu seçtiysen ve 18 yaşındaysan bize [destek e-postası] adresinden yaz; bir kişi bakar.</li>
+</ul>
 
 <h2>9. Güvenlik</h2>
 <p>Konum, fotoğraf ve geçmiş uçtan uca şifrelenir; bağlantılar TLS ile korunur. Telefonunu kaybedersen <a href="/hesap">hesap sayfasından</a> onu hesabından çıkarabilirsin. Güvenlik açığı bildirmek için: [güvenlik e-postası].</p>
@@ -99,6 +109,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li><strong>Device keys, notification token, device check:</strong> binding your account to your phone, sending notifications, blocking fake apps. Private keys never leave your phone.</li>
 <li><strong>Security events:</strong> sign-ins, phone changes, sign-outs; the last 90 days are shown to you in the app. No IP address is kept.</li>
 <li><strong>Notice and consent records:</strong> when you read this notice and when you gave or withdrew consent to location history.</li>
+<li><strong>Your age band:</strong> "15–17" or "18 or older", and when you said so. Your birth date or age is never asked or kept. Other users never see your age band.</li>
 </ul>
 <p>What we do not use: contacts, phone number, microphone, advertising ID, analytics or tracking libraries. Your IP address is used briefly, under a pseudonym, for rate limiting and is not logged.</p>
 
@@ -113,7 +124,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <p>We <strong>do not sell</strong> your data or share it for ads. Only providers that run the service: hosting (Hetzner, Germany), notifications (Google Firebase Cloud Messaging; content is encrypted), email delivery ([provider, country]) and weather (a fixed grid only; your location is not sent). Transfers abroad follow KVKK Article 9.</p>
 
 <h2>5. Retention</h2>
-<p>Live-location envelope: at most 24 hours. Location history (if on): at most 14 days. Event circles: deleted when they end. Security events: shown for 90 days. Account data: until you delete your account.</p>
+<p>Live-location envelope: at most 24 hours. Location history (if on): at most 14 days. Event circles: deleted when they end. Security events: deleted after 90 days. Account data: until you delete your account.</p>
 
 <h2>6. Deleting your account and getting your data</h2>
 <p>In the app: <strong>Me → Privacy and account → Delete my account</strong>. Without the app, use the <a href="/hesap">account page</a> with a code sent to your email. Your account becomes unusable at once, you leave your circles (in a group you run, the longest-standing member becomes admin), your phone is signed out, and your account and all data tied to it are deleted for good within minutes, at most 7 days. Places you added to a circle belong to that circle and stay; remove them first if you like. Get a copy of your data with <strong>Me → Privacy and account → Download my data</strong>.</p>
@@ -122,7 +133,16 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <p>Ask whether your data is processed, request information or a copy, correct, erase, object, and claim damages. Write to [support email]; we reply within 30 days. You can also complain to the Turkish Personal Data Protection Authority (kvkk.gov.tr) or, in the EU, your local authority.</p>
 
 <h2>8. Children</h2>
-<p>Bargu <strong>cannot be used by anyone under 15</strong>. If we learn that someone under 15 has an account, we close it.</p>
+<p>Bargu <strong>cannot be used by anyone under 15</strong>. Your age band is asked when you sign up; under 15, no account is opened. If we learn that someone under 15 has an account, we close it.</p>
+<h3>If you are 15–17</h3>
+<ul>
+<li>Nobody can find you by your username. Only people you give your QR code or invite link to can add you.</li>
+<li>In a circle you have just joined, your location starts off; you decide whether to share.</li>
+<li>Location history is off for you.</li>
+<li>You can join an event only with a friend's QR code or link.</li>
+<li>No ads, profiling, suggestions or public profiles (for anyone).</li>
+<li>If you chose the wrong age band and are 18, write to [support email]; a person will look at it.</li>
+</ul>
 
 <h2>9. Security</h2>
 <p>Location, photos and history are end-to-end encrypted; connections use TLS. If you lose your phone, take it off your account on the <a href="/hesap">account page</a>. Report security issues to [security email].</p>

@@ -29,7 +29,7 @@ afterAll(async () => {
 function verify(device: DeviceKeys, challengeId: string, code: string, ip = nextIp()) {
   return call(test.app, {
     url: '/v1/auth/otp/verify',
-    body: { challengeId, code, device: registration(device) },
+    body: { challengeId, code, device: registration(device), ageBand: '18+' },
     device,
     ip,
   });
@@ -225,7 +225,7 @@ describe('device proof at login', () => {
     if (options.tamperBundle === true) reg.bundle.dhKey = registration(newDevice()).bundle.dhKey;
     return call(test.app, {
       url: '/v1/auth/otp/verify',
-      body: { challengeId, code: codeFor(test, challengeId), device: reg },
+      body: { challengeId, code: codeFor(test, challengeId), device: reg, ageBand: '18+' },
       ...(options.unsigned === true ? {} : { device }),
       ...(options.sign === undefined ? {} : { sign: options.sign }),
     });

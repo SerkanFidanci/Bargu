@@ -12,6 +12,15 @@ export function errorMessage(error: unknown, t: TFunction): string {
       case 'DEVICE_REVOKED':
       case 'UNAUTHENTICATED':
         return t('errors.sessionEnded');
+      // docs/ADR/0023
+      case 'AGE_REQUIRED':
+        return t('errors.ageRequired');
+      case 'AGE_RESTRICTED':
+        return t('age.noHistory');
+      case 'AGE_REVIEW_REQUIRED':
+        return t('age.toAdultHint');
+      case 'FRIEND_INVITE_ONLY':
+        return t('errors.friendInviteOnly');
       default:
         return t('errors.unknown');
     }

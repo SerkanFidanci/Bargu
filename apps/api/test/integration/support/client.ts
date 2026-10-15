@@ -8,7 +8,12 @@ import {
   toBase64url,
   type DeviceKeys,
 } from '@bargu/crypto';
-import { SIGNED_REQUEST_HEADERS, type OtpChallenge, type Session } from '@bargu/schemas';
+import {
+  type AgeBand,
+  SIGNED_REQUEST_HEADERS,
+  type OtpChallenge,
+  type Session,
+} from '@bargu/schemas';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import type { Response } from 'light-my-request';
 
@@ -106,15 +111,22 @@ export function codeFor(test: TestApp, challengeId: string): string {
   return deriveOtpCode(test.env.OTP_KEY, challengeId);
 }
 
+/** Signs in (a new address opens an account, 18+ unless said otherwise: docs/ADR/0023). */
 export async function login(
   test: TestApp,
   email: string,
   device: DeviceKeys = newDevice(),
+  ageBand: AgeBand = '18+',
 ): Promise<{ session: Session; device: DeviceKeys }> {
   const { challengeId } = await requestCode(test, email, device);
   const response = await call(test.app, {
     url: '/v1/auth/otp/verify',
-    body: { challengeId, code: codeFor(test, challengeId), device: registration(device) },
+    body: {
+      challengeId,
+      code: codeFor(test, challengeId),
+      device: registration(device),
+      ageBand,
+    },
     device,
   });
   if (response.statusCode !== 200) throw new Error(`otp verify: ${response.body}`);

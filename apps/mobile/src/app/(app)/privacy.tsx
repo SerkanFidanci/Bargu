@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, ExternalLink, History, Trash2 } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { Download, ExternalLink, History, Trash2, UserRound } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
@@ -13,10 +14,11 @@ import {
   privacyKey,
   setHistoryConsent,
 } from '@/features/account/account-api';
+import { ageKey, fetchAge, isMinor, setAgeBand } from '@/features/account/age-api';
 import { exportFile, exportName, saveExport, trailWindow } from '@/features/account/export';
 import { signOut, useAuth } from '@/features/auth/auth-store';
 import { errorMessage } from '@/features/errors';
-import { forgetAllHistory, history } from '@/features/location/location-session';
+import { applyMinorRules, forgetAllHistory, history } from '@/features/location/location-session';
 import { useSharing } from '@/features/location/sharing';
 import { usePlaces } from '@/features/places/places';
 import { useDocs } from '@/features/plan/docs';
@@ -29,7 +31,7 @@ import { toast } from '@/ui/toast';
 
 /**
  * "Gizlilik ve hesap" (docs/ADR/0022): the privacy notice, consent to location history and its
- * withdrawal, a copy of the account's data, and deleting the account.
+ * withdrawal, the age band (docs/ADR/0023), a copy of the account's data, and deleting the account.
  */
 export default function PrivacyScreen() {
   const { t, i18n } = useTranslation();
@@ -37,7 +39,9 @@ export default function PrivacyScreen() {
   const queryClient = useQueryClient();
   const me = useAuth((state) => state.userId);
   const privacy = useQuery({ queryKey: privacyKey, queryFn: fetchPrivacy });
-  const [busy, setBusy] = useState<'export' | 'withdraw' | 'delete' | null>(null);
+  const age = useQuery({ queryKey: ageKey, queryFn: fetchAge });
+  const band = age.data?.age?.band ?? null;
+  const [busy, setBusy] = useState<'export' | 'withdraw' | 'delete' | 'age' | null>(null);
   const consent = privacy.data === undefined ? null : hasHistoryConsent(privacy.data);
   const noticeRead = privacy.data?.notice ?? null;
   const consentGiven = privacy.data?.history ?? null;
@@ -66,6 +70,33 @@ export default function PrivacyScreen() {
     ]);
   };
 
+  /** 18+ to 15-17 is the user's own choice; back to 18+ takes a person (docs/ADR/0023). */
+  const toTeen = () => {
+    Alert.alert(t('age.toTeenTitle'), t('age.toTeenBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('age.toTeen'),
+        style: 'destructive',
+        onPress: () => {
+          setBusy('age');
+          void (async () => {
+            try {
+              queryClient.setQueryData(ageKey, await setAgeBand('15-17'));
+              await applyMinorRules();
+              // The server withdrew the consent to history along with it.
+              queryClient.setQueryData(privacyKey, await fetchPrivacy());
+              toast.success(t('age.saved'));
+            } catch (error) {
+              toast.error(errorMessage(error, t));
+            } finally {
+              setBusy(null);
+            }
+          })();
+        },
+      },
+    ]);
+  };
+
   const download = async () => {
     if (me === null) return;
     setBusy('export');
@@ -82,6 +113,7 @@ export default function PrivacyScreen() {
           status: useMyStatus.getState().status,
         },
         now,
+        (await fetchAge()).age,
       );
       const saved = await saveExport(exportName(now), JSON.stringify(file, null, 2));
       if (saved) toast.success(t('privacy.exported'));
@@ -148,11 +180,13 @@ export default function PrivacyScreen() {
       <SectionTitle>{t('privacy.consentTitle')}</SectionTitle>
       <View style={[styles.card, { backgroundColor: colors.surface }]}>
         <Text variant="footnote" color="textMuted">
-          {consent === true && consentGiven !== null
-            ? t('privacy.consentGiven', {
-                date: new Date(consentGiven.at).toLocaleDateString(i18n.language),
-              })
-            : t('privacy.consentNone')}
+          {isMinor(age.data)
+            ? t('age.noHistory')
+            : consent === true && consentGiven !== null
+              ? t('privacy.consentGiven', {
+                  date: new Date(consentGiven.at).toLocaleDateString(i18n.language),
+                })
+              : t('privacy.consentNone')}
         </Text>
         {consent === true ? (
           <Button
@@ -162,6 +196,41 @@ export default function PrivacyScreen() {
             variant="secondary"
             loading={busy === 'withdraw'}
             onPress={withdraw}
+          />
+        ) : null}
+      </View>
+
+      <SectionTitle>{t('age.sectionTitle')}</SectionTitle>
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <Text variant="footnote" color="textMuted" testID="privacy-age">
+          {band === null
+            ? t('age.unknown')
+            : t('age.current', { band: band === '18+' ? t('age.adult') : t('age.teen') })}
+        </Text>
+        {band === '18+' ? (
+          <Button
+            testID="privacy-age-teen"
+            label={t('age.toTeen')}
+            icon={UserRound}
+            variant="secondary"
+            loading={busy === 'age'}
+            onPress={toTeen}
+          />
+        ) : null}
+        {band === '15-17' ? (
+          <Text variant="footnote" color="textMuted">
+            {t('age.toAdultHint')}
+          </Text>
+        ) : null}
+        {band === null && age.data !== undefined ? (
+          <Button
+            testID="privacy-age-tell"
+            label={t('age.tell')}
+            icon={UserRound}
+            variant="secondary"
+            onPress={() => {
+              router.push('/age-check');
+            }}
           />
         ) : null}
       </View>

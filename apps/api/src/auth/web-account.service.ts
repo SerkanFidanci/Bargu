@@ -35,7 +35,7 @@ const WEB_REMEMBERED_MAX = 5;
 /** A challenge dies after this many wrong codes. */
 export const WEB_MAX_ATTEMPTS = 3;
 /**
- * Budgets per address AND network (the client's IPv4 or IPv6 /64, as a keyed pseudonym), so that
+ * Budgets per address AND network (the client's IPv4 or IPv6 /48, as a keyed pseudonym), so that
  * someone who knows only the address cannot use up its owner's codes or tries from elsewhere (a
  * thief blocking the owner, QA 3b N1); per address alone only far higher ceilings, against mail
  * bombing and guessing from many networks. At most 150 wrong codes a day out of 10^8: a 1.5·10^-6
@@ -100,7 +100,7 @@ export class WebAccountService {
     await this.clients.enforce('webCode', ip);
     const lookup = emailLookupKey(this.keys.emailLookupKey, input.email);
     const address = hex(lookup);
-    const network = this.clients.clientId(ip);
+    const network = this.clients.networkId(ip);
     const userId = await this.database.userIdForEmail(lookup);
     const known = await this.isRemembered(userId, input.remember);
     const budgets: [string, number][] = [
@@ -148,7 +148,7 @@ export class WebAccountService {
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'OTP_LOCKED');
     }
     const known = await this.isRemembered(userId === '' ? null : userId, input.remember);
-    const budgets = [`rl:web-fail-n:${address}:${this.clients.clientId(ip)}`];
+    const budgets = [`rl:web-fail-n:${address}:${this.clients.networkId(ip)}`];
     if (!known) budgets.push(`rl:web-fail-a:${address}`);
     const [perNetwork = 0, perAddress = 0] = (await this.redis.eval(RESERVE, {
       keys: budgets,

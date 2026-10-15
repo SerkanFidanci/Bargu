@@ -14,6 +14,7 @@ import {
   sharedCircles,
   type SharingSettings,
   withAllShared,
+  withNewCirclesOff,
   withNothingShared,
   withoutGoneCircles,
 } from './sharing';
@@ -29,6 +30,7 @@ import {
 } from './test-support';
 
 const BATTERY = { level: 64, charging: false };
+const DEFAULT_OFF = { sharing: false, precision: 'exact', until: null } as const;
 const NOW = 1_800_000_000_000;
 
 function settingsWith(
@@ -53,6 +55,18 @@ describe('sharing settings', () => {
     const all = withAllShared(fresh, [known, circleId]);
     expect(all.circles[circleId]).toEqual({ sharing: true, precision: 'exact', until: null });
     expect(all.circles[known]?.precision).toBe('exact');
+  });
+
+  it('starts a circle joined at 15–17 unshared, keeping the ones already shared (docs/ADR/0023)', () => {
+    const before = randomUuid();
+    const later = randomUuid();
+    const teen = withNewCirclesOff(settingsWith({}), [before]);
+    expect(isSharingWith(teen, before, NOW)).toBe(true);
+    expect(isSharingWith(teen, later, NOW)).toBe(false);
+    expect(teen.newCircles).toBe('off');
+    // Done once: what the user chose afterwards is not touched again.
+    const chosen = { ...teen, circles: { ...teen.circles, [before]: { ...DEFAULT_OFF } } };
+    expect(withNewCirclesOff(chosen, [before, later])).toBe(chosen);
   });
 
   it('forgets the choices of circles left behind, so joining again starts with history off (Faz 9 W4)', () => {

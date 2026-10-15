@@ -137,6 +137,13 @@ export class InvitesService {
     await this.limit(`invite-preview:${auth.userId}`, INVITE_LIMITS.previewsPerHour);
     const { circleId, fresh } = await this.database
       .asUser(auth.userId, async (tx) => {
+        // Someone 15-17 comes into an event only with a friend's code (docs/ADR/0023).
+        const allowed = await tx.execute<{ ok: boolean }>(
+          sql`SELECT app.may_redeem(${hashToken(token)}) AS ok`,
+        );
+        if (allowed.rows[0]?.ok !== true) {
+          throw new ApiError(HttpStatus.FORBIDDEN, 'FRIEND_INVITE_ONLY');
+        }
         const result = await tx.execute<{ joined_circle: string; fresh: boolean }>(
           sql`SELECT joined_circle, fresh FROM app.redeem_invite(${hashToken(token)})`,
         );

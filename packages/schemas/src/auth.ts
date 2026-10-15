@@ -15,6 +15,15 @@ export const SIGNED_REQUEST_HEADERS = {
 export const LOCALES = ['tr', 'en'] as const;
 export const localeSchema = z.enum(LOCALES);
 
+/**
+ * Age bands (docs/ADR/0023): Bargu is not for anyone under 15, and 15-17 gets stricter rules. Only
+ * the band is kept, never a birth date. Declared now; later from the e-Devlet age token.
+ */
+export const AGE_BANDS = ['15-17', '18+'] as const;
+export type AgeBand = (typeof AGE_BANDS)[number];
+export const ageBandSchema = z.enum(AGE_BANDS);
+export const AGE_METHODS = ['declared', 'token'] as const;
+
 /** RFC 5321 limits the address to 254 octets; anything longer cannot be delivered. */
 export const emailSchema = z.email().max(254);
 
@@ -83,6 +92,8 @@ export const otpVerifySchema = z
     challengeId: z.uuid(),
     code: z.string().regex(/^\d{4}$/),
     device: deviceRegistrationSchema,
+    /** Asked before the email: required when the code opens a new account, ignored otherwise. */
+    ageBand: ageBandSchema.optional(),
   })
   .strict();
 export type OtpVerify = z.infer<typeof otpVerifySchema>;
