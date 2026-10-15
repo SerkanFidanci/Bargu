@@ -97,7 +97,10 @@ enum PushOpener {
       let seesHistory = joined && (history ?? []).contains(body.circleId)
       let what = seesLive && seesHistory ? "Both" : seesLive ? "Sees" : seesHistory ? "History" : ""
       let text: String
-      if !joined {
+      if body.notice == "guardianNewMember" && !circle.isEmpty {
+        // Named after the child: the "circle" of a guardian notice is the link.
+        text = String(format: localized("notice.guardianNewMemberIn"), circle)
+      } else if !joined {
         text = localized("notice.\(body.notice ?? "")")
       } else if circle.isEmpty {
         text = localized("notice.memberJoined\(what)")

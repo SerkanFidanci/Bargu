@@ -23,3 +23,5 @@
 "notice.guardianApproved" = "Ebeveynin isteğini onayladı";
 "notice.guardianDeclined" = "Ebeveynin isteğini onaylamadı";
 "notice.guardianSettings" = "Ebeveynin ayarlarını değiştirdi";
+"notice.guardianNewMember" = "Çocuğunun bir çemberine yeni biri katıldı";
+"notice.guardianNewMemberIn" = "%@: bir çemberine yeni biri katıldı";

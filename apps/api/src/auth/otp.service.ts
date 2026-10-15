@@ -128,7 +128,16 @@ export class OtpService {
    * Checks a code presented by the device holding `identityKey` and consumes the challenge.
    * Returns the email HMAC of the address the code was sent to.
    */
-  async verify(challengeId: string, code: string, identityKey: Uint8Array): Promise<Uint8Array> {
+  /**
+   * `beforeUse` runs once the code is known to be right, before it is used up: whatever it throws
+   * is answered with the code still usable and not counted as a wrong one (QA 5a Y1).
+   */
+  async verify(
+    challengeId: string,
+    code: string,
+    identityKey: Uint8Array,
+    beforeUse?: (emailHmac: Uint8Array) => Promise<void>,
+  ): Promise<Uint8Array> {
     const key = `otp:${challengeId}`;
     const state = (await this.redis.eval(ATTEMPT, { keys: [key] })) as
       [number, string, string] | null;
@@ -161,13 +170,22 @@ export class OtpService {
       verifyOtpCode(this.keys.otpKey, challengeId, code);
     if (!correct) throw new ApiError(HttpStatus.BAD_REQUEST, 'OTP_INVALID');
 
+    const emailHmac = new Uint8Array(Buffer.from(address, 'hex'));
+    if (beforeUse !== undefined) {
+      try {
+        await beforeUse(emailHmac);
+      } catch (error) {
+        await Promise.all(budgets.map((budget) => this.redis.decr(budget)));
+        throw error;
+      }
+    }
     // Single use: of two concurrent correct submissions only the one that deletes it wins.
     if ((await this.redis.del(key)) !== 1) {
       throw new ApiError(HttpStatus.BAD_REQUEST, 'OTP_EXPIRED');
     }
     // A correct code is not a failure: give the reserved slots back.
     await Promise.all(budgets.map((budget) => this.redis.decr(budget)));
-    return new Uint8Array(Buffer.from(address, 'hex'));
+    return emailHmac;
   }
 
   private address(email: string): string {

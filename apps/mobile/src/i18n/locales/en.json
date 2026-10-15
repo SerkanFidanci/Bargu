@@ -472,7 +472,9 @@
       "guardianApproval": "Your child wants to connect with someone new; it waits for your yes",
       "guardianApproved": "Your parent said yes",
       "guardianDeclined": "Your parent said no",
-      "guardianSettings": "Your parent changed your settings"
+      "guardianSettings": "Your parent changed your settings",
+      "guardianNewMember": "Someone new joined one of your child’s circles",
+      "guardianNewMemberIn": "{{name}}: someone new joined one of their circles"
     },
     "mute": {
       "title": "Notifications from {{name}}",
@@ -980,7 +982,8 @@
       "askJoins": "{{by}} wants to join {{name}} with your child’s code",
       "askInvites": "Your child wants to invite {{by}} into {{name}}"
     },
-    "unnamed": "Someone without a name"
+    "unnamed": "Someone without a name",
+    "newMember": "{{name}} (new)"
   },
   "screenTime": {
     "upTitle": "Time is up for today",

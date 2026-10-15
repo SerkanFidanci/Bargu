@@ -1,6 +1,6 @@
 import { onOnline, onServerEvents } from '../live/live-session';
 import { queryClient } from '../query-client';
-import { guardiansKey } from './guardians-api';
+import { guardiansApi, guardiansKey } from './guardians-api';
 import { refreshRules } from './screen-time-session';
 
 /**
@@ -9,6 +9,9 @@ import { refreshRules } from './screen-time-session';
  */
 function refresh(): void {
   void queryClient.invalidateQueries({ queryKey: guardiansKey });
+  void queryClient
+    .query({ queryKey: guardiansKey, queryFn: () => guardiansApi.list(), staleTime: 0 })
+    .catch(() => undefined);
   void refreshRules();
 }
 

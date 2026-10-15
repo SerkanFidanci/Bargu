@@ -1,4 +1,4 @@
-import { sealPush } from '@bargu/crypto';
+import { randomUuid, sealPush } from '@bargu/crypto';
 
 import i18n from '@/i18n';
 
@@ -91,6 +91,33 @@ describe('notification texts', () => {
       pushText({ kind: 'notice', notice: 'friendAdded', circleId: placeId, ts: 1 }, null, contacts)
         ?.route,
     ).toBeUndefined();
+    // Someone new near the child: a parent's phone names the child after the link (QA 5c F-2).
+    const linkId = randomUuid();
+    const parents = contactsOf([circle], me.keys, me.userId, [
+      {
+        id: linkId,
+        role: 'guardian',
+        status: 'active',
+        other: { username: 'deniz', displayName: 'Deniz', avatar: null },
+        createdAt: 1,
+        activeAt: 2,
+        endRequestedAt: null,
+        endsAt: null,
+      },
+    ]);
+    const newMember = {
+      kind: 'notice',
+      notice: 'guardianNewMember',
+      circleId: linkId,
+      ts: 1,
+    } as const;
+    expect(pushText(newMember, null, parents)).toMatchObject({
+      body: 'Deniz: bir çemberine yeni biri katıldı',
+      route: 'guardians',
+    });
+    expect(pushText(newMember, null, contacts)?.body).toBe(
+      'Çocuğunun bir çemberine yeni biri katıldı',
+    );
   });
 
   it('warn that a newcomer will see the location, its history, or both (Faz 9, G2)', () => {

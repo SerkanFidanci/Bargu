@@ -1,5 +1,11 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { DeliveredEvent, ResumeReply, ServerEvent } from '@bargu/schemas';
+import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
+import {
+  type DeliveredEvent,
+  deliveredEventSchema,
+  type ResumeReply,
+  type ServerEvent,
+} from '@bargu/schemas';
+import { z } from 'zod';
 import type { Server, Socket } from 'socket.io';
 
 import type { AuthContext } from '../auth/request-context.js';
@@ -12,6 +18,15 @@ export const EVENT_RETENTION_SECONDS = 24 * 3600;
 export const EVENT_STREAM_LENGTH = 500;
 
 const streamKey = (userId: string) => `ev:${userId}`;
+
+/**
+ * Stored events go to connected phones through this channel, from whichever process stored them:
+ * the worker (which has no sockets) and every API instance alike (QA Faz 8 D2).
+ */
+export const LIVE_CHANNEL = 'events:live';
+const liveSchema = z
+  .object({ deliveries: z.array(z.object({ userId: z.uuid(), delivered: deliveredEventSchema })) })
+  .strict();
 
 /** A connected socket's identity and the token it presented (re-checked after joining). */
 export interface SocketConnection {
@@ -32,12 +47,14 @@ function compareIds(a: string, b: string): number {
 /**
  * Every state change other people (or the user's own phone) must see is an event: written to the
  * user's Redis stream, so a phone that was offline can resume where it left off, and pushed at once
- * to their connected sockets. Events say what changed, never personal data or keys.
+ * to their connected sockets (through LIVE_CHANNEL, so the worker's events go live too). Events say
+ * what changed, never personal data or keys.
  */
 @Injectable()
-export class EventsService {
+export class EventsService implements OnModuleDestroy {
   private readonly logger = new Logger('Events');
   private server: Server | null = null;
+  private subscriber: RedisClient | null = null;
   /** Who each connected socket acts for, set once by the handshake (events.gateway). */
   private readonly connections = new WeakMap<Socket, SocketConnection>();
 
@@ -77,9 +94,49 @@ export class EventsService {
     return result;
   }
 
-  /** Called by the gateway once the Socket.io server exists. */
+  /**
+   * Called by the gateway once the Socket.io server exists: from now on this process hands stored
+   * events from the channel to its connected sockets.
+   */
   attach(server: Server): void {
     this.server = server;
+    let subscriber: RedisClient;
+    try {
+      subscriber = this.redis.duplicate();
+    } catch (error) {
+      // No live channel: events stay in the streams, phones get them on their next resume.
+      this.logger.warn(
+        `live channel unavailable: ${error instanceof Error ? error.name : 'unknown'}`,
+      );
+      return;
+    }
+    this.subscriber = subscriber;
+    subscriber.on('error', (error: Error) => {
+      this.logger.warn(`live channel: ${error.name}`);
+    });
+    void (async () => {
+      await subscriber.connect();
+      await subscriber.subscribe(LIVE_CHANNEL, (message) => {
+        this.deliver(message);
+      });
+    })().catch((error: unknown) => {
+      // Events stay in the streams: phones get them on their next resume.
+      this.logger.warn(`live channel down: ${error instanceof Error ? error.name : 'unknown'}`);
+    });
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    const subscriber = this.subscriber;
+    this.subscriber = null;
+    if (subscriber?.isOpen === true) await subscriber.close();
+  }
+
+  private deliver(message: string): void {
+    const parsed = liveSchema.safeParse(JSON.parse(message));
+    if (!parsed.success) return;
+    for (const { userId, delivered } of parsed.data.deliveries) {
+      this.server?.to(userRoom(userId)).emit('event', delivered);
+    }
   }
 
   /**
@@ -88,6 +145,7 @@ export class EventsService {
    */
   async publish(userIds: Iterable<string>, event: ServerEvent): Promise<void> {
     const at = Date.now();
+    const deliveries: { userId: string; delivered: DeliveredEvent }[] = [];
     for (const userId of new Set(userIds)) {
       try {
         const key = streamKey(userId);
@@ -98,13 +156,21 @@ export class EventsService {
           { TRIM: { strategy: 'MAXLEN', strategyModifier: '~', threshold: EVENT_STREAM_LENGTH } },
         );
         await this.redis.expire(key, EVENT_RETENTION_SECONDS);
-        const delivered: DeliveredEvent = { id, at, event };
-        this.server?.to(userRoom(userId)).emit('event', delivered);
+        deliveries.push({ userId, delivered: { id, at, event } });
       } catch (error) {
         this.logger.warn(
           `event ${event.type} not delivered: ${error instanceof Error ? error.name : 'unknown'}`,
         );
       }
+    }
+    if (deliveries.length === 0) return;
+    try {
+      await this.redis.publish(LIVE_CHANNEL, JSON.stringify({ deliveries }));
+    } catch (error) {
+      // Stored all the same: phones get it on their next resume.
+      this.logger.warn(
+        `event ${event.type} not live: ${error instanceof Error ? error.name : 'unknown'}`,
+      );
     }
   }
 

@@ -1,5 +1,6 @@
 import {
   type Circle,
+  type GuardianLink,
   placePutReplySchema,
   placesSchema,
   type MessageEnvelope,
@@ -7,6 +8,7 @@ import {
 
 import { api, onSignedOut, useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
+import { guardiansKey } from '../guardians/guardians-api';
 import { useCircleKeys } from '../circles/circle-sync';
 import { isApiError } from '../errors';
 import { circleSync, keys, onOnline, onServerEvents } from '../live/live-session';
@@ -95,7 +97,12 @@ export function syncPlaces(): Promise<void> {
 /** Keeps what notifications need while the app is closed in step with the circles. */
 function refreshContacts(circles: readonly Circle[]): void {
   if (!isVaultOpen()) return;
-  const contacts = contactsOf(circles, keys(), useAuth.getState().userId);
+  const contacts = contactsOf(
+    circles,
+    keys(),
+    useAuth.getState().userId,
+    queryClient.getQueryData<GuardianLink[]>(guardiansKey) ?? [],
+  );
   saveContacts(vault(), contacts);
   void shareWithExtension(contacts).catch(() => undefined);
   const device = useAuth.getState().device;
@@ -126,6 +133,14 @@ queryClient.getQueryCache().subscribe((event) => {
   const moved = [...next].some(([id, epoch]) => epochs.get(id) !== epoch);
   epochs = next;
   if (moved) void syncPlaces();
+});
+
+const GUARDIANS_HASH = JSON.stringify(guardiansKey);
+// The guardian links changed: a parent's notifications name the child (docs/ADR/0023).
+queryClient.getQueryCache().subscribe((event) => {
+  if (event.query.queryHash !== GUARDIANS_HASH || event.type !== 'updated') return;
+  if (event.action.type !== 'success' || !isVaultOpen()) return;
+  refreshContacts(cachedCircles());
 });
 
 let keysTimer: ReturnType<typeof setTimeout> | null = null;

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
+import { withSweepLock } from '../infra/redis/sweep-lock.js';
 import { AccountPurge } from './account-purge.js';
 
 /**
@@ -36,17 +37,22 @@ export class AccountSweeper implements OnApplicationBootstrap, OnApplicationShut
     if (this.timer !== null) clearInterval(this.timer);
   }
 
+  /** A round still going is not started again here; the lock keeps other workers out. */
+  private running = false;
+
   async run(): Promise<void> {
-    const locked = await this.redis.set(LOCK_KEY, '1', {
-      condition: 'NX',
-      expiration: { type: 'PX', value: ACCOUNT_SWEEP_MS - 5_000 },
-    });
-    if (locked !== 'OK') return;
+    if (this.running) return;
+    this.running = true;
     try {
-      await this.attempt('sweep', () => this.purge.sweep());
-      await this.attempt('security events', () => this.purge.expireSecurityEvents());
+      await withSweepLock(this.redis, LOCK_KEY, ACCOUNT_SWEEP_MS - 5_000, async () => {
+        await this.attempt('sweep', () => this.purge.sweep());
+        await this.attempt('security events', () => this.purge.expireSecurityEvents());
+      });
+    } catch (error) {
+      // Redis unreachable: the next round tries again.
+      this.logger.warn(`sweep lock failed: ${error instanceof Error ? error.name : 'unknown'}`);
     } finally {
-      await this.redis.del(LOCK_KEY);
+      this.running = false;
     }
   }
 

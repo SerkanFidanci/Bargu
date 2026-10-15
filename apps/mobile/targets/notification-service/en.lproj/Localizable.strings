@@ -23,3 +23,5 @@
 "notice.guardianApproved" = "Your parent said yes";
 "notice.guardianDeclined" = "Your parent said no";
 "notice.guardianSettings" = "Your parent changed your settings";
+"notice.guardianNewMember" = "Someone new joined one of your child's circles";
+"notice.guardianNewMemberIn" = "%@: someone new joined one of their circles";

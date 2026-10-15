@@ -7,12 +7,13 @@ import {
   type GuardianView,
   type Invite,
 } from '@bargu/schemas';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { EventsService } from '../../src/events/events.service.js';
 import { GuardianSweeper } from '../../src/guardians/guardian-sweeper.js';
 import { DatabaseService } from '../../src/infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
+import { Notifier } from '../../src/push/notifier.js';
 import { createTestApp, type TestApp } from './support/app.js';
 import { as, createCircle, type Person, person } from './support/people.js';
 
@@ -374,6 +375,78 @@ describe('guardian tools (docs/ADR/0023 §5)', () => {
     const forParent = await codeFrom(child, { kind: 'circle', circleId: group.id });
     expect((await join(parent, forParent)).statusCode).toBe(200);
     expect(JSON.stringify((await viewOf(parent, link)).requests)).not.toContain('username');
+  });
+
+  it('tell the parents when someone new comes into a group the child is in (QA 5c F-2)', async () => {
+    const [child, parent, ayse, bora] = await Promise.all([
+      teenager(),
+      adult(),
+      adult('Ayşe'),
+      adult('Bora'),
+    ]);
+    const link = await linked(child, parent);
+    const group = await createCircle(test, ayse, 'Takım');
+    // The child comes in with a parent's yes.
+    expect(
+      (await join(child, await codeFrom(ayse, { kind: 'circle', circleId: group.id }))).statusCode,
+    ).toBe(403);
+    const [asked] = (await viewOf(parent, link)).requests;
+    await answer(parent, link, asked?.id ?? '', true);
+
+    // Someone else's code: not held (the circle never learns a 15-17 is in it), the parent hears it.
+    const notify = vi.spyOn(test.app.get(Notifier), 'notify');
+    const response = await join(bora, await codeFrom(ayse, { kind: 'circle', circleId: group.id }));
+    expect(response.statusCode).toBe(200);
+    expect(notify).toHaveBeenCalledWith([parent.userId], 'guardianNewMember', link.id);
+    const [circle] = (await viewOf(parent, link)).circles;
+    expect(circle?.members).toContainEqual({ displayName: 'Bora', isNew: true });
+
+    // With the yes for new people off, nobody is told.
+    await as(test, parent, 'PUT', `/v1/guardians/${link.id}/settings`, {
+      approveNewPeople: false,
+      dailyLimitMinutes: null,
+    });
+    notify.mockClear();
+    const cem = await adult('Cem');
+    await join(cem, await codeFrom(ayse, { kind: 'circle', circleId: group.id }));
+    expect(notify.mock.calls.some((call) => call[1] === 'guardianNewMember')).toBe(false);
+    notify.mockRestore();
+  });
+
+  it('keep requests within bounds and tell a parent once per request (QA 5b/5c S-3)', async () => {
+    const [child, parent, stranger] = await Promise.all([teenager(), adult(), adult('Fikret')]);
+    await linked(child, parent);
+    const notify = vi.spyOn(test.app.get(Notifier), 'notify');
+    const code = await codeFrom(stranger, { kind: 'friend' });
+    expect((await join(child, code)).statusCode).toBe(403);
+    expect((await join(child, code)).statusCode).toBe(403);
+    expect(notify.mock.calls.filter((call) => call[1] === 'guardianApproval')).toHaveLength(1);
+
+    // At most 20 waiting for a child: then asked to wait.
+    await test.admin.query(
+      "INSERT INTO app.guardian_requests (child_id, kind, username) SELECT $1, 'friend', 'x' || g FROM generate_series(1, 19) g",
+      [child.userId],
+    );
+    const full = await join(child, await codeFrom(stranger, { kind: 'friend' }));
+    expect(full.statusCode).toBe(429);
+
+    // At most 5 waiting for one newcomer, across every child.
+    const [other, otherParent, newcomer] = await Promise.all([teenager(), adult(), adult('Nur')]);
+    await linked(other, otherParent);
+    await test.admin.query(
+      "INSERT INTO app.guardian_requests (child_id, kind, token_hash, newcomer_id) SELECT $1, 'admit', sha256(g::text::bytea), $2 FROM generate_series(1, 5) g",
+      [other.userId, newcomer.userId],
+    );
+    const crowded = await join(newcomer, await codeFrom(other, { kind: 'friend' }));
+    expect(crowded.statusCode).toBe(429);
+
+    // A parent gets at most 30 of these an hour, however many accounts cause them.
+    const redis = test.app.get<RedisClient>(REDIS);
+    await redis.set(`rl:guardian-notices:${otherParent.userId}`, '30', { EX: 3600 });
+    notify.mockClear();
+    expect((await join(other, await codeFrom(stranger, { kind: 'friend' }))).statusCode).toBe(403);
+    expect(notify.mock.calls.some((call) => call[1] === 'guardianApproval')).toBe(false);
+    notify.mockRestore();
   });
 
   it('are set by a parent only, read by the child, and the same on both sides', async () => {

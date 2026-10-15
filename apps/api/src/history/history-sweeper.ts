@@ -9,6 +9,7 @@ import { sql } from 'drizzle-orm';
 
 import { DatabaseService } from '../infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
+import { withSweepLock } from '../infra/redis/sweep-lock.js';
 
 /** How often the worker deletes history older than two weeks. */
 export const HISTORY_SWEEP_MS = 10 * 60_000;
@@ -50,19 +51,26 @@ export class HistorySweeper implements OnApplicationBootstrap, OnApplicationShut
     }
   }
 
+  /** A round still going is not started again here; the lock keeps other workers out. */
+  private running = false;
+
   async run(): Promise<void> {
-    const locked = await this.redis.set(LOCK_KEY, '1', {
-      condition: 'NX',
-      expiration: { type: 'PX', value: HISTORY_SWEEP_MS - 5_000 },
-    });
-    if (locked !== 'OK') return;
+    if (this.running) return;
+    this.running = true;
     try {
-      await this.sweep();
+      await withSweepLock(this.redis, LOCK_KEY, HISTORY_SWEEP_MS - 5_000, async () => {
+        try {
+          await this.sweep();
+        } catch (error) {
+          // The next round tries again; nothing about the pieces is logged.
+          this.logger.warn(`sweep failed: ${error instanceof Error ? error.name : 'unknown'}`);
+        }
+      });
     } catch (error) {
-      // The next round tries again; nothing about the pieces is logged.
-      this.logger.warn(`sweep failed: ${error instanceof Error ? error.name : 'unknown'}`);
+      // Redis unreachable: the next round tries again.
+      this.logger.warn(`sweep lock failed: ${error instanceof Error ? error.name : 'unknown'}`);
     } finally {
-      await this.redis.del(LOCK_KEY);
+      this.running = false;
     }
   }
 }

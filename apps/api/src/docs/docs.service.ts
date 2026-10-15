@@ -79,6 +79,10 @@ export class DocsService {
       const me = members.find((member) => member.userId === auth.userId);
       if (me === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
       if (me.expiresAt === null) throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+      // Ended, the sweep about to delete it: nothing more is written (QA Faz 8 D3).
+      if (me.expiresAt.getTime() <= Date.now()) {
+        throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      }
       if (envelope.epoch !== me.epoch) throw new ApiError(HttpStatus.CONFLICT, 'EPOCH_STALE');
       // The meeting and polls are the admins' (row-level security holds the same rule); said so,
       // rather than the "someone was faster" a refused compare-and-set would say.

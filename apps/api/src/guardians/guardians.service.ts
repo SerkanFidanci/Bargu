@@ -28,6 +28,8 @@ import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { Notifier } from '../push/notifier.js';
 
 const HOUR = 3600;
+/** How long someone who came into the child's circles shows as new on the view. */
+export const NEW_MEMBER_MS = 7 * 24 * 3600_000;
 /** Codes shown and codes looked at, per account. */
 export const GUARDIAN_LIMITS = { codesPerHour: 20, previewsPerHour: 60, usagePerHour: 60 } as const;
 /** What the QR code and the shared link carry; opens the app at the parent's yes. */
@@ -299,6 +301,15 @@ export class GuardiansService {
       return { child: card(row), ageBand: row.ageBand };
     });
     const circles = await this.circles.list({ userId: childId });
+    // Who came into the child's circles lately (7 days, since the link): marked new.
+    const since = Math.max(found.link.activeAt ?? 0, Date.now() - NEW_MEMBER_MS);
+    const recent = await this.database.asUser(childId, (tx) =>
+      tx.execute<{ circle_id: string; user_id: string }>(
+        sql`SELECT circle_id, user_id FROM app.circle_members
+             WHERE status = 'active' AND user_id <> ${childId} AND joined_at > ${new Date(since)}`,
+      ),
+    );
+    const fresh = new Set(recent.rows.map((row) => `${row.circle_id}:${row.user_id}`));
     const tools = await this.database.asUser(auth.userId, (tx) => this.toolsOf(tx, childId));
     return {
       link: found.link,
@@ -320,7 +331,10 @@ export class GuardiansService {
           members: circle.members
             .filter((member) => member.userId !== childId && member.status === 'active')
             // Display names only (QA 5b G-1): a parent cannot look these people up.
-            .map((member) => ({ displayName: member.displayName })),
+            .map((member) => ({
+              displayName: member.displayName,
+              isNew: fresh.has(`${circle.id}:${member.userId}`),
+            })),
         })),
     };
   }

@@ -28,6 +28,7 @@ const GUARDIAN_NOTICES: ReadonlySet<string> = new Set([
   'guardianApproved',
   'guardianDeclined',
   'guardianSettings',
+  'guardianNewMember',
 ]);
 
 /**
@@ -43,9 +44,14 @@ export function pushText(
 ): ShownPush | null {
   if (body.kind === 'notice' && GUARDIAN_NOTICES.has(body.notice)) {
     // docs/ADR/0023 §4: the "circle" is the link; the guardian screen shows who and what.
+    // Someone new near the child: named after the child when this phone knows the link.
+    const child = contacts.circles[body.circleId]?.name ?? '';
     return {
       title: 'Bargu',
-      body: i18n.t(`notifications.notice.${body.notice}`),
+      body:
+        body.notice === 'guardianNewMember' && child !== ''
+          ? i18n.t('notifications.notice.guardianNewMemberIn', { name: child })
+          : i18n.t(`notifications.notice.${body.notice}`),
       circleId: body.circleId,
       channel: SOCIAL_CHANNEL,
       fromUserId: null,

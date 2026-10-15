@@ -472,7 +472,9 @@
       "guardianApproval": "Çocuğun yeni biriyle bağlantı kurmak istiyor; onayını bekliyor",
       "guardianApproved": "Ebeveynin isteğini onayladı",
       "guardianDeclined": "Ebeveynin isteğini onaylamadı",
-      "guardianSettings": "Ebeveynin ayarlarını değiştirdi"
+      "guardianSettings": "Ebeveynin ayarlarını değiştirdi",
+      "guardianNewMember": "Çocuğunun bir çemberine yeni biri katıldı",
+      "guardianNewMemberIn": "{{name}}: bir çemberine yeni biri katıldı"
     },
     "mute": {
       "title": "{{name}} için bildirimler",
@@ -980,7 +982,8 @@
       "askJoins": "{{by}}, çocuğunun koduyla {{name}} çemberine katılmak istiyor",
       "askInvites": "Çocuğun {{by}} kişisini {{name}} çemberine davet etmek istiyor"
     },
-    "unnamed": "Adı yazılmamış biri"
+    "unnamed": "Adı yazılmamış biri",
+    "newMember": "{{name}} (yeni)"
   },
   "screenTime": {
     "upTitle": "Bugünlük süren doldu",

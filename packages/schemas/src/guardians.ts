@@ -129,8 +129,13 @@ export const guardianViewSchema = z
           kind: z.enum(CIRCLE_KINDS),
           /** Null for a friendship (a pair): its one other member is the friend. */
           name: z.string().nullable(),
-          /** Display names only: a parent cannot look these people up (QA 5b G-1). */
-          members: z.array(z.object({ displayName: z.string().nullable() }).strict()),
+          /**
+           * Display names only: a parent cannot look these people up (QA 5b G-1). `isNew`: came in
+           * during the last 7 days, since the link (PM decision on QA 5c F-2).
+           */
+          members: z.array(
+            z.object({ displayName: z.string().nullable(), isNew: z.boolean() }).strict(),
+          ),
         })
         .strict(),
     ),

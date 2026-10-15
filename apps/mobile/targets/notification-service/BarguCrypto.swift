@@ -112,6 +112,7 @@ public struct PushBody: Decodable, Equatable, Sendable {
     "friendRequest", "friendAccepted", "friendAdded", "circleInvite", "memberJoined",
     "guardianRequest", "guardianLinked", "guardianEndRequested", "guardianEnded",
     "guardianApproval", "guardianApproved", "guardianDeclined", "guardianSettings",
+    "guardianNewMember",
   ]
 
   public let kind: Kind

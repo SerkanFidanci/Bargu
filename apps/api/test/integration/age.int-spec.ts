@@ -59,6 +59,18 @@ describe('the age band (docs/ADR/0023)', () => {
     });
     expect(refused.statusCode).toBe(400);
     expect(refused.json()).toMatchObject({ code: 'AGE_REQUIRED' });
+    // The same code still works with the band (QA 5a Y1).
+    const opened = await call(test.app, {
+      url: '/v1/auth/otp/verify',
+      body: {
+        challengeId,
+        code: codeFor(test, challengeId),
+        device: registration(device),
+        ageBand: '18+',
+      },
+      device,
+    });
+    expect(opened.statusCode).toBe(200);
 
     const teen = await person(test, 'Deniz', '15-17');
     expect(await ageOf(teen)).toMatchObject({ band: '15-17', method: 'declared' });
@@ -131,11 +143,15 @@ describe('15-17 (docs/ADR/0023)', () => {
     expect(refused.statusCode).toBe(403);
     expect(refused.json()).toMatchObject({ code: 'AGE_RESTRICTED' });
 
-    const adult = await person(test);
+    const [adult, host] = await Promise.all([person(test), person(test)]);
     await consentToHistory(test, adult);
+    // An invitation by username from before stays no longer (QA 5c, old invitations).
+    const group = await createCircle(test, host);
+    await as(test, host, 'POST', `/v1/circles/${group.id}/members`, { username: adult.username });
     await as(test, adult, 'PUT', '/v1/me/age', { band: '15-17' });
     const privacy = (await as(test, adult, 'GET', '/v1/me/privacy')).json<PrivacyState>();
     expect(privacy.history).toBeNull();
+    expect((await as(test, adult, 'GET', `/v1/circles/${group.id}`)).statusCode).toBe(404);
   });
 
   it('comes into an event only with a friend’s code; groups and friends as anyone', async () => {

@@ -49,7 +49,19 @@ export class LoginService {
   async withOtp(body: OtpVerify, request: AuthedRequest): Promise<Session> {
     await this.otp.limitVerification(request.ip);
     const { device, attested } = await this.checkDevice(body.device, request);
-    const emailHmac = await this.otp.verify(body.challengeId, body.code, device.identityKey);
+    // A new account says its age band (docs/ADR/0023). Asked once the code is known to be right
+    // (so it says nothing about the address to anyone else) and before the code is used up, so the
+    // same code works with the band (QA 5a Y1).
+    const emailHmac = await this.otp.verify(
+      body.challengeId,
+      body.code,
+      device.identityKey,
+      async (address) => {
+        if (body.ageBand === undefined && (await this.database.userIdForEmail(address)) === null) {
+          throw new ApiError(HttpStatus.BAD_REQUEST, 'AGE_REQUIRED');
+        }
+      },
+    );
     const { session, replacedDeviceId, newDevice } = await this.loginByEmail(
       emailHmac,
       device,

@@ -206,6 +206,12 @@ describe('the account web page (docs/ADR/0021)', () => {
       (await call(test.app, { url: '/v1/web/revoke-device', body: { token: remember } }))
         .statusCode,
     ).toBe(401);
+    // Each value lasts its own 180 days, however often the account came in since (QA 4 K2c).
+    const known = `web-known:${someone.userId}`;
+    for (const value of await redis.zRange(known, 0, -1)) {
+      await redis.zAdd(known, { score: Date.now() - 181 * 24 * 3600_000, value });
+    }
+    expect((await ask(remember)).statusCode).toBe(429);
   });
 
   it('counts an IPv6 /48 as one network: many /64s of it are not many networks (QA 4 K2a)', async () => {

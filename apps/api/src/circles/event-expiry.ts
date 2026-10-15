@@ -18,6 +18,11 @@ interface PendingRow extends Record<string, unknown> {
   member_ids: string[];
 }
 
+/** Circle ids inside Redis key names (rate limits and stores name the circle). */
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+/** Keys looked at per step of the one pass over the keyspace. */
+const SCAN_COUNT = 1000;
+
 /**
  * The end of event circles (BARGU_PLAN Faz 8, docs/ADR/0017): when one ends, nothing of it may
  * stay on the server. The database deletes the circle with everything that cascades from it
@@ -56,8 +61,28 @@ export class EventExpiry {
       if (expired.length < 100) break;
     }
     if (total > 0) this.logger.log(`ended ${String(total)} event circle(s)`);
-    await this.clearPending();
+    try {
+      await this.clearPending();
+    } finally {
+      await this.warnIfStale();
+    }
     return total;
+  }
+
+  /**
+   * Clean-ups normally take seconds; one waiting for minutes keeps failing (Redis, the queue). Says
+   * how many, never which (QA Faz 8, stale clean-up record).
+   */
+  private async warnIfStale(): Promise<void> {
+    const stale = await this.database.anonymous(async (tx) => {
+      const result = await tx.execute<{ stale: number }>(
+        sql`SELECT app.stale_event_cleanups() AS stale`,
+      );
+      return result.rows[0]?.stale ?? 0;
+    });
+    if (stale > 0) {
+      this.logger.warn(`${String(stale)} event clean-up(s) waiting for more than 5 minutes`);
+    }
   }
 
   /** Clears every ended circle still waiting for it; the first failure is thrown at the end. */
@@ -70,10 +95,19 @@ export class EventExpiry {
         );
         return result.rows;
       });
+      if (pending.length === 0) break;
+      // One pass over the keyspace for the whole page, not one per circle (QA Faz 8 O1).
+      let keys: Map<string, string[]>;
+      try {
+        keys = await this.keysOf(pending.map((row) => row.circle_id));
+      } catch (error) {
+        failure ??= error instanceof Error ? error : new Error('clean-up failed');
+        break;
+      }
       let cleared = 0;
       for (const row of pending) {
         try {
-          await this.clear(row.circle_id, row.member_ids);
+          await this.clear(row.circle_id, row.member_ids, keys.get(row.circle_id) ?? []);
           await this.database.anonymous((tx) =>
             tx.execute(sql`SELECT app.finish_event_cleanup(${row.circle_id})`),
           );
@@ -88,30 +122,54 @@ export class EventExpiry {
     if (failure !== null) throw failure;
   }
 
-  /** The owner ends an event now. */
+  /**
+   * The owner ends an event now: this circle alone is deleted and cleaned up at once; the backlog
+   * of other ended events stays the worker's (QA Faz 8 O1).
+   */
   async endNow(auth: AuthContext, circleId: string): Promise<void> {
-    const ended = await this.database.asUser(auth.userId, async (tx) => {
-      const result = await tx.execute<{ ended: boolean }>(
-        sql`SELECT app.end_event(${circleId}) AS ended`,
+    const members = await this.database.asUser(auth.userId, async (tx) => {
+      const result = await tx.execute<{ members: string[] | null }>(
+        sql`SELECT app.end_event_now(${circleId}) AS members`,
       );
-      return result.rows[0]?.ended === true;
+      return result.rows[0]?.members ?? null;
     });
-    if (!ended) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+    if (members === null) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
     try {
-      await this.sweep();
+      const keys = await this.keysOf([circleId]);
+      await this.clear(circleId, members, keys.get(circleId) ?? []);
+      await this.database.anonymous((tx) =>
+        tx.execute(sql`SELECT app.finish_event_cleanup(${circleId})`),
+      );
     } catch (error) {
       // Ended and gone from the database; what is left elsewhere goes with the worker's next sweep.
       this.logger.warn(`clean-up deferred: ${error instanceof Error ? error.name : 'unknown'}`);
     }
   }
 
-  /** Everything an ended circle left outside the database; safe to run again. */
-  private async clear(circleId: string, members: readonly string[]): Promise<void> {
-    // The relay's stores and anything else keyed by the circle (rate limit counters).
-    const keys = [`loc:${circleId}`, `status:${circleId}`, `profile:${circleId}`];
-    for await (const found of this.redis.scanIterator({ MATCH: `*${circleId}*`, COUNT: 500 })) {
-      keys.push(...found);
+  /** Every Redis key naming one of these circles, found in a single pass over the keyspace. */
+  private async keysOf(circleIds: readonly string[]): Promise<Map<string, string[]>> {
+    const wanted = new Set(circleIds);
+    const found = new Map<string, string[]>(circleIds.map((id) => [id, []]));
+    const [only] = circleIds;
+    const pattern = circleIds.length === 1 && only !== undefined ? `*${only}*` : '*';
+    for await (const keys of this.redis.scanIterator({ MATCH: pattern, COUNT: SCAN_COUNT })) {
+      for (const key of keys) {
+        for (const id of key.match(UUID) ?? []) {
+          if (wanted.has(id)) found.get(id)?.push(key);
+        }
+      }
     }
+    return found;
+  }
+
+  /** Everything an ended circle left outside the database; safe to run again. */
+  private async clear(
+    circleId: string,
+    members: readonly string[],
+    named: readonly string[],
+  ): Promise<void> {
+    // The relay's stores and anything else keyed by the circle (rate limit counters).
+    const keys = [`loc:${circleId}`, `status:${circleId}`, `profile:${circleId}`, ...named];
     await this.redis.del([...new Set(keys)]);
     await this.events.forgetCircle(members, circleId);
     // Notices about it still waiting in the queue, and failed ones kept in the dead letter queue

@@ -67,7 +67,11 @@ export default function GuardianViewScreen() {
 
   const people = (circles: Circles) =>
     circles.map((circle, index) => {
-      const names = circle.members.map((member) => member.displayName ?? t('guardians.unnamed'));
+      // Someone who came in lately is marked new (PM decision on QA 5c F-2).
+      const names = circle.members.map((member) => {
+        const name = member.displayName ?? t('guardians.unnamed');
+        return member.isNew ? t('guardians.newMember', { name }) : name;
+      });
       return (
         <View
           key={`${circle.kind}-${String(index)}`}

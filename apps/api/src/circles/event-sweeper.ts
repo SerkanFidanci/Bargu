@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
+import { withSweepLock } from '../infra/redis/sweep-lock.js';
 import { EventExpiry } from './event-expiry.js';
 
 /** How often the worker looks for event circles that have ended (phones end them on time). */
@@ -34,19 +35,26 @@ export class EventSweeper implements OnApplicationBootstrap, OnApplicationShutdo
     if (this.timer !== null) clearInterval(this.timer);
   }
 
+  /** A round still going is not started again here; the lock keeps other workers out. */
+  private running = false;
+
   async run(): Promise<void> {
-    const locked = await this.redis.set(LOCK_KEY, '1', {
-      condition: 'NX',
-      expiration: { type: 'PX', value: EVENT_SWEEP_MS - 5_000 },
-    });
-    if (locked !== 'OK') return;
+    if (this.running) return;
+    this.running = true;
     try {
-      await this.expiry.sweep();
+      await withSweepLock(this.redis, LOCK_KEY, EVENT_SWEEP_MS - 5_000, async () => {
+        try {
+          await this.expiry.sweep();
+        } catch (error) {
+          // The next round tries again; nothing about the circles is logged.
+          this.logger.warn(`sweep failed: ${error instanceof Error ? error.name : 'unknown'}`);
+        }
+      });
     } catch (error) {
-      // The next round tries again; nothing about the circles is logged.
-      this.logger.warn(`sweep failed: ${error instanceof Error ? error.name : 'unknown'}`);
+      // Redis unreachable: the next round tries again.
+      this.logger.warn(`sweep lock failed: ${error instanceof Error ? error.name : 'unknown'}`);
     } finally {
-      await this.redis.del(LOCK_KEY);
+      this.running = false;
     }
   }
 }

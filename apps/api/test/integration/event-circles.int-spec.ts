@@ -30,6 +30,7 @@ import { QUEUES } from '../../src/jobs/queues.js';
 import { JOB_QUEUE } from '../../src/jobs/tokens.js';
 import { createTestApp, type TestApp, testEnv } from './support/app.js';
 import { dumpEverything } from './support/dump.js';
+import { exclusively, SWEEP_TIMEOUT_MS } from './support/sweep.js';
 import { as, consentToHistory, type Person, person } from './support/people.js';
 
 /** A throwaway RSA key in PEM (WebCrypto): notices get queued, nothing is sent to Google. */
@@ -273,77 +274,97 @@ describe('event circles', () => {
     expect((await as(test, owner, 'POST', `/v1/circles/${group.id}/end`)).statusCode).toBe(404);
   });
 
-  it('leave nothing of themselves on the server once they end (BARGU_PLAN Faz 8 DoD)', async () => {
-    const { circle, qr } = await eventWithEverything();
-    // Before: the circle is all over the place.
-    expect(await dumpEverything(test)).toContain(circle.id);
+  it(
+    'leave nothing of themselves on the server once they end (BARGU_PLAN Faz 8 DoD)',
+    () =>
+      exclusively(test, async () => {
+        const { circle, qr } = await eventWithEverything();
+        // Before: the circle is all over the place.
+        expect(await dumpEverything(test)).toContain(circle.id);
 
-    // The event ends (as if its time had come), the worker sweeps.
-    await endOnTime(circle.id);
-    expect(await test.app.get(EventExpiry).sweep()).toBeGreaterThanOrEqual(1);
+        // The event ends (as if its time had come), the worker sweeps.
+        await endOnTime(circle.id);
+        expect(await test.app.get(EventExpiry).sweep()).toBeGreaterThanOrEqual(1);
 
-    const after = await dumpEverything(test);
-    expect(after).not.toContain(circle.id);
-    // The phones were told to reload their circles (an event that names no circle).
-    expect(after).toContain('circles.reload');
-    // And the QR code no longer lets anyone in.
-    const late = await person(test);
-    expect((await join(late, qr)).statusCode).toBe(404);
-  });
+        const after = await dumpEverything(test);
+        expect(after).not.toContain(circle.id);
+        // The phones were told to reload their circles (an event that names no circle).
+        expect(after).toContain('circles.reload');
+        // And the QR code no longer lets anyone in.
+        const late = await person(test);
+        expect((await join(late, qr)).statusCode).toBe(404);
+      }),
+    SWEEP_TIMEOUT_MS,
+  );
 
-  it('leave nothing either when a notice about them failed for good (dead letter queue)', async () => {
-    const { circle } = await eventWithEverything();
-    // Every queued notice fails for good (a permanent FCM or APNs refusal): pg-boss copies it to
-    // the dead letter queue, payload and all.
-    const boss = test.app.get<PgBoss>(JOB_QUEUE);
-    await test.admin.query(`UPDATE pgboss.job SET retry_count = retry_limit WHERE name = $1`, [
-      QUEUES.push,
-    ]);
-    const jobs = await boss.fetch(QUEUES.push, { batchSize: 100 });
-    expect(jobs.length).toBeGreaterThan(0);
-    await boss.fail(
-      QUEUES.push,
-      jobs.map((job) => job.id),
-    );
-    const { rows } = await test.admin.query(
-      `SELECT 1 FROM pgboss.job WHERE name = $1 AND data->>'circleId' = $2`,
-      [QUEUES.pushDead, circle.id],
-    );
-    expect(rows.length).toBeGreaterThan(0);
+  it(
+    'leave nothing either when a notice about them failed for good (dead letter queue)',
+    () =>
+      exclusively(test, async () => {
+        const { circle } = await eventWithEverything();
+        // Every queued notice fails for good (a permanent FCM or APNs refusal): pg-boss copies it to
+        // the dead letter queue, payload and all.
+        const boss = test.app.get<PgBoss>(JOB_QUEUE);
+        await test.admin.query(`UPDATE pgboss.job SET retry_count = retry_limit WHERE name = $1`, [
+          QUEUES.push,
+        ]);
+        const jobs = await boss.fetch(QUEUES.push, { batchSize: 100 });
+        expect(jobs.length).toBeGreaterThan(0);
+        await boss.fail(
+          QUEUES.push,
+          jobs.map((job) => job.id),
+        );
+        const { rows } = await test.admin.query(
+          `SELECT 1 FROM pgboss.job WHERE name = $1 AND data->>'circleId' = $2`,
+          [QUEUES.pushDead, circle.id],
+        );
+        expect(rows.length).toBeGreaterThan(0);
 
-    await endOnTime(circle.id);
-    await test.app.get(EventExpiry).sweep();
-    expect(await dumpEverything(test)).not.toContain(circle.id);
-  });
+        await endOnTime(circle.id);
+        await test.app.get(EventExpiry).sweep();
+        expect(await dumpEverything(test)).not.toContain(circle.id);
+      }),
+    SWEEP_TIMEOUT_MS,
+  );
 
-  it('leave nothing either when the clean-up is cut short: the next sweep finishes it', async () => {
-    const { circle } = await eventWithEverything();
-    await endOnTime(circle.id);
-    // Redis fails once, after the database already let the circle go.
-    const redis = test.app.get<RedisClient>(REDIS);
-    const del = vi.spyOn(redis, 'del').mockRejectedValueOnce(new Error('redis hiccup'));
-    const expiry = test.app.get(EventExpiry);
-    await expect(expiry.sweep()).rejects.toThrow('redis hiccup');
-    del.mockRestore();
-    // What is left waits for the next round, which finishes it.
-    expect(await dumpEverything(test)).toContain(circle.id);
-    await expiry.sweep();
-    const after = await dumpEverything(test);
-    expect(after).not.toContain(circle.id);
-    expect(after).toContain('circles.reload');
-  });
+  it(
+    'leave nothing either when the clean-up is cut short: the next sweep finishes it',
+    () =>
+      exclusively(test, async () => {
+        const { circle } = await eventWithEverything();
+        await endOnTime(circle.id);
+        // Redis fails once, after the database already let the circle go.
+        const redis = test.app.get<RedisClient>(REDIS);
+        const del = vi.spyOn(redis, 'del').mockRejectedValueOnce(new Error('redis hiccup'));
+        const expiry = test.app.get(EventExpiry);
+        await expect(expiry.sweep()).rejects.toThrow('redis hiccup');
+        del.mockRestore();
+        // What is left waits for the next round, which finishes it.
+        expect(await dumpEverything(test)).toContain(circle.id);
+        await expiry.sweep();
+        const after = await dumpEverything(test);
+        expect(after).not.toContain(circle.id);
+        expect(after).toContain('circles.reload');
+      }),
+    SWEEP_TIMEOUT_MS,
+  );
 
-  it('end early for their owner even when the clean-up has to wait for the next round', async () => {
-    const [owner, ayse] = await Promise.all([person(test), person(test)]);
-    const event = await createEvent(owner);
-    await join(ayse, await qrOf(owner, event));
-    const redis = test.app.get<RedisClient>(REDIS);
-    const del = vi.spyOn(redis, 'del').mockRejectedValueOnce(new Error('redis hiccup'));
-    expect((await as(test, owner, 'POST', `/v1/circles/${event.id}/end`)).statusCode).toBe(204);
-    del.mockRestore();
-    await test.app.get(EventExpiry).sweep();
-    expect(await dumpEverything(test)).not.toContain(event.id);
-  });
+  it(
+    'end early for their owner even when the clean-up has to wait for the next round',
+    () =>
+      exclusively(test, async () => {
+        const [owner, ayse] = await Promise.all([person(test), person(test)]);
+        const event = await createEvent(owner);
+        await join(ayse, await qrOf(owner, event));
+        const redis = test.app.get<RedisClient>(REDIS);
+        const del = vi.spyOn(redis, 'del').mockRejectedValueOnce(new Error('redis hiccup'));
+        expect((await as(test, owner, 'POST', `/v1/circles/${event.id}/end`)).statusCode).toBe(204);
+        del.mockRestore();
+        await test.app.get(EventExpiry).sweep();
+        expect(await dumpEverything(test)).not.toContain(event.id);
+      }),
+    SWEEP_TIMEOUT_MS,
+  );
 });
 
 /** An event with everything it can hold, written by its two members. */

@@ -1,5 +1,5 @@
 import { fromBase64url, verifyDeviceKeyBundle } from '@bargu/crypto';
-import type { Circle } from '@bargu/schemas';
+import type { Circle, GuardianLink } from '@bargu/schemas';
 import { z } from 'zod';
 
 import { memberName, partnerOf } from '../circles/names';
@@ -35,8 +35,14 @@ export function contactsOf(
   circles: readonly Circle[],
   keys: KeyStore,
   me: string | null,
+  /** Guardian notices name a link: a parent's links are named after the child (docs/ADR/0023). */
+  links: readonly GuardianLink[] = [],
 ): PushContacts {
   const contacts: PushContacts = { devices: {}, circles: {}, recipients: {} };
+  for (const link of links) {
+    if (link.role !== 'guardian' || link.status !== 'active') continue;
+    contacts.circles[link.id] = { name: link.other.displayName ?? `@${link.other.username}` };
+  }
   for (const circle of circles) {
     if (circle.myStatus !== 'active') continue;
     // A friendship is called after the friend; a group by its name.

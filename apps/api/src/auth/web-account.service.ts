@@ -182,6 +182,8 @@ export class WebAccountService {
     const remembered = `web-known:${userId}`;
     await this.redis
       .multi()
+      // Each value counts its own 180 days (QA 4 K2c): older ones go before a new one comes.
+      .zRemRangeByScore(remembered, 0, Date.now() - WEB_REMEMBER_TTL_SECONDS * 1000)
       .zAdd(remembered, { score: Date.now(), value: hex(hashToken(remember)) })
       .zRemRangeByRank(remembered, 0, -(WEB_REMEMBERED_MAX + 1))
       .expire(remembered, WEB_REMEMBER_TTL_SECONDS)
@@ -207,7 +209,7 @@ export class WebAccountService {
   private async isRemembered(userId: string | null, remember: string | undefined) {
     if (userId === null || remember === undefined) return false;
     const score = await this.redis.zScore(`web-known:${userId}`, hex(hashToken(remember)));
-    return score !== null;
+    return score !== null && Date.now() - score <= WEB_REMEMBER_TTL_SECONDS * 1000;
   }
 
   /**

@@ -2,7 +2,7 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { verifyMessageEnvelope } from '@bargu/crypto';
 import type { BumpReply, DevicePushes, MessageEnvelope, PublishReply } from '@bargu/schemas';
 import { messageEnvelopeSchema, RELAY_REFUSALS } from '@bargu/schemas';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
@@ -273,6 +273,9 @@ export class RelayService {
 
   /** Someone looks at a circle on the map: its other members' phones switch to live updates. */
   async watch(auth: AuthContext, circleId: string): Promise<void> {
+    // Membership first: a stranger (or a deleted circle) leaves no counter behind (QA Faz 8 D1).
+    const membership = (await this.memberships(auth.userId, [circleId])).get(circleId);
+    if (membership === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
     const limit = await this.limiter.hit(
       `watch:${auth.userId}:${circleId}`,
       RELAY_LIMITS.watches.limit,
@@ -281,8 +284,6 @@ export class RelayService {
     if (!limit.allowed) {
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', limit.retryAfter);
     }
-    const membership = (await this.memberships(auth.userId, [circleId])).get(circleId);
-    if (membership === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
     this.events.emitLive(membership.others, 'watch', { circleId });
   }
 
@@ -360,7 +361,14 @@ export class RelayService {
         })
         .from(circleMembers)
         .innerJoin(circles, eq(circles.id, circleMembers.circleId))
-        .where(and(inArray(circleMembers.circleId, unique), eq(circleMembers.status, 'active'))),
+        .where(
+          and(
+            inArray(circleMembers.circleId, unique),
+            eq(circleMembers.status, 'active'),
+            // An event that has ended takes nothing more, even before the sweep (QA Faz 8 D3).
+            sql`(${circles.expiresAt} IS NULL OR ${circles.expiresAt} > now())`,
+          ),
+        ),
     );
     const result = new Map<string, Membership>();
     for (const circleId of unique) {

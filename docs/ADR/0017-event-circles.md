@@ -62,3 +62,45 @@ sunucuda çembere ait hiçbir kayıt kalmaz; telefonlar anahtarları atar.
 - Etkinlik bitince ya da kişi ayrılınca telefondaki buluşma kayıtları (hatırlatıcı, yol izi,
   gecikme bilgisi, seçimler) silinir ve kurulmuş hatırlatma bildirimi iptal edilir; çıkışta
   bütün buluşma hatırlatmaları iptal edilir.
+
+## Ek (2026-10-16, Faz 9 dilim 6a: ölçek ve küçükler)
+
+- **Süpürme ölçeği (QA Faz 8 O1):**
+  - Temizlik her çember için Redis'i baştan sona taramıyor; bekleyen 100 çemberlik sayfa için tek
+    tarama yapılıyor ve anahtar adlarındaki kimlikler çemberlere dağıtılıyor.
+  - Sahibin "şimdi bitir"i yalnızca kendi çemberini siler ve temizler (`app.end_event_now`,
+    migration 0026). Birikmiş başka biten etkinlikleri beklemez; onlar işçinin işidir.
+  - Bütün süpürücülerin kilidi (etkinlik, geçmiş, hesap, ebeveyn) rastgele bir sahip belirteciyle
+    alınır ve yalnızca sahibince bırakılır; süresini aşan bir tur, devralanın kilidini silemez. Aynı
+    süreçte süren bir tur bitmeden yenisi başlamaz.
+  - 5 dakikadan uzun bekleyen temizlik kaydı için işçi uyarı yazar (yalnızca kaç tane, hangisi
+    değil).
+- **Canlı olaylar (QA Faz 8 D2):** Saklanan her olay bir Redis yayın kanalından (`events:live`)
+  telefonlara gider. Soketi olmayan işçinin olayları da (etkinlik bitti, ebeveyn bağlantısı süresi
+  doldu) böylece canlı ulaşır; birden çok API örneğinde de doğru çalışır. Kanal kesilirse olaylar
+  akışta kalır, telefon bir sonraki "resume"da alır.
+- **Biten etkinlik (QA Faz 8 D3):** Süresi dolmuş ama henüz süpürülmemiş etkinlik konum, belge,
+  izleme ve yeni QR kabul etmez.
+- **Saat farkı (QA Faz 8 D4):** Telefonun saati biraz ileri ya da geri olsa da "1 hafta" çalışır: 10
+  dakikaya kadar fark en yakın izinli bitişe çekilir, daha fazlası reddedilir. Veritabanındaki 14
+  dakikalık alt sınır (ADR'deki 15'ten 1 dakika az) bu yüzden bilinçlidir: uygulamanın "şimdi"si ile
+  veritabanınınki arasındaki küçük farkı karşılar (QA Faz 8 D5).
+- **Yalnızca üyeye (QA Faz 8 D5):** `app.event_end` bir etkinliğin bitişini yalnızca üyesine söyler.
+- **Sınır (QA Faz 8 D6):** Bir hesap saatte en çok 20 grup ya da etkinlik açar.
+- **Organizatör ayrılınca QR'ı (QA Faz 8 D7, bilinçli):** Bir kod onu yapanın onayıdır; yapan
+  ayrılınca ya da yöneticilikten çıkınca kodu çalışmaz. Yeni yönetici yeni kod açar.
+- **Katılım hakkı (QA dilim 2 N2):** Geri alınan (başarısız) bir katılım, çemberin saatlik katılım
+  hakkından düşülmez.
+- **Eski kodlar (QA dilim 2 N1, bilgi):** Migration 0013'ten önce açılmış etkinlik kodları bir kez
+  daha kullanılabilir; etkinlikler en çok bir hafta sürdüğü için kendiliğinden biter.
+- **Yük ölçümü (QA Faz 8 O7, `event-load.int-spec.ts`):**
+  - 50 kişi aynı QR ile 5'erli dalgalar halinde katıldı; her biri gerçek şifrelemeyle anahtar ve
+    konum gönderdi.
+  - Sonuç: hepsi yaklaşık 8 saniyede katıldı, son epoch 50.
+  - Sunucuda yalnızca son epoch'ların anahtarları kalıyor (196 satır, en çok üç epoch).
+  - İlk konumların 45'i eski epoch yüzünden reddedildi, 4'ü (son dalga) kabul edildi. Reddedilen
+    telefonlar `circle.changed` olayıyla yeniden anahtarlayıp gönderir. Bu beklenen bir maliyettir:
+    kalabalık bir girişte konumlar bir iki saniye gecikir.
+- **Kalıcı testler (QA Faz 8 C1–C4, M1–M2):** `event-cleanups.int-spec.ts`. Süpürme yapan testler
+  ortak bir test kilidiyle sırayla çalışır; aynı veritabanını paylaşan dosyalar birbirinin biten
+  etkinliklerini süpürmez (kırılgan testler).

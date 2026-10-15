@@ -16,7 +16,7 @@ import {
 } from '@bargu/schemas';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { EventsService } from '../../src/events/events.service.js';
+import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
 import { createTestApp, type TestApp } from './support/app.js';
 import { call } from './support/client.js';
 import { as, circleWith, type Person, person } from './support/people.js';
@@ -79,8 +79,6 @@ describe('places', () => {
     const aysePhone = phone(ayse, circle);
     const id = randomUuid();
 
-    // Where Bora's event stream stands before the save.
-    const before = (await test.app.get(EventsService).since(bora.userId, null)).cursor;
     const saved = await put(ayse, circle.id, id, aysePhone.seal(home(id)), null);
     expect(saved.statusCode).toBe(200);
     expect(saved.json()).toEqual({ version: 1 });
@@ -106,12 +104,13 @@ describe('places', () => {
     for (const text of ['Bizim ev', '41.008', '28.978', '"radius"']) {
       expect(rows[0]?.dump).not.toContain(text);
     }
-    // Bora heard about it (a small event naming the circle only), Ayşe did not need to.
-    const events = await test.app.get(EventsService).since(bora.userId, before);
-    expect(events.events.map((delivered) => delivered.event)).toContainEqual({
-      type: 'places.changed',
-      circleId: circle.id,
-    });
+    // Bora heard about it (a small event naming the circle only), Ayşe did not need to. Read
+    // from his stream itself: a resume cursor taken before could be null (QA 5c, flaky test).
+    const stream = await test.app.get<RedisClient>(REDIS).xRange(`ev:${bora.userId}`, '-', '+');
+    const heard = (stream ?? []).map(
+      (entry) => (JSON.parse(entry.message.e ?? '{}') as { event?: unknown }).event,
+    );
+    expect(heard).toContainEqual({ type: 'places.changed', circleId: circle.id });
 
     // Changes go from the version read; a stale one is refused (someone saved in between).
     const boraPhone = phone(bora, circle);

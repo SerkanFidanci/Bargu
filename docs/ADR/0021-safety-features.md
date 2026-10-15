@@ -97,7 +97,8 @@ buluşmanın bir arkadaşla kolayca başlatılamadığını söyledi; kişi kart
       ağdaki günlük 3 kodunu harcayabilir; sahip başka bir ağdan (Wi-Fi, mobil) ya da hatırlanan
       tarayıcıyla devam eder. Girişin ve diğer uçların sınırları /64'te kalır.
     - **Hatırlanan tarayıcı:** Kodla bir kez giren tarayıcı rastgele bir değer saklar (sayfanın
-      kendi deposunda, 180 gün, hesap başına en yeni 5). Bu değeri gösteren tarayıcı adresin bütün
+      kendi deposunda, hesap başına en yeni 5). Her değer kendi 180 gününü sayar; hesaba yeniden
+      girmek eski değerlerin süresini uzatmaz (QA 4 K2c). Bu değeri gösteren tarayıcı adresin bütün
       ağlar tavanlarına takılmaz; ağ başına sınırlar yine geçerlidir. Değer tek başına hiçbir şey
       açmaz: kod yine e-postaya gider ve sayfaya bağlıdır. Sunucu yalnızca özetini tutar; hesapla
       silinir.

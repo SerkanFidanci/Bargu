@@ -5,10 +5,10 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
+import { guardianRequestsFull } from '../common/guardian-requests.js';
 import { invites } from '../db/schema.js';
 import { DatabaseService } from '../infra/database/database.service.js';
 import { Notifier } from '../push/notifier.js';
-import { EventsService } from '../events/events.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { CirclesService, othersActive } from './circles.service.js';
 
@@ -50,7 +50,6 @@ export class InvitesService {
     private readonly circles: CirclesService,
     private readonly limiter: RateLimiter,
     private readonly notifier: Notifier,
-    private readonly events: EventsService,
   ) {}
 
   async create(auth: AuthContext, input: InviteCreate): Promise<Invite> {
@@ -62,6 +61,10 @@ export class InvitesService {
       if (input.kind === 'circle') {
         const circle = await this.circles.read(tx, input.circleId, auth.userId);
         if (circle?.myStatus !== 'active' || circle.kind === 'pair') {
+          throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+        }
+        // An event that has ended makes no more codes, even before the sweep (QA Faz 8 D3).
+        if (circle.expiresAt !== undefined && circle.expiresAt <= Date.now()) {
           throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
         }
         if (circle.expiresAt !== undefined) {
@@ -152,6 +155,7 @@ export class InvitesService {
   ): Promise<{ circleId: string }> {
     if (approved.own !== true) await this.askGuardians(auth.userId, tokenHash);
     if (approved.admit !== true) await this.askToAdmit(auth.userId, tokenHash);
+    let counted: string | null = null;
     const { circleId, fresh } = await this.database
       .asUser(auth.userId, async (tx) => {
         // Someone 15-17 comes into an event only with a friend's code (docs/ADR/0023).
@@ -168,11 +172,14 @@ export class InvitesService {
         if (row === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'INVITE_INVALID');
         if (row.fresh) {
           await this.circles.limitJoins(row.joined_circle);
+          counted = row.joined_circle;
           await this.circles.startEpoch(tx, row.joined_circle);
         }
         return { circleId: row.joined_circle, fresh: row.fresh };
       })
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
+        // Rolled back: the slot it took comes back (QA Faz 9 slice 2, N2).
+        if (counted !== null) await this.circles.refundJoin(counted);
         throw refusal(error);
       });
     if (!fresh) return { circleId };
@@ -184,21 +191,23 @@ export class InvitesService {
       circle.kind === 'pair' ? 'friendAdded' : 'memberJoined',
       circle.id,
     );
+    await this.circles.tellWatchingGuardians(auth.userId, circle.id);
     return { circleId };
   }
 
   /** The parents of a 15-17 child who needs their yes for this code: asked, and 403. */
   private async askGuardians(userId: string, tokenHash: Uint8Array): Promise<void> {
-    const asked = await this.database.asUser(userId, (tx) =>
-      tx.execute<{ guardian: string }>(
-        sql`SELECT app.ask_guardians_for_invite(${tokenHash}) AS guardian`,
-      ),
-    );
-    const parents = asked.rows.map((row) => row.guardian);
-    if (parents.length === 0) return;
-    await this.events.publish([userId, ...parents], { type: 'guardians.changed' });
-    await this.notifier.notify(parents, 'guardianApproval', userId);
-    throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
+    const asked = await this.database
+      .asUser(userId, (tx) =>
+        tx.execute<{ guardian_id: string; fresh: boolean }>(
+          sql`SELECT * FROM app.ask_guardians_for_invite(${tokenHash})`,
+        ),
+      )
+      .catch((error: unknown) => {
+        throw guardianRequestsFull(error);
+      });
+    await this.circles.tellAsked(userId, asked.rows);
+    if (asked.rows.length > 0) throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
   }
 
   /**
@@ -206,16 +215,18 @@ export class InvitesService {
    * waits for that yes. The answer says only that it waits, not whose or why.
    */
   private async askToAdmit(userId: string, tokenHash: Uint8Array): Promise<void> {
-    const asked = await this.database.asUser(userId, (tx) =>
-      tx.execute<{ guardian_id: string; child_id: string }>(
-        sql`SELECT * FROM app.ask_guardians_to_admit(${tokenHash})`,
-      ),
-    );
+    const asked = await this.database
+      .asUser(userId, (tx) =>
+        tx.execute<{ guardian_id: string; child_id: string; fresh: boolean }>(
+          sql`SELECT * FROM app.ask_guardians_to_admit(${tokenHash})`,
+        ),
+      )
+      .catch((error: unknown) => {
+        throw guardianRequestsFull(error);
+      });
     const [first] = asked.rows;
     if (first === undefined) return;
-    const parents = asked.rows.map((row) => row.guardian_id);
-    await this.events.publish([first.child_id, ...parents], { type: 'guardians.changed' });
-    await this.notifier.notify(parents, 'guardianApproval', first.child_id);
+    await this.circles.tellAsked(first.child_id, asked.rows);
     throw new ApiError(HttpStatus.FORBIDDEN, 'APPROVAL_PENDING');
   }
 

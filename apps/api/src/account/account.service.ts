@@ -274,6 +274,17 @@ export class AccountService {
       return { state: { age: await this.ageOf(tx, auth.userId) }, told: dropped };
     });
     this.tellHistoryGone(auth.userId, told);
+    if (state.age?.band === '15-17') {
+      // Invitations by username from before: nobody finds 15-17 by username any more, so none
+      // comes in around a parent's yes (QA 5c, old invitations).
+      const waiting = await this.database.asUser(auth.userId, (tx) =>
+        tx
+          .select({ circleId: circleMembers.circleId })
+          .from(circleMembers)
+          .where(and(eq(circleMembers.userId, auth.userId), eq(circleMembers.status, 'invited'))),
+      );
+      for (const { circleId } of waiting) await this.circles.decline(auth, circleId);
+    }
     return state;
   }
 

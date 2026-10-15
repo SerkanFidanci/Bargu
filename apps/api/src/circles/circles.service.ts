@@ -11,6 +11,7 @@ import { and, asc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
+import { guardianRequestsFull } from '../common/guardian-requests.js';
 import { circleMembers, circles, invites } from '../db/schema.js';
 import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import { EventsService } from '../events/events.service.js';
@@ -20,6 +21,8 @@ import { RelayService } from '../relay/relay.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 
 const HOUR = 3600;
+/** How far off a phone's clock may be when it asks for an event's end (QA Faz 8 D4). */
+export const EVENT_CLOCK_SKEW_MS = 10 * 60_000;
 
 /**
  * Per-account budgets: inviting people and requesting friends (no spam), asking for a new epoch.
@@ -27,6 +30,8 @@ const HOUR = 3600;
  * event of 50 fits twice. Leaving and removing are never limited.
  */
 export const CIRCLE_LIMITS = {
+  /** New groups and events per account (QA Faz 8 D6). */
+  createdPerHour: 20,
   invitationsPerHour: 30,
   rekeysPerHour: 30,
   joinsPerCirclePerHour: 100,
@@ -153,18 +158,28 @@ export class CirclesService implements OnModuleInit {
   }
 
   async create(auth: AuthContext, input: CircleCreate, now = Date.now()): Promise<Circle> {
-    // An event ends between a quarter of an hour and a week from now (docs/ADR/0017).
-    const expiresAt =
-      input.kind === 'event'
-        ? new Date(
-            Math.min(
-              Math.max(input.endsAt, now + EVENT_DURATION_MS.min),
-              now + EVENT_DURATION_MS.max,
-            ),
-          )
-        : null;
-    if (input.kind === 'event' && expiresAt?.getTime() !== input.endsAt) {
-      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+    const created = await this.limiter.hit(
+      `circle-create:${auth.userId}`,
+      CIRCLE_LIMITS.createdPerHour,
+      HOUR,
+    );
+    if (!created.allowed) {
+      throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', created.retryAfter);
+    }
+    // An event ends between a quarter of an hour and a week from now (docs/ADR/0017). A phone whose
+    // clock is a little off asks for a little more or less: within EVENT_CLOCK_SKEW_MS it gets the
+    // nearest allowed end (QA Faz 8 D4); further off it is refused.
+    let expiresAt: Date | null = null;
+    if (input.kind === 'event') {
+      const earliest = now + EVENT_DURATION_MS.min;
+      const latest = now + EVENT_DURATION_MS.max;
+      if (
+        input.endsAt < earliest - EVENT_CLOCK_SKEW_MS ||
+        input.endsAt > latest + EVENT_CLOCK_SKEW_MS
+      ) {
+        throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+      }
+      expiresAt = new Date(Math.min(Math.max(input.endsAt, earliest), latest));
     }
     return this.database.asUser(auth.userId, async (tx) => {
       const [created] = await tx
@@ -201,28 +216,36 @@ export class CirclesService implements OnModuleInit {
    * again once in (a retried request), it answers with the circle and changes nothing (QA Faz 9 B2).
    */
   async accept(auth: AuthContext, circleId: string): Promise<Circle> {
-    const { circle, fresh } = await this.database.asUser(auth.userId, async (tx) => {
-      await this.lock(tx, circleId);
-      const updated = await tx
-        .update(circleMembers)
-        .set({ status: 'active', joinedAt: new Date() })
-        .where(
-          and(
-            eq(circleMembers.circleId, circleId),
-            eq(circleMembers.userId, auth.userId),
-            eq(circleMembers.status, 'invited'),
-          ),
-        )
-        .returning({ circleId: circleMembers.circleId });
-      if (updated.length === 0) {
-        const current = await this.read(tx, circleId, auth.userId);
-        if (current?.myStatus === 'active') return { circle: current, fresh: false };
-        throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
-      }
-      await this.limitJoins(circleId);
-      await this.startEpoch(tx, circleId);
-      return { circle: await this.mustRead(tx, circleId, auth.userId), fresh: true };
-    });
+    let counted = false;
+    const { circle, fresh } = await this.database
+      .asUser(auth.userId, async (tx) => {
+        await this.lock(tx, circleId);
+        const updated = await tx
+          .update(circleMembers)
+          .set({ status: 'active', joinedAt: new Date() })
+          .where(
+            and(
+              eq(circleMembers.circleId, circleId),
+              eq(circleMembers.userId, auth.userId),
+              eq(circleMembers.status, 'invited'),
+            ),
+          )
+          .returning({ circleId: circleMembers.circleId });
+        if (updated.length === 0) {
+          const current = await this.read(tx, circleId, auth.userId);
+          if (current?.myStatus === 'active') return { circle: current, fresh: false };
+          throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+        }
+        await this.limitJoins(circleId);
+        counted = true;
+        await this.startEpoch(tx, circleId);
+        return { circle: await this.mustRead(tx, circleId, auth.userId), fresh: true };
+      })
+      .catch(async (error: unknown) => {
+        // Rolled back: the slot it took comes back (QA Faz 9 slice 2, N2).
+        if (counted) await this.refundJoin(circleId);
+        throw error;
+      });
     if (!fresh) return circle;
     await this.changed(circle);
     await this.notifier.notify(
@@ -230,7 +253,29 @@ export class CirclesService implements OnModuleInit {
       circle.kind === 'pair' ? 'friendAccepted' : 'memberJoined',
       circle.id,
     );
+    await this.tellWatchingGuardians(auth.userId, circle.id);
     return circle;
+  }
+
+  /**
+   * Someone (`newcomerId`) just came into a group or event: the parents of a 15-17 child in it who
+   * asked for a yes for new people hear it (docs/ADR/0023 §5, PM decision on QA 5c F-2). The
+   * newcomer is not held: that would hold the whole circle and tell it a 15-17 is in it.
+   */
+  async tellWatchingGuardians(newcomerId: string, circleId: string): Promise<void> {
+    const watching = await this.database.asUser(newcomerId, (tx) =>
+      tx.execute<{ guardian_id: string; link_id: string }>(
+        sql`SELECT * FROM app.guardians_watching(${circleId})`,
+      ),
+    );
+    if (watching.rows.length === 0) return;
+    await this.events.publish(
+      watching.rows.map((row) => row.guardian_id),
+      { type: 'guardians.changed' },
+    );
+    for (const row of watching.rows) {
+      await this.notifier.notifyGuardians([row.guardian_id], 'guardianNewMember', row.link_id);
+    }
   }
 
   async decline(auth: Pick<AuthContext, 'userId'>, circleId: string): Promise<void> {
@@ -469,16 +514,28 @@ export class CirclesService implements OnModuleInit {
    * the parents hear it, the child gets 403 GUARDIAN_APPROVAL. Nothing when no yes is needed.
    */
   private async askGuardians(userId: string, username: string): Promise<void> {
-    const asked = await this.database.asUser(userId, (tx) =>
-      tx.execute<{ guardian: string }>(
-        sql`SELECT app.ask_guardians_for_friend(${username}) AS guardian`,
-      ),
-    );
-    const parents = asked.rows.map((row) => row.guardian);
-    if (parents.length === 0) return;
-    await this.events.publish([userId, ...parents], { type: 'guardians.changed' });
-    await this.notifier.notify(parents, 'guardianApproval', userId);
-    throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
+    const asked = await this.database
+      .asUser(userId, (tx) =>
+        tx.execute<{ guardian_id: string; fresh: boolean }>(
+          sql`SELECT * FROM app.ask_guardians_for_friend(${username})`,
+        ),
+      )
+      .catch((error: unknown) => {
+        throw guardianRequestsFull(error);
+      });
+    await this.tellAsked(userId, asked.rows);
+    if (asked.rows.length > 0) throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
+  }
+
+  /**
+   * A request just stored for a parent's yes: the child and the parents hear it, the parents once
+   * per request (asking again tells nobody again) and within their hourly allowance.
+   */
+  async tellAsked(childId: string, rows: readonly { guardian_id: string; fresh: boolean }[]) {
+    const fresh = rows.filter((row) => row.fresh).map((row) => row.guardian_id);
+    if (fresh.length === 0) return;
+    await this.events.publish([childId, ...fresh], { type: 'guardians.changed' });
+    await this.notifier.notifyGuardians(fresh, 'guardianApproval', childId);
   }
 
   /** A 15-17 child invites someone by username: that waits for a parent's yes too (QA 5c F-2). */
@@ -487,16 +544,17 @@ export class CirclesService implements OnModuleInit {
     circleId: string,
     username: string,
   ): Promise<void> {
-    const asked = await this.database.asUser(userId, (tx) =>
-      tx.execute<{ guardian: string }>(
-        sql`SELECT app.ask_guardians_for_member(${circleId}, ${username}) AS guardian`,
-      ),
-    );
-    const parents = asked.rows.map((row) => row.guardian);
-    if (parents.length === 0) return;
-    await this.events.publish([userId, ...parents], { type: 'guardians.changed' });
-    await this.notifier.notify(parents, 'guardianApproval', userId);
-    throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
+    const asked = await this.database
+      .asUser(userId, (tx) =>
+        tx.execute<{ guardian_id: string; fresh: boolean }>(
+          sql`SELECT * FROM app.ask_guardians_for_member(${circleId}, ${username})`,
+        ),
+      )
+      .catch((error: unknown) => {
+        throw guardianRequestsFull(error);
+      });
+    await this.tellAsked(userId, asked.rows);
+    if (asked.rows.length > 0) throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
   }
 
   /** Tells everyone in a circle that it changed, reading it as `userId` (a member). */
@@ -598,6 +656,11 @@ export class CirclesService implements OnModuleInit {
    * Someone is coming in (and with them a new epoch for everyone): refused, with nothing changed,
    * once the circle had too many arrivals this hour (QA Faz 8 O6). Call inside the transaction.
    */
+  /** A join counted by limitJoins did not happen after all (rolled back): its slot comes back. */
+  async refundJoin(circleId: string): Promise<void> {
+    await this.limiter.refund(`circle-joins:${circleId}`);
+  }
+
   async limitJoins(circleId: string): Promise<void> {
     const result = await this.limiter.hit(
       `circle-joins:${circleId}`,

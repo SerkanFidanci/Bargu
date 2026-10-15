@@ -21,6 +21,8 @@ export const PUSH_NOTICES = [
   'guardianApproved',
   'guardianDeclined',
   'guardianSettings',
+  // Someone new in a circle of the child (PM decision on QA 5c F-2); names the link.
+  'guardianNewMember',
 ] as const;
 export type PushNotice = (typeof PUSH_NOTICES)[number];
 

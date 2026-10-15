@@ -82,8 +82,9 @@ Proje sahibinin kararları (PM üzerinden, 2026-10-15):
   başka bir cevap vermek ya da hesabı silip yeniden açmak beyanı atlatır; bu bilinen bir sınırdır
   ve belirteçle kapanır (bkz. 2).
 - **Sunucuya giden:** Giriş kodu doğrulanırken yaş grubu (`15-17` ya da `18+`). Hesap yeni açılıyorsa
-  yaş grubu zorunludur; yoksa `400 AGE_REQUIRED` döner. Bu cevap kod doğrulandıktan sonra verilir
-  (kod harcanır); önce verilseydi adresin hesabı olup olmadığını belli ederdi. Hesap varsa giriş
+  yaş grubu zorunludur; yoksa `400 AGE_REQUIRED` döner. Bu cevap kod doğru çıktıktan sonra verilir
+  (önce verilseydi adresin hesabı olup olmadığını belli ederdi), ama kod harcanmadan: aynı kod yaş
+  grubuyla yeniden gönderilebilir (QA 5a Y1). Hesap varsa giriş
   sırasında gönderilen değer yok sayılır.
 - **Saklanan:** `users.age_band` (`15-17` / `18+`), `age_method` (`declared`, sonra `token`) ve
   `age_set_at`. Doğum tarihi ya da yaşın kendisi saklanmaz (KVKK md. 4 veri azaltma). Yaş grubu
@@ -269,10 +270,23 @@ Uygulama (5c, migration 0023):
   - **Çocuk kullanıcı adıyla davet eder** (kendi grubuna): davet gitmez, istek saklanır, çocuk
     `403 GUARDIAN_APPROVAL` alır; ebeveyn onaylarsa davet çocuğun adına gider.
   - Çocuğun kendi ebeveyni bu kurala takılmaz (çocuğun koduyla gelebilir, davet edilebilir).
-  - Çocuğun bulunduğu bir gruba başka bir üyenin koduyla ya da davetiyle gelen kişi onay beklemez;
-    ebeveyn onu görünümde görür, çocuk gruptan çıkabilir.
+  - Çocuğun bulunduğu bir gruba başka bir üyenin koduyla ya da davetiyle gelen kişi onay beklemez
+    (PM kararı): bütün grubu bekletmek ağır olur ve grupta bir 15–17 olduğunu ele verir. Bunun
+    yerine ayar açıksa ebeveynlere bildirim gider (`guardianNewMember`, "Deniz: bir çemberine yeni
+    biri katıldı"; bildirim bağlantıyı adlandırır, telefon onu çocuğun adıyla gösterir; migration
+    0025). Ortak görünümde son 7 gün içinde (bağlantıdan sonra) gelenler "yeni" diye işaretlenir.
+    Çocuk zaten "artık o da konumunu görebilir" bildirimini alır; çocuk gruptan çıkabilir.
   - İki 15–17 kişi birbirinin koduyla eşleşirse önce gelenin, sonra kodu verenin ebeveyni onaylar.
   - Ebeveyne giden görünümde istekler yalnızca görünen adlarla yazar (QA 5b G-1).
+  - **Sınırlar (QA 5b/5c S-3, migration 0027):**
+    - Bir çocuk için en çok 20 bekleyen istek olabilir.
+    - Gelen bir kişi, bütün çocuklar için toplam en çok 5 bekleyen istek açabilir.
+    - Sınır dolunca cevap `429` olur.
+    - Aynı istek tekrar gönderilirse ebeveyne yeniden bildirim gitmez.
+    - Başkalarının yol açtığı ebeveyn bildirimleri (onay isteği, yeni üye) bir ebeveyne saatte en çok
+      30 kez gider; fazlası yalnızca ortak görünümde görünür.
+  - **Eski davetler:** 18+'dan 15–17'ye geçen hesabın kullanıcı adıyla gelmiş bekleyen davetleri
+    reddedilir; 15–17 kişi kullanıcı adıyla bulunamadığı için yenisi gelemez.
 - **Kullanım süresi** (`app.usage_days`): Çocuğun telefonu uygulamanın ön planda kaldığı süreyi kendi
   takviminin günü için sayar (şifreli kasada, yeniden başlatmada sıfırlanmaz). Uygulama arka plana
   geçince ve açıkken en çok 15 dakikada bir günün toplamını gönderir (`PUT /v1/guardians/usage`).

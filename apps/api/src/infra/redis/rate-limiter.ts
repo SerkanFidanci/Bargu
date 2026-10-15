@@ -16,6 +16,11 @@ local ttl = redis.call('TTL', KEYS[1])
 return { count, ttl }
 `;
 
+const REFUND = `
+if tonumber(redis.call('GET', KEYS[1]) or '0') > 0 then return redis.call('DECR', KEYS[1]) end
+return 0
+`;
+
 /**
  * Fixed-window counters in Redis, shared by every API instance. Keys carry no personal data in
  * clear: callers pass hashes (email HMAC, hashed IP).
@@ -35,6 +40,11 @@ export class RateLimiter {
   /** Current count without counting this call (e.g. "is this email locked?"). */
   async peek(key: string): Promise<number> {
     return Number((await this.redis.get(`rl:${key}`)) ?? 0);
+  }
+
+  /** Gives back one counted hit (a counted action that rolled back); never below zero. */
+  async refund(key: string): Promise<void> {
+    await this.redis.eval(REFUND, { keys: [`rl:${key}`] });
   }
 
   async reset(key: string): Promise<void> {

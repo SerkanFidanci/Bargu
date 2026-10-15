@@ -4,6 +4,8 @@ import { io, type Socket } from 'socket.io-client';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { EVENTS_PATH, RESUMES_PER_CONNECTION } from '../../src/events/events.gateway.js';
+import { EventsService } from '../../src/events/events.service.js';
+import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
 import { createTestApp, type TestApp } from './support/app.js';
 import { call, login } from './support/client.js';
 import { as, circleWith, type Person, person } from './support/people.js';
@@ -83,6 +85,18 @@ describe('event socket', () => {
         circleId: pair.id,
         epoch: pair.epoch,
       });
+    });
+  });
+
+  it('goes live from a process without sockets too, such as the worker (QA Faz 8 D2)', async () => {
+    const veli = await person(test);
+    const socket = await connectAs(veli);
+    const received = collect(socket);
+    // The worker's own EventsService: the same Redis, no socket server attached.
+    const worker = new EventsService(test.app.get<RedisClient>(REDIS));
+    await worker.publish([veli.userId], { type: 'circles.reload' });
+    await vi.waitFor(() => {
+      expect(received.map((e) => e.event)).toContainEqual({ type: 'circles.reload' });
     });
   });
 

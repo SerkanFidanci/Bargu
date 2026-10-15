@@ -7,6 +7,7 @@ import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { QUEUES } from '../jobs/queues.js';
 import { JOB_QUEUE } from '../jobs/tokens.js';
+import { RateLimiter } from '../infra/redis/rate-limiter.js';
 
 /**
  * A queued notification (docs/ADR/0016). `notice`: news the server announces itself (it seals
@@ -35,6 +36,11 @@ export type PushJob = z.infer<typeof pushJobSchema>;
 
 /** The same news about the same circle reaches a phone at most once a minute. */
 export const PUSH_THROTTLE_SECONDS = 60;
+/**
+ * Guardian notices others can cause (a request to approve, someone new near the child) reach a
+ * parent at most this often an hour, however many accounts cause them (QA 5b/5c S-3).
+ */
+export const GUARDIAN_NOTICES_PER_HOUR = 30;
 
 /**
  * Queues push notifications for people who should hear about something (the worker sends them).
@@ -48,6 +54,7 @@ export class Notifier {
   constructor(
     @Inject(JOB_QUEUE) private readonly boss: PgBoss,
     @Inject(ENV) env: Env,
+    private readonly limiter: RateLimiter,
   ) {
     this.enabled = env.FCM_SERVICE_ACCOUNT !== undefined || env.APNS_KEY !== undefined;
   }
@@ -58,6 +65,25 @@ export class Notifier {
         { type: 'notice', userId, notice, circleId },
         `${userId}:${notice}:${circleId}`,
       );
+    }
+  }
+
+  /**
+   * A guardian notice others can cause, within each parent's hourly allowance; beyond it the
+   * parent still sees it on the shared view (the event), just not as a notification.
+   */
+  async notifyGuardians(
+    guardianIds: Iterable<string>,
+    notice: PushNotice,
+    subjectId: string,
+  ): Promise<void> {
+    for (const guardianId of new Set(guardianIds)) {
+      const allowed = await this.limiter.hit(
+        `guardian-notices:${guardianId}`,
+        GUARDIAN_NOTICES_PER_HOUR,
+        3600,
+      );
+      if (allowed.allowed) await this.notify([guardianId], notice, subjectId);
     }
   }
 
