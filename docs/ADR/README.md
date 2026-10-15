@@ -28,6 +28,7 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0020](0020-circle-admins-and-planning-authority.md) | Çember yöneticileri ve planlama yetkisi                                                       | Kabul edildi                  |
 | [0021](0021-safety-features.md)                      | Güvenlik özellikleri: hatırlatma, yeni izleyici, tümünü durdur, kilit, olaylar, uzaktan iptal | Kabul edildi                  |
 | [0022](0022-account-deletion-export-consent.md)      | Hesap silme, veri dışa aktarma, KVKK aydınlatma ve rıza, yayın sayfaları                      | Kabul edildi                  |
+| [0023](0023-age-15-plus.md)                          | Yaş sınırı 15+: beyan, e-Devlet yaş belirteci, 15–17 kuralları, ebeveyn araçları              | Kabul edildi                  |
 
 ## Şablon
 
