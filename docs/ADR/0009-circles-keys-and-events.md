@@ -109,3 +109,12 @@ yayından önce kapatıldı ve her biri testle korunuyor:
 - Çember adı sunucuda düz metin (davet edilen kişi anahtar almadan önce görmeli); kabul edilen
   metadata sızıntısı olarak THREAT_MODEL'e yazıldı.
 - Çok sunuculu kurulumda olay yayını ve bağlantı kesme için Redis adaptörü gerekecek (Faz 10).
+
+## Ek (2026-10-15, Faz 9, QA B1, B2)
+
+- Telefon, cevabı 15 saniyede gelmeyen bir isteği yalnızca iki kez göndermek güvenliyse yeniden
+  gönderir: okumalar, davet ve kod kabulü, geçmiş silme. Çember oluşturma gibi istekler bir kez
+  gider, çünkü ilki ulaşmış olabilir (B1: iki çember oluşuyordu).
+- Kabul tekrarlanabilir (migration 0016): aynı kişi, hâlâ içerideyken aynı kodla ya da aynı davetle
+  yeniden kabul ederse aynı çember döner. Yeni epoch başlamaz, kimseye bildirim gitmez (B2). Ayrılıp
+  aynı kodla dönmek yine olmaz (ADR 0020).

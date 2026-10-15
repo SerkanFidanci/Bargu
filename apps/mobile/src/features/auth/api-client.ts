@@ -26,6 +26,11 @@ export const REQUEST_TIMEOUT_MS = 15_000;
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
+  /**
+   * Sending it twice has the same effect as once (the server answers a repeat the same), so a
+   * timed-out attempt may be sent again. Reads always are; anything else only when marked.
+   */
+  idempotent?: boolean;
 }
 
 export class ApiError extends Error {
@@ -111,8 +116,11 @@ export function createApiClient(options: ApiClientOptions) {
         ...(body === '' ? {} : { body }),
       });
     } catch (error) {
-      if (retriedNetwork) throw error;
-      // Timed out or the connection failed: once more, newly signed, on a fresh connection.
+      // Timed out or the connection failed: once more, newly signed, on a fresh connection; but
+      // only what is safe to send twice (the first may have gone through: a second circle, QA B1).
+      if (retriedNetwork || !(UNSIGNED_METHODS.has(method) || request.idempotent === true)) {
+        throw error;
+      }
       return send(path, request, accessToken, retriedSkew, true);
     }
     if (response.ok) {

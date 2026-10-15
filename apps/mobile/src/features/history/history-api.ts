@@ -18,7 +18,7 @@ export const historyApi: HistoryApi = {
       ),
     ).chunks,
   remove: async (circleId) => {
-    await api.authed(`/v1/circles/${circleId}/history`, { method: 'DELETE' });
+    await api.authed(`/v1/circles/${circleId}/history`, { method: 'DELETE', idempotent: true });
   },
 };
 

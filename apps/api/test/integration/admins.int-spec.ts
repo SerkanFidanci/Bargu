@@ -86,6 +86,44 @@ describe('circle admins (docs/ADR/0020)', () => {
     expect((await setRole(founder, circle.id, dila.userId, 'boss')).statusCode).toBe(400);
   });
 
+  it('answer the same when someone accepts again: a retried request changes nothing (B2)', async () => {
+    const [owner, bora, can, dila] = await Promise.all([
+      person(test),
+      person(test),
+      person(test),
+      person(test),
+    ]);
+    // A group's single-use link.
+    const group = await circleWith(test, owner);
+    const link = (await linkFor(owner, group.id)).json<Invite>();
+    expect((await join(bora, link)).json()).toEqual({ circleId: group.id });
+    const epoch = (await as(test, owner, 'GET', `/v1/circles/${group.id}`)).json<Circle>().epoch;
+    expect((await join(bora, link)).json()).toEqual({ circleId: group.id });
+    expect((await join(can, link)).statusCode).toBe(404);
+    expect((await as(test, owner, 'GET', `/v1/circles/${group.id}`)).json<Circle>().epoch).toBe(
+      epoch,
+    );
+
+    // A friend code.
+    const code = (await as(test, owner, 'POST', '/v1/invites', { kind: 'friend' })).json<Invite>();
+    const first = await join(dila, code);
+    expect(first.statusCode).toBe(200);
+    expect((await join(dila, code)).json()).toEqual(first.json());
+
+    // An invitation by name.
+    await as(test, owner, 'POST', `/v1/circles/${group.id}/members`, { username: can.username });
+    const accepted = await as(test, can, 'POST', `/v1/circles/${group.id}/accept`);
+    expect(accepted.statusCode).toBe(200);
+    const twice = await as(test, can, 'POST', `/v1/circles/${group.id}/accept`);
+    expect(twice.statusCode).toBe(200);
+    expect(twice.json<Circle>().epoch).toBe(accepted.json<Circle>().epoch);
+    // Someone never invited still gets nothing.
+    const stranger = await person(test);
+    expect((await as(test, stranger, 'POST', `/v1/circles/${group.id}/accept`)).statusCode).toBe(
+      404,
+    );
+  });
+
   it('are fixed in a pair: both stay owners', async () => {
     const [ayse, bora] = await Promise.all([person(test), person(test)]);
     const pair = (

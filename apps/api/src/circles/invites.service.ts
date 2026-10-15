@@ -128,23 +128,30 @@ export class InvitesService {
     };
   }
 
-  /** Joins through the link; the circle starts a new epoch for its new member. */
+  /**
+   * Joins through the link; the circle starts a new epoch for its new member. Asked again by the
+   * same person with the same code while they are in (a retried request), it answers the same and
+   * changes nothing (QA Faz 9 B2).
+   */
   async accept(auth: AuthContext, token: string): Promise<{ circleId: string }> {
     await this.limit(`invite-preview:${auth.userId}`, INVITE_LIMITS.previewsPerHour);
-    const circleId = await this.database
+    const { circleId, fresh } = await this.database
       .asUser(auth.userId, async (tx) => {
-        const result = await tx.execute<{ id: string | null }>(
-          sql`SELECT app.redeem_invite(${hashToken(token)}) AS id`,
+        const result = await tx.execute<{ joined_circle: string; fresh: boolean }>(
+          sql`SELECT joined_circle, fresh FROM app.redeem_invite(${hashToken(token)})`,
         );
-        const id = result.rows[0]?.id ?? null;
-        if (id === null) throw new ApiError(HttpStatus.NOT_FOUND, 'INVITE_INVALID');
-        await this.circles.limitJoins(id);
-        await this.circles.startEpoch(tx, id);
-        return id;
+        const [row] = result.rows;
+        if (row === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'INVITE_INVALID');
+        if (row.fresh) {
+          await this.circles.limitJoins(row.joined_circle);
+          await this.circles.startEpoch(tx, row.joined_circle);
+        }
+        return { circleId: row.joined_circle, fresh: row.fresh };
       })
       .catch((error: unknown) => {
         throw refusal(error);
       });
+    if (!fresh) return { circleId };
     await this.circles.announce(auth.userId, circleId);
     // A friend code: its owner has a new friend. A circle link: the circle has a new member.
     const circle = await this.circles.get(auth, circleId);

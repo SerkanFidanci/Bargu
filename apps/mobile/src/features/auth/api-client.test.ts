@@ -202,11 +202,18 @@ describe('api client', () => {
       fetch: fetch as unknown as typeof globalThis.fetch,
       timeoutMs: 20,
     });
-    await expect(api.authed('/v1/circles/x/accept', { method: 'POST' })).resolves.toEqual({
-      ok: true,
-    });
+    await expect(
+      api.authed('/v1/circles/x/accept', { method: 'POST', idempotent: true }),
+    ).resolves.toEqual({ ok: true });
     expect(calls).toBe(2);
     expect(nonces[0]).not.toBe(nonces[1]);
+
+    // Anything else is sent once: the first may have gone through (QA Faz 9 B1, a second circle).
+    calls = 0;
+    await expect(api.authed('/v1/circles', { method: 'POST', body: {} })).rejects.toThrow(
+      'aborted',
+    );
+    expect(calls).toBe(1);
 
     // Twice stuck: the error goes to the caller (the screen says so).
     const stuck = jest.fn(

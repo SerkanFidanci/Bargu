@@ -196,9 +196,12 @@ export class CirclesService implements OnModuleInit {
     return circle;
   }
 
-  /** Joins a circle one was invited to: the circle moves to a new epoch for its new member. */
+  /**
+   * Joins a circle one was invited to: the circle moves to a new epoch for its new member. Asked
+   * again once in (a retried request), it answers with the circle and changes nothing (QA Faz 9 B2).
+   */
   async accept(auth: AuthContext, circleId: string): Promise<Circle> {
-    const circle = await this.database.asUser(auth.userId, async (tx) => {
+    const { circle, fresh } = await this.database.asUser(auth.userId, async (tx) => {
       await this.lock(tx, circleId);
       const updated = await tx
         .update(circleMembers)
@@ -211,11 +214,16 @@ export class CirclesService implements OnModuleInit {
           ),
         )
         .returning({ circleId: circleMembers.circleId });
-      if (updated.length === 0) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      if (updated.length === 0) {
+        const current = await this.read(tx, circleId, auth.userId);
+        if (current?.myStatus === 'active') return { circle: current, fresh: false };
+        throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      }
       await this.limitJoins(circleId);
       await this.startEpoch(tx, circleId);
-      return this.mustRead(tx, circleId, auth.userId);
+      return { circle: await this.mustRead(tx, circleId, auth.userId), fresh: true };
     });
+    if (!fresh) return circle;
     await this.changed(circle);
     await this.notifier.notify(
       othersActive(circle, auth.userId),

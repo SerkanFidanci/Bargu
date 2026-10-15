@@ -40,7 +40,10 @@ export const circlesApi = {
     );
   },
   async accept(id: string): Promise<Circle> {
-    return circleSchema.parse(await api.authed(`/v1/circles/${id}/accept`, { method: 'POST' }));
+    // Safe to send again: the server answers a repeat with the circle (QA Faz 9 B2).
+    return circleSchema.parse(
+      await api.authed(`/v1/circles/${id}/accept`, { method: 'POST', idempotent: true }),
+    );
   },
   async decline(id: string): Promise<void> {
     await api.authed(`/v1/circles/${id}/decline`, { method: 'POST' });
@@ -102,7 +105,7 @@ export const circlesApi = {
   },
   async acceptInvite(token: string): Promise<string> {
     return inviteAcceptedSchema.parse(
-      await api.authed('/v1/invites/accept', { method: 'POST', body: { token } }),
+      await api.authed('/v1/invites/accept', { method: 'POST', body: { token }, idempotent: true }),
     ).circleId;
   },
   async uploadKeys(

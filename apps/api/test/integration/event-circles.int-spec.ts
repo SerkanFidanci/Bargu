@@ -186,13 +186,16 @@ describe('event circles', () => {
     const event = await createEvent(owner);
     const qr = await qrOf(owner, event);
     expect((await join(ayse, qr)).statusCode).toBe(200);
-    // Still in: told so, as before.
-    const again = await join(ayse, qr);
-    expect(again.statusCode).toBe(409);
-    expect(again.json()).toMatchObject({ code: 'ALREADY_MEMBER' });
-
     const epochOf = async () =>
       (await as(test, owner, 'GET', `/v1/circles/${event.id}`)).json<Circle>().epoch;
+    // Asked again while still in (a phone that gave up waiting): the same answer, nothing changes
+    // (QA Faz 9 B2).
+    const joinedAt = await epochOf();
+    const again = await join(ayse, qr);
+    expect(again.statusCode).toBe(200);
+    expect(again.json()).toEqual({ circleId: event.id });
+    expect(await epochOf()).toBe(joinedAt);
+
     expect((await as(test, ayse, 'POST', `/v1/circles/${event.id}/leave`)).statusCode).toBe(204);
     const afterLeaving = await epochOf();
     const back = await join(ayse, qr);
