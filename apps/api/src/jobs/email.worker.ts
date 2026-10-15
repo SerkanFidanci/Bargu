@@ -1,16 +1,42 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
-import { deriveOtpCode, deriveWebCode } from '@bargu/crypto';
+import { deriveOtpCode, deriveWebCode, deriveWebUnlockToken } from '@bargu/crypto';
 import type { Job, JobResult, PgBoss } from 'pg-boss';
 
 import { AuthKeys } from '../auth/auth-keys.js';
+import { ENV } from '../config/config.module.js';
+import { type Env, webOriginOf } from '../config/env.js';
 import { type EmailJob, EmailJobs } from './email-jobs.js';
-import { Mailer } from './mailer.js';
-import { otpEmail, webCodeEmail } from './otp-email.js';
+import { Mailer, type OutgoingEmail } from './mailer.js';
+import { otpEmail, webCodeEmail, webUnlockEmail } from './otp-email.js';
 import { QUEUES } from './queues.js';
 import { JOB_QUEUE } from './tokens.js';
 
 /** Jobs taken per fetch; while fetches come back full the worker keeps going without a pause. */
 export const EMAIL_BATCH_SIZE = 20;
+
+/**
+ * The email of a job, its code or secret derived now (never stored); null when it cannot be
+ * written (a link with no web origin known).
+ */
+export function emailFor(
+  email: EmailJob,
+  otpKey: Uint8Array,
+  origin: string | null,
+): OutgoingEmail | null {
+  if (email.kind === 'otp') {
+    return otpEmail(email.to, email.locale, deriveOtpCode(otpKey, email.challengeId));
+  }
+  if (email.kind === 'web') {
+    return webCodeEmail(email.to, email.locale, deriveWebCode(otpKey, email.challengeId));
+  }
+  if (origin === null) return null;
+  const secret = deriveWebUnlockToken(otpKey, email.challengeId);
+  return webUnlockEmail(
+    email.to,
+    email.locale,
+    `${origin}/hesap#unlock=${email.challengeId}.${secret}`,
+  );
+}
 
 /**
  * Sends queued emails. Each job settles on its own: a failed send is retried with backoff and ends
@@ -25,6 +51,7 @@ export class EmailWorker implements OnApplicationBootstrap {
     private readonly jobs: EmailJobs,
     private readonly mailer: Mailer,
     private readonly keys: AuthKeys,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -53,12 +80,13 @@ export class EmailWorker implements OnApplicationBootstrap {
       this.logger.warn(`dead-lettered ${job.id}: payload cannot be opened`);
       return { id: job.id, status: 'deadletter' };
     }
+    const outgoing = emailFor(email, this.keys.otpKey, webOriginOf(this.env));
+    if (outgoing === null) {
+      this.logger.warn(`dead-lettered ${job.id}: no web origin for its link`);
+      return { id: job.id, status: 'deadletter' };
+    }
     try {
-      await this.mailer.send(
-        email.kind === 'web'
-          ? webCodeEmail(email.to, email.locale, deriveWebCode(this.keys.otpKey, email.challengeId))
-          : otpEmail(email.to, email.locale, deriveOtpCode(this.keys.otpKey, email.challengeId)),
-      );
+      await this.mailer.send(outgoing);
     } catch (error) {
       // Job id and error type only: never the address or the code.
       this.logger.warn(

@@ -234,4 +234,36 @@ describe('api client', () => {
     await expect(api2.authed('/v1/circles')).rejects.toThrow('aborted');
     expect(stuck).toHaveBeenCalledTimes(2);
   });
+
+  it('gives a large upload its own, longer deadline (QA Faz 9 slice 1, B5)', async () => {
+    const store = memoryStore(session('a'));
+    // An answer that takes longer than the usual deadline but less than the upload's own.
+    const fetch = jest.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            resolve(json(200, { ok: true }));
+          }, 60);
+          init.signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(new Error('aborted'));
+          });
+        }),
+    );
+    const api = createApiClient({
+      baseUrl: 'https://api.test',
+      device: () => device,
+      session: store,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      timeoutMs: 20,
+    });
+    await expect(
+      api.authed('/v1/me/photo', { method: 'PUT', body: {}, timeoutMs: 500 }),
+    ).resolves.toEqual({ ok: true });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // The usual deadline would have given it up.
+    await expect(api.authed('/v1/me/photo', { method: 'PUT', body: {} })).rejects.toThrow(
+      'aborted',
+    );
+  });
 });

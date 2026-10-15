@@ -290,15 +290,16 @@ bu bilinçli bir kapıdır.
 Mesaj formatının parçası değildir; aynı kütüphaneler ve etiket kuralıyla `packages/crypto/src/auth.ts`
 ve `at-rest.ts`'te tanımlıdır. Kararlar: [ADR 0005](ADR/0005-auth-and-devices.md).
 
-| Etiket               | Kullanım                                       |
-| -------------------- | ---------------------------------------------- |
-| `bargu/v1/req-sig`   | Cihaz imzalı API isteği                        |
-| `bargu/v1/otp`       | Giriş kodunun türetilmesi                      |
-| `bargu/v1/web-code`  | Hesap web sayfası kodunun türetilmesi          |
-| `bargu/v1/email`     | E-posta adresinin anahtarlı özeti              |
-| `bargu/v1/token`     | Refresh token özeti                            |
-| `bargu/v1/at-rest`   | Sunucuda saklanan hassas verinin şifrelenmesi  |
-| `bargu/v1/pseudonym` | Hız sınırı anahtarları için anahtarlı takma ad |
+| Etiket                | Kullanım                                             |
+| --------------------- | ---------------------------------------------------- |
+| `bargu/v1/req-sig`    | Cihaz imzalı API isteği                              |
+| `bargu/v1/otp`        | Giriş kodunun türetilmesi                            |
+| `bargu/v1/web-code`   | Hesap web sayfası kodunun türetilmesi                |
+| `bargu/v1/web-unlock` | Hesap sayfası "tarayıcıyı tanıt" bağlantısının sırrı |
+| `bargu/v1/email`      | E-posta adresinin anahtarlı özeti                    |
+| `bargu/v1/token`      | Refresh token özeti                                  |
+| `bargu/v1/at-rest`    | Sunucuda saklanan hassas verinin şifrelenmesi        |
+| `bargu/v1/pseudonym`  | Hız sınırı anahtarları için anahtarlı takma ad       |
 
 **İstek imzası** (başlıklar `x-bargu-sig`, `x-bargu-ts`, `x-bargu-nonce`):
 
@@ -320,6 +321,9 @@ kimlik anahtarına bağlıdır; yalnızca o anahtarla imzalı giriş kodu kullan
 `kod = (ilk 48 bit HMAC-SHA256(OTP_KEY, "bargu/v1/web-code\0" ‖ challengeId(16))) mod 10⁸`.
 Biri ötekinin yerine geçmez. Meydan okuma, sayfanın ürettiği rastgele değerin (binding) SHA-256
 özetine bağlıdır.
+
+**"Tarayıcıyı tanıt" bağlantısı** (ADR 0021, dilim 6b): `sır = base64url(HMAC-SHA256(OTP_KEY,
+"bargu/v1/web-unlock\0" ‖ unlockId(16)))`, 43 karakter. Sunucu sırrı saklamaz; yalnızca kimliği tutar.
 
 **Takma ad** (ör. hız sınırı anahtarındaki istemci ağı): ilk 16 baytı hex olarak
 `HMAC-SHA256(EMAIL_LOOKUP_KEY, "bargu/v1/pseudonym\0" ‖ amaç\0 ‖ değer)`.

@@ -98,6 +98,17 @@ export function SharingCard({ circleId, name }: { circleId: string; name: string
             value={sharing.precision}
             onChange={(precision) => {
               change({ precision });
+              // History needs the exact location (docs/ADR/0019): a coarser one turns it off and
+              // deletes it, so the switch, the setting and the server agree (QA Faz 8 G4).
+              if (precision !== 'exact' && sharing.history === true) {
+                void setHistory(circleId, false).then((result) => {
+                  toast.info(
+                    result === 'later'
+                      ? t('location.sharing.historyOffLater')
+                      : t('location.sharing.historyOffCoarse'),
+                  );
+                });
+              }
             }}
             options={PRECISIONS.map((value) => ({
               value,

@@ -45,9 +45,15 @@ const at = (meters: number, ts: number) => ({
   ts,
 });
 
-function setup(options: { sharing?: SharingSettings; clock: { now: number } }) {
+function setup(options: {
+  sharing?: SharingSettings;
+  clock: { now: number };
+  /** Whether sending "will be late" fails now (no connection). */
+  offline?: () => boolean;
+}) {
   const store = memoryStore();
   const sent: number[] = [];
+  const tries = { count: 0 };
   const reminders: { at: number | null; body: string }[] = [];
   const cancelled: string[] = [];
   const docs = { [docKey(circleId, circleId)]: planDoc({ meetAt, placeId }) };
@@ -58,6 +64,8 @@ function setup(options: { sharing?: SharingSettings; clock: { now: number } }) {
     sharing: () => options.sharing ?? DEFAULT_SHARING,
     store: () => store,
     sendLate: (_circle, _meetAt, minutes) => {
+      tries.count += 1;
+      if (options.offline?.() === true) return Promise.reject(new Error('offline'));
       sent.push(minutes);
       return Promise.resolve();
     },
@@ -72,7 +80,7 @@ function setup(options: { sharing?: SharingSettings; clock: { now: number } }) {
     words: (_meeting, minutes) => ({ title: 'Sahne', body: `${String(minutes)} dk` }),
     now: () => options.clock.now,
   };
-  return { meetings: createMeetings(deps), sent, reminders, cancelled, store };
+  return { meetings: createMeetings(deps), sent, tries, reminders, cancelled, store };
 }
 
 describe('the meeting of an event', () => {
@@ -161,6 +169,39 @@ describe('being late', () => {
     await quiet.meetings.fix(at(2_100, meetAt - 5 * MIN));
     await quiet.meetings.fix(at(2_100, meetAt - 5 * MIN + MEETING.lateHoldMs));
     expect(quiet.sent).toEqual([]);
+  });
+
+  it('is tried again later when it did not get through, not with every position (Faz 8 D10)', async () => {
+    const clock = { now: meetAt - 5 * MIN };
+    let offline = true;
+    const { meetings, sent, tries } = setup({ clock, offline: () => offline });
+    meetings.setMode(circleId, 'walk');
+    await meetings.fix(at(2_100, clock.now));
+    clock.now += MEETING.lateHoldMs;
+    await meetings.fix(at(2_100, clock.now));
+    expect(tries.count).toBe(1);
+    // A position every few seconds: no new try until the wait is over.
+    for (let i = 0; i < 10; i++) {
+      clock.now += 5_000;
+      await meetings.fix(at(2_100, clock.now));
+    }
+    expect(tries.count).toBe(1);
+    clock.now += MEETING.lateRetryMs;
+    await meetings.fix(at(2_100, clock.now));
+    expect(tries.count).toBe(2);
+    // Twice as long after the second failure.
+    clock.now += MEETING.lateRetryMs;
+    await meetings.fix(at(2_100, clock.now));
+    expect(tries.count).toBe(2);
+    clock.now += MEETING.lateRetryMs;
+    offline = false;
+    await meetings.fix(at(2_100, clock.now));
+    expect(tries.count).toBe(3);
+    expect(sent).toHaveLength(1);
+    // Told: not again.
+    clock.now += MIN;
+    await meetings.fix(at(2_100, clock.now));
+    expect(tries.count).toBe(3);
   });
 
   it('can be told by the user, whatever the estimate', async () => {

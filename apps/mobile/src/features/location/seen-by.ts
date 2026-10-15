@@ -75,3 +75,41 @@ export function forgetMembers(store: KeyValueStore, isGone: (circleId: string) =
     store.set(KNOWN_KEY, JSON.stringify(Object.fromEntries(kept)));
   }
 }
+
+/** Someone new seeing this phone: the live location, both, or the history alone. */
+export type ViewerKind = 'live' | 'both' | 'history';
+
+/** One notice for everyone new in one circle seeing the same thing. */
+export interface ViewerNotice {
+  kind: ViewerKind;
+  circle: Circle;
+  viewers: MemberCard[];
+}
+
+/**
+ * New viewers as notices: everyone who came into a circle at once and sees the same thing is told
+ * about in one notice ("Ayşe ve 12 kişi daha…"), not one each (QA Faz 8 G9: 50 people joining an
+ * event made 50 notifications).
+ */
+export function viewerNotices(
+  live: readonly { circle: Circle; viewer: MemberCard }[],
+  history: readonly { circle: Circle; viewer: MemberCard }[],
+): ViewerNotice[] {
+  const key = (circleId: string, userId: string) => `${circleId}:${userId}`;
+  const seesHistory = new Set(history.map(({ circle, viewer }) => key(circle.id, viewer.userId)));
+  const seesLive = new Set(live.map(({ circle, viewer }) => key(circle.id, viewer.userId)));
+  const notices = new Map<string, ViewerNotice>();
+  const add = (kind: ViewerKind, circle: Circle, viewer: MemberCard) => {
+    const id = `${kind}:${circle.id}`;
+    const notice = notices.get(id) ?? { kind, circle, viewers: [] };
+    notice.viewers.push(viewer);
+    notices.set(id, notice);
+  };
+  for (const { circle, viewer } of live) {
+    add(seesHistory.has(key(circle.id, viewer.userId)) ? 'both' : 'live', circle, viewer);
+  }
+  for (const { circle, viewer } of history) {
+    if (!seesLive.has(key(circle.id, viewer.userId))) add('history', circle, viewer);
+  }
+  return [...notices.values()];
+}

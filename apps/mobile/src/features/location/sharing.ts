@@ -117,8 +117,11 @@ export function withoutGoneCircles(
   };
 }
 
-/** Whether this phone sends its location to a circle right now. */
-/** What a circle sees of this phone: the live location right now, the location history. */
+/**
+ * What a circle sees of this phone right now: the live location, the history being written. A
+ * ghost or a paused circle sees neither, history switch or not (QA Faz 9 3a-B5: the iOS list and
+ * the "joined" notice went by the switch alone).
+ */
 export interface SeenThere {
   location: boolean;
   history: boolean;
@@ -127,10 +130,11 @@ export interface SeenThere {
 export function seenThere(settings: SharingSettings, circleId: string, now: number): SeenThere {
   return {
     location: isSharingWith(settings, circleId, now),
-    history: circleSharing(settings, circleId).history === true,
+    history: historyOn(settings, circleId, now),
   };
 }
 
+/** Whether this phone sends its location to a circle right now. */
 export function isSharingWith(settings: SharingSettings, circleId: string, now: number): boolean {
   if (settings.ghost !== 'off') return false;
   const sharing = circleSharing(settings, circleId);

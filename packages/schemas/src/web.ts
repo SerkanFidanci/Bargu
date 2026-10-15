@@ -64,6 +64,24 @@ export const webSessionSchema = z
   .strict();
 export type WebSession = z.infer<typeof webSessionSchema>;
 
+/**
+ * The "recognise this browser" link emailed when the address's ceilings are full (QA 4 K2b): its
+ * id and the secret beside it. Opening it makes the browser a known one; it opens nothing else.
+ */
+export const webUnlockSchema = z
+  .object({
+    id: z.uuid(),
+    token: z
+      .string()
+      .length(43)
+      .regex(/^[A-Za-z0-9_-]*$/),
+  })
+  .strict();
+export type WebUnlock = z.infer<typeof webUnlockSchema>;
+
+export const webUnlockedSchema = z.object({ remember: rememberSchema }).strict();
+export type WebUnlocked = z.infer<typeof webUnlockedSchema>;
+
 export const webRevokeSchema = z
   .object({
     token: z

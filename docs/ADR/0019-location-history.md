@@ -74,3 +74,20 @@ Seçenekler:
   olduğu çemberlerin kimliklerini paylaşılan alandan okur (çember kimlikleri orada zaten vardı).
 - Parça listesi isteği kişi başına dakikada 30 ile ve tek istekte en çok 2 günlük aralıkla sınırlı
   (QA G3); bir günün görüntülenmesi tek istektir.
+
+## Ek (2026-10-16, Faz 9 dilim 6b)
+
+- **Hassasiyet ve geçmiş (QA Faz 8 G4):** Geçmiş yalnızca tam konumla yazılır. Bir çemberin
+  hassasiyeti "mahalle" ya da "şehir"e çekilince o çemberin geçmiş anahtarı da kapanır ve kısa bir
+  uyarı çıkar. Önceden anahtar açık görünüyor ama hiçbir şey yazılmıyordu.
+- **Bütün geçmişi silmek (QA Faz 8 G5):** "Geçmişimi de sil" sunucudan kişinin bütün parçalarını her
+  çemberde siler (`DELETE /v1/me/history`). Uygulamanın artık bilmediği parçalar (yeniden
+  kurulumdan önce yazılmış) da gider. Her çemberin diğer üyelerine `history` olayı gider; telefonları
+  ellerindekini atar. Uç nokta kişinin yalnızca kendi parçalarına dokunur.
+- **Yüklenemeyen gün (QA Faz 8 G8):** Bir gün yüklenemezse ekran "geçmiş yok" değil "yüklenemedi"
+  der ve bağlantı gelince kendiliğinden yeniden dener (yenile düğmesi yok).
+- **Yeni izleyiciler:** Toplu katılımda tek bildirim ve hayalet modu (QA G9, 3a-B5) ADR 0021'in
+  dilim 6b ekinde.
+- **Silme ölçütü (QA Faz 8 G10, bilgi):** Süpürme, çeyreğin başlangıcına bakar: bir çeyreğin son
+  noktası sunucuda 14 gün 15 dakikaya, süpürme aralığıyla en çok 14 gün 25 dakikaya kadar kalabilir.
+  "İki hafta" bu yuvarlamayla okunmalı.

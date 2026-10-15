@@ -13,6 +13,7 @@ import {
   EllipsisVertical,
   UserPlus,
   Users,
+  WifiOff,
   X,
 } from 'lucide-react-native';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -29,7 +30,7 @@ import {
   useCircle,
   useCircleActions,
 } from '@/features/circles/queries';
-import { circleSync, keys } from '@/features/live/live-session';
+import { circleSync, keys, onOnline } from '@/features/live/live-session';
 import { EventCard } from '@/features/circles/event-card';
 import { EventBadge } from '@/features/circles/event-ui';
 import { useNow } from '@/features/location/clock';
@@ -64,24 +65,52 @@ export default function CircleScreen() {
   const circle = useCircle(id);
   const me = useAuth((state) => state.userId);
   // Opened from a notification before the list caught up (a new invitation): ask for this circle
-  // before saying it is gone (QA Faz 8).
-  const [looked, setLooked] = useState(false);
+  // before saying it is gone (QA Faz 8). Only the server's answer says gone; no answer (offline)
+  // says so and asks again once connected (QA Faz 9 slice 1, B4).
+  const [looked, setLooked] = useState<'no' | 'yes' | 'offline'>('no');
+  const [reconnects, setReconnects] = useState(0);
+  useEffect(
+    () =>
+      onOnline(() => {
+        setReconnects((count) => count + 1);
+      }),
+    [],
+  );
   const missing = circle === undefined;
   useEffect(() => {
     if (!missing) return;
     let alive = true;
-    void circleSync
-      .refresh(id)
-      .catch(() => undefined)
-      .finally(() => {
-        if (alive) setLooked(true);
-      });
+    circleSync.refresh(id).then(
+      () => {
+        if (alive) setLooked('yes');
+      },
+      () => {
+        if (alive) setLooked('offline');
+      },
+    );
     return () => {
       alive = false;
     };
-  }, [id, missing]);
+  }, [id, missing, reconnects]);
 
-  if (circle === undefined && !looked) {
+  if (circle === undefined && looked === 'offline') {
+    return (
+      <Screen title="">
+        <EmptyState
+          icon={WifiOff}
+          title={t('circles.detail.offlineTitle')}
+          body={t('circles.detail.offlineBody')}
+          action={{
+            label: t('common.close'),
+            onPress: () => {
+              router.back();
+            },
+          }}
+        />
+      </Screen>
+    );
+  }
+  if (circle === undefined && looked === 'no') {
     return (
       <Screen title="">
         <Skeleton width="100%" height={space.xxxl * 2} />

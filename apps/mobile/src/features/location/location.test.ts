@@ -9,6 +9,7 @@ import {
   endOfDay,
   isSharingWith,
   needsGps,
+  seenThere,
   seersByCircle,
   seersOf,
   sharedCircles,
@@ -94,6 +95,22 @@ describe('sharing settings', () => {
     for (const ghost of ['freeze', 'hide'] as const) {
       expect(isSharingWith(settingsWith({}, ghost), circleId, NOW)).toBe(false);
     }
+  });
+
+  it('says a circle sees the history only while it is written: not while a ghost or paused (3a-B5)', () => {
+    const on = { sharing: true, precision: 'exact', until: null, history: true } as const;
+    expect(seenThere(settingsWith({ [circleId]: on }), circleId, NOW)).toEqual({
+      location: true,
+      history: true,
+    });
+    for (const ghost of ['freeze', 'hide'] as const) {
+      expect(seenThere(settingsWith({ [circleId]: on }, ghost), circleId, NOW)).toEqual({
+        location: false,
+        history: false,
+      });
+    }
+    const paused = settingsWith({ [circleId]: { ...on, sharing: false } });
+    expect(seenThere(paused, circleId, NOW).history).toBe(false);
   });
 
   it('sends only to circles the user is active in', () => {

@@ -28,6 +28,13 @@ export const MEETING = {
   lateHoldMs: 3 * 60_000,
   /** …and again only when it grows by this much. */
   lateStepMin: 10,
+  /**
+   * A "will be late" that did not get through is tried again after this long, twice as long after
+   * each failure, not with every new position (QA Faz 8 D10)…
+   */
+  lateRetryMs: 60_000,
+  /** …at most this long apart (the server takes 20 in 10 minutes). */
+  lateRetryMaxMs: 10 * 60_000,
   /** Lateness is told in steps of this many minutes ("about 15 min"). */
   lateRoundMin: 5,
   /** The reminder to leave comes this long before the time to leave. */

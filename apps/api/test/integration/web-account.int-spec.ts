@@ -1,5 +1,7 @@
-import { deriveWebCode, emailLookupKey, toBase64url } from '@bargu/crypto';
-import type { Circle, WebChallenge, WebSession } from '@bargu/schemas';
+import { Script } from 'node:vm';
+
+import { deriveWebCode, deriveWebUnlockToken, emailLookupKey, toBase64url } from '@bargu/crypto';
+import type { Circle, WebChallenge, WebSession, WebUnlocked } from '@bargu/schemas';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { AuthKeys } from '../../src/auth/auth-keys.js';
@@ -214,6 +216,122 @@ describe('the account web page (docs/ADR/0021)', () => {
     expect((await ask(remember)).statusCode).toBe(429);
   });
 
+  it('emails the owner, once a day, a link that makes their browser a known one (QA 4 K2b)', async () => {
+    const jobs = test.app.get(EmailJobs);
+    const offered = vi.spyOn(jobs, 'enqueueWebUnlock');
+    const redis = test.app.get<RedisClient>(REDIS);
+    const lookup = test.app.get(AuthKeys).emailLookupKey;
+    const fill = async (email: string) => {
+      const address = Buffer.from(emailLookupKey(lookup, email)).toString('hex');
+      await redis.set(`rl:web-req-a:${address}`, String(WEB_LIMITS.requestsPerAddressDay), {
+        EX: 3600,
+      });
+      return address;
+    };
+    const [someone, other] = await Promise.all([person(test), person(test)]);
+    const binding = newBinding();
+    // Someone filled the address's ceiling from many networks; the owner, first time here, asks.
+    const address = await fill(someone.email);
+    const firstTime = '192.0.2.91';
+    expect((await askCode(someone.email, binding, firstTime)).statusCode).toBe(429);
+    await vi.waitFor(() => {
+      expect(offered).toHaveBeenCalledTimes(1);
+    });
+    const [job] = offered.mock.calls[0] ?? [];
+    expect(job).toMatchObject({ to: someone.email, locale: 'tr' });
+    const id = job?.challengeId ?? '';
+    // Asking again, from anywhere, the same day: no second email (whoever fills the ceiling can
+    // make it come once a day, no more).
+    expect((await askCode(someone.email, binding, '192.0.2.92')).statusCode).toBe(429);
+    expect((await askCode(someone.email, binding, firstTime)).statusCode).toBe(429);
+    // An address without an account gets nothing, and the same answer.
+    await fill(uniqueEmail());
+    const nobody = uniqueEmail();
+    await fill(nobody);
+    expect((await askCode(nobody, binding, firstTime)).statusCode).toBe(429);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(offered).toHaveBeenCalledTimes(1);
+
+    const unlock = (body: { id: string; token: string }) =>
+      call(test.app, { url: '/v1/web/unlock', body, ip: firstTime });
+    const token = deriveWebUnlockToken(test.env.OTP_KEY, id);
+    // A made-up secret, or the right one for another link: refused.
+    expect((await unlock({ id, token: newBinding() })).json()).toMatchObject({
+      code: 'OTP_INVALID',
+    });
+    const otherId = '0190f7a4-3333-7333-8333-0000000000aa';
+    expect(
+      (
+        await unlock({ id: otherId, token: deriveWebUnlockToken(test.env.OTP_KEY, otherId) })
+      ).json(),
+    ).toMatchObject({ code: 'OTP_EXPIRED' });
+    const opened = await unlock({ id, token });
+    expect(opened.statusCode).toBe(200);
+    const { remember } = opened.json<WebUnlocked>();
+    expect(remember).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    // Works once.
+    expect((await unlock({ id, token })).json()).toMatchObject({ code: 'OTP_EXPIRED' });
+    // It opens nothing by itself...
+    expect(
+      (await call(test.app, { url: '/v1/web/revoke-device', body: { token: remember } }))
+        .statusCode,
+    ).toBe(401);
+    // ...but the browser is past the ceiling now (on a network with requests left), and the code
+    // from the email still decides.
+    const laterOn = '192.0.2.95';
+    const ask = (kept?: string) =>
+      call(test.app, {
+        url: '/v1/web/code',
+        body: { email: someone.email, locale: 'tr', binding, remember: kept },
+        ip: laterOn,
+      });
+    expect((await ask()).statusCode).toBe(429);
+    const asked = await ask(remember);
+    expect(asked.statusCode).toBe(202);
+    const { challengeId } = asked.json<WebChallenge>();
+    const verified = await call(test.app, {
+      url: '/v1/web/verify',
+      body: { challengeId, code: codeFor(challengeId), binding, remember },
+      ip: laterOn,
+    });
+    expect(verified.statusCode).toBe(200);
+    // Known to this account only.
+    await fill(other.email);
+    expect(
+      (
+        await call(test.app, {
+          url: '/v1/web/code',
+          body: { email: other.email, locale: 'tr', binding, remember },
+          ip: firstTime,
+        })
+      ).statusCode,
+    ).toBe(429);
+    // (its owner is offered a link of their own)
+    const offeredTo = (email: string) =>
+      offered.mock.calls.find(([job]) => job.to === email)?.[0].challengeId;
+    await vi.waitFor(() => {
+      expect(offeredTo(other.email)).toBeDefined();
+    });
+
+    // The wrong-code ceiling full is offered the same, while codes still go out.
+    const third = await person(test);
+    const thirdAddress = Buffer.from(emailLookupKey(lookup, third.email)).toString('hex');
+    await redis.set(`rl:web-fail-a:${thirdAddress}`, String(WEB_LIMITS.failuresPerAddressDay), {
+      EX: 3600,
+    });
+    expect((await askCode(third.email, binding)).statusCode).toBe(202);
+    await vi.waitFor(() => {
+      expect(offeredTo(third.email)).toBeDefined();
+    });
+    // The pending link goes with the account.
+    expect(
+      await redis.sIsMember(`web-of:${third.userId}`, `web-unlock:${offeredTo(third.email) ?? ''}`),
+    ).toBe(1);
+    expect(await redis.ttl(`web-of:${third.userId}`)).toBeGreaterThan(3600);
+    offered.mockRestore();
+    await redis.del([`web-unlock-sent:${address}`, `web-unlock-sent:${thirdAddress}`]);
+  });
+
   it('counts an IPv6 /48 as one network: many /64s of it are not many networks (QA 4 K2a)', async () => {
     const someone = await person(test);
     const binding = newBinding();
@@ -243,6 +361,9 @@ describe('the account web page (docs/ADR/0021)', () => {
     const script = await test.app.inject({ method: 'GET', url: '/hesap/app.js' });
     expect(script.headers['content-type']).toContain('javascript');
     expect(script.body).toContain('/v1/web/revoke-device');
+    // It parses as the browser gets it (its words and patterns are inside a template string).
+    expect(() => new Script(script.body)).not.toThrow();
+    expect(script.body).toContain('([0-9a-f-]{36})\\.([A-Za-z0-9_-]{43})');
     // An unknown session does nothing.
     expect((await revoke(toBase64url(new Uint8Array(32)))).statusCode).toBe(401);
   });

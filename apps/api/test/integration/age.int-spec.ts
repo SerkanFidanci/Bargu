@@ -59,6 +59,15 @@ describe('the age band (docs/ADR/0023)', () => {
     });
     expect(refused.statusCode).toBe(400);
     expect(refused.json()).toMatchObject({ code: 'AGE_REQUIRED' });
+    // Asked again without it, more often than a code has tries: not counted as tries (QA 6a Y1b).
+    for (let again = 0; again < 3; again += 1) {
+      const without = await call(test.app, {
+        url: '/v1/auth/otp/verify',
+        body: { challengeId, code: codeFor(test, challengeId), device: registration(device) },
+        device,
+      });
+      expect(without.json()).toMatchObject({ code: 'AGE_REQUIRED' });
+    }
     // The same code still works with the band (QA 5a Y1).
     const opened = await call(test.app, {
       url: '/v1/auth/otp/verify',

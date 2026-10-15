@@ -383,7 +383,9 @@
       "unmakeAdmin": "Remove as admin",
       "manage": "Options for {{name}}",
       "madeAdmin": "{{name}} is now an admin",
-      "unmadeAdmin": "{{name}} is no longer an admin"
+      "unmadeAdmin": "{{name}} is no longer an admin",
+      "offlineTitle": "No connection",
+      "offlineBody": "This circle could not be opened right now. It opens on its own once connected."
     },
     "invite": {
       "title": "Add people",
@@ -523,7 +525,8 @@
       "historyNobody": "On · Nobody else is in this circle yet.",
       "historyViewers": "Who sees it?",
       "historyOff": "History turned off and deleted from the server",
-      "historyOffLater": "History turned off; it is deleted from the server once you are online"
+      "historyOffLater": "History turned off; it is deleted from the server once you are online",
+      "historyOffCoarse": "Location history needs the exact location; it was turned off and deleted for this circle."
     },
     "precision": {
       "exact": "Exact",
@@ -562,7 +565,9 @@
       "ok": "OK",
       "edit": "Change",
       "notification": "Have a look at who sees your location; stop it with one tap if you like."
-    }
+    },
+    "newViewers": "{{name}} and {{count}} more can now see your location in {{circle}}",
+    "newViewersBoth": "{{name}} and {{count}} more can now see your location and location history in {{circle}}"
   },
   "map": {
     "actions": {
@@ -750,7 +755,10 @@
     "viewersEmptyBody": "Turn on \"Location history\" on a circle's screen and its members can see your last 14 days.",
     "viewersHint": "Each circle only sees the history you turned on for it; people cannot see what came before they joined.",
     "turnOff": "Turn off here",
-    "newViewer": "{{name}} can now see your location history in {{circle}}"
+    "newViewer": "{{name}} can now see your location history in {{circle}}",
+    "failed": "History could not be opened",
+    "failedBody": "No connection, or the server could not be reached. It opens again on its own once connected.",
+    "newViewers": "{{name}} and {{count}} more can now see your location history in {{circle}}"
   },
   "security": {
     "title": "Security",

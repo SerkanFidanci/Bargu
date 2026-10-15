@@ -8,6 +8,7 @@ import {
   History as HistoryIcon,
   type LucideIcon,
   MapPin,
+  WifiOff,
   X,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -27,6 +28,7 @@ import {
   segments,
   type TracePoint,
 } from '@/features/history/trail-model';
+import { onOnline } from '@/features/live/live-session';
 import { useNow } from '@/features/location/clock';
 import { history } from '@/features/location/location-session';
 import { distanceM } from '@/features/location/send';
@@ -82,20 +84,34 @@ export default function HistoryScreen() {
   const days = historyDays(now);
   const [day, setDay] = useState(dayStart(now));
   const ping = useHistoryPings((state) => state[`${circleId}:${userId}`] ?? 0);
-  const [result, setResult] = useState<{ key: string; points: TracePoint[] } | null>(null);
+  const [result, setResult] = useState<{
+    key: string;
+    points: TracePoint[];
+    failed: boolean;
+  } | null>(null);
   const [panel, setPanel] = useState(0);
   const map = useRef<BarguMapHandle>(null);
-  const key = `${circleId}:${userId}:${String(day)}:${String(ping)}`;
+  // Back online after a failed load: the day is fetched again on its own (no refresh button).
+  const [reconnects, setReconnects] = useState(0);
+  useEffect(
+    () =>
+      onOnline(() => {
+        setReconnects((count) => count + 1);
+      }),
+    [],
+  );
+  const key = `${circleId}:${userId}:${String(day)}:${String(ping)}:${String(reconnects)}`;
 
   useEffect(() => {
     let alive = true;
     history
       .load(circleId, userId, day, day + DAY_MS)
       .then((points) => {
-        if (alive) setResult({ key, points });
+        if (alive) setResult({ key, points, failed: false });
       })
       .catch(() => {
-        if (alive) setResult({ key, points: [] });
+        // Not "no history": the day could not be fetched (QA Faz 8 G8).
+        if (alive) setResult({ key, points: [], failed: true });
       });
     return () => {
       alive = false;
@@ -232,6 +248,8 @@ export default function HistoryScreen() {
               <Skeleton width="100%" height={space.xxxl} />
               <Skeleton width="100%" height={space.xxxl} />
             </>
+          ) : result.failed ? (
+            <EmptyState icon={WifiOff} title={t('history.failed')} body={t('history.failedBody')} />
           ) : timeline.length === 0 ? (
             <EmptyState
               icon={HistoryIcon}

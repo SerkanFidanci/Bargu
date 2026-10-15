@@ -69,6 +69,11 @@ describe('parseEnv', () => {
     ['origin with a path', { ...base, WEBAUTHN_ORIGINS: 'https://bargu.test/login' }],
     ['plain http origin', { ...base, WEBAUTHN_ORIGINS: 'http://bargu.test' }],
     ['short android key hash', { ...base, WEBAUTHN_ORIGINS: 'android:apk-key-hash:abc' }],
+    ['account page origin with a path', { ...base, WEB_ORIGIN: 'https://bargu.test/hesap' }],
+    [
+      'account page on an app origin',
+      { ...base, WEB_ORIGIN: 'android:apk-key-hash:' + 'A'.repeat(43) },
+    ],
     ['single-segment package', { ...base, ANDROID_PACKAGE: 'bargu' }],
     ['bad certificate fingerprint', { ...base, ANDROID_CERT_SHA256: 'AB:CD' }],
     ['production without attestation', { ...production, DEVICE_ATTESTATION: 'optional' }],
@@ -85,6 +90,10 @@ describe('parseEnv', () => {
     [
       'production with a localhost origin',
       { ...production, WEBAUTHN_ORIGINS: 'http://localhost:8081' },
+    ],
+    [
+      'production with a localhost account page',
+      { ...production, WEB_ORIGIN: 'http://localhost:3000' },
     ],
     ['production outside NODE_ENV=production', { ...production, NODE_ENV: 'development' }],
     // A production build must say where it runs, or it would silently get development shortcuts.

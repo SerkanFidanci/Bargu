@@ -164,6 +164,24 @@ export function verifyWebCode(otpKey: Uint8Array, challengeId: string, code: str
   return codeMatches(deriveWebCode(otpKey, challengeId), code);
 }
 
+/**
+ * The secret of the account web page's "recognise this browser" link (QA 4 K2b), derived from the
+ * link's id like the codes: the email carries it, the server keeps only the id. 256 bits,
+ * base64url.
+ */
+export function deriveWebUnlockToken(otpKey: Uint8Array, unlockId: string): string {
+  requireKey(otpKey);
+  const mac = hmacWithLabel(otpKey, LABELS.webUnlock, uuidToBytes(unlockId));
+  const token = toBase64url(mac);
+  mac.fill(0);
+  return token;
+}
+
+/** Constant-time check of the secret of such a link. */
+export function verifyWebUnlockToken(otpKey: Uint8Array, unlockId: string, token: string): boolean {
+  return codeMatches(deriveWebUnlockToken(otpKey, unlockId), token);
+}
+
 /** Canonical form used for lookups: trimmed, Unicode NFC, lower case. */
 export function normalizeEmail(email: string): string {
   return email.trim().normalize('NFC').toLowerCase();

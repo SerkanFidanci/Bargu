@@ -231,6 +231,10 @@ export {
   webRevokeSchema,
   type WebSession,
   webSessionSchema,
+  type WebUnlock,
+  type WebUnlocked,
+  webUnlockedSchema,
+  webUnlockSchema,
 } from './web.js';
 export {
   type AccountExport,

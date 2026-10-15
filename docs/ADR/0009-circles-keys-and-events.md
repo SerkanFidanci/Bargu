@@ -118,3 +118,14 @@ yayından önce kapatıldı ve her biri testle korunuyor:
 - Kabul tekrarlanabilir (migration 0016): aynı kişi, hâlâ içerideyken aynı kodla ya da aynı davetle
   yeniden kabul ederse aynı çember döner. Yeni epoch başlamaz, kimseye bildirim gitmez (B2). Ayrılıp
   aynı kodla dönmek yine olmaz (ADR 0020).
+- Oturum yenileme isteği de bir kez gider (QA dilim 2 N5, bilgi): zayıf ağda bir yenileme zaman
+  aşımına uğrayabilir, ama oturum düşmez; oturumu yalnızca sunucunun kesin reddi bitirir ve bir
+  sonraki istek yeniden yeniler.
+
+## Ek (2026-10-16, Faz 9 dilim 6b, QA dilim 1 B4, B5)
+
+- Bildirimden açılan bir çember listede yoksa telefon onu sunucuya sorar. "Çember bulunamadı" ancak
+  sunucu öyle derse çıkar. Cevap gelmezse (çevrimdışı) ekran "Bağlantı yok" der ve bağlantı gelince
+  kendiliğinden yeniden sorar (B4).
+- Profil fotoğrafı gibi büyük yüklemeler 15 saniye değil 60 saniye bekler: zayıf ağda baytların
+  gitmesi zaman alır, bu ölü bir bağlantı değildir (B5). Yükleme yine yalnızca bir kez gider.

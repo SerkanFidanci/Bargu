@@ -10,10 +10,13 @@ import { JOB_QUEUE } from './tokens.js';
 
 const SEAL_CONTEXT = 'job/email';
 
-/** A login code (`otp`), or the account web page's code (`web`, docs/ADR/0021). */
+/**
+ * A login code (`otp`), the account web page's code (`web`, docs/ADR/0021), or its "recognise
+ * this browser" link (`web-unlock`, QA 4 K2b; the challenge id is the link's id).
+ */
 export const emailJobSchema = z
   .object({
-    kind: z.enum(['otp', 'web']),
+    kind: z.enum(['otp', 'web', 'web-unlock']),
     to: z.email(),
     locale: localeSchema,
     challengeId: z.uuid(),
@@ -50,6 +53,18 @@ export class EmailJobs {
     const box = sealAtRest(
       this.keys.jobPayloadKey,
       new TextEncoder().encode(JSON.stringify({ kind: 'web', ...job } satisfies EmailJob)),
+      SEAL_CONTEXT,
+    );
+    await this.boss.send(QUEUES.email, { v: 1, box } satisfies QueuedEmail, {
+      id: job.challengeId,
+    });
+  }
+
+  /** Queues the "recognise this browser" link; its secret is derived by the worker too. */
+  async enqueueWebUnlock(job: Omit<EmailJob, 'kind'>): Promise<void> {
+    const box = sealAtRest(
+      this.keys.jobPayloadKey,
+      new TextEncoder().encode(JSON.stringify({ kind: 'web-unlock', ...job } satisfies EmailJob)),
       SEAL_CONTEXT,
     );
     await this.boss.send(QUEUES.email, { v: 1, box } satisfies QueuedEmail, {

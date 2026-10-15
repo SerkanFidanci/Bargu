@@ -7,6 +7,7 @@ import {
   randomUuid,
   sha256,
   verifyWebCode,
+  verifyWebUnlockToken,
 } from '@bargu/crypto';
 import type {
   WebChallenge,
@@ -14,6 +15,8 @@ import type {
   WebCodeVerify,
   WebRevoke,
   WebSession,
+  WebUnlock,
+  WebUnlocked,
 } from '@bargu/schemas';
 import { and, eq, isNull } from 'drizzle-orm';
 
@@ -32,6 +35,8 @@ export const WEB_SESSION_TTL_SECONDS = 10 * 60;
 /** How long a browser that came in with a code is remembered, and how many per account. */
 export const WEB_REMEMBER_TTL_SECONDS = 180 * 24 * 3600;
 const WEB_REMEMBERED_MAX = 5;
+/** How long the emailed "recognise this browser" link works (QA 4 K2b); at most one a day. */
+export const WEB_UNLOCK_TTL_SECONDS = DAY;
 /** A challenge dies after this many wrong codes. */
 export const WEB_MAX_ATTEMPTS = 3;
 /**
@@ -103,6 +108,8 @@ export class WebAccountService {
     const network = this.clients.networkId(ip);
     const userId = await this.database.userIdForEmail(lookup);
     const known = await this.isRemembered(userId, input.remember);
+    // Read for every address alike, so that an account's answer takes as long as a stranger's.
+    const failures = Number((await this.redis.get(`rl:web-fail-a:${address}`)) ?? '0');
     const budgets: [string, number][] = [
       [`web-req-nd:${address}:${network}`, WEB_LIMITS.requestsPerNetworkDay],
     ];
@@ -110,8 +117,12 @@ export class WebAccountService {
     for (const [budget, limit] of budgets) {
       const result = await this.limiter.hit(budget, limit, DAY);
       if (!result.allowed) {
+        if (budget.startsWith('web-req-a:')) this.offerUnlock(userId, address, input);
         throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', result.retryAfter);
       }
+    }
+    if (!known && failures >= WEB_LIMITS.failuresPerAddressDay) {
+      this.offerUnlock(userId, address, input);
     }
     const challengeId = randomUuid();
     const key = `web:${challengeId}`;
@@ -178,16 +189,7 @@ export class WebAccountService {
     const session = `web-session:${hex(hashToken(token))}`;
     await this.redis.set(session, userId, { EX: WEB_SESSION_TTL_SECONDS });
     await this.index(userId, session);
-    const remember = generateToken();
-    const remembered = `web-known:${userId}`;
-    await this.redis
-      .multi()
-      // Each value counts its own 180 days (QA 4 K2c): older ones go before a new one comes.
-      .zRemRangeByScore(remembered, 0, Date.now() - WEB_REMEMBER_TTL_SECONDS * 1000)
-      .zAdd(remembered, { score: Date.now(), value: hex(hashToken(remember)) })
-      .zRemRangeByRank(remembered, 0, -(WEB_REMEMBERED_MAX + 1))
-      .expire(remembered, WEB_REMEMBER_TTL_SECONDS)
-      .exec();
+    const remember = await this.rememberBrowser(userId);
     const [device] = await this.database.asUser(userId, (tx) =>
       tx
         .select({ platform: devices.platform, createdAt: devices.createdAt })
@@ -205,6 +207,74 @@ export class WebAccountService {
     };
   }
 
+  /**
+   * The address's ceilings are full and this browser is not known: its owner may be the one locked
+   * out by someone else filling them (QA 4 K2b). An account gets an email with a link, at most once
+   * a day, that makes the browser it is opened in a known one: no access by itself, the code still
+   * comes by email. Not waited for, and nothing for an address without an account.
+   */
+  private offerUnlock(
+    userId: string | null,
+    address: string,
+    to: Pick<WebCodeRequest, 'email' | 'locale'>,
+  ): void {
+    if (userId === null) return;
+    void this.sendUnlock(userId, address, to).catch((error: unknown) => {
+      this.logger.error(
+        `Could not offer the unlock: ${error instanceof Error ? error.name : 'unknown'}`,
+      );
+    });
+  }
+
+  private async sendUnlock(
+    userId: string,
+    address: string,
+    to: Pick<WebCodeRequest, 'email' | 'locale'>,
+  ): Promise<void> {
+    // Once a day an address: whoever fills its ceilings can make it come once, no more.
+    const first = await this.redis.set(`web-unlock-sent:${address}`, '1', {
+      condition: 'NX',
+      expiration: { type: 'EX', value: DAY },
+    });
+    if (first !== 'OK') return;
+    const unlockId = randomUuid();
+    const key = `web-unlock:${unlockId}`;
+    await this.redis.set(key, userId, { EX: WEB_UNLOCK_TTL_SECONDS });
+    await this.index(userId, key, WEB_UNLOCK_TTL_SECONDS);
+    await this.email.enqueueWebUnlock({ to: to.email, locale: to.locale, challengeId: unlockId });
+  }
+
+  /**
+   * The emailed link opened (QA 4 K2b): the browser it was opened in is remembered like one that
+   * came in with a code. Works once.
+   */
+  async unlock(input: WebUnlock, ip: string): Promise<WebUnlocked> {
+    await this.clients.enforce('webUnlock', ip);
+    if (!verifyWebUnlockToken(this.keys.otpKey, input.id, input.token)) {
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'OTP_INVALID');
+    }
+    const userId = await this.redis.getDel(`web-unlock:${input.id}`);
+    if (userId === null || userId === '') {
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'OTP_EXPIRED');
+    }
+    return { remember: await this.rememberBrowser(userId) };
+  }
+
+  /** A new value for this browser to keep; the account's newest five count, each 180 days. */
+  private async rememberBrowser(userId: string): Promise<string> {
+    const remember = generateToken();
+    const remembered = `web-known:${userId}`;
+    await this.redis
+      .multi()
+      // Each value counts its own 180 days (QA 4 K2c): older ones go before a new one comes.
+      .zRemRangeByScore(remembered, 0, Date.now() - WEB_REMEMBER_TTL_SECONDS * 1000)
+      .zAdd(remembered, { score: Date.now(), value: hex(hashToken(remember)) })
+      .zRemRangeByRank(remembered, 0, -(WEB_REMEMBERED_MAX + 1))
+      .expire(remembered, WEB_REMEMBER_TTL_SECONDS)
+      .exec();
+    return remember;
+  }
+
   /** Whether this browser came in with a code for the account before (and not too long ago). */
   private async isRemembered(userId: string | null, remember: string | undefined) {
     if (userId === null || remember === undefined) return false;
@@ -216,9 +286,10 @@ export class WebAccountService {
    * The account's pending codes and sessions, by name: deleting the account deletes them too, though
    * their own names do not say whose they are (QA 4 K1).
    */
-  private async index(userId: string, key: string): Promise<void> {
+  private async index(userId: string, key: string, ttl = WEB_SESSION_TTL_SECONDS): Promise<void> {
     const of = webKeysOf(userId);
-    await this.redis.multi().sAdd(of, key).expire(of, WEB_SESSION_TTL_SECONDS).exec();
+    // As long as its longest-lived key: a set, or one with less time left, gets this much.
+    await this.redis.multi().sAdd(of, key).expire(of, ttl, 'NX').expire(of, ttl, 'GT').exec();
   }
 
   /**

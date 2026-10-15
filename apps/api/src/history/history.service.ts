@@ -128,6 +128,33 @@ export class HistoryService {
     });
   }
 
+  /**
+   * Deletes the caller's own trail in every circle ("Geçmişimi de sil"), also what an earlier
+   * install of the app wrote and this one no longer knows of (QA Faz 8 G5).
+   */
+  async removeAll(auth: AuthContext): Promise<void> {
+    await this.limit(auth);
+    const told = await this.database.asUser(auth.userId, async (tx) => {
+      const dropped = await tx
+        .delete(historyChunks)
+        .where(eq(historyChunks.userId, auth.userId))
+        .returning({ circleId: historyChunks.circleId });
+      const circleIds = [...new Set(dropped.map((row) => row.circleId))];
+      const perCircle: [string, string[]][] = [];
+      for (const circleId of circleIds) {
+        const members = await this.activeMembers(tx, circleId);
+        perCircle.push([
+          circleId,
+          members.filter((member) => member.userId !== auth.userId).map((m) => m.userId),
+        ]);
+      }
+      return perCircle;
+    });
+    for (const [circleId, others] of told) {
+      this.events.emitLive(others, 'history', { circleId, userId: auth.userId });
+    }
+  }
+
   /** Deletes the caller's own trail in a circle ("Geçmişimi sil"). */
   async remove(auth: AuthContext, circleId: string): Promise<void> {
     await this.limit(auth);

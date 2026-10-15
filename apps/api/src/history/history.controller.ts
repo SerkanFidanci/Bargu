@@ -16,6 +16,18 @@ import { type AuthContext, CurrentAuth } from '../auth/request-context.js';
 import { ZodPipe } from '../common/zod.pipe.js';
 import { HistoryService } from './history.service.js';
 
+/** All of the caller's own history, every circle (QA Faz 8 G5). */
+@Controller('v1/me/history')
+export class MyHistoryController {
+  constructor(private readonly history: HistoryService) {}
+
+  @Delete()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeAll(@CurrentAuth() auth: AuthContext): Promise<void> {
+    return this.history.removeAll(auth);
+  }
+}
+
 /** Location history of circles: quarter hours of members' trails (docs/ADR/0019). */
 @Controller('v1/circles/:circleId/history')
 export class HistoryController {

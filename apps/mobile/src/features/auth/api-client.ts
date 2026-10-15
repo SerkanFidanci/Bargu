@@ -22,6 +22,11 @@ export interface ApiClientOptions {
  * was in the background would otherwise wait for the system's own timeout (QA Faz 8: a 15 s accept).
  */
 export const REQUEST_TIMEOUT_MS = 15_000;
+/**
+ * A large upload on a weak network (a profile photo) gets this long instead (QA Faz 9 slice 1,
+ * B5): its bytes take time to go, which is not a dead connection.
+ */
+export const UPLOAD_TIMEOUT_MS = 60_000;
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -31,6 +36,8 @@ export interface RequestOptions {
    * timed-out attempt may be sent again. Reads always are; anything else only when marked.
    */
   idempotent?: boolean;
+  /** How long one attempt may take, when not the usual (a large upload). */
+  timeoutMs?: number;
 }
 
 export class ApiError extends Error {
@@ -82,11 +89,11 @@ export function createApiClient(options: ApiClientOptions) {
   }
 
   /** One attempt with a deadline. */
-  async function attempt(url: string, init: RequestInit): Promise<Response> {
+  async function attempt(url: string, init: RequestInit, deadline: number): Promise<Response> {
     const controller = new AbortController();
     const timer = setTimeout(() => {
       controller.abort();
-    }, timeoutMs);
+    }, deadline);
     try {
       return await fetchImpl(url, { ...init, signal: controller.signal });
     } finally {
@@ -110,11 +117,11 @@ export function createApiClient(options: ApiClientOptions) {
     };
     let response: Response;
     try {
-      response = await attempt(`${options.baseUrl}${path}`, {
-        method,
-        headers,
-        ...(body === '' ? {} : { body }),
-      });
+      response = await attempt(
+        `${options.baseUrl}${path}`,
+        { method, headers, ...(body === '' ? {} : { body }) },
+        request.timeoutMs ?? timeoutMs,
+      );
     } catch (error) {
       // Timed out or the connection failed: once more, newly signed, on a fresh connection; but
       // only what is safe to send twice (the first may have gone through: a second circle, QA B1).

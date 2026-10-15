@@ -340,6 +340,22 @@ kullanır.
   hesabıyla girer, etkilenmez.
 - Etkinliğin QR'ını yalnızca yöneticileri açar (ADR 0020); bu yüzden 15–17 bir etkinliğe, yöneticisi
   arkadaşıysa girer.
+- **Kabul edilen kalan risk (QA 5b/5c S-1):** Gözetimli bir çocuğun koduyla gelen kişi
+  `403 APPROVAL_PENDING` alır; yetişkinin kodu hemen kabul edilir, uydurma kod `404` alır. Yani
+  kodu tarayan kişi "bu kodun sahibi ebeveyn onayı olan bir çocuk" bilgisini çıkarabilir. Cevapta
+  yaş, ebeveyn ya da çocuk adı yoktur ve kod harcanmaz. Kodu tarayan, sahibini zaten görmüştür (kod
+  yüz yüze ya da onun gönderdiği bir linkle gelir). Gizlemek için onay isteğini de "kabul edildi"
+  gibi göstermek gerekirdi; bu, gelen kişiyi yanıltır ve beklediğini söylememek olur. PM kararıyla
+  böyle kalır.
+- **Kuyruk doldurma (QA 6a S-4, düşük, Faz 10 iş listesinde):** 21 ayrı hesap bir çocuğun 20'lik
+  bekleyen istek sınırını doldurursa gerçek bir yeni gelen o çocuk için `429` alır; ebeveyn
+  istekleri yanıtlayana ya da 7 gün dolana kadar. Çok hesap gerektirir ve ebeveyn kuyruğu
+  temizleyebilir. Düşünülen çözüm: çocuğun zaten arkadaşı olan kişinin isteği sınıra takılmasın
+  (yeni bir migration ister). En eskiyi düşürmek seçilmedi: saldırgan gerçek istekleri de dışarı
+  iterdi.
+- **Yaş eksik giriş (QA 6a Y1b):** Doğru kod yaş grubu olmadan gelirse (`AGE_REQUIRED`) ne yanlış
+  kod ne de kodun üç denemesinden biri sayılır. Uygulama yaşı kodla birlikte gönderdiği için
+  pratikte görülmezdi; yine de eski bir uygulama ya da yeniden deneme kodu kilitlemesin.
 
 ## Ürün soruları (PM ve proje sahibi, 2026-10-15)
 

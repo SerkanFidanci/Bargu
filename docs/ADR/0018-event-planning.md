@@ -71,3 +71,13 @@ Kimin neyi değiştirebileceği ADR 0020 ile değişti. Buluşmayı ve oylamalar
 etkinliğin yöneticileri belirler, değiştirir ve siler; üyeler oy verir. Sunucu belgenin türünü
 (buluşma, oylama, oy) ve oyun hangi oylamaya ait olduğunu bilir ve kuralları kendisi denetler.
 Yukarıdaki "Buluşma ve oylamalar ortak (her üye değiştirir)" cümlesi bu yüzden geçerli değil.
+
+## Ek (2026-10-16, Faz 9 dilim 6b)
+
+- **Gecikme bildirimi yeniden denemesi (QA Faz 8 D10):** Otomatik "geç kalacağım" gönderilemezse
+  telefon onu her yeni konumda değil, 1 dakika sonra, sonra 2, 4… en çok 10 dakika arayla yeniden
+  dener (sunucu sınırı 10 dakikada 20). Gönderilince sayaç sıfırlanır; elle bildirme bundan
+  etkilenmez.
+- **Bitişte bayrak (QA dilim 2 N4, bilgi):** Buluşma bayrağı etkinlik bitince haritanın yeniden
+  çizilmesiyle kalkar. Biten etkinlik canlı bir olayla telefonlara ulaşır (ADR 0017 dilim 6a ekinde,
+  QA D2) ve ekranın saati yarım dakikada bir ilerler; bayrak en geç bu kadar gecikir.

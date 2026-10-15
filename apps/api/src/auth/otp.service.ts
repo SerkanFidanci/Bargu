@@ -60,6 +60,13 @@ return counts
 
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
 
+// Gives an attempt back to a challenge that is still there (the right code, refused for another
+// reason: QA 6a Y1b).
+const GIVE_BACK = `
+if redis.call('EXISTS', KEYS[1]) == 0 then return false end
+return redis.call('HINCRBY', KEYS[1], 'a', -1)
+`;
+
 /**
  * Email one-time codes (BARGU_PLAN §3.2, docs/ADR/0005 and 0012): 4 digits, 10 minutes, 3 attempts
  * per challenge. A challenge belongs to the device key that requested it, and wrong codes are counted
@@ -130,7 +137,8 @@ export class OtpService {
    */
   /**
    * `beforeUse` runs once the code is known to be right, before it is used up: whatever it throws
-   * is answered with the code still usable and not counted as a wrong one (QA 5a Y1).
+   * is answered with the code still usable and not counted as a wrong one (QA 5a Y1), nor as one
+   * of its three tries (QA 6a Y1b).
    */
   async verify(
     challengeId: string,
@@ -175,7 +183,10 @@ export class OtpService {
       try {
         await beforeUse(emailHmac);
       } catch (error) {
-        await Promise.all(budgets.map((budget) => this.redis.decr(budget)));
+        await Promise.all([
+          ...budgets.map((budget) => this.redis.decr(budget)),
+          this.redis.eval(GIVE_BACK, { keys: [key] }),
+        ]);
         throw error;
       }
     }

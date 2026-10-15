@@ -216,6 +216,39 @@ describe('location history', () => {
     expect(rows).toEqual([]);
   });
 
+  it('is deleted all at once by its owner, every circle, theirs only (QA Faz 8 G5)', async () => {
+    const [ayse, bora, cem] = await Promise.all([person(test), person(test), person(test)]);
+    const [first, second] = [await circleOf(ayse, bora), await circleOf(ayse, cem)];
+    const slot = lastSlot();
+    // What an earlier install wrote counts too: the server deletes by owner, not by what the
+    // phone remembers.
+    await put(ayse, first.id, slot, phone(ayse, first).seal(trailAt(slot)));
+    await put(ayse, second.id, slot, phone(ayse, second).seal(trailAt(slot)));
+    await put(bora, first.id, slot, phone(bora, first).seal(trailAt(slot)));
+
+    // Someone else's "delete everything" touches nothing of hers.
+    expect((await as(test, cem, 'DELETE', '/v1/me/history')).statusCode).toBe(204);
+    expect(await list(bora, first.id, ayse.userId)).toHaveLength(1);
+    expect(await list(cem, second.id, ayse.userId)).toHaveLength(1);
+
+    const told = vi.spyOn(test.app.get(EventsService), 'emitLive');
+    expect((await as(test, ayse, 'DELETE', '/v1/me/history')).statusCode).toBe(204);
+    expect(await list(bora, first.id, ayse.userId)).toEqual([]);
+    expect(await list(cem, second.id, ayse.userId)).toEqual([]);
+    // Bora's own stays.
+    expect(await list(ayse, first.id, bora.userId)).toHaveLength(1);
+    // Each circle's other members hear of it, so their phones drop what they held.
+    expect(told).toHaveBeenCalledWith([bora.userId], 'history', {
+      circleId: first.id,
+      userId: ayse.userId,
+    });
+    expect(told).toHaveBeenCalledWith([cem.userId], 'history', {
+      circleId: second.id,
+      userId: ayse.userId,
+    });
+    told.mockRestore();
+  });
+
   it('goes after two weeks', async () => {
     const [ayse, bora] = await Promise.all([person(test), person(test)]);
     const circle = await circleOf(ayse, bora);

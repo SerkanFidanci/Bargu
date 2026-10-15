@@ -1,24 +1,18 @@
 import { type ReactNode, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, {
-  cancelAnimation,
-  Easing,
-  useAnimatedProps,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
 import { remainingShare } from '@/features/circles/event-time';
-import { useTheme } from '@/theme';
+import { timing, useTheme } from '@/theme';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 /**
  * The countdown ring of an event circle (BARGU_PLAN §4.3 "geri sayım halkası"): the share of the
- * event still ahead, emptying on the UI thread all the way to its end. With Reduce Motion it stays
- * still and catches up whenever the screen re-renders (`now`).
+ * event still ahead. It steps down gently with the screen's clock (`now`, every half minute) and is
+ * still in between: one animation all the way to the end, up to a week, drew frames the whole time
+ * the screen was open (QA Faz 8 D9, battery). With Reduce Motion each step is a jump.
  */
 export function CountdownRing({
   startedAt,
@@ -37,21 +31,13 @@ export function CountdownRing({
   children?: ReactNode;
 }) {
   const { colors } = useTheme();
-  const reduced = useReducedMotion();
   const share = useSharedValue(remainingShare(startedAt, expiresAt, now));
   const radius = (size - stroke) / 2;
   const length = 2 * Math.PI * radius;
 
   useEffect(() => {
-    const at = Date.now();
-    cancelAnimation(share);
-    share.set(remainingShare(startedAt, expiresAt, at));
-    if (reduced || expiresAt <= at) return;
-    share.set(withTiming(0, { duration: expiresAt - at, easing: Easing.linear }));
-    return () => {
-      cancelAnimation(share);
-    };
-  }, [startedAt, expiresAt, now, reduced, share]);
+    share.set(withTiming(remainingShare(startedAt, expiresAt, now), timing.slow));
+  }, [startedAt, expiresAt, now, share]);
 
   const arc = useAnimatedProps(() => ({ strokeDashoffset: length * (1 - share.get()) }));
   const center = size / 2;

@@ -138,3 +138,43 @@ buluşmanın bir arkadaşla kolayca başlatılamadığını söyledi; kişi kart
   kilidinin yerine geçmez.
 - Yeni izleyici uyarısı yalnızca bu telefonun bildiği üyelere göre çalışır. Bir üye, telefon
   çevrimdışıyken girip çıkarsa söylenmez; o sürede kimse yeni konum almaz.
+
+## Ek (2026-10-16, Faz 9 dilim 6b)
+
+- **Hesap sayfasında "bu tarayıcıyı tanıt" bağlantısı (QA 4 K2b):** Hatırlanan tarayıcı yalnızca
+  daha önce kodla girmiş birine yarıyordu. Asıl korunması gereken kişi (telefonu çalınmış, sayfayı
+  ilk kez kullanan) adresin bütün ağlar tavanı dolunca (17 ağ, IPv6'da kolay) yine kilitleniyordu.
+  - Adresin kod isteme tavanı ya da yanlış kod tavanı doluyken tanınmayan bir tarayıcıdan kod
+    istenirse, hesap varsa sahibine **günde en çok bir kez** bir e-posta gider. İçinde
+    `/hesap#unlock=<kimlik>.<sır>` bağlantısı vardır.
+  - Sır, kodlar gibi bağlantının kimliğinden sunucu anahtarıyla türetilir (`bargu/v1/web-unlock`
+    etiketi, `packages/crypto`); sunucu yalnızca kimliği ve hangi hesaba ait olduğunu 24 saat tutar.
+    Kuyrukta da sır değil kimlik durur.
+  - Sır `#` işaretinden sonradır: tarayıcı onu sunucuya göndermez, günlüklere düşmez. Sayfa onu
+    okuyup adres çubuğundan hemen siler ve `POST /v1/web/unlock` ile gönderir. Bağlantı bir kez
+    çalışır; açıldığı tarayıcı, kodla girmiş bir tarayıcı gibi hatırlanır (en yeni 5, her biri 180
+    gün).
+  - Bağlantı tek başına hiçbir şey açmaz: kod yine e-postaya gider, sayfaya bağlıdır ve ağ başına
+    sınırlar sürer. Bağlantıyı kullanabilen, e-postayı zaten okuyabilen kişidir; o kişi kodu da
+    okuyabilir.
+  - Tavanı dolduran saldırgan bu e-postayı adres başına günde bir kez tetikleyebilir; fazlası gitmez.
+    Cevap hesap olsun olmasın aynıdır (`429`); sayfa "adres seninse e-postana bir bağlantı gelmiş
+    olabilir" der.
+  - Uç noktanın kendi IP sınırı vardır (saatte 10). Bekleyen bağlantı hesapla silinir.
+  - Bağlantının adresi `WEB_ORIGIN` ayarından, yoksa passkey'lerin ilk web kökeninden gelir
+    (staging'de API'nin kendisi). İstekteki `Host` başlığı kullanılmaz: sahte bir başlık bağlantıyı
+    başka siteye yönlendirmesin.
+  - Seçilmeyenler: tavan dolunca yeni ağlardan gelen istekleri gecikmeli kabul etmek (saldırgan aynı
+    gecikmeyi bekler); tavanı yükseltmek (e-posta bombalaması büyür).
+- **Yeni izleyici bildirimleri:**
+  - Aynı anda birden çok kişi gelince (ör. 50 kişilik etkinlik) çember ve tür başına tek bildirim
+    gider: "Ayşe ve 12 kişi daha artık…" (QA Faz 8 G9).
+  - Hayalet modu ya da duraklatılmış paylaşımda bir çember konumu ve geçmişi "görmüyor" sayılır:
+    iOS uzantısının listesi ve "katıldı" duyurusu buna göredir (QA 3a-B5). Hayaletteyken katılan
+    kişi önce "katıldı" diye duyurulur; hayalet kalkınca "artık konumunu görebilir" bildirimi bir kez
+    gider (önceden ikisi de gitmiyordu).
+- **Kilitli uygulamada bildirim hedefi (QA 3b, bilgi):** Kilit açılınca uygulama haritadan başlar.
+  Kilitliyken dokunulan bir bildirimin ya da davet bağlantısının hedefi kaybolabilir; kişi
+  bildirimi ya da bağlantıyı yeniden açar. Faz 10 iş listesinde.
+- **Hesap sayfasının dosyaları (QA 3b N4, bilgi):** `app.js` ve `app.css` sayfanın sıkı CSP'si
+  yerine genel güvenlik başlıklarıyla gelir; belge olmadıkları için sorun değildir.

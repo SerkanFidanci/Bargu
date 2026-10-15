@@ -22,6 +22,7 @@ import { z } from 'zod';
 
 import { useAvatarPhotos } from '@/ui/avatar-photos';
 
+import { UPLOAD_TIMEOUT_MS } from '../auth/api-client';
 import { api, useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
 import { keys, liveRequest } from '../live/live-session';
@@ -205,6 +206,8 @@ export async function setPhoto(image: Uint8Array): Promise<void> {
   await api.authed('/v1/me/photo', {
     method: 'PUT',
     body: { photoId: id, ciphertext: toBase64url(sealProfilePhoto(key, id, image)) },
+    // A photo is large: a weak network needs longer than the usual 15 s (QA Faz 9 slice 1, B5).
+    timeoutMs: UPLOAD_TIMEOUT_MS,
   });
   const image64 = toBase64url(image);
   vault().set(MINE_KEY, JSON.stringify({ id, key: toBase64url(key), image: image64 }));

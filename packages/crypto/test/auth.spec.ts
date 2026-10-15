@@ -7,6 +7,7 @@ import { openAtRest, sealAtRest } from '../src/at-rest.js';
 import {
   deriveOtpCode,
   deriveWebCode,
+  deriveWebUnlockToken,
   emailLookupKey,
   generateRequestNonce,
   generateToken,
@@ -16,6 +17,7 @@ import {
   signRequest,
   verifyOtpCode,
   verifyWebCode,
+  verifyWebUnlockToken,
   WEB_CODE_DIGITS,
   verifyRequestSignature,
   type RequestToSign,
@@ -192,6 +194,27 @@ describe('account web page codes (docs/ADR/0021)', () => {
     expect(verifyWebCode(key, challenge, wrong)).toBe(false);
     expect(verifyWebCode(key, challenge, code.slice(1))).toBe(false);
     expect(verifyWebCode(key, challenge, '')).toBe(false);
+  });
+});
+
+describe('account web page unlock links (QA 4 K2b)', () => {
+  const unlockId = '0190f7a4-3333-7333-8333-000000000003';
+
+  it('match an independent HMAC-SHA256 computation under their own label', () => {
+    const mac = createHmac('sha256', key)
+      .update(Buffer.concat([Buffer.from('bargu/v1/web-unlock\0'), uuidToBytes(unlockId)]))
+      .digest();
+    expect(deriveWebUnlockToken(key, unlockId)).toBe(mac.toString('base64url'));
+    expect(deriveWebUnlockToken(key, unlockId)).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  });
+
+  it('verify only the exact secret of the same link', () => {
+    const token = deriveWebUnlockToken(key, unlockId);
+    expect(verifyWebUnlockToken(key, unlockId, token)).toBe(true);
+    expect(verifyWebUnlockToken(key, '0190f7a4-3333-7333-8333-000000000004', token)).toBe(false);
+    expect(verifyWebUnlockToken(key, unlockId, token.slice(1))).toBe(false);
+    expect(verifyWebUnlockToken(key, unlockId, '')).toBe(false);
+    expect(codeOf(() => deriveWebUnlockToken(new Uint8Array(16), unlockId))).toBe('INVALID_KEY');
   });
 });
 

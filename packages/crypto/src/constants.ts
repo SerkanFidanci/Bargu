@@ -41,6 +41,8 @@ export const LABELS = {
   otpCode: 'bargu/v1/otp',
   /** The account web page's code (docs/ADR/0021): never valid as a login code, nor the reverse. */
   webCode: 'bargu/v1/web-code',
+  /** The account web page's "recognise this browser" link (QA 4 K2b). */
+  webUnlock: 'bargu/v1/web-unlock',
   emailLookup: 'bargu/v1/email',
   tokenHash: 'bargu/v1/token',
   atRest: 'bargu/v1/at-rest',

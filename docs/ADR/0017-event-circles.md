@@ -101,6 +101,9 @@ sunucuda çembere ait hiçbir kayıt kalmaz; telefonlar anahtarları atar.
   - İlk konumların 45'i eski epoch yüzünden reddedildi, 4'ü (son dalga) kabul edildi. Reddedilen
     telefonlar `circle.changed` olayıyla yeniden anahtarlayıp gönderir. Bu beklenen bir maliyettir:
     kalabalık bir girişte konumlar bir iki saniye gecikir.
+- **Geri sayım halkası (QA Faz 8 D9, dilim 6b):** Halka artık bitişe kadar süren tek bir animasyon
+  değil (bir haftalık etkinlikte ekran açık kaldıkça kare çiziyordu). Ekranın saatiyle yarım dakikada
+  bir kısa bir adımla iner, arada durur. Azaltılmış hareket ayarında adımlar animasyonsuzdur.
 - **Kalıcı testler (QA Faz 8 C1–C4, M1–M2):** `event-cleanups.int-spec.ts`. Süpürme yapan testler
   ortak bir test kilidiyle sırayla çalışır; aynı veritabanını paylaşan dosyalar birbirinin biten
   etkinliklerini süpürmez (kırılgan testler).

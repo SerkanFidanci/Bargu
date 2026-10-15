@@ -43,6 +43,14 @@ const webAuthnOrigin = z.string().refine((value) => {
   return (url.protocol === 'https:' || local) && url.origin === value;
 }, 'expected an https origin or android:apk-key-hash:…');
 
+/** A web origin of our own: https (http only on localhost), nothing after the host and port. */
+const webOrigin = z.string().refine((value) => {
+  if (!URL.canParse(value)) return false;
+  const url = new URL(value);
+  const local = url.protocol === 'http:' && url.hostname === 'localhost';
+  return (url.protocol === 'https:' || local) && url.origin === value;
+}, 'expected an https origin');
+
 /** Java-style package name: lower-case segments separated by dots, at least two segments. */
 const PACKAGE_SEGMENT = /^[a-z][a-z0-9_]*$/;
 const androidPackage = z
@@ -91,6 +99,11 @@ export const envSchema = z
     WEBAUTHN_RP_ID: z.string().regex(/^[a-z0-9.-]+$/),
     WEBAUTHN_RP_NAME: z.string().min(1).default('Bargu'),
     WEBAUTHN_ORIGINS: commaSeparated.pipe(z.array(webAuthnOrigin).min(1)),
+    /**
+     * Where the account web page (/hesap) is, for links in emails (QA 4 K2b). Without it, the first
+     * web origin of the passkeys (on staging the API's own host).
+     */
+    WEB_ORIGIN: webOrigin.optional(),
 
     ANDROID_PACKAGE: androidPackage.default('app.bargu'),
     /** Signing certificates of the Android app (assetlinks.json, Play Integrity check). */
@@ -208,9 +221,19 @@ export const envSchema = z
       'WEBAUTHN_ORIGINS',
       'must not contain http origins',
     );
+    need(
+      env.WEB_ORIGIN === undefined || env.WEB_ORIGIN.startsWith('https://'),
+      'WEB_ORIGIN',
+      'must be https',
+    );
   });
 
 export type Env = z.infer<typeof envSchema>;
+
+/** Where links in emails point: the account web page's origin, if one is known. */
+export function webOriginOf(env: Pick<Env, 'WEB_ORIGIN' | 'WEBAUTHN_ORIGINS'>): string | null {
+  return env.WEB_ORIGIN ?? env.WEBAUTHN_ORIGINS.find((origin) => origin.startsWith('http')) ?? null;
+}
 
 export class InvalidEnvError extends Error {
   override readonly name = 'InvalidEnvError';

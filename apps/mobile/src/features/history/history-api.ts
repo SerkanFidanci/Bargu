@@ -22,6 +22,11 @@ export const historyApi: HistoryApi = {
   },
 };
 
+/** All of one's own history on the server, every circle (QA Faz 8 G5). */
+export async function removeAllHistory(): Promise<void> {
+  await api.authed('/v1/me/history', { method: 'DELETE', idempotent: true });
+}
+
 /**
  * A new piece of someone's history came up (live message), per `${circleId}:${userId}`: an open
  * history screen fetches that member's day again.

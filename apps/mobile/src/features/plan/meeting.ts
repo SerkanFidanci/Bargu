@@ -182,6 +182,9 @@ export function createMeetings(deps: MeetingDeps) {
     deps.store().set(CHOICES_KEY, JSON.stringify(next));
   }
 
+  /** "Will be late" that did not get through, per meeting: how often, and not before when. */
+  const lateFailures = new Map<string, { tries: number; next: number }>();
+
   const modeOf = (circleId: string): TravelMode | undefined => choices()[circleId]?.mode;
   const remindsFor = (circleId: string) => choices()[circleId]?.remind !== false;
 
@@ -256,9 +259,19 @@ export function createMeetings(deps: MeetingDeps) {
     if (at - lateSince < MEETING.lateHoldMs) return;
     const told = read(deps.store(), TOLD_KEY, toldSchema, {});
     if (!lateIsNews(minutes, told[key])) return;
+    const failed = lateFailures.get(key);
+    if (failed !== undefined && at < failed.next) return;
     const circle = deps.circles().find((candidate) => candidate.id === meeting.circleId);
     if (circle === undefined) return;
-    await deps.sendLate(circle, meeting.meetAt, minutes);
+    try {
+      await deps.sendLate(circle, meeting.meetAt, minutes);
+    } catch (error) {
+      const tries = (failed?.tries ?? 0) + 1;
+      const wait = Math.min(MEETING.lateRetryMs * 2 ** (tries - 1), MEETING.lateRetryMaxMs);
+      lateFailures.set(key, { tries, next: at + wait });
+      throw error;
+    }
+    lateFailures.delete(key);
     deps.store().set(TOLD_KEY, JSON.stringify({ ...told, [key]: minutes }));
   }
 

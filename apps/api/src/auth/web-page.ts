@@ -126,6 +126,9 @@ export const WEB_PAGE_JS = `'use strict';
       expired: 'Kodun süresi doldu. Yeni kod iste.',
       locked: 'Çok fazla yanlış deneme oldu. Daha sonra yeniden dene.',
       limited: 'Çok fazla istek oldu. Biraz bekleyip yeniden dene.',
+      addressLimited: 'Bugün çok fazla istek oldu. Adres seninse e-postana, bu tarayıcıyı tanıtan bir bağlantı gelmiş olabilir: onu bu bilgisayarda aç, sonra yeniden kod iste.',
+      unlocked: 'Bu tarayıcı tanındı. Şimdi e-postanı yazıp kod isteyebilirsin.',
+      unlockFailed: 'Bu bağlantı geçersiz ya da daha önce kullanılmış.',
       session: 'Oturumun süresi doldu. Baştan başla.',
       failed: 'Bir şeyler ters gitti. Bağlantını kontrol edip yeniden dene.'
     },
@@ -156,6 +159,9 @@ export const WEB_PAGE_JS = `'use strict';
       expired: 'The code has expired. Ask for a new one.',
       locked: 'Too many wrong tries. Try again later.',
       limited: 'Too many requests. Wait a little and try again.',
+      addressLimited: 'Too many requests today. If the address is yours, we may have emailed you a link that recognises this browser: open it on this computer, then ask for a code again.',
+      unlocked: 'This browser is now recognised. Enter your email to get a code.',
+      unlockFailed: 'This link is not valid or was already used.',
       session: 'Your session has expired. Start again.',
       failed: 'Something went wrong. Check your connection and try again.'
     }
@@ -240,6 +246,8 @@ export const WEB_PAGE_JS = `'use strict';
         if (!response.ok) {
           var error = new Error('request failed');
           error.message = explain(response.status, data && data.code);
+          error.status = response.status;
+          error.code = data && data.code;
           error.restart = data && (data.code === 'OTP_EXPIRED' || data.code === 'UNAUTHENTICATED');
           throw error;
         }
@@ -269,8 +277,27 @@ export const WEB_PAGE_JS = `'use strict';
         state.challengeId = data.challengeId;
         show('code-step');
         $('code').focus();
-      }, function (error) { fail(button, error); });
+      }, function (error) {
+        if (error.status === 429) error.message = w.addressLimited;
+        fail(button, error);
+      });
   });
+
+  // Opened from the "recognise this browser" email (QA 4 K2b): the secret is after the "#", so it
+  // reaches no server log, and it leaves the address bar at once.
+  var unlock = /^#unlock=([0-9a-f-]{36})\\.([A-Za-z0-9_-]{43})$/.exec(location.hash);
+  if (unlock) {
+    history.replaceState(null, '', location.pathname);
+    text('status', w.wait);
+    post('/v1/web/unlock', { id: unlock[1], token: unlock[2] }).then(function (data) {
+      remember(data.remember);
+      text('status', w.unlocked);
+      $('email').focus();
+    }, function (error) {
+      text('status', error.code === 'OTP_INVALID' || error.code === 'OTP_EXPIRED'
+        ? w.unlockFailed : error.message);
+    });
+  }
 
   $('code-step').addEventListener('submit', function (event) {
     event.preventDefault();

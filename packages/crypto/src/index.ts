@@ -52,6 +52,7 @@ export { rekeyReason, type RekeyReason } from './rekey.js';
 export {
   deriveOtpCode,
   deriveWebCode,
+  deriveWebUnlockToken,
   emailLookupKey,
   generateRequestNonce,
   generateToken,
@@ -65,6 +66,7 @@ export {
   verifyOtpCode,
   verifyRequestSignature,
   verifyWebCode,
+  verifyWebUnlockToken,
   WEB_CODE_DIGITS,
   type RequestToSign,
 } from './auth.js';

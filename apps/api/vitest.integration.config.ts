@@ -14,7 +14,10 @@ export default defineConfig({
     include: ['test/integration/**/*.int-spec.ts'],
     globalSetup: ['test/integration/global-setup.ts'],
     // Each file runs whole apps (database and queue pools): a few at a time stay well under the
-    // test database's connection limit on many-core machines too.
+    // test database's connection limit on many-core machines too. That holds for ONE run: two runs
+    // against the same test Postgres at once (two sessions, a run beside a single file) go over the
+    // app role's connection limit ("too many connections for role bargu_app") and the busiest
+    // files (event-load, event-circles) fail for that alone (QA 6a G-5). Run one at a time.
     maxWorkers: 4,
     testTimeout: 30_000,
     hookTimeout: 60_000,

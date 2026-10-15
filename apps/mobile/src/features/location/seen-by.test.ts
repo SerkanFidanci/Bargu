@@ -1,4 +1,10 @@
-import { forgetMembers, knownMembers, newLiveViewers, rememberMembers } from './seen-by';
+import {
+  forgetMembers,
+  knownMembers,
+  newLiveViewers,
+  rememberMembers,
+  viewerNotices,
+} from './seen-by';
 import { DEFAULT_SHARING, type SharingSettings } from './sharing';
 import { card, circleOf, memoryStore, somebody } from './test-support';
 
@@ -55,5 +61,29 @@ describe('who can see my live location (Faz 9: new viewers)', () => {
     expect(Object.keys(knownMembers(store)).sort()).toEqual([a.id, b.id].sort());
     forgetMembers(store, (circleId) => circleId === a.id);
     expect(Object.keys(knownMembers(store))).toEqual([b.id]);
+  });
+});
+
+describe('new viewer notices (QA Faz 8 G9)', () => {
+  it('tells about everyone who came in at once in one notice per circle and kind', () => {
+    const [me, ...crowd] = [somebody(), somebody(), somebody(), somebody(), somebody()];
+    const event = circleOf([me, ...crowd], { kind: 'event' });
+    const group = circleOf([me, ...crowd.slice(0, 1)], { kind: 'family' });
+    const cards = event.members.filter((member) => member.userId !== me.userId);
+    const [first, second] = cards;
+    if (first === undefined || second === undefined) throw new Error('members');
+    const live = cards.map((viewer) => ({ circle: event, viewer }));
+    // Two of them see the history too; one more sees only the history of the group.
+    const history = [
+      { circle: event, viewer: first },
+      { circle: event, viewer: second },
+      { circle: group, viewer: first },
+    ];
+    const notices = viewerNotices(live, history);
+    expect(notices.map(({ kind, circle, viewers }) => [kind, circle.id, viewers.length])).toEqual([
+      ['both', event.id, 2],
+      ['live', event.id, 2],
+      ['history', group.id, 1],
+    ]);
   });
 });

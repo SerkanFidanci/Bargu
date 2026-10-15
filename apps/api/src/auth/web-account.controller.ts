@@ -8,6 +8,9 @@ import {
   type WebRevoke,
   webRevokeSchema,
   type WebSession,
+  type WebUnlock,
+  type WebUnlocked,
+  webUnlockSchema,
 } from '@bargu/schemas';
 
 import { ZodPipe } from '../common/zod.pipe.js';
@@ -68,6 +71,17 @@ export class WebAccountController {
     @Req() request: AuthedRequest,
   ): Promise<WebSession> {
     return this.web.verify(body, request.ip);
+  }
+
+  /** The emailed "recognise this browser" link, opened (QA 4 K2b). */
+  @Post('v1/web/unlock')
+  @Unsigned()
+  @HttpCode(HttpStatus.OK)
+  unlock(
+    @Body(new ZodPipe(webUnlockSchema)) body: WebUnlock,
+    @Req() request: AuthedRequest,
+  ): Promise<WebUnlocked> {
+    return this.web.unlock(body, request.ip);
   }
 
   @Post('v1/web/revoke-device')

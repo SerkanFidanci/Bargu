@@ -17,7 +17,6 @@ import {
   statusGoneEventSchema,
   statusSnapshotSchema,
   watchEventSchema,
-  type MemberCard,
 } from '@bargu/schemas';
 import * as Battery from 'expo-battery';
 import { z } from 'zod';
@@ -34,7 +33,7 @@ import { memberName } from '../circles/names';
 import { useCircleKeys } from '../circles/circle-sync';
 import { isApiError } from '../errors';
 import { createHistory } from '../history/history';
-import { historyApi, useHistoryPings } from '../history/history-api';
+import { historyApi, removeAllHistory, useHistoryPings } from '../history/history-api';
 import { tellNewViewer } from '../history/viewer-notice';
 import {
   historyAudience,
@@ -98,7 +97,13 @@ import {
   seenThere,
   seersByCircle,
 } from './sharing';
-import { forgetMembers, knownMembers, newLiveViewers, rememberMembers } from './seen-by';
+import {
+  forgetMembers,
+  knownMembers,
+  newLiveViewers,
+  rememberMembers,
+  viewerNotices,
+} from './seen-by';
 import {
   anyoneSees,
   lastReview,
@@ -401,25 +406,24 @@ function checkViewers(circles: readonly Circle[]): void {
   const me = useAuth.getState().userId;
   if (me === null) return;
   const settings = loadSharingSettings();
+  // A ghost is seen by nobody: who comes in meanwhile is told about once it is over, not as an
+  // unseen viewer now and not never (QA Faz 9 3a-B5). What was known waits until then.
+  if (settings.ghost !== 'off') return;
   const audience = historyAudience(circles, settings, me);
   const live = newLiveViewers(knownMembers(vault()), circles, settings, me, Date.now());
   const history = newViewers(knownViewers(vault()), audience);
-  const key = (circleId: string, userId: string) => `${circleId}:${userId}`;
-  const historyKeys = new Set(history.map(({ circle, viewer }) => key(circle.id, viewer.userId)));
-  const liveKeys = new Set(live.map(({ circle, viewer }) => key(circle.id, viewer.userId)));
-  const tell = (
-    text: 'location.newViewer' | 'location.newViewerBoth' | 'history.newViewer',
-    circle: Circle,
-    viewer: MemberCard,
-  ) => {
-    tellNewViewer(i18n.t(text, { name: memberName(viewer), circle: circle.name ?? '' }), circle.id);
-  };
-  for (const { circle, viewer } of live) {
-    const both = historyKeys.has(key(circle.id, viewer.userId));
-    tell(both ? 'location.newViewerBoth' : 'location.newViewer', circle, viewer);
-  }
-  for (const { circle, viewer } of history) {
-    if (!liveKeys.has(key(circle.id, viewer.userId))) tell('history.newViewer', circle, viewer);
+  // One notice per circle and kind, however many came in at once (QA Faz 8 G9).
+  const texts = {
+    live: ['location.newViewer', 'location.newViewers'],
+    both: ['location.newViewerBoth', 'location.newViewersBoth'],
+    history: ['history.newViewer', 'history.newViewers'],
+  } as const;
+  for (const { kind, circle, viewers } of viewerNotices(live, history)) {
+    const [first] = viewers;
+    if (first === undefined) continue;
+    const [one, many] = texts[kind];
+    const words = { name: memberName(first), circle: circle.name ?? '', count: viewers.length - 1 };
+    tellNewViewer(i18n.t(viewers.length === 1 ? one : many, words), circle.id);
   }
   rememberViewers(vault(), audience);
   rememberMembers(vault(), circles, me);
@@ -518,6 +522,12 @@ export async function forgetAllHistory(): Promise<'off' | 'later'> {
   for (const circleId of circleIds) {
     if ((await setHistory(circleId, false)) === 'later') later = true;
   }
+  // What an earlier install wrote, which this one does not know of (QA Faz 8 G5).
+  try {
+    await removeAllHistory();
+  } catch {
+    later = true;
+  }
   return later ? 'later' : 'off';
 }
 
@@ -545,13 +555,16 @@ export async function applyMinorRules(): Promise<void> {
 export function updateSharing(change: (current: SharingSettings) => SharingSettings): void {
   // Before the change too: a timed share already over is not "still shared" because it is renewed.
   history.sharingChanged();
-  const next = change(loadSharingSettings());
+  const before = loadSharingSettings();
+  const next = change(before);
   useSharing.setState(next, true);
   saveSharing(vault(), next);
   history.sharingChanged();
   watchSharingEnd();
   shareSeenWithExtension(next);
   planSharingReminder();
+  // Back from a ghost: whoever came in meanwhile can see this phone now and is told about.
+  if (before.ghost !== 'off' && next.ghost === 'off') checkViewers(cachedCircles() ?? []);
   void locationEngine.changed();
 }
 
