@@ -15,7 +15,16 @@ export interface ShownPush {
   channel: typeof SOCIAL_CHANNEL | typeof PLACES_CHANNEL | typeof MEETINGS_CHANNEL;
   /** Who it is about (for muting); null for the server's notices. */
   fromUserId: string | null;
+  /** Tapping opens this screen instead of the circle (guardian notices name a link). */
+  route?: 'guardians';
 }
+
+const GUARDIAN_NOTICES: ReadonlySet<string> = new Set([
+  'guardianRequest',
+  'guardianLinked',
+  'guardianEndRequested',
+  'guardianEnded',
+]);
 
 /**
  * The words of an opened notification, in the phone's language. A member's notification names
@@ -28,6 +37,17 @@ export function pushText(
   /** What a circle sees of this phone: live location, history (Faz 9, docs/ADR/0019). */
   seenIn: (circleId: string) => SeenThere = () => ({ location: false, history: false }),
 ): ShownPush | null {
+  if (body.kind === 'notice' && GUARDIAN_NOTICES.has(body.notice)) {
+    // docs/ADR/0023 §4: the "circle" is the link; the guardian screen shows who and what.
+    return {
+      title: 'Bargu',
+      body: i18n.t(`notifications.notice.${body.notice}`),
+      circleId: body.circleId,
+      channel: SOCIAL_CHANNEL,
+      fromUserId: null,
+      route: 'guardians',
+    };
+  }
   if (body.kind === 'notice') {
     const circle = contacts.circles[body.circleId]?.name ?? '';
     // Someone new in a circle that sees the location or the history: they can see it too

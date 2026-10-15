@@ -213,9 +213,15 @@ export function createCircleSync({
       const work = new Map<string, { fetch: boolean; keys: boolean; gone: boolean }>();
       let reloadAll = false;
       for (const event of events) {
-        // Places and event documents have their own sync (features/places, features/plan); the
-        // circle itself did not change.
-        if (event.type === 'places.changed' || event.type === 'docs.changed') continue;
+        // Places, event documents and guardian links have their own sync (features/places,
+        // features/plan, features/guardians); the circle itself did not change.
+        if (
+          event.type === 'places.changed' ||
+          event.type === 'docs.changed' ||
+          event.type === 'guardians.changed'
+        ) {
+          continue;
+        }
         // An event circle ended early: the server names no ended circle, the list tells which.
         if (event.type === 'circles.reload') {
           reloadAll = true;

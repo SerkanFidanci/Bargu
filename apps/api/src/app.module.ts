@@ -17,6 +17,7 @@ import { PhotosModule } from './photos/photos.module.js';
 import { PlacesModule } from './places/places.module.js';
 import { PushModule } from './push/push.module.js';
 import { RelayModule } from './relay/relay.module.js';
+import { GuardiansModule } from './guardians/guardians.module.js';
 import { UsersModule } from './users/users.module.js';
 import { WeatherModule } from './weather/weather.module.js';
 
@@ -45,6 +46,7 @@ export class AppModule {
         DocsModule,
         HistoryModule,
         AccountModule,
+        GuardiansModule,
       ],
     };
   }

@@ -172,7 +172,9 @@
       "securityDetail": "Uygulama kilidi, kaybolan telefon, olaylar",
       "privacy": "Gizlilik ve hesap",
       "privacyDetail": "Aydınlatma, rıza, verilerin, hesabı silme",
-      "notifications_undetermined": "Kapalı · açmak için dokun"
+      "notifications_undetermined": "Kapalı · açmak için dokun",
+      "guardians": "Ebeveyn bağlantısı",
+      "guardiansDetail": "Ebeveyn ve çocuk hesapları"
     }
   },
   "ui": {
@@ -460,7 +462,11 @@
       "memberJoinedSees": "Çemberine yeni biri katıldı; artık o da konumunu görebilir",
       "memberJoinedSeesIn": "{{circle}} çemberine yeni biri katıldı; artık o da konumunu görebilir",
       "memberJoinedBoth": "Çemberine yeni biri katıldı; artık o da konumunu ve konum geçmişini görebilir",
-      "memberJoinedBothIn": "{{circle}} çemberine yeni biri katıldı; artık o da konumunu ve konum geçmişini görebilir"
+      "memberJoinedBothIn": "{{circle}} çemberine yeni biri katıldı; artık o da konumunu ve konum geçmişini görebilir",
+      "guardianRequest": "Biri ebeveynin olmak istiyor; son onayı sen ver",
+      "guardianLinked": "Ebeveyn bağlantısı kuruldu",
+      "guardianEndRequested": "Çocuğun ebeveyn bağlantısını bitirmek istiyor",
+      "guardianEnded": "Bir ebeveyn bağlantısı bitti"
     },
     "mute": {
       "title": "{{name}} için bildirimler",
@@ -847,7 +853,11 @@
     "deleteSureTitle": "Emin misin?",
     "deleteSureBody": "Hesabın ve bütün verilerin kalıcı olarak silinecek. Bu geri alınamaz.",
     "delete": "Hesabımı sil",
-    "deleted": "Hesabın silindi"
+    "deleted": "Hesabın silindi",
+    "findableTitle": "Bulunabilirlik",
+    "findable": "Kullanıcı adımla bulunabilirim",
+    "findableHint": "Kapalıyken kimse seni kullanıcı adınla bulamaz ya da ekleyemez; seni yalnızca QR kodunu ya da davet linkini verdiğin kişiler ekler.",
+    "findableLocked": "15–17 yaşında bu ayar kapalıdır ve açılamaz."
   },
   "age": {
     "title": "Kaç yaşındasın?",
@@ -876,5 +886,59 @@
     "toTeenBody": "Kullanıcı adınla bulunmazsın, konum geçmişin kapanır ve silinir, yeni çemberlerde konumun kapalı başlar. 18 veya üstüne dönmek için bize yazman gerekir.",
     "toAdultHint": "18 yaşına girdiysen ya da yanlış seçtiysen gizlilik metnindeki adresten bize yaz; bir kişi bakar.",
     "noHistory": "15–17 yaşında konum geçmişi kapalıdır."
+  },
+  "guardians": {
+    "title": "Ebeveyn bağlantısı",
+    "childIntro": "İstersen bir ya da iki ebeveynini ekleyebilirsin. Ebeveynin yaş grubunu, bağlantı tarihini ve çemberlerindeki kişileri (konumunu kimlerin görebileceğini) görür. Konumunu, geçmişini, yerlerini ve durumunu görmez. Gizli bir şey yok: ne gördüğünü sen de aynı ekranda görürsün.",
+    "parentIntro": "Çocuğun 15–17 yaşındaysa ebeveyn olarak bağlanabilirsin. Çocuğun kendi telefonunda Ben → Ebeveyn bağlantısı → Ebeveyn ekle'ye bassın; çıkan QR kodu buradan tara. Son onayı çocuğun verir.",
+    "parents": "Ebeveynlerin",
+    "children": "Çocukların",
+    "add": "Ebeveyn ekle",
+    "scan": "Çocuğumun QR kodunu tara",
+    "wantsToBe": "Ebeveynin olmak istiyor",
+    "waitingChild": "Çocuğunun onayı bekleniyor",
+    "since": "{{date}} tarihinden beri bağlı",
+    "endsOn": "Bağlantı {{date}} tarihinde bitecek",
+    "confirmWhat": "Onaylarsan yaş grubunu, bağlantı tarihini ve çemberlerindeki kişileri görecek. Konumunu, geçmişini, yerlerini ve durumunu görmeyecek.",
+    "confirm": "Onayla",
+    "confirmed": "Ebeveyn bağlantısı kuruldu.",
+    "decline": "Reddet",
+    "declineTitle": "Reddedilsin mi?",
+    "declineBody": "{{name}} ebeveynin olarak eklenmeyecek.",
+    "cancel": "Vazgeç",
+    "ended": "Bağlantı bitti.",
+    "endAsked": "Ebeveynine haber verildi. Onaylarsa hemen, onaylamazsa 7 gün sonra biter.",
+    "codeTitle": "Ebeveyn ekle",
+    "codeLabel": "Ebeveyn bağlantısı için QR kod",
+    "codeBody": "Bu kodu ebeveynine göster; kendi Bargu'suyla tarasın. Kod 10 dakika ve bir kez geçerli. Ebeveynin onaylayınca son onayı sen verirsin.",
+    "shareMessage": "Bargu'da ebeveynim olmak için bu bağlantıyı aç: {{link}}",
+    "parentTook": "Ebeveynin kodu okuttu. Son onayı ver.",
+    "offerTitle": "Ebeveyn olarak bağlan",
+    "offerBody": "{{name}} seni ebeveyni olarak eklemek istiyor.",
+    "seesTitle": "Neleri göreceksin?",
+    "sees": "Yaş grubunu, bağlantı tarihini ve çemberlerindeki kişileri, yani konumunu kimlerin görebileceğini.",
+    "notSeesTitle": "Neleri görmeyeceksin?",
+    "notSees": "Konumu, konum geçmişi, yerleri, durum mesajı ve etkinlik bilgileri uçtan uca şifrelidir; ebeveyn bağlantısı bunları açmaz.",
+    "acceptAction": "Ebeveyni olarak onayla",
+    "accepted": "Onayın gitti. Çocuğun kendi telefonunda son onayı verince bağlantı kurulur.",
+    "codeInvalid": "Bu kod geçersiz ya da süresi doldu. Çocuğundan yeni bir kod göstermesini iste.",
+    "adultOnly": "Ebeveyn olarak yalnızca 18 yaş ve üstü bağlanabilir.",
+    "limit": "Bu hesaba zaten iki ebeveyn bağlı.",
+    "already": "Zaten bu hesabın ebeveynisin.",
+    "seenTitle": "Ebeveynin bunları görüyor",
+    "seenBy": "{{name}} ile bağlısın",
+    "ageBand": "Yaş grubu: {{band}}",
+    "whoSees": "Konumunu görebilecek kişiler",
+    "noCircles": "Henüz hiçbir çemberde değil.",
+    "friend": "Arkadaş",
+    "friendship": "Arkadaşlık",
+    "end": "Bağlantıyı bitir",
+    "agreeEnd": "Bitirmeyi onayla",
+    "askEnd": "Bağlantıyı bitirmek istiyorum",
+    "endTitle": "Bağlantı bitsin mi?",
+    "endBodyParent": "{{name}} ile ebeveyn bağlantın hemen biter ve {{name}} haber alır.",
+    "endBodyChild": "{{name}} haber alır. Onaylarsa bağlantı hemen, onaylamazsa 7 gün sonra biter.",
+    "childAskedEnd": "Çocuğun bağlantıyı bitirmek istiyor; {{date}} tarihinde biter.",
+    "circleOf": "Kişiler: {{names}}"
   }
 }

@@ -185,6 +185,8 @@ export const serverEventSchema = z.discriminatedUnion('type', [
    * circle on purpose: nothing about an ended circle stays on the server (docs/ADR/0017).
    */
   z.object({ type: z.literal('circles.reload') }).strict(),
+  /** A guardian link of the user changed (docs/ADR/0023 §4): fetch the links again. */
+  z.object({ type: z.literal('guardians.changed') }).strict(),
 ]);
 export type ServerEvent = z.infer<typeof serverEventSchema>;
 

@@ -172,7 +172,9 @@
       "securityDetail": "App lock, lost phone, events",
       "privacy": "Privacy and account",
       "privacyDetail": "Notice, consent, your data, deleting the account",
-      "notifications_undetermined": "Off · tap to turn on"
+      "notifications_undetermined": "Off · tap to turn on",
+      "guardians": "Parent link",
+      "guardiansDetail": "Parent and child accounts"
     }
   },
   "ui": {
@@ -460,7 +462,11 @@
       "memberJoinedSees": "Someone joined your circle; they can now see your location too",
       "memberJoinedSeesIn": "Someone joined {{circle}}; they can now see your location too",
       "memberJoinedBoth": "Someone joined your circle; they can now see your location and location history too",
-      "memberJoinedBothIn": "Someone joined {{circle}}; they can now see your location and location history too"
+      "memberJoinedBothIn": "Someone joined {{circle}}; they can now see your location and location history too",
+      "guardianRequest": "Someone wants to be your parent on Bargu; you give the last yes",
+      "guardianLinked": "Your parent link is set up",
+      "guardianEndRequested": "Your child wants to end the parent link",
+      "guardianEnded": "A parent link ended"
     },
     "mute": {
       "title": "Notifications from {{name}}",
@@ -847,7 +853,11 @@
     "deleteSureTitle": "Are you sure?",
     "deleteSureBody": "Your account and all your data will be deleted for good. This cannot be undone.",
     "delete": "Delete my account",
-    "deleted": "Your account was deleted"
+    "deleted": "Your account was deleted",
+    "findableTitle": "Being found",
+    "findable": "People can find me by username",
+    "findableHint": "When off, nobody can find or add you by username; only people you give your QR code or invite link to can add you.",
+    "findableLocked": "At 15–17 this stays off."
   },
   "age": {
     "title": "How old are you?",
@@ -876,5 +886,59 @@
     "toTeenBody": "Nobody will find you by your username, your location history is turned off and deleted, and your location starts off in new circles. Going back to 18 or older needs you to write to us.",
     "toAdultHint": "If you have turned 18 or chose by mistake, write to the address in the privacy notice; a person will look at it.",
     "noHistory": "Location history is off for 15–17."
+  },
+  "guardians": {
+    "title": "Parent link",
+    "childIntro": "If you like, you can add one or two parents. A parent sees your age band, since when you are linked, and the people in your circles (who could see your location). They do not see your location, history, places or status. Nothing is hidden: you see what they see on the same screen.",
+    "parentIntro": "If your child is 15–17, you can link as their parent. On their own phone they tap Me → Parent link → Add a parent; scan the QR code here. Your child gives the last yes.",
+    "parents": "Your parents",
+    "children": "Your children",
+    "add": "Add a parent",
+    "scan": "Scan my child’s QR code",
+    "wantsToBe": "Wants to be your parent",
+    "waitingChild": "Waiting for your child’s yes",
+    "since": "Linked since {{date}}",
+    "endsOn": "The link ends on {{date}}",
+    "confirmWhat": "If you say yes, they will see your age band, since when you are linked, and the people in your circles. They will not see your location, history, places or status.",
+    "confirm": "Say yes",
+    "confirmed": "Your parent link is set up.",
+    "decline": "Decline",
+    "declineTitle": "Decline?",
+    "declineBody": "{{name}} will not be added as your parent.",
+    "cancel": "Cancel",
+    "ended": "The link ended.",
+    "endAsked": "Your parent was told. It ends at once if they agree, otherwise in 7 days.",
+    "codeTitle": "Add a parent",
+    "codeLabel": "QR code for a parent link",
+    "codeBody": "Show this code to your parent; they scan it with their own Bargu. It works once, for 10 minutes. After their yes, you give the last one.",
+    "shareMessage": "Open this link to be my parent on Bargu: {{link}}",
+    "parentTook": "Your parent scanned the code. Give the last yes.",
+    "offerTitle": "Link as a parent",
+    "offerBody": "{{name}} wants to add you as their parent.",
+    "seesTitle": "What will you see?",
+    "sees": "Their age band, since when you are linked, and the people in their circles, that is who could see their location.",
+    "notSeesTitle": "What will you not see?",
+    "notSees": "Location, location history, places, status and event details are end-to-end encrypted; a parent link does not open them.",
+    "acceptAction": "Say yes as their parent",
+    "accepted": "Your yes was sent. The link is set up once your child says yes on their phone.",
+    "codeInvalid": "This code is not valid or has expired. Ask your child to show a new one.",
+    "adultOnly": "Only someone 18 or older can link as a parent.",
+    "limit": "This account already has two parents.",
+    "already": "You are already this account’s parent.",
+    "seenTitle": "What your parent sees",
+    "seenBy": "Linked with {{name}}",
+    "ageBand": "Age band: {{band}}",
+    "whoSees": "People who could see their location",
+    "noCircles": "Not in any circle yet.",
+    "friend": "Friend",
+    "friendship": "Friendship",
+    "end": "End the link",
+    "agreeEnd": "Agree to end it",
+    "askEnd": "I want to end the link",
+    "endTitle": "End the link?",
+    "endBodyParent": "Your parent link with {{name}} ends at once, and {{name}} is told.",
+    "endBodyChild": "{{name}} is told. It ends at once if they agree, otherwise in 7 days.",
+    "childAskedEnd": "Your child wants to end the link; it ends on {{date}}.",
+    "circleOf": "People: {{names}}"
   }
 }

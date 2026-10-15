@@ -77,6 +77,22 @@ describe('notification texts', () => {
     ).toBe('Bir çembere davet edildin');
   });
 
+  it('open the guardian screen for guardian notices, which name a link (docs/ADR/0023)', () => {
+    const shown = pushText(
+      { kind: 'notice', notice: 'guardianRequest', circleId: placeId, ts: 1 },
+      null,
+      contacts,
+    );
+    expect(shown).toMatchObject({
+      body: 'Biri ebeveynin olmak istiyor; son onayı sen ver',
+      route: 'guardians',
+    });
+    expect(
+      pushText({ kind: 'notice', notice: 'friendAdded', circleId: placeId, ts: 1 }, null, contacts)
+        ?.route,
+    ).toBeUndefined();
+  });
+
   it('warn that a newcomer will see the location, its history, or both (Faz 9, G2)', () => {
     const joined = { kind: 'notice', notice: 'memberJoined', circleId: circle.id, ts: 1 } as const;
     const seen = (location: boolean, history: boolean) => (circleId: string) => ({

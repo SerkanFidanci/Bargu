@@ -82,7 +82,11 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
     return 'inApp';
   }
   await Notifications.scheduleNotificationAsync({
-    content: { title: shown.title, body: shown.body, data: { circleId: shown.circleId } },
+    content: {
+      title: shown.title,
+      body: shown.body,
+      data: shown.route === undefined ? { circleId: shown.circleId } : { route: shown.route },
+    },
     trigger: { channelId: shown.channel },
   });
   return 'shown';

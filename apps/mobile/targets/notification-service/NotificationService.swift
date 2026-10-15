@@ -39,7 +39,7 @@ final class NotificationService: UNNotificationServiceExtension {
       content.title = title
       content.body = body
       content.threadIdentifier = thread
-      content.userInfo = ["circleId": circleId]
+      content.userInfo = thread == "guardians" ? ["route": "guardians"] : ["circleId": circleId]
       contentHandler(content)
     }
   }

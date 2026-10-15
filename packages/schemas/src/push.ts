@@ -11,6 +11,11 @@ export const PUSH_NOTICES = [
   'friendAdded',
   'circleInvite',
   'memberJoined',
+  // Guardians (docs/ADR/0023 §4); the "circle" they name is the link.
+  'guardianRequest',
+  'guardianLinked',
+  'guardianEndRequested',
+  'guardianEnded',
 ] as const;
 export type PushNotice = (typeof PUSH_NOTICES)[number];
 

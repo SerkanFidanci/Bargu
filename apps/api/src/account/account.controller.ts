@@ -4,6 +4,9 @@ import {
   type AgeState,
   type AgeUpdate,
   ageUpdateSchema,
+  type FindableState,
+  type FindableUpdate,
+  findableUpdateSchema,
   type HistoryConsent,
   historyConsentSchema,
   type NoticeRead,
@@ -94,6 +97,21 @@ export class AccountController {
     @Body(new ZodPipe(ageUpdateSchema)) body: AgeUpdate,
   ): Promise<AgeState> {
     return this.account.setAge(auth, body.band);
+  }
+
+  /** "Kullanıcı adımla bulunabilirim" (docs/ADR/0023). */
+  @Get('me/findable')
+  findable(@CurrentAuth() auth: AuthContext): Promise<FindableState> {
+    return this.account.findable(auth);
+  }
+
+  @Put('me/findable')
+  @HttpCode(HttpStatus.OK)
+  setFindable(
+    @CurrentAuth() auth: AuthContext,
+    @Body(new ZodPipe(findableUpdateSchema)) body: FindableUpdate,
+  ): Promise<FindableState> {
+    return this.account.setFindable(auth, body.findable);
   }
 
   @Put('me/privacy/history')

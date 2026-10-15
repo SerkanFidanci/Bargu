@@ -15,3 +15,7 @@
 "notice.memberJoinedSeesIn" = "%@ çemberine yeni biri katıldı; artık o da konumunu görebilir";
 "notice.memberJoinedBoth" = "Çemberine yeni biri katıldı; artık o da konumunu ve konum geçmişini görebilir";
 "notice.memberJoinedBothIn" = "%@ çemberine yeni biri katıldı; artık o da konumunu ve konum geçmişini görebilir";
+"notice.guardianRequest" = "Biri ebeveynin olmak istiyor; son onayı sen ver";
+"notice.guardianLinked" = "Ebeveyn bağlantısı kuruldu";
+"notice.guardianEndRequested" = "Çocuğun ebeveyn bağlantısını bitirmek istiyor";
+"notice.guardianEnded" = "Bir ebeveyn bağlantısı bitti";

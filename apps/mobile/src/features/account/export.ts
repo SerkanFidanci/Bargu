@@ -1,4 +1,9 @@
-import { type AccountExport, type AgeState, HISTORY_KEEP_MS } from '@bargu/schemas';
+import {
+  type AccountExport,
+  type AgeState,
+  type GuardianLink,
+  HISTORY_KEEP_MS,
+} from '@bargu/schemas';
 import { Directory } from 'expo-file-system';
 
 import type { TracePoint } from '../history/trail-model';
@@ -26,6 +31,7 @@ export function exportFile(
   phone: PhoneHeld,
   now: number,
   age: AgeState['age'] = null,
+  guardians: readonly GuardianLink[] = [],
 ) {
   return {
     format: 'bargu-export',
@@ -33,6 +39,16 @@ export function exportFile(
     exportedAt: new Date(now).toISOString(),
     account: server.account,
     ageBand: age === null ? null : { band: age.band, method: age.method, at: age.at },
+    // docs/ADR/0023 §4: the parent links, as this account is in them.
+    guardianLinks: guardians.map((link) => ({
+      role: link.role,
+      status: link.status,
+      other: link.other.username,
+      createdAt: new Date(link.createdAt).toISOString(),
+      activeAt: link.activeAt === null ? null : new Date(link.activeAt).toISOString(),
+      endRequestedAt:
+        link.endRequestedAt === null ? null : new Date(link.endRequestedAt).toISOString(),
+    })),
     devices: server.devices,
     circles: server.circles,
     securityEvents: server.securityEvents,

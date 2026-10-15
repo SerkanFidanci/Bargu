@@ -1,6 +1,8 @@
 import {
   type AccountExport,
   accountExportSchema,
+  type FindableState,
+  findableStateSchema,
   HISTORY_CONSENT_VERSION,
   PRIVACY_NOTICE_VERSION,
   type PrivacyState,
@@ -34,6 +36,23 @@ export async function setHistoryConsent(given: boolean): Promise<PrivacyState> {
     await api.authed('/v1/me/privacy/history', {
       method: 'PUT',
       body: { given, version: HISTORY_CONSENT_VERSION },
+      idempotent: true,
+    }),
+  );
+}
+
+/** "Kullanıcı adımla bulunabilirim" (docs/ADR/0023): always off for 15-17. */
+export const findableKey = ['findable'] as const;
+
+export async function fetchFindable(): Promise<FindableState> {
+  return findableStateSchema.parse(await api.authed('/v1/me/findable'));
+}
+
+export async function setFindable(findable: boolean): Promise<FindableState> {
+  return findableStateSchema.parse(
+    await api.authed('/v1/me/findable', {
+      method: 'PUT',
+      body: { findable },
       idempotent: true,
     }),
   );

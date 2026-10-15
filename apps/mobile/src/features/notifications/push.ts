@@ -94,10 +94,15 @@ function set(state: PushState): PushState {
 
 /** The circle a tapped notification is about, if it names one. */
 /** A screen a tapped notification opens instead of a circle (the weekly reminder: who sees you). */
-export function routeOfResponse(response: Notifications.NotificationResponse): '/seers' | null {
+export function routeOfResponse(
+  response: Notifications.NotificationResponse,
+): '/seers' | '/guardians' | null {
   const data: unknown = response.notification.request.content.data;
   if (typeof data !== 'object' || data === null) return null;
-  return (data as Record<string, unknown>).route === 'seers' ? '/seers' : null;
+  const { route } = data as Record<string, unknown>;
+  if (route === 'seers') return '/seers';
+  if (route === 'guardians') return '/guardians';
+  return null;
 }
 
 export function circleOfResponse(response: Notifications.NotificationResponse): string | null {

@@ -40,6 +40,18 @@ export type AgeState = z.infer<typeof ageStateSchema>;
 export const ageUpdateSchema = z.object({ band: ageBandSchema }).strict();
 export type AgeUpdate = z.infer<typeof ageUpdateSchema>;
 
+/**
+ * "Kullanıcı adımla bulunabilirim" (docs/ADR/0023): whether others find the account by username
+ * (profile card, friend request, group invite). On by default for 18+; always off for 15-17
+ * (`locked`).
+ */
+export const findableStateSchema = z
+  .object({ findable: z.boolean(), locked: z.boolean() })
+  .strict();
+export type FindableState = z.infer<typeof findableStateSchema>;
+export const findableUpdateSchema = z.object({ findable: z.boolean() }).strict();
+export type FindableUpdate = z.infer<typeof findableUpdateSchema>;
+
 /** Gives (`given: true`, with the version shown) or withdraws explicit consent. */
 export const historyConsentSchema = z
   .object({ given: z.boolean(), version: z.number().int().positive() })

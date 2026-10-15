@@ -78,8 +78,9 @@ Proje sahibinin kararları (PM üzerinden, 2026-10-15):
   önce. Tek soru: "Kaç yaşındasın?"; seçenekler "18 veya üstü", "15–17", "15'ten küçük". Önceden
   seçili seçenek yoktur.
 - **15'ten küçük:** Hesap açılmaz, sunucuya hiçbir şey gitmez. Ekranda "Bargu'yu 15 yaşından önce
-  kullanamazsın" yazar. Yanlış seçen geri dönüp düzeltebilir; beyan kontrol edilemez, bu bilinen
-  bir sınırdır (bkz. 2).
+  kullanamazsın" yazar. Yanlış seçen geri dönüp düzeltebilir; beyan kontrol edilemez. Geri dönüp
+  başka bir cevap vermek ya da hesabı silip yeniden açmak beyanı atlatır; bu bilinen bir sınırdır
+  ve belirteçle kapanır (bkz. 2).
 - **Sunucuya giden:** Giriş kodu doğrulanırken yaş grubu (`15-17` ya da `18+`). Hesap yeni açılıyorsa
   yaş grubu zorunludur; yoksa `400 AGE_REQUIRED` döner. Bu cevap kod doğrulandıktan sonra verilir
   (kod harcanır); önce verilseydi adresin hesabı olup olmadığını belli ederdi. Hesap varsa giriş
@@ -98,6 +99,14 @@ Proje sahibinin kararları (PM üzerinden, 2026-10-15):
 - **Başkasına görünmez:** Yaş grubu çember üyelerine, arkadaşlara ya da etkinliktekilere
   gösterilmez. Yalnızca kişinin kendisi ve bağlı ebeveyni görür. Bir etkinlikte kimin 15–17 olduğunu
   belli etmek çocuğu hedef yapar.
+- **"Kullanıcı adımla bulunabilirim" (QA 5a Y2, PM kararı):** Kullanıcı adı müsaitlik kontrolü
+  alınmış bir adı "alınmış" der. 15–17 kişi profil aramasında bulunmayınca "alınmış ama bulunamadı"
+  sonucu kişinin 15–17 olduğunu ele veriyordu. Bu yüzden bulunabilirlik herkese açık bir gizlilik
+  ayarıdır (`users.findable`, migration 0022): 18+ için varsayılan açık ve kapatılabilir; 15–17
+  için her zaman kapalı ve açılamaz (veritabanı tetikleyicisi ve kısıtı korur). Profil kartı,
+  arkadaş isteği ve gruba davet yalnızca bu ayara bakar. Böylece "alınmış ama bulunamadı" yalnızca
+  "bu kişi bulunmak istemiyor" demektir. Ayar "Ben → Gizlilik ve hesap → Bulunabilirlik"tedir
+  (`GET/PUT /v1/me/findable`).
 
 ### 2. Belirteç ve geçiş dönemi
 
@@ -162,8 +171,9 @@ ekranda görür. Ebeveyn bağlantısı konum vermez; ebeveyn çocuğun konumunu 
   olur. Ebeveyn bağlantısı isteğe bağlıdır; yönetmelik araçların sunulmasını istiyor, bağlanmayı
   zorunlu tutmuyor.
 - **Kurulum (karşılıklı onay):**
-  1. Çocuk "Ben → Ebeveynim → Ebeveyn ekle"ye basar. 10 dakikalık, tek kullanımlık bir QR ve link
-     oluşur.
+  1. Çocuk "Ben → Ebeveyn bağlantısı → Ebeveyn ekle"ye basar. 10 dakikalık, tek kullanımlık bir QR
+     ve link (`bargu://g/<token>`) oluşur; ekran görüntüsü engellidir. Yeni kod eskisini geçersiz
+     yapar.
   2. Ebeveyn QR'ı kendi Bargu'suyla tarar. "@çocuk seni ebeveyni olarak eklemek istiyor" ekranında
      neleri göreceği ve yönetebileceği yazar. "Ebeveyni olarak onayla"ya basar.
   3. Çocuğun telefonunda son onay çıkar: "@ebeveyn ebeveynin olacak; şunları görecek ve
@@ -171,6 +181,21 @@ ekranda görür. Ebeveyn bağlantısı konum vermez; ebeveyn çocuğun konumunu 
 
   Yüz yüze QR ve iki taraflı onay, bir yabancının kendini "ebeveyn" diye bağlamasını zorlaştırır.
   Gerçek ebeveynlik ilişkisi doğrulanamaz; bu bilinen bir sınırdır.
+
+  Uygulama (5b, migration 0021):
+  - Tablo `app.guardian_links`: çocuk, ebeveyn, durum (`open` kod bekliyor, `confirming` ebeveyn
+    onayladı, `active`), kodun özeti ve süresi, tarihler, bitirme isteği. Her taraf yalnızca kendi
+    bağlantılarını okur; her değişiklik veritabanı fonksiyonlarından geçer (yaş, en çok 2 ebeveyn,
+    aynı ebeveynin ikinci kez bağlanamaması orada denetlenir).
+  - Uçlar: `GET /v1/guardians`, `POST /v1/guardians/code` (çocuk), `POST
+/v1/guardians/preview` ve `accept` (ebeveyn), `GET /v1/guardians/:id` (görünüm, iki taraf),
+    `POST /v1/guardians/:id/confirm` (çocuk), `POST /v1/guardians/:id/end` (iki taraf).
+  - Her değişiklikte iki tarafa `guardians.changed` olayı, karşı tarafa bildirim gider
+    (`guardianRequest`, `guardianLinked`, `guardianEndRequested`, `guardianEnded`; bildirim
+    ebeveyn ekranını açar). Kodu alınmayan ya da onaylanmayan bağlantı bir gün sonra, çocuğun
+    bitirme isteği 7 gün sonra işçi tarafından kapatılır.
+  - Yaş grubu değişince (çocuk 18+, ebeveyn 15–17) ya da hesap silinince bağlantı veritabanı
+    tetikleyicisiyle hemen biter.
 
 - **Ebeveynin gördüğü:**
   - çocuğun kullanıcı adı, adı, yaş grubu, bağlantı tarihi;
@@ -232,7 +257,8 @@ kullanır.
 - **5a:** Yaş beyanı ve yaş grubu, 15'ten küçük reddi, mevcut hesaplara bir kez soru, 15–17 için
   kullanıcı adıyla bulunmama, geçmişin kapalı olması, etkinliğe yalnızca arkadaş QR'ıyla girme,
   yeni çemberde paylaşımın kapalı başlaması, /gizlilik bölümü.
-- **5b:** Ebeveyn bağlantısı: kurulum, iki taraflı ekranlar, bitirme, bildirimler.
+- **5b:** Ebeveyn bağlantısı: kurulum, iki taraflı ekranlar, bitirme, bildirimler; "Kullanıcı
+  adımla bulunabilirim" ayarı (QA 5a Y2).
 - **5c:** Ebeveyn araçları: yeni kişi onayı, kullanım süresi ve günlük sınır.
 
 ## Sonuçlar

@@ -15,3 +15,7 @@
 "notice.memberJoinedSeesIn" = "Someone joined %@; they can now see your location too";
 "notice.memberJoinedBoth" = "Someone joined your circle; they can now see your location and location history too";
 "notice.memberJoinedBothIn" = "Someone joined %@; they can now see your location and location history too";
+"notice.guardianRequest" = "Someone wants to be your parent on Bargu; you give the last yes";
+"notice.guardianLinked" = "Your parent link is set up";
+"notice.guardianEndRequested" = "Your child wants to end the parent link";
+"notice.guardianEnded" = "A parent link ended";

@@ -58,8 +58,23 @@ describe('"Verilerimi indir" (docs/ADR/0022)', () => {
         status: null,
       },
       NOW,
+      { band: '15-17', method: 'declared', at: NOW - 100 },
+      [
+        {
+          id: '0190f7a4-5b6c-7d8e-9f01-23456789abce',
+          role: 'child',
+          status: 'active',
+          other: { username: 'anne', displayName: 'Anne', avatar: null },
+          createdAt: NOW - 50,
+          activeAt: NOW - 40,
+          endRequestedAt: null,
+          endsAt: null,
+        },
+      ],
     );
     expect(file).toMatchObject({
+      ageBand: { band: '15-17', method: 'declared' },
+      guardianLinks: [{ role: 'child', status: 'active', other: 'anne', endRequestedAt: null }],
       format: 'bargu-export',
       version: 1,
       account: { username: 'ayse' },

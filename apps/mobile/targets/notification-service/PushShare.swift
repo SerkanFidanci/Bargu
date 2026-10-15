@@ -104,7 +104,11 @@ enum PushOpener {
       } else {
         text = String(format: localized("notice.memberJoined\(what)In"), circle)
       }
-      return .show(title: "Bargu", body: text, circleId: body.circleId, thread: "social")
+      // Guardian notices name a link, not a circle (docs/ADR/0023 §4): tapping opens that screen.
+      let guardian = (body.notice ?? "").hasPrefix("guardian")
+      return .show(
+        title: "Bargu", body: text, circleId: body.circleId,
+        thread: guardian ? "guardians" : "social")
     case .bump:
       guard let sender = opened.senderDeviceId.flatMap({ contacts.devices[$0] }) else { return nil }
       if mutes.people[sender.userId]?.pokes == true { return .muted }

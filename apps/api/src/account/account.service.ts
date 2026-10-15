@@ -3,6 +3,7 @@ import {
   type AccountExport,
   type AgeBand,
   type AgeState,
+  type FindableState,
   HISTORY_CONSENT_VERSION,
   type HistoryConsent,
   PRIVACY_NOTICE_VERSION,
@@ -27,6 +28,7 @@ import {
 } from '../db/schema.js';
 import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import { EventsService } from '../events/events.service.js';
+import { GuardiansService } from '../guardians/guardians.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { AccountPurge } from './account-purge.js';
@@ -50,6 +52,7 @@ export class AccountService {
     private readonly purge: AccountPurge,
     private readonly limiter: RateLimiter,
     private readonly events: EventsService,
+    private readonly guardians: GuardiansService,
   ) {}
 
   /**
@@ -59,6 +62,8 @@ export class AccountService {
    * worker otherwise). Each step can run again: a request cut short is simply asked again.
    */
   async delete(userId: string): Promise<void> {
+    // Its guardian links end with it (migration 0021); the other sides are told below.
+    const linked = await this.guardians.othersOf(userId);
     const memberships = await this.database.asUser(userId, (tx) =>
       tx
         .select({ circleId: circleMembers.circleId, status: circleMembers.status })
@@ -102,6 +107,7 @@ export class AccountService {
     await this.database.asUser(userId, (tx) =>
       tx.execute(sql`SELECT app.request_account_deletion()`),
     );
+    if (linked.length > 0) await this.guardians.ended(linked);
     try {
       await this.purge.sweep();
     } catch (error) {
@@ -269,6 +275,30 @@ export class AccountService {
     });
     this.tellHistoryGone(auth.userId, told);
     return state;
+  }
+
+  /** "Kullanıcı adımla bulunabilirim" (docs/ADR/0023). */
+  findable(auth: AuthContext): Promise<FindableState> {
+    return this.database.asUser(auth.userId, (tx) => this.findableOf(tx, auth.userId));
+  }
+
+  /** On or off; 15-17 cannot turn it on (403 AGE_RESTRICTED). */
+  async setFindable(auth: AuthContext, findable: boolean): Promise<FindableState> {
+    return this.database.asUser(auth.userId, async (tx) => {
+      const before = await this.findableOf(tx, auth.userId);
+      if (findable && before.locked) throw new ApiError(HttpStatus.FORBIDDEN, 'AGE_RESTRICTED');
+      await tx.update(users).set({ findable }).where(eq(users.id, auth.userId));
+      return this.findableOf(tx, auth.userId);
+    });
+  }
+
+  private async findableOf(tx: Tx, userId: string): Promise<FindableState> {
+    const [row] = await tx
+      .select({ findable: users.findable, band: users.ageBand })
+      .from(users)
+      .where(eq(users.id, userId));
+    if (row === undefined) throw new ApiError(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED');
+    return { findable: row.findable, locked: row.band === '15-17' };
   }
 
   private async ageOf(tx: Tx, userId: string): Promise<AgeState['age']> {

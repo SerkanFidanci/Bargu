@@ -49,6 +49,8 @@ export const users = app.table('users', {
   ageBand: text('age_band').$type<'15-17' | '18+'>(),
   ageMethod: text('age_method').$type<'declared' | 'token'>(),
   ageSetAt: timestamptz('age_set_at'),
+  /** docs/ADR/0023: found by username; always false for 15-17 (migration 0022). */
+  findable: boolean('findable').notNull().default(true),
   createdAt: timestamptz('created_at').notNull().defaultNow(),
   deletedAt: timestamptz('deleted_at'),
 });

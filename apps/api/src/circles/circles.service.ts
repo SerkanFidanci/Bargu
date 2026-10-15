@@ -128,7 +128,7 @@ export class CirclesService implements OnModuleInit {
     });
   }
 
-  async list(auth: AuthContext): Promise<Circle[]> {
+  async list(auth: Pick<AuthContext, 'userId'>): Promise<Circle[]> {
     return this.database.asUser(auth.userId, async (tx) => {
       const rows = await tx
         .select({ id: circleMembers.circleId })

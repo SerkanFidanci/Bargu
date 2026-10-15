@@ -5,6 +5,8 @@ import { useLocationSession } from '@/features/location/use-location';
 import { usePushNotifications } from '@/features/notifications/use-push';
 import { usePrivacyGate } from '@/features/account/privacy-gate';
 import { useAppLock } from '@/features/security/app-lock';
+// Guardian links follow their events (docs/ADR/0023 §4).
+import '@/features/guardians/guardians-session';
 import { LockScreen, useAppLockWatcher } from '@/features/security/lock-screen';
 
 export const unstable_settings = { initialRouteName: 'index' };
@@ -37,6 +39,7 @@ export default function AppLayout() {
       <Stack.Screen name="add/qr" />
       <Stack.Screen name="add/scan" />
       <Stack.Screen name="i/[token]" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="g/[token]" options={{ presentation: 'modal' }} />
       <Stack.Screen name="place/[circleId]" />
       <Stack.Screen name="history/viewers" />
       <Stack.Screen name="history/[userId]" />

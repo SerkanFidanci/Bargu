@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Bell,
+  HeartHandshake,
   History,
   KeyRound,
   Map as MapIcon,
@@ -181,6 +182,15 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
           onPress={() => {
             onClose();
             router.push('/privacy');
+          }}
+        />
+        <Row
+          icon={HeartHandshake}
+          label={t('sheets.me.guardians')}
+          detail={t('sheets.me.guardiansDetail')}
+          onPress={() => {
+            onClose();
+            router.push('/guardians');
           }}
         />
         <Row

@@ -48,6 +48,11 @@ export type ApiErrorCode =
   | 'AGE_REVIEW_REQUIRED'
   /** Someone 15-17 comes into an event only with a friend's code (docs/ADR/0023). */
   | 'FRIEND_INVITE_ONLY'
+  /** Guardians (docs/ADR/0023 §4): a child is 15-17, a parent 18+, at most two parents. */
+  | 'GUARDIAN_CHILD_ONLY'
+  | 'GUARDIAN_ADULT_ONLY'
+  | 'GUARDIAN_LIMIT'
+  | 'ALREADY_GUARDIAN'
   | 'CIRCLE_FULL'
   | 'EPOCH_STALE'
   | 'KEYS_INVALID'

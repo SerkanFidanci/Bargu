@@ -5,6 +5,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { inviteTokenFrom } from '@/features/circles/invite-link';
+import { guardianTokenFrom } from '@/features/guardians/guardian-link';
 import { ambient, space } from '@/theme';
 import { feedback } from '@/theme/haptics';
 import { useMotion } from '@/theme/use-motion';
@@ -45,6 +46,13 @@ export default function ScanScreen() {
           size={Math.min(width - space.xl * 2, MAX_VIEWFINDER)}
           paused={wrong}
           onScan={(data) => {
+            // A child's guardian code: the parent's yes (docs/ADR/0023 §4).
+            const guardian = guardianTokenFrom(data);
+            if (guardian !== null) {
+              feedback('success');
+              router.replace({ pathname: '/g/[token]', params: { token: guardian } });
+              return;
+            }
             const invite = inviteTokenFrom(data);
             if (invite === null) {
               feedback('error');

@@ -110,6 +110,7 @@ public struct PushBody: Decodable, Equatable, Sendable {
   public enum Kind: String, Sendable { case place, bump, notice, late }
   public static let notices: Set<String> = [
     "friendRequest", "friendAccepted", "friendAdded", "circleInvite", "memberJoined",
+    "guardianRequest", "guardianLinked", "guardianEndRequested", "guardianEnded",
   ]
 
   public let kind: Kind

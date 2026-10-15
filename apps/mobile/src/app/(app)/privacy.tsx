@@ -9,15 +9,19 @@ import { env } from '@/config/env';
 import {
   deleteAccount,
   fetchAccountExport,
+  fetchFindable,
   fetchPrivacy,
+  findableKey,
   hasHistoryConsent,
   privacyKey,
+  setFindable,
   setHistoryConsent,
 } from '@/features/account/account-api';
 import { ageKey, fetchAge, isMinor, setAgeBand } from '@/features/account/age-api';
 import { exportFile, exportName, saveExport, trailWindow } from '@/features/account/export';
 import { signOut, useAuth } from '@/features/auth/auth-store';
 import { errorMessage } from '@/features/errors';
+import { guardiansApi } from '@/features/guardians/guardians-api';
 import { applyMinorRules, forgetAllHistory, history } from '@/features/location/location-session';
 import { useSharing } from '@/features/location/sharing';
 import { usePlaces } from '@/features/places/places';
@@ -28,6 +32,7 @@ import { Button } from '@/ui/button';
 import { Screen, SectionTitle } from '@/ui/screen';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
+import { Toggle } from '@/ui/toggle';
 
 /**
  * "Gizlilik ve hesap" (docs/ADR/0022): the privacy notice, consent to location history and its
@@ -40,6 +45,16 @@ export default function PrivacyScreen() {
   const me = useAuth((state) => state.userId);
   const privacy = useQuery({ queryKey: privacyKey, queryFn: fetchPrivacy });
   const age = useQuery({ queryKey: ageKey, queryFn: fetchAge });
+  const findable = useQuery({ queryKey: findableKey, queryFn: fetchFindable });
+  const changeFindable = (on: boolean) => {
+    void (async () => {
+      try {
+        queryClient.setQueryData(findableKey, await setFindable(on));
+      } catch (error) {
+        toast.error(errorMessage(error, t));
+      }
+    })();
+  };
   const band = age.data?.age?.band ?? null;
   const [busy, setBusy] = useState<'export' | 'withdraw' | 'delete' | 'age' | null>(null);
   const consent = privacy.data === undefined ? null : hasHistoryConsent(privacy.data);
@@ -82,6 +97,7 @@ export default function PrivacyScreen() {
           void (async () => {
             try {
               queryClient.setQueryData(ageKey, await setAgeBand('15-17'));
+              queryClient.setQueryData(findableKey, await fetchFindable());
               await applyMinorRules();
               // The server withdrew the consent to history along with it.
               queryClient.setQueryData(privacyKey, await fetchPrivacy());
@@ -114,6 +130,7 @@ export default function PrivacyScreen() {
         },
         now,
         (await fetchAge()).age,
+        await guardiansApi.list(),
       );
       const saved = await saveExport(exportName(now), JSON.stringify(file, null, 2));
       if (saved) toast.success(t('privacy.exported'));
@@ -198,6 +215,20 @@ export default function PrivacyScreen() {
             onPress={withdraw}
           />
         ) : null}
+      </View>
+
+      <SectionTitle>{t('privacy.findableTitle')}</SectionTitle>
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <Toggle
+          testID="privacy-findable"
+          label={t('privacy.findable')}
+          description={
+            findable.data?.locked === true ? t('privacy.findableLocked') : t('privacy.findableHint')
+          }
+          value={findable.data?.findable ?? false}
+          disabled={findable.data === undefined || findable.data.locked}
+          onChange={changeFindable}
+        />
       </View>
 
       <SectionTitle>{t('age.sectionTitle')}</SectionTitle>
