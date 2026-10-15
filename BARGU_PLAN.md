@@ -327,11 +327,13 @@ Faz 8'den sonra proje sahibinin isteğiyle yapılıyor (yapım aşamasında).
   - Kapatınca sunucudaki parçalar silinir (test); 14 günden eski parça kalmaz (işçi testi).
 
 ### Faz 9 — Güvenlik Özellikleri & Uyum
+- **İlk iş (proje sahibi kararı 2026-10-15, QA 5 / W4):** çemberden ayrılınca ya da çıkarılınca geçmiş, bekleyen parçaları atar ve o çemberin ayar kaydı silinir. Aynı çembere dönünce geçmiş kapalı başlar; katılmak geçmişe onay sayılmaz.
 - Periyodik paylaşım hatırlatması (7 günde bir), yeni izleyici bildirimi, tek dokunuşla tüm paylaşımı durdur.
 - Biyometrik uygulama kilidi (opsiyonel), uzaktan cihaz iptali, güvenlik olayları listesi.
 - KVKK: aydınlatma metni, konum için açık rıza, veri dışa aktarma, uygulama içinden hesap silme (anında devre dışı, 7 gün içinde kalıcı silme).
-- **Hukuki görüş (hemen başlar, 1 Kasım 2026'dan önce; proje sahibi):** 5651 sayılı kanunun "sosyal ağ sağlayıcı" tanımı "konum" paylaşımını açıkça sayıyor. 15 yaş altı yönetmeliği 1 Kasım 2026'da yürürlükte; mevcut hesaplar 31 Mart 2027'ye kadar yaş doğrulamalı. Avukat görüşüne göre ADR: yaş sınırı (15+ / 18+), yaş doğrulama yolu (gerekirse e-Devlet yaş belirteci), 15–18 yaş için kapalı varsayılanlar ve ebeveyn araçları.
+- **Yaş sınırı 15+ (karar 2026-10-15):** avukat ertelendi; ön araştırma `docs/arastirma/yas-siniri-ve-kvkk.md`. 5651'in "sosyal ağ sağlayıcı" tanımı "konum" paylaşımını sayıyor; Bargu kapsamda varsayılır. 15 yaş altı yönetmeliği 1 Kasım 2026'da yürürlükte; mevcut hesaplar 31 Mart 2027'ye kadar yaş doğrulamalı. Faz 9'da ADR ile tasarlanır: yaş doğrulama yolu (e-Devlet yaş belirteci), 15–18 yaş için kapalı varsayılanlar, ebeveyn araçları ve ücretli işlemleri engelleme (Bargu+ dahil). Avukata sorulacaklar araştırma dosyasının 4. bölümünde.
 - **KVKK 2026 kuralları:** her amaç için ayrı rıza (konum paylaşımı, arka planda konum, her bildirim türü ayrı); aydınlatma metni ile rıza metni ayrı, birleşik "okudum, kabul ediyorum" kutusu yok. Rıza hiçbir zaman ilgisiz bir özelliğin şartı olmaz.
+- **Play zorunlulukları (`docs/play-store/KONTROL-LISTESI.md`):** K7 hesap silme (uygulama içi yol + e-posta kodlu web silme sayfası; tüm satırlar, üyelikler, anahtarlar, fotoğraf ve geçmiş gider, çemberlere rekey), K10 konum açıklama ekranına "uygulama kapalıyken de" cümlesi, K11 Android 13+ bildirim izni bağlamda, K13 gizlilik politikası ve silme sayfasının yayını.
 - **Yurt dışı sunucu:** KVKK standart sözleşmesi imzalanır, 5 iş günü içinde KVKK'ya bildirilir. Şifreleme konumu korur ama hesap, çember üyeliği ve bildirim token'ı yine kişisel veridir.
 - **Faz 8 test bulguları** (QA raporları `QA-RAPOR-Faz8-ve-planlama.md` ve `QA-RAPOR-2-Cember-gecmisi.md`; proje sahibi 2026-10-15'te Faz 9'a bıraktı):
   - **O2 + O3, etkinlik QR güvenliği:** sahip, etkinliğin bütün davetlerini (başka üyenin ürettiği QR dahil) iptal edebilsin ya da yalnızca sahip QR üretsin; "Yeni kod" iptal başarısızsa uyarsın. THREAT_MODEL'deki "Ele geçen etkinlik QR'ı" satırı buna göre düzelir.
@@ -390,6 +392,7 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 - Prod: en az yetkili DB rolü, şifreli yedek (WAL-G) + restore testi, Redis ACL + TLS, firewall, Caddy (TLS 1.3, HSTS).
 - SPKI pinning (2 yedek pin) + rotasyon planı.
 - EAS Build/Submit; OTA güncellemeleri kod imzalı veya kapalı; `runtimeVersion` fingerprint policy.
+- **Play derleme ve imza (`docs/play-store/KONTROL-LISTESI.md`):** K1 AAB profili (EAS ve yerel betik), K2 upload key (depoya girmez, sahip iki yerde yedekler), K3 targetSdk 36, K4 artan versionCode, K5 `app.bargu` son onay, K6 Play App Signing sertifikası sunucudaki Play Integrity izin listesine, K8 inceleyici için demo hesap, K9 Open-Meteo ticari plan ya da kendi sunucu, K12 kalıcı alan adı (sahip kararı). 14 günlük kapalı testin saati erken başlasın diye K1–K4 hesap açılır açılmaz yapılabilir.
 - **Önce Google Play:** 13 Kasım 2023'ten sonra açılan kişisel geliştirici hesabı, üretime çıkmadan önce en az 12 test kullanıcısıyla 14 gün kesintisiz kapalı test yapmak zorunda ([Google](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)). Hesap ve 12 kişilik test grubu Faz 10'dan önce hazırlanır (proje sahibi); bu grup ilk lansman grubunun çekirdeği olabilir. iOS yayını Apple üyeliğinden sonra.
 - Jailbreak/root tespiti: sadece uyarı.
 - **DoD:** kritik/yüksek bulgu yok, restore testi başarılı.
