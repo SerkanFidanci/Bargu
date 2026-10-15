@@ -175,6 +175,24 @@ export function createHistory(deps: HistoryDeps) {
     return points.filter((point) => point.at >= from && point.at < to);
   }
 
+  /**
+   * Drops what was written for circles that do not get the history now (a ghost, a pause, a
+   * coarser precision, a timed share over, history off): their open piece and the finished ones still
+   * waiting. Called whenever sharing may have stopped, so nothing written before it ever goes.
+   */
+  function dropUnshared(): void {
+    const recording = new Set(deps.recording(now()).map((circle) => circle.id));
+    const store = deps.store();
+    const open = read(store, OPEN_KEY, openSchema, {});
+    const kept = Object.entries(open).filter(([circleId]) => recording.has(circleId));
+    if (kept.length !== Object.keys(open).length) {
+      store.set(OPEN_KEY, JSON.stringify(Object.fromEntries(kept)));
+    }
+    for (const piece of outbox()) {
+      if (!recording.has(piece.circleId)) store.delete(outKey(piece));
+    }
+  }
+
   /** Quarter hours of the own trail older than the server keeps go too. */
   function prune(): void {
     const store = deps.store();
@@ -202,6 +220,7 @@ export function createHistory(deps: HistoryDeps) {
   function flush(): Promise<void> {
     flushing ??= (async () => {
       try {
+        dropUnshared();
         const store = deps.store();
         for (const key of store.keys()) {
           if (key.startsWith(FORGET_PREFIX)) await deleteCopy(key.slice(FORGET_PREFIX.length));
@@ -222,6 +241,7 @@ export function createHistory(deps: HistoryDeps) {
   return {
     /** A new position of this phone: written down, and finished quarter hours sent. */
     fix(fix: Fix): Promise<void> {
+      dropUnshared();
       const circles = deps.recording(now());
       const store = deps.store();
       const open = read(store, OPEN_KEY, openSchema, {});
@@ -240,6 +260,9 @@ export function createHistory(deps: HistoryDeps) {
     },
 
     flush,
+
+    /** Sharing may have changed (settings, a timed share over, the app starting): see dropUnshared. */
+    sharingChanged: dropUnshared,
 
     mine,
 

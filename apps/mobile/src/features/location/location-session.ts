@@ -369,10 +369,38 @@ function checkViewers(circles: readonly Circle[]): void {
 
 /** Changes one circle's sharing (or the ghost mode); takes effect at once. */
 export function updateSharing(change: (current: SharingSettings) => SharingSettings): void {
+  // Before the change too: a timed share already over is not "still shared" because it is renewed.
+  history.sharingChanged();
   const next = change(loadSharingSettings());
   useSharing.setState(next, true);
   saveSharing(vault(), next);
+  history.sharingChanged();
+  watchSharingEnd();
   void locationEngine.changed();
+}
+
+/**
+ * When a timed share runs out, the history written for that circle goes at once (docs/ADR/0019:
+ * nothing written while shared goes up once it is not), even with no position coming in.
+ */
+let sharingEndTimer: ReturnType<typeof setTimeout> | null = null;
+function watchSharingEnd(): void {
+  if (sharingEndTimer !== null) clearTimeout(sharingEndTimer);
+  sharingEndTimer = null;
+  const now = Date.now();
+  const ends = Object.values(loadSharingSettings().circles)
+    .map((sharing) => sharing.until)
+    .filter((until): until is number => until !== null && until > now);
+  if (ends.length === 0) return;
+  sharingEndTimer = setTimeout(
+    () => {
+      sharingEndTimer = null;
+      if (!isVaultOpen()) return;
+      history.sharingChanged();
+      watchSharingEnd();
+    },
+    Math.min(Math.min(...ends) - now + 500, 2 ** 31 - 1),
+  );
 }
 
 const receiver = createReceiver({
@@ -423,6 +451,11 @@ let restored = false;
 /** The open app's start: settings and the last known locations from the vault, once per run. */
 export function restoreLocations(): void {
   loadSharingSettings();
+  // What sharing stopped for while the app was closed (a timed share over) goes before anything.
+  if (isVaultOpen()) {
+    history.sharingChanged();
+    watchSharingEnd();
+  }
   if (isVaultOpen() && vault().get(SHARING_REVIEW_KEY) === '1') {
     useSharingReview.setState({ pending: true });
   }
@@ -533,6 +566,8 @@ queryClient.getQueryCache().subscribe((event) => {
 });
 
 onSignedOut(() => {
+  if (sharingEndTimer !== null) clearTimeout(sharingEndTimer);
+  sharingEndTimer = null;
   locationEngine.reset();
   meetings.reset();
   history.reset();

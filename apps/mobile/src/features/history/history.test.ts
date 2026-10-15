@@ -404,3 +404,98 @@ describe('location history on the phone', () => {
     expect(rows.size).toBe(0);
   });
 });
+
+describe('a ghost, a pause or a coarser precision (QA G6): what was written never goes', () => {
+  const HOUR = 60 * MIN;
+  const exact = { sharing: true, precision: 'exact', until: null } as const;
+  const cases: [string, (circleId: string, now: number) => SharingSettings][] = [
+    ['ghost (hide)', (id) => ({ ghost: 'hide', circles: { [id]: { ...exact, history: true } } })],
+    [
+      'ghost (freeze)',
+      (id) => ({ ghost: 'freeze', circles: { [id]: { ...exact, history: true } } }),
+    ],
+    [
+      'sharing paused',
+      (id) => ({ ghost: 'off', circles: { [id]: { ...exact, sharing: false, history: true } } }),
+    ],
+    [
+      'neighbourhood precision',
+      (id) => ({
+        ghost: 'off',
+        circles: { [id]: { ...exact, precision: 'neighborhood', history: true } },
+      }),
+    ],
+    [
+      'a timed share over',
+      (id, now) => ({
+        ghost: 'off',
+        circles: { [id]: { ...exact, until: now - 1, history: true } },
+      }),
+    ],
+  ];
+
+  function phone() {
+    const [ayse, bora] = [somebody(), somebody()];
+    const circle = circleOf([ayse, bora]);
+    exchangeKeys(circle, [ayse, bora]);
+    const server = fakeServer();
+    const clock = { now: slot };
+    const shared: SharingSettings = {
+      ghost: 'off',
+      circles: { [circle.id]: { ...exact, history: true } },
+    };
+    let settings = shared;
+    const history = historyOf(
+      ayse,
+      () => [circle],
+      server.as(ayse),
+      clock,
+      () =>
+        historyOn(settings, circle.id, clock.now) ? [{ id: circle.id, epoch: circle.epoch }] : [],
+    );
+    /** As updateSharing does (location-session.ts): told before and after the change. */
+    const change = (next: SharingSettings) => {
+      history.sharingChanged();
+      settings = next;
+      history.sharingChanged();
+    };
+    return { circle, server, clock, history, shared, change };
+  }
+
+  for (const [name, hidden] of cases) {
+    it(`drops the open quarter hour when ${name}, with no position while it lasts`, async () => {
+      const { circle, server, clock, history, shared, change } = phone();
+      clock.now = slot + MIN;
+      await history.fix(north(0, clock.now));
+      clock.now = slot + 2 * MIN;
+      await history.fix(north(100, clock.now));
+      clock.now = slot + 3 * MIN;
+      change(hidden(circle.id, clock.now));
+      // Hours later sharing is back; the location service starts again.
+      clock.now = slot + 3 * HOUR;
+      change(shared);
+      clock.now = slot + 3 * HOUR + MIN;
+      await history.fix(north(5_000, clock.now));
+      clock.now = slot + 3 * HOUR + HISTORY_SLOT_MS + MIN;
+      await history.fix(north(5_100, clock.now));
+      await history.flush();
+      expect([...server.rows.values()].map((row) => row.from)).not.toContain(slot);
+    });
+
+    it(`drops finished quarter hours still waiting when ${name}`, async () => {
+      const { circle, server, clock, history, shared, change } = phone();
+      server.goOffline();
+      await walkQuarter(history, clock);
+      server.goOnline();
+      clock.now = slot + 2 * HISTORY_SLOT_MS;
+      change(hidden(circle.id, clock.now));
+      clock.now = slot + 3 * HOUR;
+      change(shared);
+      await walkQuarterFrom(history, clock, clock.now);
+      await history.flush();
+      const sent = [...server.rows.values()].map((row) => row.from);
+      expect(sent).not.toContain(slot);
+      expect(sent.length).toBeGreaterThan(0);
+    });
+  }
+});
