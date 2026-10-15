@@ -45,6 +45,8 @@ export const LABELS = {
   pseudonym: 'bargu/v1/pseudonym',
   // Profile photos, encrypted on the phone (docs/ADR/0014).
   profilePhoto: 'bargu/v1/profile-photo',
+  // Event documents (docs/ADR/0018): the id of a member's vote in a poll.
+  voteId: 'bargu/v1/vote-id',
 } as const;
 
 export type Label = (typeof LABELS)[keyof typeof LABELS];

@@ -1,0 +1,153 @@
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { verifyDocumentEnvelope } from '@bargu/crypto';
+import {
+  docEnvelopeSchema,
+  type DocPut,
+  type DocRecord,
+  MAX_DOCS_PER_CIRCLE,
+} from '@bargu/schemas';
+import { and, count, eq, sql } from 'drizzle-orm';
+
+import type { AuthContext } from '../auth/request-context.js';
+import { ApiError } from '../common/api-error.js';
+import { circleDocs, circleMembers, circles } from '../db/schema.js';
+import { EventsService } from '../events/events.service.js';
+import { DatabaseService, type Tx } from '../infra/database/database.service.js';
+import { RateLimiter } from '../infra/redis/rate-limiter.js';
+
+/** Saves and deletes per user: voting and planning are taps, re-sealing an event a few dozen. */
+export const DOC_LIMITS = { saves: { limit: 120, windowSeconds: 60 } } as const;
+
+/**
+ * Documents of event circles (docs/ADR/0018): the meeting, polls and votes. Each is the signed,
+ * encrypted document of the member who last saved it. The server checks the signature (the
+ * caller's device), the membership and the author rules (row-level security), that the circle is
+ * an event and that the document uses its current epoch, so that every current member, new ones
+ * included, can open it. Saves are compare-and-set on `version`; every change tells the other
+ * members `docs.changed`.
+ */
+@Injectable()
+export class DocsService {
+  constructor(
+    private readonly database: DatabaseService,
+    private readonly events: EventsService,
+    private readonly limiter: RateLimiter,
+  ) {}
+
+  /** An event's documents; empty unless the caller is an active member (row-level security). */
+  async list(auth: AuthContext, circleId: string): Promise<DocRecord[]> {
+    const rows = await this.database.asUser(auth.userId, (tx) =>
+      tx
+        .select({
+          circleId: circleDocs.circleId,
+          id: circleDocs.id,
+          version: circleDocs.version,
+          shared: circleDocs.shared,
+          envelope: circleDocs.envelope,
+        })
+        .from(circleDocs)
+        .where(eq(circleDocs.circleId, circleId)),
+    );
+    return rows.flatMap((row) => {
+      const envelope = docEnvelopeSchema.safeParse(row.envelope);
+      return envelope.success ? [{ ...row, envelope: envelope.data }] : [];
+    });
+  }
+
+  async put(
+    auth: AuthContext,
+    circleId: string,
+    docId: string,
+    input: DocPut,
+  ): Promise<{ version: number }> {
+    await this.limit(auth);
+    const { envelope } = input;
+    if (
+      envelope.circleId !== circleId ||
+      envelope.senderDeviceId !== auth.deviceId ||
+      !verifyDocumentEnvelope(envelope, auth.identityKey)
+    ) {
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+    }
+    const { version, others } = await this.database.asUser(auth.userId, async (tx) => {
+      const members = await this.activeMembers(tx, circleId);
+      const me = members.find((member) => member.userId === auth.userId);
+      if (me === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      if (me.expiresAt === null) throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+      if (envelope.epoch !== me.epoch) throw new ApiError(HttpStatus.CONFLICT, 'EPOCH_STALE');
+      // One save at a time per event: the count below stays true until this one commits.
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`docs:${circleId}`}, 0))`,
+      );
+      let saved: { version: number }[];
+      if (input.version === null) {
+        const [{ total } = { total: 0 }] = await tx
+          .select({ total: count() })
+          .from(circleDocs)
+          .where(eq(circleDocs.circleId, circleId));
+        if (total >= MAX_DOCS_PER_CIRCLE) throw new ApiError(HttpStatus.CONFLICT, 'DOCS_FULL');
+        saved = await tx
+          .insert(circleDocs)
+          .values({ circleId, id: docId, authorId: auth.userId, shared: input.shared, envelope })
+          .onConflictDoNothing()
+          .returning({ version: circleDocs.version });
+      } else {
+        // Row-level security leaves out others' own documents (votes): those are a conflict too.
+        saved = await tx
+          .update(circleDocs)
+          .set({ envelope, version: sql`${circleDocs.version} + 1`, updatedAt: new Date() })
+          .where(
+            and(
+              eq(circleDocs.circleId, circleId),
+              eq(circleDocs.id, docId),
+              eq(circleDocs.shared, input.shared),
+              eq(circleDocs.version, input.version),
+            ),
+          )
+          .returning({ version: circleDocs.version });
+      }
+      const [row] = saved;
+      if (row === undefined) throw new ApiError(HttpStatus.CONFLICT, 'VERSION_CONFLICT');
+      return {
+        version: row.version,
+        others: members.filter((member) => member.userId !== auth.userId).map((m) => m.userId),
+      };
+    });
+    await this.events.publish(others, { type: 'docs.changed', circleId });
+    return { version };
+  }
+
+  async remove(auth: AuthContext, circleId: string, docId: string): Promise<void> {
+    await this.limit(auth);
+    const others = await this.database.asUser(auth.userId, async (tx) => {
+      const removed = await tx
+        .delete(circleDocs)
+        .where(and(eq(circleDocs.circleId, circleId), eq(circleDocs.id, docId)))
+        .returning({ id: circleDocs.id });
+      if (removed.length === 0) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      const members = await this.activeMembers(tx, circleId);
+      return members.filter((member) => member.userId !== auth.userId).map((m) => m.userId);
+    });
+    await this.events.publish(others, { type: 'docs.changed', circleId });
+  }
+
+  private async limit(auth: AuthContext): Promise<void> {
+    const hit = await this.limiter.hit(
+      `docs:${auth.userId}`,
+      DOC_LIMITS.saves.limit,
+      DOC_LIMITS.saves.windowSeconds,
+    );
+    if (!hit.allowed) {
+      throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', hit.retryAfter);
+    }
+  }
+
+  /** Active members of a circle with its epoch and end; empty unless the caller is one (RLS). */
+  private activeMembers(tx: Tx, circleId: string) {
+    return tx
+      .select({ userId: circleMembers.userId, epoch: circles.epoch, expiresAt: circles.expiresAt })
+      .from(circleMembers)
+      .innerJoin(circles, eq(circles.id, circleMembers.circleId))
+      .where(and(eq(circleMembers.circleId, circleId), eq(circleMembers.status, 'active')));
+  }
+}

@@ -23,6 +23,7 @@ const run = () =>
     register,
     channelName: 'Arkadaşlar ve çemberler',
     placesChannelName: 'Varışlar ve ayrılışlar',
+    meetingsChannelName: 'Buluşmalar',
   });
 
 beforeEach(() => {

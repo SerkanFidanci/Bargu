@@ -189,6 +189,16 @@ export const places = app.table('places', {
   updatedAt: timestamptz('updated_at').notNull().defaultNow(),
 });
 
+export const circleDocs = app.table('circle_docs', {
+  circleId: uuid('circle_id').notNull(),
+  id: uuid('id').notNull(),
+  authorId: uuid('author_id').notNull(),
+  shared: boolean('shared').notNull(),
+  envelope: jsonb('envelope').notNull(),
+  version: integer('version').notNull().default(1),
+  updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   devices,
@@ -202,4 +212,5 @@ export const schema = {
   pushTokens,
   profilePhotos,
   places,
+  circleDocs,
 };

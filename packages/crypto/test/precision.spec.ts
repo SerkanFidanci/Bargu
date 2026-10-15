@@ -13,6 +13,7 @@ const base: LocPayload = {
   spd: 3,
   hdg: 120,
   since: 1_700_000_000_000,
+  eta: { meetAt: 1_700_000_900_000, at: 1_700_000_600_000 },
   bat: 50,
   chg: false,
   ts: 1_791_880_000_000,
@@ -49,6 +50,7 @@ describe('applyPrecision', () => {
           expect(snapped.spd).toBeUndefined();
           expect(snapped.hdg).toBeUndefined();
           expect(snapped.since).toBeUndefined();
+          expect(snapped.eta).toBeUndefined();
           expect(snapped.acc).toBeGreaterThanOrEqual((cellKm * 1000) / Math.SQRT2);
           expect(snapped.lat).toBeGreaterThanOrEqual(-90);
           expect(snapped.lat).toBeLessThanOrEqual(90);

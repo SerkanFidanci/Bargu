@@ -100,6 +100,15 @@ enum PushOpener {
       return .show(
         title: "Bargu", body: String(format: localized("poked"), sender.name),
         circleId: body.circleId, thread: "social")
+    case .late:
+      guard let sender = opened.senderDeviceId.flatMap({ contacts.devices[$0] }),
+        let minutes = body.minutes
+      else { return nil }
+      if mutes.people[sender.userId]?.places == true { return .muted }
+      return .show(
+        title: contacts.circles[body.circleId]?.name ?? "Bargu",
+        body: String(format: localized("late"), sender.name, minutes),
+        circleId: body.circleId, thread: "meetings")
     case .place:
       guard let sender = opened.senderDeviceId.flatMap({ contacts.devices[$0] }),
         let placeId = body.placeId, let name = body.name, let emoji = body.emoji

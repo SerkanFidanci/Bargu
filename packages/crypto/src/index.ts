@@ -21,9 +21,12 @@ export {
 } from './sender-key.js';
 export {
   createSenderState,
+  decryptDocument,
   decryptMessage,
   decryptStoredMessage,
+  encryptDocument,
   encryptMessage,
+  verifyDocumentEnvelope,
   verifyMessageEnvelope,
   type EncryptResult,
   type SenderState,
@@ -59,6 +62,7 @@ export {
   type RequestToSign,
 } from './auth.js';
 export { openAtRest, sealAtRest } from './at-rest.js';
+export { voteId } from './documents.js';
 export {
   generatePhotoKey,
   MAX_PHOTO_BYTES,

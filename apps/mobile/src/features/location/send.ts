@@ -95,10 +95,15 @@ export function buildEnvelopes(input: {
   now: number;
   /** Since when this phone has stayed where it is (stay.ts). */
   since?: number;
+  /** When this phone will be at the circle's meeting (event circles, docs/ADR/0018). */
+  eta?: (circleId: string) => LocPayload['eta'];
 }): MessageEnvelope[] {
   const full = locPayload(input.fix, input.battery, input.since);
   return sharedCircles(input.circles, input.settings, input.now).map((circle) => {
-    const payload = applyPrecision(full, circleSharing(input.settings, circle.id).precision);
+    const eta = input.eta?.(circle.id);
+    // Dropped again below exact precision (applyPrecision).
+    const located = eta === undefined ? full : { ...full, eta };
+    const payload = applyPrecision(located, circleSharing(input.settings, circle.id).precision);
     const senderKey = input.keys.ownKey(circle);
     const nextSeq = input.keys.reserveSeq(circle);
     return encryptMessage({ state: { senderKey, nextSeq }, sender: input.device, payload })

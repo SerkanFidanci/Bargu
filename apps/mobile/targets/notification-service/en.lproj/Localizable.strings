@@ -8,3 +8,4 @@
 "notice.circleInvite" = "You were invited to a circle";
 "notice.memberJoined" = "Someone joined your circle";
 "notice.memberJoinedIn" = "Someone joined %@";
+"late" = "%1$@ will be about %2$ld min late";

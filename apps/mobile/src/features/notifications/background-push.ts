@@ -65,7 +65,9 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
     body.kind !== 'notice' &&
     isMuted(
       loadMutes(store),
-      body.kind === 'place' ? { kind: 'place', placeId: body.placeId } : { kind: 'bump' },
+      body.kind === 'place'
+        ? { kind: 'place', placeId: body.placeId }
+        : { kind: body.kind === 'late' ? 'late' : 'bump' },
       shown.fromUserId,
     )
   ) {

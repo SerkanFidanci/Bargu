@@ -35,6 +35,7 @@ import { EventBadge } from '@/features/circles/event-ui';
 import { useNow } from '@/features/location/clock';
 import { SharingCard } from '@/features/location/sharing-card';
 import { PlacesCard } from '@/features/places/places-card';
+import { MeetingCard } from '@/features/plan/meeting-card';
 import { isValidDisplayName } from '@/features/profile/profile-form';
 import { radius, space, touchTarget, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
@@ -201,6 +202,12 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
       {active && circle.expiresAt !== undefined ? (
         <Appear index={2}>
           <EventCard circle={circle} />
+        </Appear>
+      ) : null}
+
+      {active && circle.kind === 'event' ? (
+        <Appear index={2}>
+          <MeetingCard circle={circle} />
         </Appear>
       ) : null}
 

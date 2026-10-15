@@ -32,13 +32,14 @@ export function saveMutes(store: KeyValueStore, mutes: Mutes): void {
   store.set(MUTES_KEY, JSON.stringify(mutes));
 }
 
-/** What someone's notification is about, as far as muting goes. */
-export type Mutable = { kind: 'place'; placeId: string } | { kind: 'bump' };
+/** What someone's notification is about, as far as muting goes (lateness: like their comings). */
+export type Mutable = { kind: 'place'; placeId: string } | { kind: 'bump' } | { kind: 'late' };
 
 /** Whether this news from that person stays quiet (no banner, no in-app line). */
 export function isMuted(mutes: Mutes, about: Mutable, fromUserId: string): boolean {
   const person = mutes.people[fromUserId];
   if (about.kind === 'bump') return person?.pokes === true;
+  if (about.kind === 'late') return person?.places === true;
   return person?.places === true || mutes.places[about.placeId] === true;
 }
 

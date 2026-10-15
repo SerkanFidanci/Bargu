@@ -58,7 +58,10 @@ export class PlacesController {
     await this.places.remove(auth, circleId, placeId);
   }
 
-  /** "Ali arrived home": forwarded to the members online, sealed notifications to the others. */
+  /**
+   * "Ali arrived home", "Ali will be late": forwarded to the members online, sealed notifications to
+   * the others (the server cannot tell which).
+   */
   @Post('place-events')
   @HttpCode(HttpStatus.OK)
   event(

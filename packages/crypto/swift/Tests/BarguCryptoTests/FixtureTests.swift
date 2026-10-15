@@ -261,6 +261,12 @@ final class FixtureTests: XCTestCase {
     // A right-to-left override would let a name visually reorder the notification text.
     let override = String(Character(Unicode.Scalar(0x202E)!))
     XCTAssertThrowsError(try decode(place.merging(["name": "Ev" + override]) { $1 }))
+    let late: [String: Any] = ["kind": "late", "circleId": circle, "minutes": 15, "ts": 1]
+    XCTAssertEqual(try decode(late).minutes, 15)
+    XCTAssertThrowsError(try decode(late.merging(["minutes": 0]) { $1 }))
+    XCTAssertThrowsError(try decode(late.merging(["minutes": 601]) { $1 }))
+    XCTAssertThrowsError(try decode(late.merging(["name": "x"]) { $1 }))
+    XCTAssertThrowsError(try decode(bump.merging(["minutes": 5]) { $1 }))
   }
 
   func testSafetyNumberMatches() throws {

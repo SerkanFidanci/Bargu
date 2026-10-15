@@ -176,6 +176,8 @@ export const serverEventSchema = z.discriminatedUnion('type', [
     .strict(),
   /** A place of the circle was saved or deleted: the app fetches that circle's places. */
   z.object({ type: z.literal('places.changed'), circleId: z.uuid() }).strict(),
+  /** A document of the circle (plan, poll, vote) was saved or deleted: fetch that circle's. */
+  z.object({ type: z.literal('docs.changed'), circleId: z.uuid() }).strict(),
   /**
    * Some circle of the user ended (an event circle the owner closed): reload the list. Names no
    * circle on purpose: nothing about an ended circle stays on the server (docs/ADR/0017).

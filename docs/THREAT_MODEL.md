@@ -81,6 +81,8 @@ Sunucu içerik görmez ama şunları görür; belgeleniyor ve kabul ediliyor:
 | Bildirim zamanlaması (APNs/FCM) | Bildirim gittiği an ve kutunun boyutu                                   | İçerik ve gönderen mühürlü (ADR 0016); kutu 128 baytlık bloklara dolgulu                |
 | Yerler (sunucuda)               | Bir çemberde kaç yer olduğu, ne zaman değiştiği, kimin kaydettiği       | Ad, konum, yarıçap şifreli (ADR 0015)                                                   |
 | Varış / ayrılış olayları        | Bir üyenin bir yere girdiği ya da çıktığı an (hangisi, hangi yer değil) | Yalnızca tam konum paylaşılan çembere gider; sunucu saklamaz                            |
+| Etkinlik belgeleri (sunucuda)   | Kaç buluşma/oylama/oy olduğu, kimin oluşturduğu, ne zaman değiştiği     | Saat, yer, seçenekler ve oylar şifreli; etkinlik bitince silinir (ADR 0017, 0018)       |
+| "Geç kalacak" olayları          | Bir üyenin etkinliğe bir şey bildirdiği an (ne olduğu değil)            | İçerik ve bildirim mühürlü; varış tahmini telefonda, harita servisine sorulmaz          |
 
 ## Gözden geçirme
 

@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
-import { PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
+import { MEETINGS_CHANNEL, PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
 
 export { SOCIAL_CHANNEL };
 
@@ -32,6 +32,7 @@ export interface PushRegistration {
   /** Names of the Android channels, in the user's language. */
   channelName: string;
   placesChannelName: string;
+  meetingsChannelName: string;
 }
 
 /**
@@ -43,6 +44,7 @@ export async function enablePush({
   register,
   channelName,
   placesChannelName,
+  meetingsChannelName,
 }: PushRegistration): Promise<PushState> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(SOCIAL_CHANNEL, {
@@ -51,6 +53,10 @@ export async function enablePush({
     });
     await Notifications.setNotificationChannelAsync(PLACES_CHANNEL, {
       name: placesChannelName,
+      importance: Notifications.AndroidImportance.HIGH,
+    });
+    await Notifications.setNotificationChannelAsync(MEETINGS_CHANNEL, {
+      name: meetingsChannelName,
       importance: Notifications.AndroidImportance.HIGH,
     });
   }

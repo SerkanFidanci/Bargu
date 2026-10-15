@@ -3,6 +3,7 @@ import { type DynamicModule, Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module.js';
 import { KeysModule } from './auth/keys.module.js';
 import { ConfigModule } from './config/config.module.js';
+import { DocsModule } from './docs/docs.module.js';
 import type { Env } from './config/env.js';
 import { HealthModule } from './health/health.module.js';
 import { CirclesModule } from './circles/circles.module.js';
@@ -39,6 +40,7 @@ export class AppModule {
         WeatherModule,
         PhotosModule,
         PlacesModule,
+        DocsModule,
       ],
     };
   }

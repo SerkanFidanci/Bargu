@@ -42,6 +42,8 @@ export type ApiErrorCode =
   | 'VERSION_CONFLICT'
   /** The circle already has as many places as allowed. */
   | 'PLACES_FULL'
+  /** The event already has as many documents (meeting, polls, votes) as allowed. */
+  | 'DOCS_FULL'
   | 'INTERNAL';
 
 export class ApiError extends HttpException {

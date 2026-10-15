@@ -38,6 +38,7 @@ export function usePushNotifications(ready: boolean): void {
       register,
       channelName: i18n.t('notifications.channel'),
       placesChannelName: i18n.t('notifications.placesChannel'),
+      meetingsChannelName: i18n.t('notifications.meetingsChannel'),
     });
     // Notifications arrive sealed and data-only (docs/ADR/0016): this task opens and shows them.
     if (Platform.OS === 'android') void registerPushTask().catch(() => undefined);

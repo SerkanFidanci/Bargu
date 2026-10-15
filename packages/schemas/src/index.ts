@@ -1,6 +1,7 @@
 export {
   bumpPayloadSchema,
   locPayloadSchema,
+  docPayloadSchema,
   payloadSchema,
   placeEnterPayloadSchema,
   placeExitPayloadSchema,
@@ -8,12 +9,30 @@ export {
   statusPayloadSchema,
   profilePayloadSchema,
   placePayloadSchema,
+  planPayloadSchema,
+  pollPayloadSchema,
+  votePayloadSchema,
+  latePayloadSchema,
+  MAX_POLL_OPTIONS,
   PLACE_NAME_MAX,
   PLACE_RADIUS_M,
   type LocPayload,
+  type DocPayload,
   type Payload,
   type PlacePayload,
+  type PlanPayload,
+  type PollPayload,
+  type VotePayload,
 } from './payload.js';
+export {
+  docPutReplySchema,
+  docPutSchema,
+  docRecordSchema,
+  docsSchema,
+  MAX_DOCS_PER_CIRCLE,
+  type DocPut,
+  type DocRecord,
+} from './docs.js';
 export {
   devicePushesSchema,
   MAX_SEALED_PUSH_CHARS,
@@ -38,6 +57,9 @@ export {
 } from './places.js';
 export {
   deviceKeyBundleSchema,
+  DOC_PADDED_BYTES,
+  docEnvelopeSchema,
+  type DocEnvelope,
   MESSAGE_PADDED_BYTES,
   messageEnvelopeSchema,
   senderKeyDistributionSchema,

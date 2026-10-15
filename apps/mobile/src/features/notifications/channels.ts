@@ -3,3 +3,5 @@
 export const SOCIAL_CHANNEL = 'social';
 /** Arrivals and departures at places. */
 export const PLACES_CHANNEL = 'places';
+/** Event meetings: time to leave, someone will be late (docs/ADR/0018). */
+export const MEETINGS_CHANNEL = 'meetings';

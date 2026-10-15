@@ -1,6 +1,7 @@
 import {
   createSenderKeyDistribution,
   createSenderState,
+  encryptDocument,
   encryptMessage,
   generateSenderKey,
   randomUuid,
@@ -9,6 +10,7 @@ import {
 } from '@bargu/crypto';
 import {
   type Circle,
+  type DocPayload,
   EVENT_DURATION_MS,
   type Invite,
   type InvitePreview,
@@ -88,6 +90,11 @@ function phone(who: Person, circle: Circle) {
     key: state.senderKey,
     seal(payload: Payload): MessageEnvelope {
       const { envelope, nextState } = encryptMessage({ state, sender: who.device, payload });
+      state = nextState;
+      return envelope;
+    },
+    document(payload: DocPayload): MessageEnvelope {
+      const { envelope, nextState } = encryptDocument({ state, sender: who.device, payload });
       state = nextState;
       return envelope;
     },
@@ -183,7 +190,7 @@ describe('event circles', () => {
     await join(ayse, qr);
     const circle = (await as(test, owner, 'GET', `/v1/circles/${event.id}`)).json<Circle>();
 
-    // Everything the circle can hold: keys, a location, a status, a profile, a place, a poke,
+    // Everything the circle can hold: keys, a location, a status, a profile, a place, a meeting, a poke,
     // an invite, queued notices, events in both members' streams.
     for (const [who, other] of [
       [owner, ayse],
@@ -246,6 +253,18 @@ describe('event circles', () => {
       version: null,
     });
     expect(place.statusCode).toBe(200);
+    const meeting = await as(test, owner, 'PUT', `/v1/circles/${circle.id}/docs/${circle.id}`, {
+      envelope: ownerPhone.document({
+        kind: 'plan',
+        id: circle.id,
+        meetAt: now + HOUR,
+        placeId,
+        ts: now,
+      }),
+      version: null,
+      shared: true,
+    });
+    expect(meeting.statusCode).toBe(200);
     await as(test, owner, 'POST', '/v1/bumps', {
       envelope: ownerPhone.seal({ kind: 'bump', ts: now }),
     });

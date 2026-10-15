@@ -2,7 +2,7 @@ import type { PushBody } from '@bargu/schemas';
 
 import i18n from '@/i18n';
 
-import { PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
+import { MEETINGS_CHANNEL, PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
 import type { PushContacts } from './push-contacts';
 
 export interface ShownPush {
@@ -10,7 +10,7 @@ export interface ShownPush {
   body: string;
   /** Tapping opens this circle. */
   circleId: string;
-  channel: typeof SOCIAL_CHANNEL | typeof PLACES_CHANNEL;
+  channel: typeof SOCIAL_CHANNEL | typeof PLACES_CHANNEL | typeof MEETINGS_CHANNEL;
   /** Who it is about (for muting); null for the server's notices. */
   fromUserId: string | null;
 }
@@ -46,6 +46,16 @@ export function pushText(
       body: i18n.t('notifications.poked', { name: sender.name }),
       circleId: body.circleId,
       channel: SOCIAL_CHANNEL,
+      fromUserId: sender.userId,
+    };
+  }
+  if (body.kind === 'late') {
+    const circle = contacts.circles[body.circleId]?.name;
+    return {
+      title: circle ?? 'Bargu',
+      body: i18n.t('notifications.late', { name: sender.name, minutes: body.minutes }),
+      circleId: body.circleId,
+      channel: MEETINGS_CHANNEL,
       fromUserId: sender.userId,
     };
   }

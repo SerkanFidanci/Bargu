@@ -1,6 +1,7 @@
 import type { DeviceKeys } from '@bargu/crypto';
 import {
   type Circle,
+  type LocPayload,
   MAX_ENVELOPES_PER_PUBLISH,
   type MessageEnvelope,
   type PublishReply,
@@ -16,6 +17,8 @@ import { nextStay, type Stay } from './stay';
 
 /** What sending needs of a circle; kept in the vault so a background start has it too. */
 export type SendCircle = Pick<Circle, 'id' | 'epoch' | 'myStatus'> & {
+  /** Events have meetings (docs/ADR/0018); missing in copies saved by older versions. */
+  kind?: Circle['kind'] | undefined;
   /** Someone else is active in it (nobody to send to otherwise, e.g. a request not accepted). */
   withOthers: boolean;
 };
@@ -25,6 +28,7 @@ export function toSendCircle(circle: Circle, me: string | null): SendCircle {
   return {
     id: circle.id,
     epoch: circle.epoch,
+    kind: circle.kind,
     myStatus: circle.myStatus,
     withOthers: circle.members.some((member) => member.userId !== me && member.status === 'active'),
   };
@@ -59,6 +63,8 @@ export interface EngineDeps {
   outdated?: (circleIds: string[]) => void;
   /** Every new position, sent or not (arrivals and departures at places, docs/ADR/0015). */
   onFix?: (fix: Fix) => Promise<void>;
+  /** When this phone will be at a circle's meeting, if it has one now (docs/ADR/0018). */
+  eta?: (circleId: string, fix: Fix, now: number) => LocPayload['eta'];
   now?: () => number;
 }
 
@@ -126,6 +132,9 @@ export function createLocationEngine(deps: EngineDeps) {
       device,
       now: at,
       ...(stay === null ? {} : { since: stay.since }),
+      ...(deps.eta === undefined
+        ? {}
+        : { eta: (circleId: string) => deps.eta?.(circleId, fix, at) }),
     });
     const refused = new Set<string>();
     const outdated: string[] = [];

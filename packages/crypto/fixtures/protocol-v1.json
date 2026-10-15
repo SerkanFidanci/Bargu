@@ -16,7 +16,8 @@
     "tokenHash": "bargu/v1/token",
     "atRest": "bargu/v1/at-rest",
     "pseudonym": "bargu/v1/pseudonym",
-    "profilePhoto": "bargu/v1/profile-photo"
+    "profilePhoto": "bargu/v1/profile-photo",
+    "voteId": "bargu/v1/vote-id"
   },
   "safetyNumberIterations": 5200,
   "devices": {

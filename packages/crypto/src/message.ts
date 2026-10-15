@@ -1,6 +1,10 @@
 import {
+  DOC_PADDED_BYTES,
+  docEnvelopeSchema,
+  docPayloadSchema,
   messageEnvelopeSchema,
   payloadSchema,
+  type DocPayload,
   type MessageEnvelope,
   type Payload,
   type PlacePayload,
@@ -85,6 +89,24 @@ interface EncryptInput {
   payload: Payload;
 }
 
+interface DocumentEncryptInput extends Omit<EncryptInput, 'payload'> {
+  payload: DocPayload;
+}
+
+/**
+ * The two envelope sizes (docs/PROTOCOL.md): messages, and the documents a circle keeps
+ * (docs/ADR/0018). Header, keys and signature are the same; the fixed ciphertext size tells them
+ * apart, so a signed message can never pass for a document or the other way round.
+ */
+interface Format {
+  readonly envelope: {
+    safeParse(value: unknown): { success: true; data: MessageEnvelope } | { success: false };
+  };
+  readonly paddedBytes: number;
+}
+const MESSAGE: Format = { envelope: messageEnvelopeSchema, paddedBytes: MESSAGE_PADDED_BYTES };
+const DOCUMENT: Format = { envelope: docEnvelopeSchema, paddedBytes: DOC_PADDED_BYTES };
+
 export interface EncryptResult {
   envelope: MessageEnvelope;
   /** Persist before sending `envelope`. */
@@ -139,20 +161,37 @@ export function encryptPaddedWith(
   };
 }
 
-/** @internal Deterministic core; `salt` must be fresh randomness in production. */
-export function encryptMessageWith(input: EncryptInput, salt: Uint8Array): EncryptResult {
-  const parsed = payloadSchema.safeParse(input.payload);
-  if (!parsed.success) throw new BarguCryptoError('MALFORMED', 'invalid payload');
+/** Pads a validated payload to its format's fixed size, then encrypts and signs it. */
+function encryptValidated(
+  input: Omit<EncryptInput, 'payload'>,
+  payload: Payload | DocPayload,
+  format: Format,
+  salt: Uint8Array,
+): EncryptResult {
   const plaintext = pad(
-    utf8Encode(JSON.stringify(parsed.data)),
-    MESSAGE_PADDED_BYTES,
-    MESSAGE_PADDED_BYTES,
+    utf8Encode(JSON.stringify(payload)),
+    format.paddedBytes,
+    format.paddedBytes,
   );
   try {
     return encryptPaddedWith(input, plaintext, salt);
   } finally {
     plaintext.fill(0);
   }
+}
+
+/** @internal Deterministic core; `salt` must be fresh randomness in production. */
+export function encryptMessageWith(input: EncryptInput, salt: Uint8Array): EncryptResult {
+  const parsed = payloadSchema.safeParse(input.payload);
+  if (!parsed.success) throw new BarguCryptoError('MALFORMED', 'invalid payload');
+  return encryptValidated(input, parsed.data, MESSAGE, salt);
+}
+
+/** @internal Deterministic core of `encryptDocument`. */
+export function encryptDocumentWith(input: DocumentEncryptInput, salt: Uint8Array): EncryptResult {
+  const parsed = docPayloadSchema.safeParse(input.payload);
+  if (!parsed.success) throw new BarguCryptoError('MALFORMED', 'invalid document');
+  return encryptValidated(input, parsed.data, DOCUMENT, salt);
 }
 
 /**
@@ -163,9 +202,18 @@ export function encryptMessage(input: EncryptInput): EncryptResult {
   return encryptMessageWith(input, randomBytes(SALT_BYTES));
 }
 
-function parseEnvelope(envelope: unknown) {
-  const parsed = messageEnvelopeSchema.safeParse(envelope);
-  if (!parsed.success) throw new BarguCryptoError('MALFORMED', 'invalid message envelope');
+/**
+ * Encrypts and signs a document the circle keeps on the server (an event's meeting, a poll, a
+ * vote; docs/ADR/0018): like a message, in the larger fixed-size document envelope. Persist
+ * `nextState` first, as for messages.
+ */
+export function encryptDocument(input: DocumentEncryptInput): EncryptResult {
+  return encryptDocumentWith(input, randomBytes(SALT_BYTES));
+}
+
+function parseEnvelope(envelope: unknown, format: Format) {
+  const parsed = format.envelope.safeParse(envelope);
+  if (!parsed.success) throw new BarguCryptoError('MALFORMED', 'invalid envelope');
   const data = parsed.data;
   const salt = fromBase64url(data.salt, SALT_BYTES);
   const ct = fromBase64url(data.ct);
@@ -178,8 +226,17 @@ function parseEnvelope(envelope: unknown) {
  * checks that device's circle membership). Never throws.
  */
 export function verifyMessageEnvelope(envelope: unknown, senderIdentityKey: Uint8Array): boolean {
+  return verifyEnvelope(envelope, senderIdentityKey, MESSAGE);
+}
+
+/** The same server-side check for a document envelope (docs/ADR/0018). Never throws. */
+export function verifyDocumentEnvelope(envelope: unknown, senderIdentityKey: Uint8Array): boolean {
+  return verifyEnvelope(envelope, senderIdentityKey, DOCUMENT);
+}
+
+function verifyEnvelope(envelope: unknown, senderIdentityKey: Uint8Array, format: Format): boolean {
   try {
-    const { ct, sig, header } = parseEnvelope(envelope);
+    const { ct, sig, header } = parseEnvelope(envelope, format);
     return verifyWithLabel(
       LABELS.messageSignature,
       concatBytes(header, ct),
@@ -198,8 +255,8 @@ interface OpenInput {
 }
 
 /** Shape, key and epoch match, signature: everything before the replay window. */
-function authenticate({ envelope, senderKey, sender }: OpenInput) {
-  const parsed = parseEnvelope(envelope);
+function authenticate({ envelope, senderKey, sender }: OpenInput, format: Format) {
+  const parsed = parseEnvelope(envelope, format);
   const { data, ct, sig, header } = parsed;
   if (data.senderDeviceId !== sender.deviceId || data.senderDeviceId !== senderKey.senderDeviceId) {
     throw new BarguCryptoError('KEY_MISMATCH', 'envelope is from another device');
@@ -213,11 +270,12 @@ function authenticate({ envelope, senderKey, sender }: OpenInput) {
   return parsed;
 }
 
-/** Decryption and payload validation of an authenticated envelope. */
+/** Decryption of an authenticated envelope, up to its JSON (the caller validates it). */
 function decryptAuthenticated(
   senderKey: SenderKey,
   { ct, header, salt }: ReturnType<typeof parseEnvelope>,
-): Payload {
+  format: Format,
+): unknown {
   const keyAndNonce = messageKey(senderKey.key, salt, header);
   let padded: Uint8Array;
   try {
@@ -227,17 +285,20 @@ function decryptAuthenticated(
   }
   let text: string;
   try {
-    text = utf8Decode(unpad(padded, MESSAGE_PADDED_BYTES));
+    text = utf8Decode(unpad(padded, format.paddedBytes));
   } finally {
     padded.fill(0);
   }
-  let json: unknown;
   try {
-    json = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
     throw new BarguCryptoError('MALFORMED', 'payload is not valid JSON');
   }
-  const payload = payloadSchema.safeParse(json);
+}
+
+/** A message's payload, decrypted and validated. */
+function decryptPayload(senderKey: SenderKey, parsed: ReturnType<typeof parseEnvelope>): Payload {
+  const payload = payloadSchema.safeParse(decryptAuthenticated(senderKey, parsed, MESSAGE));
   if (!payload.success) throw new BarguCryptoError('MALFORMED', 'invalid payload');
   return payload.data;
 }
@@ -251,13 +312,13 @@ function decryptAuthenticated(
  */
 export function decryptMessage(input: OpenInput & { replay: ReplayGuard }): Payload {
   const { senderKey, replay } = input;
-  const parsed = authenticate(input);
+  const parsed = authenticate(input, MESSAGE);
   const { data } = parsed;
   const verdict = replay.check(data.circleId, data.senderDeviceId, data.epoch, data.seq);
   if (verdict === 'replay') {
     throw new BarguCryptoError('REPLAY', 'message already seen or too old');
   }
-  const payload = decryptAuthenticated(senderKey, parsed);
+  const payload = decryptPayload(senderKey, parsed);
   replay.accept(data.circleId, data.senderDeviceId, data.epoch, data.seq);
   if (payload.kind === 'loc' && verdict !== 'latest') {
     throw new BarguCryptoError('STALE', 'a newer location from this sender was already accepted');
@@ -272,9 +333,22 @@ export function decryptMessage(input: OpenInput & { replay: ReplayGuard }): Payl
  * versions in order (a place's `ts` never goes back).
  */
 export function decryptStoredMessage(input: OpenInput): PlacePayload {
-  const payload = decryptAuthenticated(input.senderKey, authenticate(input));
+  const payload = decryptPayload(input.senderKey, authenticate(input, MESSAGE));
   if (payload.kind !== 'place') {
     throw new BarguCryptoError('MALFORMED', 'only places are stored messages');
   }
   return payload;
+}
+
+/**
+ * Opens a document of a circle (its meeting, a poll, a vote; docs/ADR/0018): the same checks as
+ * `decryptStoredMessage`, in the document envelope, and only document payloads. Members open it
+ * again and again, so there is no replay window; the caller keeps versions in order (a document's
+ * `ts` never goes back).
+ */
+export function decryptDocument(input: OpenInput): DocPayload {
+  const json = decryptAuthenticated(input.senderKey, authenticate(input, DOCUMENT), DOCUMENT);
+  const payload = docPayloadSchema.safeParse(json);
+  if (!payload.success) throw new BarguCryptoError('MALFORMED', 'invalid document');
+  return payload.data;
 }

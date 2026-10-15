@@ -27,6 +27,11 @@ export const locPayloadSchema = z
      * viewer can show "settled" alike; omitted below full precision.
      */
     since: timestamp.optional(),
+    /**
+     * On the way to the circle's meeting (docs/ADR/0018): when the sender's phone estimates to be
+     * there, for the meeting at `meetAt`. Full precision only (dropped by applyPrecision).
+     */
+    eta: z.object({ meetAt: timestamp, at: timestamp }).strict().optional(),
     ts: timestamp,
   })
   .strict();
@@ -117,7 +122,94 @@ export const placePayloadSchema = z
   .strict();
 export type PlacePayload = z.infer<typeof placePayloadSchema>;
 
-/** Everything a sender can put inside an encrypted envelope (BARGU_PLAN §3.1). */
+/**
+ * An event's meeting (docs/ADR/0018): when, and at which of the circle's places. One per circle
+ * (its id is the circle's), editable by every member, stored encrypted like places.
+ */
+export const planPayloadSchema = z
+  .object({
+    kind: z.literal('plan'),
+    id: z.uuid(),
+    meetAt: timestamp.optional(),
+    placeId: z.uuid().optional(),
+    ts: timestamp,
+  })
+  .strict();
+export type PlanPayload = z.infer<typeof planPayloadSchema>;
+
+/** Options of a poll: two to four times, or two to four of the circle's places. */
+export const MAX_POLL_OPTIONS = 4;
+const timeOptionSchema = z.object({ at: timestamp }).strict();
+const placeOptionSchema = z.object({ placeId: z.uuid(), name: placeNameSchema }).strict();
+
+/**
+ * A poll on an event's meeting time or place (docs/ADR/0018). Whoever started it closes it; the
+ * winning option then becomes the meeting's time or place.
+ */
+export const pollPayloadSchema = z
+  .object({
+    kind: z.literal('poll'),
+    id: z.uuid(),
+    /** Who started it (they, and the event's owner, close it). */
+    by: z.uuid(),
+    about: z.enum(['time', 'place']),
+    options: z
+      .array(z.union([timeOptionSchema, placeOptionSchema]))
+      .min(2)
+      .max(MAX_POLL_OPTIONS),
+    /** Set when closed: the option chosen. */
+    closed: z
+      .object({
+        choice: z
+          .number()
+          .int()
+          .min(0)
+          .max(MAX_POLL_OPTIONS - 1),
+      })
+      .strict()
+      .optional(),
+    ts: timestamp,
+  })
+  .strict()
+  .refine(
+    (poll) =>
+      poll.options.every((option) => 'at' in option === (poll.about === 'time')) &&
+      (poll.closed === undefined || poll.closed.choice < poll.options.length),
+    'options must match the poll and the choice must exist',
+  );
+export type PollPayload = z.infer<typeof pollPayloadSchema>;
+
+/** A member's vote in a poll: the options they are fine with (stored as their own document). */
+export const votePayloadSchema = z
+  .object({
+    kind: z.literal('vote'),
+    id: z.uuid(),
+    pollId: z.uuid(),
+    choices: z
+      .array(
+        z
+          .number()
+          .int()
+          .min(0)
+          .max(MAX_POLL_OPTIONS - 1),
+      )
+      .max(MAX_POLL_OPTIONS),
+    ts: timestamp,
+  })
+  .strict();
+export type VotePayload = z.infer<typeof votePayloadSchema>;
+
+/** "I will be about this late" to the meeting at `meetAt` (sent once per estimate, not stored). */
+export const latePayloadSchema = z
+  .object({
+    kind: z.literal('late'),
+    meetAt: timestamp,
+    minutes: z.number().int().min(1).max(600),
+    ts: timestamp,
+  })
+  .strict();
+
+/** Everything a sender can put inside an encrypted message envelope (BARGU_PLAN §3.1). */
 export const payloadSchema = z.discriminatedUnion('kind', [
   locPayloadSchema,
   bumpPayloadSchema,
@@ -127,7 +219,19 @@ export const payloadSchema = z.discriminatedUnion('kind', [
   statusPayloadSchema,
   profilePayloadSchema,
   placePayloadSchema,
+  latePayloadSchema,
 ]);
+
+/**
+ * What a circle keeps as documents, in the larger document envelope (docs/ADR/0018): its meeting,
+ * its polls and the votes in them. Never relayed as a message, and no message is a document.
+ */
+export const docPayloadSchema = z.discriminatedUnion('kind', [
+  planPayloadSchema,
+  pollPayloadSchema,
+  votePayloadSchema,
+]);
+export type DocPayload = z.infer<typeof docPayloadSchema>;
 
 export type Payload = z.infer<typeof payloadSchema>;
 export type LocPayload = z.infer<typeof locPayloadSchema>;

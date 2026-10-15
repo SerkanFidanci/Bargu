@@ -40,6 +40,17 @@ export const messageEnvelopeSchema = z
 export type MessageEnvelope = z.infer<typeof messageEnvelopeSchema>;
 
 /**
+ * Documents a circle keeps (an event's polls and votes, docs/ADR/0018) are padded to this larger
+ * fixed size: a poll with its options does not fit a message. Same envelope otherwise.
+ */
+export const DOC_PADDED_BYTES = 1024;
+
+export const docEnvelopeSchema = messageEnvelopeSchema.extend({
+  ct: base64urlOf(DOC_PADDED_BYTES + AEAD_TAG_BYTES),
+});
+export type DocEnvelope = z.infer<typeof docEnvelopeSchema>;
+
+/**
  * A sender key wrapped for exactly one recipient device (docs/PROTOCOL.md §4). Stored by the
  * server as an opaque blob and delivered to that device only.
  */

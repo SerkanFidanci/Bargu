@@ -10,6 +10,7 @@ import { type Circle, locPayloadSchema, type MessageEnvelope, type Payload } fro
 type StatusPayload = Extract<Payload, { kind: 'status' }>;
 type ProfilePayload = Extract<Payload, { kind: 'profile' }>;
 type PlaceEventPayload = Extract<Payload, { kind: 'place_enter' | 'place_exit' }>;
+type LatePayload = Extract<Payload, { kind: 'late' }>;
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -55,6 +56,8 @@ export interface ReceiverDeps {
   onProfile?: (userId: string, profile: ProfilePayload, senderDeviceId: string) => void;
   /** A member arrived at or left one of the circle's places (docs/ADR/0015). */
   onPlace?: (circleId: string, userId: string, event: PlaceEventPayload) => void;
+  /** A member will be late to the event's meeting (docs/ADR/0018). */
+  onLate?: (circleId: string, userId: string, late: LatePayload) => void;
   now?: () => number;
 }
 
@@ -81,6 +84,7 @@ export function createReceiver({
   onStatus,
   onProfile,
   onPlace,
+  onLate,
   now = Date.now,
 }: ReceiverDeps) {
   let replay: ReplayGuard | null = null;
@@ -173,6 +177,10 @@ export function createReceiver({
       }
       if (payload.kind === 'place_enter' || payload.kind === 'place_exit') {
         onPlace?.(circle.id, sender.userId, payload);
+        return 'shown';
+      }
+      if (payload.kind === 'late') {
+        onLate?.(circle.id, sender.userId, payload);
         return 'shown';
       }
       return 'ignored';

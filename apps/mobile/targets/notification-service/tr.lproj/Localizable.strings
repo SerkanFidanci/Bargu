@@ -8,3 +8,4 @@
 "notice.circleInvite" = "Bir çembere davet edildin";
 "notice.memberJoined" = "Çemberine yeni biri katıldı";
 "notice.memberJoinedIn" = "%@ çemberine yeni biri katıldı";
+"late" = "%1$@ yaklaşık %2$ld dk gecikecek";

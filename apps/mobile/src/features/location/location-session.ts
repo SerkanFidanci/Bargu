@@ -2,6 +2,7 @@ import {
   bumpEventSchema,
   bumpReplySchema,
   type Circle,
+  CIRCLE_KINDS,
   locationSnapshotSchema,
   locEventSchema,
   locGoneEventSchema,
@@ -42,6 +43,10 @@ import { loadContacts } from '../notifications/push-contacts';
 import { usePlaces } from '../places/places';
 import { places } from '../places/places-session';
 import { createPresence, placeEvent } from '../places/presence';
+import { useDocs } from '../plan/docs';
+import { docs } from '../plan/docs-session';
+import { createMeetings, lateEvent, useLates } from '../plan/meeting';
+import { cancelReminder, remindToLeave } from '../plan/reminders';
 import { queryClient } from '../query-client';
 import { publishProfile, receivedProfile, resetPhotos, restorePhotos } from '../profile/photo';
 import { receivePoke } from '../social/poke';
@@ -53,7 +58,7 @@ import {
   statusGone,
 } from '../social/status';
 import { isVaultOpen, vault } from '../storage/vault';
-import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle } from './engine';
+import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix } from './engine';
 import { createReceiver } from './receive';
 import {
   DEFAULT_SHARING,
@@ -75,6 +80,7 @@ const sendCirclesSchema = z.array(
   z.object({
     id: z.string(),
     epoch: z.number(),
+    kind: z.enum(CIRCLE_KINDS).optional(),
     myStatus: z.enum(MEMBER_STATUSES),
     withOthers: z.boolean(),
   }),
@@ -182,6 +188,56 @@ const presence = createPresence({
   announce,
 });
 
+/** "I will be late" to an event's meeting: the message, and sealed notifications for the others. */
+async function sendLate(
+  circle: Pick<Circle, 'id' | 'epoch'>,
+  meetAt: number,
+  minutes: number,
+): Promise<void> {
+  const device = useAuth.getState().device;
+  if (device === null) throw new Error('signed out');
+  const request = lateEvent({
+    circle,
+    meetAt,
+    minutes,
+    keys: keys(),
+    device,
+    recipients: loadContacts(vault()).recipients[circle.id] ?? [],
+    now: Date.now(),
+  });
+  const reply = bumpReplySchema.parse(
+    await api.authed('/v1/place-events', { method: 'POST', body: request }),
+  );
+  if ('refused' in reply) {
+    if (reply.refused === 'EPOCH' || reply.refused === 'NOT_MEMBER') {
+      void circleSync.refresh(circle.id).catch(() => undefined);
+    }
+    throw new Error(reply.refused);
+  }
+}
+
+/** The meetings of events (docs/ADR/0018): estimates, "will be late", reminders to leave. */
+export const meetings = createMeetings({
+  circles: sendCircles,
+  docs: () => {
+    docs.restore();
+    return useDocs.getState();
+  },
+  places: () => {
+    places.restore();
+    return usePlaces.getState();
+  },
+  sharing: loadSharingSettings,
+  store: vault,
+  sendLate,
+  remind: remindToLeave,
+  cancel: cancelReminder,
+  words: (meeting, minutes) => ({
+    title: `${meeting.place.emoji} ${meeting.place.name} · ${new Date(meeting.meetAt).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}`,
+    body: i18n.t('plan.leaveIn', { minutes }),
+  }),
+});
+
 /** The one engine of this run: fed by the location service, open app or locked screen alike. */
 export const locationEngine = createLocationEngine({
   keys,
@@ -196,7 +252,24 @@ export const locationEngine = createLocationEngine({
   outdated: (circleIds) => {
     for (const circleId of circleIds) void circleSync.refresh(circleId).catch(() => undefined);
   },
-  onFix: (fix) => presence.fix(fix),
+  onFix: async (fix) => {
+    // Meetings first: they note this position at once, before the location goes out with it.
+    const meeting = meetings.fix(fix).catch(() => undefined);
+    await presence.fix(fix);
+    await meeting;
+  },
+  eta: (circleId, fix, now) => meetings.eta(circleId, fix, now),
+});
+
+// A meeting was set or changed: the reminder to leave follows at once (from the last position).
+let planTimer: ReturnType<typeof setTimeout> | null = null;
+useDocs.subscribe(() => {
+  if (planTimer !== null) return;
+  planTimer = setTimeout(() => {
+    planTimer = null;
+    const { fix } = useMyFix.getState();
+    if (fix !== null && isVaultOpen()) void meetings.fix(fix).catch(() => undefined);
+  }, 1_000);
 });
 
 /** An arrival or departure older than this when it arrives (it waited for a key) is not shown. */
@@ -255,6 +328,16 @@ const receiver = createReceiver({
         ? i18n.t('places.arrivedToast', values)
         : i18n.t('places.leftToast', values),
     );
+  },
+  // Someone will be late to an event's meeting: on the board, and a line unless muted.
+  onLate: (circleId, userId, late) => {
+    if (Date.now() - late.ts > PLACE_EVENT_FRESH_MS) return;
+    useLates.setState({ [`${circleId}:${userId}`]: late });
+    const member = cachedCircles()
+      ?.find((circle) => circle.id === circleId)
+      ?.members.find((candidate) => candidate.userId === userId);
+    if (member === undefined || isMuted(loadMuteSettings(), { kind: 'late' }, userId)) return;
+    toast.info(i18n.t('notifications.late', { name: memberName(member), minutes: late.minutes }));
   },
   onBump: (circleId, userId, ts) => {
     const name = receivePoke(circleId, userId, ts);
@@ -371,6 +454,7 @@ queryClient.getQueryCache().subscribe((event) => {
 
 onSignedOut(() => {
   locationEngine.reset();
+  meetings.reset();
   receiver.reset();
   resetStatuses();
   resetPhotos();

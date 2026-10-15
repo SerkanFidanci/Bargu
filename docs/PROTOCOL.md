@@ -167,7 +167,7 @@ Zod ayrık birleşimi (`kind`), bilinmeyen alan reddedilir ([`packages/schemas`]
 
 | `kind`        | Alanlar                                                                    |
 | ------------- | -------------------------------------------------------------------------- |
-| `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, ts`                          |
+| `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, since?, eta?, ts` (ADR 0018) |
 | `bump`        | `ts`                                                                       |
 | `place_enter` | `placeId, ts`                                                              |
 | `place_exit`  | `placeId, ts`                                                              |
@@ -175,6 +175,7 @@ Zod ayrık birleşimi (`kind`), bilinmeyen alan reddedilir ([`packages/schemas`]
 | `status`      | `emoji? (≤16), text? (≤80), expiresAt, ts`                                 |
 | `profile`     | `photo` (`{ id, key }` ya da `null`), `ts` (ADR 0014)                      |
 | `place`       | `id, name (≤40), emoji (≤16), lat, lng, radius (50–1000 m), ts` (ADR 0015) |
+| `late`        | `meetAt, minutes (1–600), ts`: buluşmaya gecikme (ADR 0018)                |
 
 **Saklanan mesaj (yer).** Bir çemberin yeri, son kaydeden üyenin gönderen anahtarıyla şifrelenmiş
 `place` mesajı olarak sunucuda kalır. Üyeler onu yeni mesajlardan çok sonra tekrar açtığı için
@@ -185,13 +186,23 @@ silinmiş bir yeri geri almaz. Sunucu yalnızca çemberin **güncel** epoch'uyla
 eder; epoch ilerleyince açabilen bir üye yeri kendi yeni anahtarıyla yeniden mühürler (yeni üyeler
 eskisini açamaz).
 
+**Belgeler (etkinlik, ADR 0018).** Etkinliğin buluşması (`plan`: `id = circleId, meetAt?, placeId?,
+ts`), oylamaları (`poll`: `id, by, about (time | place), options (2–4), closed?, ts`) ve oyları
+(`vote`: `id, pollId, choices, ts`) mesajla aynı başlık, anahtar ve imzayla, ama **1024 bayta**
+dolgulanarak şifrelenir (`ct` 1040 bayt; `encryptDocument` / `decryptDocument` /
+`verifyDocumentEnvelope`). Boyut iki zarfı ayırır: bir mesaj imzası belge, bir belge imzası mesaj
+yerine geçemez; mesaj içerikleri belgeye, belge içerikleri mesaja konamaz. Belgeler yerler gibi tekrar
+penceresiz açılır, `ts` yalnızca büyür, silineni telefon geri almaz. Oy kimliği
+`UUIDv8(SHA-256("bargu/v1/vote-id�" ‖ pollId ‖ userId))` (sürüm 8, varyant 10): alıcı, oyun onu
+imzalayan kişinin kimliğiyle dosyalandığını denetler.
+
 ## 7. Hassasiyet (şifrelemeden önce, gönderende)
 
-| Seviye  | Hücre  | Etki                                                                      |
-| ------- | ------ | ------------------------------------------------------------------------- |
-| Tam     | —      | Değişmez                                                                  |
-| Mahalle | ~1 km  | Hücre merkezine çekilir; `spd`/`hdg` atılır; `acc` hücre yarıçapının katı |
-| Şehir   | ~10 km | Aynısı, 10 km hücre                                                       |
+| Seviye  | Hücre  | Etki                                                                                    |
+| ------- | ------ | --------------------------------------------------------------------------------------- |
+| Tam     | —      | Değişmez                                                                                |
+| Mahalle | ~1 km  | Hücre merkezine çekilir; `spd`/`hdg`/`since`/`eta` atılır; `acc` hücre yarıçapının katı |
+| Şehir   | ~10 km | Aynısı, 10 km hücre                                                                     |
 
 Rastgele gürültü değil, **sabit ızgara**: aynı yer hep aynı noktayı verir, ortalama almak gerçek konumu
 ortaya çıkarmaz. Satır ve sütunlar 180°/360°'yi tam böler (tarih değiştirme hattında yarım hücre yok);

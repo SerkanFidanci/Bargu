@@ -33,6 +33,15 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
     })
     .strict(),
   z.object({ kind: z.literal('bump'), circleId: z.uuid(), ts: timestamp }).strict(),
+  /** "Ali will be about 10 minutes late" to the event's meeting (docs/ADR/0018). */
+  z
+    .object({
+      kind: z.literal('late'),
+      circleId: z.uuid(),
+      minutes: z.number().int().min(1).max(600),
+      ts: timestamp,
+    })
+    .strict(),
   z
     .object({
       kind: z.literal('notice'),
@@ -65,7 +74,10 @@ export const devicePushesSchema = z
   .max(MAX_CIRCLE_MEMBERS);
 export type DevicePushes = z.infer<typeof devicePushesSchema>;
 
-/** A member arrived at or left one of the circle's places (encrypted `place_enter` / `place_exit`). */
+/**
+ * A member arrived at or left one of the circle's places (encrypted `place_enter` / `place_exit`),
+ * or will be late to an event's meeting (`late`, docs/ADR/0018).
+ */
 export const placeEventRequestSchema = z
   .object({ envelope: messageEnvelopeSchema, pushes: devicePushesSchema })
   .strict();

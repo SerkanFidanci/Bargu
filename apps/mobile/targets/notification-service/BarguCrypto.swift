@@ -107,7 +107,7 @@ public struct SenderKeyDistribution: Codable, Equatable, Sendable {
 /// What a notification says (TypeScript: `PushBody`, packages/schemas/src/push.ts), decoded as
 /// strictly as the zod schema: per kind exactly its fields, ids and texts checked.
 public struct PushBody: Decodable, Equatable, Sendable {
-  public enum Kind: String, Sendable { case place, bump, notice }
+  public enum Kind: String, Sendable { case place, bump, notice, late }
   public static let notices: Set<String> = [
     "friendRequest", "friendAccepted", "friendAdded", "circleInvite", "memberJoined",
   ]
@@ -122,9 +122,11 @@ public struct PushBody: Decodable, Equatable, Sendable {
   public let emoji: String?
   /// `notice` only.
   public let notice: String?
+  /// `late` only: about how many minutes (docs/ADR/0018).
+  public let minutes: Int?
 
   enum CodingKeys: String, CodingKey, CaseIterable {
-    case kind, circleId, ts, placeId, event, name, emoji, notice
+    case kind, circleId, ts, placeId, event, name, emoji, notice, minutes
   }
 
   static func fields(_ kind: Kind) -> Set<String> {
@@ -132,6 +134,7 @@ public struct PushBody: Decodable, Equatable, Sendable {
     case .place: return ["kind", "circleId", "placeId", "event", "name", "emoji", "ts"]
     case .bump: return ["kind", "circleId", "ts"]
     case .notice: return ["kind", "notice", "circleId", "ts"]
+    case .late: return ["kind", "circleId", "minutes", "ts"]
     }
   }
 
@@ -154,6 +157,7 @@ public struct PushBody: Decodable, Equatable, Sendable {
     name = try c.decodeIfPresent(String.self, forKey: .name)
     emoji = try c.decodeIfPresent(String.self, forKey: .emoji)
     notice = try c.decodeIfPresent(String.self, forKey: .notice)
+    minutes = try c.decodeIfPresent(Int.self, forKey: .minutes)
     switch kind {
     case .place:
       _ = try Encoding.uuidBytes(placeId ?? "")
@@ -162,6 +166,8 @@ public struct PushBody: Decodable, Equatable, Sendable {
       else { throw BarguCryptoError.malformed }
     case .notice:
       guard let notice, Self.notices.contains(notice) else { throw BarguCryptoError.malformed }
+    case .late:
+      guard let minutes, (1...600).contains(minutes) else { throw BarguCryptoError.malformed }
     case .bump:
       break
     }
