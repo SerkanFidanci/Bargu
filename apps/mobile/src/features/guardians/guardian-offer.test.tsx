@@ -30,7 +30,14 @@ import GuardianOfferScreen from '@/app/(app)/g/[token]';
 const show = () =>
   render(
     <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })}
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { retry: false, gcTime: Infinity },
+            mutations: { gcTime: Infinity },
+          },
+        })
+      }
     >
       <GuardianOfferScreen />
     </QueryClientProvider>,

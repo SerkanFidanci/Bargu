@@ -15,6 +15,6 @@ import { ProfilesService } from './profiles.service.js';
   imports: [AuthModule, PushModule, RelayModule],
   controllers: [CirclesController],
   providers: [CirclesService, InvitesService, KeysService, ProfilesService, EventExpiry],
-  exports: [CirclesService, EventExpiry],
+  exports: [CirclesService, InvitesService, EventExpiry],
 })
 export class CirclesModule {}

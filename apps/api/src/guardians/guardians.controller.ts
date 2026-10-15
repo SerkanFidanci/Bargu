@@ -1,11 +1,16 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
 import {
   type GuardianCode,
   type GuardianEnd,
   type GuardianLink,
   type GuardianPreview,
+  type GuardianRules,
+  type GuardianSettings,
+  guardianSettingsSchema,
   guardianTokenBodySchema,
   type GuardianView,
+  type UsageReport,
+  usageReportSchema,
 } from '@bargu/schemas';
 import { z } from 'zod';
 
@@ -51,6 +56,52 @@ export class GuardiansController {
     @Body(new ZodPipe(guardianTokenBodySchema)) body: { token: string },
   ): Promise<GuardianLink> {
     return this.guardians.accept(auth, body.token);
+  }
+
+  /** The child's own rules (docs/ADR/0023 §5), as the phone applies them. */
+  @Get('rules')
+  rules(@CurrentAuth() auth: AuthContext): Promise<GuardianRules> {
+    return this.guardians.rules(auth);
+  }
+
+  /** The child's phone: minutes the app was open on a day. */
+  @Put('usage')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  usage(
+    @CurrentAuth() auth: AuthContext,
+    @Body(new ZodPipe(usageReportSchema)) body: UsageReport,
+  ): Promise<void> {
+    return this.guardians.recordUsage(auth, body);
+  }
+
+  @Put(':id/settings')
+  @HttpCode(HttpStatus.OK)
+  settings(
+    @CurrentAuth() auth: AuthContext,
+    @Param('id', idPipe) id: string,
+    @Body(new ZodPipe(guardianSettingsSchema)) body: GuardianSettings,
+  ): Promise<GuardianView> {
+    return this.guardians.setSettings(auth, id, body);
+  }
+
+  @Post(':id/requests/:requestId/approve')
+  @HttpCode(HttpStatus.OK)
+  approve(
+    @CurrentAuth() auth: AuthContext,
+    @Param('id', idPipe) id: string,
+    @Param('requestId', idPipe) requestId: string,
+  ): Promise<{ done: boolean }> {
+    return this.guardians.answer(auth, id, requestId, true);
+  }
+
+  @Post(':id/requests/:requestId/decline')
+  @HttpCode(HttpStatus.OK)
+  decline(
+    @CurrentAuth() auth: AuthContext,
+    @Param('id', idPipe) id: string,
+    @Param('requestId', idPipe) requestId: string,
+  ): Promise<{ done: boolean }> {
+    return this.guardians.answer(auth, id, requestId, false);
   }
 
   @Get(':id')

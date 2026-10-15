@@ -51,6 +51,54 @@ export const guardianEndSchema = z
   .strict();
 export type GuardianEnd = z.infer<typeof guardianEndSchema>;
 
+/** The parent's settings for the child (docs/ADR/0023 §5). */
+export const DAILY_LIMIT_MINUTES = { min: 30, max: 360 } as const;
+export const guardianSettingsSchema = z
+  .object({
+    /** A friendship, a group or an event waits for a parent's yes. */
+    approveNewPeople: z.boolean(),
+    /** The app closes for the day after this many minutes open; null: no limit. */
+    dailyLimitMinutes: z
+      .number()
+      .int()
+      .min(DAILY_LIMIT_MINUTES.min)
+      .max(DAILY_LIMIT_MINUTES.max)
+      .nullable(),
+  })
+  .strict();
+export type GuardianSettings = z.infer<typeof guardianSettingsSchema>;
+
+/** Something new the child asked for, waiting for a parent's yes. */
+export const guardianRequestSchema = z
+  .object({
+    id: z.uuid(),
+    /** gone: the code stopped working meanwhile (a yes would do nothing). */
+    kind: z.enum(['friend', 'group', 'event', 'gone']),
+    /** The group's or event's name, or the friend's username. */
+    name: z.string().nullable(),
+    memberCount: z.number().int().nullable(),
+    /** Who made the code (username), when it was a code. */
+    by: z.string().nullable(),
+    createdAt: z.number().int(),
+  })
+  .strict();
+export type GuardianRequest = z.infer<typeof guardianRequestSchema>;
+
+/** The child's own rules as the phone applies them (docs/ADR/0023 §5). */
+export const guardianRulesSchema = z
+  .object({ linked: z.boolean(), settings: guardianSettingsSchema.nullable() })
+  .strict();
+export type GuardianRules = z.infer<typeof guardianRulesSchema>;
+
+/** The minutes the app was open on a day of the child's phone (its own calendar). */
+export const usageReportSchema = z
+  .object({
+    day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    minutes: z.number().int().min(0).max(1440),
+  })
+  .strict();
+export type UsageReport = z.infer<typeof usageReportSchema>;
+
 /**
  * What the parent sees, and the child sees the same: the child's age band and everyone who could
  * see the child's location (the child's circles and the people in them). Never the location.
@@ -74,6 +122,14 @@ export const guardianViewSchema = z
         })
         .strict(),
     ),
+    settings: guardianSettingsSchema.extend({
+      updatedAt: z.number().int(),
+      /** Which parent changed them last (username); null when nobody has yet. */
+      updatedBy: z.string().nullable(),
+    }),
+    /** Minutes the app was open, the last 7 days, oldest first. */
+    usage: z.array(usageReportSchema),
+    requests: z.array(guardianRequestSchema),
   })
   .strict();
 export type GuardianView = z.infer<typeof guardianViewSchema>;

@@ -144,7 +144,7 @@ export class CirclesService implements OnModuleInit {
     });
   }
 
-  async get(auth: AuthContext, circleId: string): Promise<Circle> {
+  async get(auth: Pick<AuthContext, 'userId'>, circleId: string): Promise<Circle> {
     const circle = await this.database.asUser(auth.userId, (tx) =>
       this.read(tx, circleId, auth.userId),
     );
@@ -402,8 +402,14 @@ export class CirclesService implements OnModuleInit {
    * Friend request by username: a pair circle where the other side is invited. The answer for an
    * unknown name and for yourself is the same 404 (no hint beyond what the name check gives).
    */
-  async requestFriend(auth: AuthContext, username: string): Promise<Circle> {
+  async requestFriend(
+    auth: Pick<AuthContext, 'userId'>,
+    username: string,
+    /** A parent already said yes (docs/ADR/0023 §5). */
+    approved = false,
+  ): Promise<Circle> {
     await this.limit(auth.userId);
+    if (!approved) await this.askGuardians(auth.userId, username);
     const circle = await this.database.asUser(auth.userId, async (tx) => {
       const result = await tx.execute<{ id: string | null }>(
         sql`SELECT app.request_friend(${username}) AS id`,
@@ -449,6 +455,23 @@ export class CirclesService implements OnModuleInit {
     });
     if (started) await this.changed(circle);
     return circle;
+  }
+
+  /**
+   * A 15-17 child's new friend waits for a parent's yes (docs/ADR/0023 §5): the request is kept,
+   * the parents hear it, the child gets 403 GUARDIAN_APPROVAL. Nothing when no yes is needed.
+   */
+  private async askGuardians(userId: string, username: string): Promise<void> {
+    const asked = await this.database.asUser(userId, (tx) =>
+      tx.execute<{ guardian: string }>(
+        sql`SELECT app.ask_guardians_for_friend(${username}) AS guardian`,
+      ),
+    );
+    const parents = asked.rows.map((row) => row.guardian);
+    if (parents.length === 0) return;
+    await this.events.publish([userId, ...parents], { type: 'guardians.changed' });
+    await this.notifier.notify(parents, 'guardianApproval', userId);
+    throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
   }
 
   /** Tells everyone in a circle that it changed, reading it as `userId` (a member). */

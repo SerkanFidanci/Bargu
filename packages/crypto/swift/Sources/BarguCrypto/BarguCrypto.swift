@@ -111,6 +111,7 @@ public struct PushBody: Decodable, Equatable, Sendable {
   public static let notices: Set<String> = [
     "friendRequest", "friendAccepted", "friendAdded", "circleInvite", "memberJoined",
     "guardianRequest", "guardianLinked", "guardianEndRequested", "guardianEnded",
+    "guardianApproval", "guardianApproved", "guardianDeclined", "guardianSettings",
   ]
 
   public let kind: Kind

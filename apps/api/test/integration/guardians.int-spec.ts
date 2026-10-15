@@ -1,4 +1,5 @@
 import {
+  type Circle,
   GUARDIAN_END_AFTER_MS,
   type GuardianCode,
   type GuardianEnd,
@@ -247,5 +248,151 @@ describe('"Kullanıcı adımla bulunabilirim" (docs/ADR/0023, QA 5a Y2)', () => 
       findable: false,
       locked: true,
     });
+  });
+});
+
+describe('guardian tools (docs/ADR/0023 §5)', () => {
+  const viewOf = async (who: Person, link: GuardianLink) =>
+    (await as(test, who, 'GET', `/v1/guardians/${link.id}`)).json<GuardianView>();
+  const codeFrom = async (who: Person, body: object) =>
+    (await as(test, who, 'POST', '/v1/invites', body)).json<Invite>();
+  const join = (who: Person, invite: Invite) =>
+    as(test, who, 'POST', '/v1/invites/accept', { token: invite.token });
+  const answer = (parent: Person, link: GuardianLink, requestId: string, yes: boolean) =>
+    as(
+      test,
+      parent,
+      'POST',
+      `/v1/guardians/${link.id}/requests/${requestId}/${yes ? 'approve' : 'decline'}`,
+    );
+
+  it('make a new person wait for a parent’s yes, and the yes does it as the child', async () => {
+    const [child, parent, friend, stranger] = await Promise.all([
+      teenager(),
+      adult(),
+      adult('Bora'),
+      adult('Fikret'),
+    ]);
+    const link = await linked(child, parent);
+    const friendCode = await codeFrom(friend, { kind: 'friend' });
+    const waiting = await join(child, friendCode);
+    expect(waiting.statusCode).toBe(403);
+    expect(waiting.json()).toMatchObject({ code: 'GUARDIAN_APPROVAL' });
+    expect((await join(child, friendCode)).statusCode).toBe(403);
+    const asked = await viewOf(parent, link);
+    expect(asked.requests).toMatchObject([
+      { kind: 'friend', name: friend.username, by: friend.username },
+    ]);
+    expect((await viewOf(child, link)).requests).toEqual(asked.requests);
+    const [request] = asked.requests;
+    if (request === undefined) throw new Error('no request');
+
+    // Nobody else answers: not the child, not a stranger.
+    expect((await answer(child, link, request.id, true)).statusCode).toBe(404);
+    expect((await answer(stranger, link, request.id, true)).statusCode).toBe(404);
+    expect((await answer(parent, link, request.id, true)).json()).toEqual({ done: true });
+    const circles = (await as(test, child, 'GET', '/v1/circles')).json<{ circles: Circle[] }>();
+    expect(circles.circles.some((circle) => circle.kind === 'pair')).toBe(true);
+    expect((await viewOf(parent, link)).requests).toEqual([]);
+
+    // A group: no.
+    const group = await createCircle(test, stranger, 'Kulüp');
+    const groupCode = await codeFrom(stranger, { kind: 'circle', circleId: group.id });
+    expect((await join(child, groupCode)).statusCode).toBe(403);
+    const [groupRequest] = (await viewOf(parent, link)).requests;
+    expect(groupRequest).toMatchObject({ kind: 'group', name: 'Kulüp', by: stranger.username });
+    expect((await answer(parent, link, groupRequest?.id ?? '', false)).json()).toEqual({
+      done: false,
+    });
+    expect((await as(test, child, 'GET', `/v1/circles/${group.id}`)).statusCode).toBe(404);
+
+    // By username, too.
+    expect(
+      (await as(test, child, 'POST', '/v1/friends', { username: stranger.username })).json(),
+    ).toMatchObject({ code: 'GUARDIAN_APPROVAL' });
+    const [byName] = (await viewOf(parent, link)).requests;
+    expect(byName).toMatchObject({ kind: 'friend', name: stranger.username, by: null });
+
+    // A code that stopped working meanwhile: the yes says so.
+    const late = await codeFrom(friend, {
+      kind: 'circle',
+      circleId: (await createCircle(test, friend)).id,
+    });
+    expect((await join(child, late)).statusCode).toBe(403);
+    await as(test, friend, 'POST', `/v1/invites/${late.id}/revoke`);
+    const gone = (await viewOf(parent, link)).requests.find((r) => r.kind === 'gone');
+    expect(gone).toBeDefined();
+    expect((await answer(parent, link, gone?.id ?? '', true)).json()).toMatchObject({
+      code: 'REQUEST_FAILED',
+    });
+  });
+
+  it('are set by a parent only, read by the child, and the same on both sides', async () => {
+    const [child, parent, other] = await Promise.all([teenager(), adult(), adult('Gül')]);
+    const link = await linked(child, parent);
+    expect((await as(test, child, 'GET', '/v1/guardians/rules')).json()).toEqual({
+      linked: true,
+      settings: { approveNewPeople: true, dailyLimitMinutes: null },
+    });
+    const set = await as(test, parent, 'PUT', `/v1/guardians/${link.id}/settings`, {
+      approveNewPeople: false,
+      dailyLimitMinutes: 60,
+    });
+    expect(set.json<GuardianView>().settings).toMatchObject({
+      approveNewPeople: false,
+      dailyLimitMinutes: 60,
+      updatedBy: parent.username,
+    });
+    expect((await as(test, child, 'GET', '/v1/guardians/rules')).json()).toEqual({
+      linked: true,
+      settings: { approveNewPeople: false, dailyLimitMinutes: 60 },
+    });
+    expect((await viewOf(child, link)).settings).toEqual((await viewOf(parent, link)).settings);
+    // No yes needed now: the child comes in at once.
+    const code = await codeFrom(other, { kind: 'friend' });
+    expect((await join(child, code)).statusCode).toBe(200);
+    // Only a parent, and only within bounds.
+    for (const [who, body, status] of [
+      [child, { approveNewPeople: true, dailyLimitMinutes: null }, 404],
+      [other, { approveNewPeople: true, dailyLimitMinutes: null }, 404],
+      [parent, { approveNewPeople: true, dailyLimitMinutes: 10 }, 400],
+      [parent, { approveNewPeople: true, dailyLimitMinutes: 400 }, 400],
+    ] as const) {
+      expect(
+        (await as(test, who, 'PUT', `/v1/guardians/${link.id}/settings`, body)).statusCode,
+      ).toBe(status);
+    }
+    expect((await as(test, other, 'GET', '/v1/guardians/rules')).json()).toEqual({
+      linked: false,
+      settings: null,
+    });
+  });
+
+  it('keep the minutes only while a parent is linked, for 7 days, and forget them with the link', async () => {
+    const [child, parent] = await Promise.all([teenager(), adult()]);
+    const { rows } = await test.admin.query<{ today: string; old: string }>(
+      `SELECT to_char(current_date, 'YYYY-MM-DD') AS today,
+              to_char(current_date - 10, 'YYYY-MM-DD') AS old`,
+    );
+    const { today, old } = rows[0] ?? { today: '', old: '' };
+    const report = (who: Person, day: string, minutes: number) =>
+      as(test, who, 'PUT', '/v1/guardians/usage', { day, minutes });
+
+    expect((await report(child, today, 15)).statusCode).toBe(204);
+    const link = await linked(child, parent);
+    expect((await viewOf(parent, link)).usage).toEqual([]);
+    await report(child, today, 42);
+    await report(child, old, 99);
+    expect((await viewOf(parent, link)).usage).toEqual([{ day: today, minutes: 42 }]);
+    expect((await viewOf(child, link)).usage).toEqual([{ day: today, minutes: 42 }]);
+    expect((await report(child, today, 2000)).statusCode).toBe(400);
+
+    await as(test, parent, 'POST', `/v1/guardians/${link.id}/end`);
+    const left = await test.admin.query(
+      `SELECT 1 FROM app.usage_days WHERE child_id = $1
+       UNION ALL SELECT 1 FROM app.guardian_settings WHERE child_id = $1`,
+      [child.userId],
+    );
+    expect(left.rows).toEqual([]);
   });
 });

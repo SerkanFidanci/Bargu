@@ -21,6 +21,11 @@ export function errorMessage(error: unknown, t: TFunction): string {
         return t('age.toAdultHint');
       case 'FRIEND_INVITE_ONLY':
         return t('errors.friendInviteOnly');
+      // docs/ADR/0023 §5
+      case 'GUARDIAN_APPROVAL':
+        return t('errors.guardianApproval');
+      case 'REQUEST_FAILED':
+        return t('guardians.tools.requestFailed');
       default:
         return t('errors.unknown');
     }

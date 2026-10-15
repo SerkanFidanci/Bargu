@@ -8,13 +8,18 @@ import {
   type GuardianEnd,
   type GuardianLink,
   type GuardianPreview,
+  type GuardianRequest,
+  type GuardianRules,
+  type GuardianSettings,
   type GuardianView,
   type PublicProfile,
+  type UsageReport,
 } from '@bargu/schemas';
 import { eq, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { CirclesService } from '../circles/circles.service.js';
+import { InvitesService } from '../circles/invites.service.js';
 import { ApiError } from '../common/api-error.js';
 import { users } from '../db/schema.js';
 import { EventsService } from '../events/events.service.js';
@@ -24,7 +29,7 @@ import { Notifier } from '../push/notifier.js';
 
 const HOUR = 3600;
 /** Codes shown and codes looked at, per account. */
-export const GUARDIAN_LIMITS = { codesPerHour: 20, previewsPerHour: 60 } as const;
+export const GUARDIAN_LIMITS = { codesPerHour: 20, previewsPerHour: 60, usagePerHour: 60 } as const;
 /** What the QR code and the shared link carry; opens the app at the parent's yes. */
 export const guardianLink = (token: string) => `bargu://g/${token}`;
 
@@ -45,6 +50,49 @@ interface LinkRow extends Record<string, unknown> {
   other_display_name: string | null;
   other_avatar_color: number | null;
   other_avatar_emoji: string | null;
+}
+
+/** Row of app.guardian_requests_of() (migrations/0023). */
+interface RequestRow extends Record<string, unknown> {
+  id: string;
+  kind: 'invite' | 'friend';
+  circle_kind: 'pair' | 'friends' | 'family' | 'event' | null;
+  circle_name: string | null;
+  member_count: number | null;
+  inviter_username: string | null;
+  username: string | null;
+  created_at: string;
+}
+
+function request(row: RequestRow): GuardianRequest {
+  const at = new Date(row.created_at).getTime();
+  if (row.kind === 'friend') {
+    return {
+      id: row.id,
+      kind: 'friend',
+      name: row.username,
+      memberCount: null,
+      by: null,
+      createdAt: at,
+    };
+  }
+  // A code: a friend's (no circle), a group's or an event's; gone when it stopped working.
+  const kind =
+    row.inviter_username === null
+      ? 'gone'
+      : row.circle_kind === null || row.circle_kind === 'pair'
+        ? 'friend'
+        : row.circle_kind === 'event'
+          ? 'event'
+          : 'group';
+  return {
+    id: row.id,
+    kind,
+    name: kind === 'friend' ? row.inviter_username : row.circle_name,
+    memberCount: row.member_count,
+    by: row.inviter_username,
+    createdAt: at,
+  };
 }
 
 interface CardRow extends Record<string, unknown> {
@@ -122,6 +170,7 @@ export class GuardiansService {
   constructor(
     private readonly database: DatabaseService,
     private readonly circles: CirclesService,
+    private readonly invites: InvitesService,
     private readonly events: EventsService,
     private readonly notifier: Notifier,
     private readonly limiter: RateLimiter,
@@ -249,10 +298,19 @@ export class GuardiansService {
       return { child: card(row), ageBand: row.ageBand };
     });
     const circles = await this.circles.list({ userId: childId });
+    const tools = await this.database.asUser(auth.userId, (tx) => this.toolsOf(tx, childId));
     return {
       link: found.link,
       child,
       ageBand,
+      settings: tools.settings ?? {
+        approveNewPeople: true,
+        dailyLimitMinutes: null,
+        updatedAt: found.link.activeAt ?? found.link.createdAt,
+        updatedBy: null,
+      },
+      usage: tools.usage,
+      requests: tools.requests,
       circles: circles
         .filter((circle) => circle.myStatus === 'active')
         .map((circle) => ({
@@ -263,6 +321,157 @@ export class GuardiansService {
             .map((member) => ({ username: member.username, displayName: member.displayName })),
         })),
     };
+  }
+
+  /**
+   * A parent sets the child's settings (docs/ADR/0023 §5); the child and the other parent hear it,
+   * the child as a notification too.
+   */
+  async setSettings(
+    auth: AuthContext,
+    linkId: string,
+    settings: GuardianSettings,
+  ): Promise<GuardianView> {
+    const childId = await this.database.asUser(auth.userId, async (tx) => {
+      const found = await this.read(tx, linkId);
+      if (found?.link.status !== 'active' || found.link.role !== 'guardian') {
+        throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      }
+      const result = await tx.execute<{ ok: boolean }>(
+        sql`SELECT app.set_guardian_settings(${found.row.child_id}, ${settings.approveNewPeople}, ${settings.dailyLimitMinutes}) AS ok`,
+      );
+      if (result.rows[0]?.ok !== true) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      return found.row.child_id;
+    });
+    await this.changed([childId, ...(await this.parentsOf(childId))]);
+    await this.notifier.notify([childId], 'guardianSettings', linkId);
+    return this.view(auth, linkId);
+  }
+
+  /**
+   * A parent answers what the child asked for: yes does it as the child (the code or the friend
+   * request), no drops it. Either way the request is gone and the child hears the answer. A yes
+   * whose code or name stopped working is 409 REQUEST_FAILED.
+   */
+  async answer(
+    auth: AuthContext,
+    linkId: string,
+    requestId: string,
+    yes: boolean,
+  ): Promise<{ done: boolean }> {
+    const taken = await this.database.asUser(auth.userId, async (tx) => {
+      const found = await this.read(tx, linkId);
+      if (found?.link.status !== 'active' || found.link.role !== 'guardian') {
+        throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      }
+      const result = await tx.execute<{
+        child_id: string;
+        kind: 'invite' | 'friend';
+        token_hash: Buffer | null;
+        username: string | null;
+      }>(sql`SELECT * FROM app.take_guardian_request(${requestId})`);
+      const [row] = result.rows;
+      if (row?.child_id !== found.row.child_id) {
+        throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      }
+      return row;
+    });
+    const childId = taken.child_id;
+    let done = false;
+    if (yes) {
+      try {
+        if (taken.kind === 'invite' && taken.token_hash !== null) {
+          await this.invites.redeem({ userId: childId }, new Uint8Array(taken.token_hash), true);
+        } else if (taken.username !== null) {
+          await this.circles.requestFriend({ userId: childId }, taken.username, true);
+        }
+        done = true;
+      } catch {
+        // The code expired, the circle filled up, the name is gone: nothing to do any more.
+        done = false;
+      }
+    }
+    await this.changed([childId, ...(await this.parentsOf(childId))]);
+    await this.notifier.notify([childId], done ? 'guardianApproved' : 'guardianDeclined', linkId);
+    if (yes && !done) throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
+    return { done };
+  }
+
+  /** The child's own rules, as the phone applies them (docs/ADR/0023 §5). */
+  async rules(auth: AuthContext): Promise<GuardianRules> {
+    return this.database.asUser(auth.userId, async (tx) => {
+      const linked = await tx.execute<{ id: string }>(
+        sql`SELECT id FROM app.my_guardian_links() WHERE role = 'child' AND status = 'active'`,
+      );
+      if (linked.rows.length === 0) return { linked: false, settings: null };
+      const settings = (await this.toolsOf(tx, auth.userId)).settings;
+      return {
+        linked: true,
+        settings:
+          settings === null
+            ? { approveNewPeople: true, dailyLimitMinutes: null }
+            : {
+                approveNewPeople: settings.approveNewPeople,
+                dailyLimitMinutes: settings.dailyLimitMinutes,
+              },
+      };
+    });
+  }
+
+  /**
+   * The minutes the app was open on a day, from the child's phone; kept only while a parent is
+   * linked (the last 7 days). The parents' views follow.
+   */
+  async recordUsage(auth: AuthContext, report: UsageReport): Promise<void> {
+    await this.limit(`guardian-usage:${auth.userId}`, GUARDIAN_LIMITS.usagePerHour);
+    const told = await this.database.asUser(auth.userId, (tx) =>
+      tx.execute<{ guardian: string }>(
+        sql`SELECT app.record_usage(${report.day}::date, ${report.minutes}) AS guardian`,
+      ),
+    );
+    const parents = told.rows.map((row) => row.guardian);
+    if (parents.length > 0) await this.changed(parents);
+  }
+
+  /** Settings, minutes and waiting requests of a child, as the caller (the child or a parent). */
+  private async toolsOf(tx: Tx, childId: string) {
+    const settings = await tx.execute<{
+      approve_new_people: boolean;
+      daily_limit_minutes: number | null;
+      updated_at: string;
+      updated_by: string | null;
+    }>(sql`SELECT * FROM app.guardian_settings_of(${childId})`);
+    const usage = await tx.execute<{ day: string; minutes: number }>(
+      sql`SELECT to_char(day, 'YYYY-MM-DD') AS day, minutes FROM app.usage_days
+           WHERE child_id = ${childId} AND day >= current_date - 6 ORDER BY day`,
+    );
+    const requests = await tx.execute<RequestRow>(
+      sql`SELECT * FROM app.guardian_requests_of(${childId})`,
+    );
+    const [row] = settings.rows;
+    return {
+      settings:
+        row === undefined
+          ? null
+          : {
+              approveNewPeople: row.approve_new_people,
+              dailyLimitMinutes: row.daily_limit_minutes,
+              updatedAt: new Date(row.updated_at).getTime(),
+              updatedBy: row.updated_by,
+            },
+      usage: usage.rows.map((day) => ({ day: day.day, minutes: day.minutes })),
+      requests: requests.rows.map(request),
+    };
+  }
+
+  /** The child's active parents, read as the child. */
+  private async parentsOf(childId: string): Promise<string[]> {
+    return this.database.asUser(childId, async (tx) => {
+      const result = await tx.execute<LinkRow>(
+        sql`SELECT * FROM app.my_guardian_links() WHERE role = 'child' AND status = 'active'`,
+      );
+      return result.rows.map((row) => row.other_id);
+    });
   }
 
   /**

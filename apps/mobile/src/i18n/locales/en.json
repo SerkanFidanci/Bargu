@@ -17,7 +17,8 @@
     "unknown": "Something went wrong. Try again.",
     "sessionEnded": "You were signed out. Sign in again.",
     "ageRequired": "Choose your age band first. Go back and try again.",
-    "friendInviteOnly": "At 15–17 you can join an event only with a friend’s QR code. Add the organiser as a friend first."
+    "friendInviteOnly": "At 15–17 you can join an event only with a friend’s QR code. Add the organiser as a friend first.",
+    "guardianApproval": "Waiting for your parent’s yes. You join once they say yes, and you will hear it."
   },
   "intro": {
     "skip": "Skip",
@@ -466,7 +467,11 @@
       "guardianRequest": "Someone wants to be your parent on Bargu; you give the last yes",
       "guardianLinked": "Your parent link is set up",
       "guardianEndRequested": "Your child wants to end the parent link",
-      "guardianEnded": "A parent link ended"
+      "guardianEnded": "A parent link ended",
+      "guardianApproval": "Your child wants to connect with someone new; it waits for your yes",
+      "guardianApproved": "Your parent said yes",
+      "guardianDeclined": "Your parent said no",
+      "guardianSettings": "Your parent changed your settings"
     },
     "mute": {
       "title": "Notifications from {{name}}",
@@ -939,6 +944,43 @@
     "endBodyParent": "Your parent link with {{name}} ends at once, and {{name}} is told.",
     "endBodyChild": "{{name}} is told. It ends at once if they agree, otherwise in 7 days.",
     "childAskedEnd": "Your child wants to end the link; it ends on {{date}}.",
-    "circleOf": "People: {{names}}"
+    "circleOf": "People: {{names}}",
+    "tools": {
+      "requestsTitle": "Waiting for a yes",
+      "noRequests": "Nothing is waiting.",
+      "askFriend": "Friendship: @{{name}}",
+      "askGroup": "Group: {{name}} ({{count}} people), invited by @{{by}}",
+      "askEvent": "Event: {{name}}, invited by @{{by}}",
+      "askGone": "An invite that no longer works",
+      "approve": "Say yes",
+      "decline": "Say no",
+      "approved": "Said yes.",
+      "declined": "Said no.",
+      "waiting": "Waiting for your parent’s yes.",
+      "requestFailed": "This invite or request no longer works; there is nothing left to do.",
+      "usageTitle": "Screen time",
+      "noUsage": "Nothing yet. Screen time is the minutes the app is open.",
+      "today": "Today",
+      "minutes": "{{minutes}} min",
+      "settingsTitle": "Settings",
+      "approveNew": "A yes for new people",
+      "approveNewHint": "When on, a friendship, group or event your child wants to join comes to you first; they join once you say yes.",
+      "limit": "Daily limit",
+      "limitOff": "Off",
+      "approveNewOn": "A parent’s yes for new people: on",
+      "approveNewOff": "A parent’s yes for new people: off",
+      "limitNone": "Daily limit: none",
+      "limitIs": "Daily limit: {{minutes}} min",
+      "defaults": "The default settings since the link was made.",
+      "changedBy": "Last changed by {{name}}, {{date}}",
+      "saved": "Settings saved; your child was told."
+    }
+  },
+  "screenTime": {
+    "upTitle": "Time is up for today",
+    "upBody": "The {{minutes}} minutes a day your parent set are used up. Bargu opens again tomorrow.",
+    "sharingGoesOn": "Your location keeps being shared in the background. You can stop it if you like.",
+    "stopSharing": "Stop sharing",
+    "stopped": "Sharing stopped."
   }
 }

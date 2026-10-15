@@ -19,3 +19,7 @@
 "notice.guardianLinked" = "Your parent link is set up";
 "notice.guardianEndRequested" = "Your child wants to end the parent link";
 "notice.guardianEnded" = "A parent link ended";
+"notice.guardianApproval" = "Your child wants to connect with someone new; it waits for your yes";
+"notice.guardianApproved" = "Your parent said yes";
+"notice.guardianDeclined" = "Your parent said no";
+"notice.guardianSettings" = "Your parent changed your settings";

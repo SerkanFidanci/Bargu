@@ -50,7 +50,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li><strong>Aydınlatma ve rıza kayıtları:</strong> bu metni okuduğun ve konum geçmişine rıza verdiğin ya da geri çektiğin zaman.</li>
 <li><strong>Yaş grubun:</strong> "15–17" ya da "18 veya üstü" ve bunu ne zaman söylediğin. Doğum tarihin ya da yaşın sorulmaz, tutulmaz. Yaş grubun başka kullanıcılara gösterilmez.</li>
 <li><strong>Bulunabilirlik ayarın:</strong> başkalarının seni kullanıcı adınla bulup bulamayacağı. 18 yaş ve üstünde açık başlar, kapatabilirsin; 15–17 yaşında hep kapalıdır.</li>
-<li><strong>Ebeveyn bağlantıları (isteğe bağlı, 15–17):</strong> kimin kimin ebeveyni olduğu, bağlantının ne zaman kurulduğu ve bitirme isteği. Bağlantı bitince silinir.</li>
+<li><strong>Ebeveyn bağlantıları (isteğe bağlı, 15–17):</strong> kimin kimin ebeveyni olduğu, bağlantının ne zaman kurulduğu ve bitirme isteği; ebeveynin ayarları (yeni kişiler için onay, günlük süre sınırı), onay bekleyen istekler (en çok 7 gün) ve uygulamanın günde kaç dakika açık kaldığı (son 7 gün). Son bağlantı bitince hepsi silinir.</li>
 </ul>
 <p>Kullanmadıklarımız: rehber, telefon numarası, mikrofon, reklam kimliği, analitik ya da izleme kitaplığı. IP adresi yalnızca hız sınırı için anlık ve takma adla işlenir, kayda geçmez.</p>
 
@@ -82,6 +82,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li>Konum geçmişi senin için kapalıdır.</li>
 <li>Bir etkinliğe yalnızca bir arkadaşının QR kodu ya da linkiyle katılabilirsin.</li>
 <li>İstersen bir ya da iki ebeveynini ekleyebilirsin (Ben → Ebeveyn bağlantısı). Ebeveynin yaş grubunu, bağlantı tarihini ve çemberlerindeki kişileri görür; konumunu, geçmişini, yerlerini ve durumunu göremez. Ne gördüğünü sen de aynı ekranda görürsün. Bağlantıyı bitirmek istersen ebeveynine haber gider; onaylarsa hemen, onaylamazsa 7 gün sonra biter.</li>
+<li>Ebeveynin, yeni biriyle arkadaş olmana ya da bir gruba veya etkinliğe katılmana onay isteyebilir ve günlük bir süre sınırı koyabilir. Sınır dolunca uygulama ertesi güne kadar kapanır; konum paylaşımın sürer, istersen durdurabilirsin. Ebeveynin uygulamanın günde kaç dakika açık kaldığını görür. Her değişiklikte haber alırsın.</li>
 <li>Reklam, profil çıkarma, öneri ya da herkese açık profil yoktur (zaten kimse için yok).</li>
 <li>Yanlış bir yaş grubu seçtiysen ve 18 yaşındaysan bize [destek e-postası] adresinden yaz; bir kişi bakar.</li>
 </ul>
@@ -114,7 +115,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li><strong>Notice and consent records:</strong> when you read this notice and when you gave or withdrew consent to location history.</li>
 <li><strong>Your age band:</strong> "15–17" or "18 or older", and when you said so. Your birth date or age is never asked or kept. Other users never see your age band.</li>
 <li><strong>Your findability setting:</strong> whether others can find you by username. On for 18 and older until you turn it off; always off for 15–17.</li>
-<li><strong>Parent links (optional, 15–17):</strong> who is whose parent, when the link was made, and a request to end it. Deleted when the link ends.</li>
+<li><strong>Parent links (optional, 15–17):</strong> who is whose parent, when the link was made, and a request to end it; the parent's settings (a yes for new people, a daily limit), requests waiting for a yes (at most 7 days) and how many minutes a day the app was open (last 7 days). All of it is deleted when the last link ends.</li>
 </ul>
 <p>What we do not use: contacts, phone number, microphone, advertising ID, analytics or tracking libraries. Your IP address is used briefly, under a pseudonym, for rate limiting and is not logged.</p>
 
@@ -146,6 +147,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li>Location history is off for you.</li>
 <li>You can join an event only with a friend's QR code or link.</li>
 <li>If you like, you can add one or two parents (Me → Parent link). A parent sees your age band, since when you are linked and the people in your circles; never your location, history, places or status. You see what they see on the same screen. If you want to end the link, your parent is told; it ends at once if they agree, otherwise in 7 days.</li>
+<li>Your parent can ask that new friendships, groups or events wait for their yes, and can set a daily time limit. When it is reached, the app closes until the next day; your location keeps being shared, and you can stop it. Your parent sees how many minutes a day the app was open. You are told about every change.</li>
 <li>No ads, profiling, suggestions or public profiles (for anyone).</li>
 <li>If you chose the wrong age band and are 18, write to [support email]; a person will look at it.</li>
 </ul>

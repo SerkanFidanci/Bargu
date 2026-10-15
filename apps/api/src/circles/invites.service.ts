@@ -8,6 +8,7 @@ import { ApiError } from '../common/api-error.js';
 import { invites } from '../db/schema.js';
 import { DatabaseService } from '../infra/database/database.service.js';
 import { Notifier } from '../push/notifier.js';
+import { EventsService } from '../events/events.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { CirclesService, othersActive } from './circles.service.js';
 
@@ -49,6 +50,7 @@ export class InvitesService {
     private readonly circles: CirclesService,
     private readonly limiter: RateLimiter,
     private readonly notifier: Notifier,
+    private readonly events: EventsService,
   ) {}
 
   async create(auth: AuthContext, input: InviteCreate): Promise<Invite> {
@@ -135,17 +137,30 @@ export class InvitesService {
    */
   async accept(auth: AuthContext, token: string): Promise<{ circleId: string }> {
     await this.limit(`invite-preview:${auth.userId}`, INVITE_LIMITS.previewsPerHour);
+    return this.redeem(auth, hashToken(token), false);
+  }
+
+  /**
+   * Comes in with a code (its hash): the caller's own, or a 15-17 child's once a parent said yes
+   * (`approved`, docs/ADR/0023 §5). Otherwise a child who needs that yes is asked to wait.
+   */
+  async redeem(
+    auth: Pick<AuthContext, 'userId'>,
+    tokenHash: Uint8Array,
+    approved: boolean,
+  ): Promise<{ circleId: string }> {
+    if (!approved) await this.askGuardians(auth.userId, tokenHash);
     const { circleId, fresh } = await this.database
       .asUser(auth.userId, async (tx) => {
         // Someone 15-17 comes into an event only with a friend's code (docs/ADR/0023).
         const allowed = await tx.execute<{ ok: boolean }>(
-          sql`SELECT app.may_redeem(${hashToken(token)}) AS ok`,
+          sql`SELECT app.may_redeem(${tokenHash}) AS ok`,
         );
         if (allowed.rows[0]?.ok !== true) {
           throw new ApiError(HttpStatus.FORBIDDEN, 'FRIEND_INVITE_ONLY');
         }
         const result = await tx.execute<{ joined_circle: string; fresh: boolean }>(
-          sql`SELECT joined_circle, fresh FROM app.redeem_invite(${hashToken(token)})`,
+          sql`SELECT joined_circle, fresh FROM app.redeem_invite(${tokenHash})`,
         );
         const [row] = result.rows;
         if (row === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'INVITE_INVALID');
@@ -168,6 +183,20 @@ export class InvitesService {
       circle.id,
     );
     return { circleId };
+  }
+
+  /** The parents of a 15-17 child who needs their yes for this code: asked, and 403. */
+  private async askGuardians(userId: string, tokenHash: Uint8Array): Promise<void> {
+    const asked = await this.database.asUser(userId, (tx) =>
+      tx.execute<{ guardian: string }>(
+        sql`SELECT app.ask_guardians_for_invite(${tokenHash}) AS guardian`,
+      ),
+    );
+    const parents = asked.rows.map((row) => row.guardian);
+    if (parents.length === 0) return;
+    await this.events.publish([userId, ...parents], { type: 'guardians.changed' });
+    await this.notifier.notify(parents, 'guardianApproval', userId);
+    throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
   }
 
   async revoke(auth: AuthContext, inviteId: string): Promise<void> {

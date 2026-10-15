@@ -237,6 +237,29 @@ ekranda görür. Ebeveyn bağlantısı konum vermez; ebeveyn çocuğun konumunu 
   atlatabilir). Kullanım dakikaları konum değildir ve kaba bir sayıdır. Hepsi bağlantı bitince ya da
   hesap silinince silinir, log'lanmaz.
 
+Uygulama (5c, migration 0023):
+
+- **Ayarlar** (`app.guardian_settings`): çocuk başına bir tane; iki ebeveynden hangisi değiştirirse
+  o geçerlidir. Bağlantı kurulunca varsayılanla başlar (yeni kişi onayı açık, süre sınırı yok).
+  `PUT /v1/guardians/:id/settings` yalnızca ebeveyn; çocuk ve öbür ebeveyn olay, çocuk ayrıca
+  bildirim alır. Görünümde son değiştirenin kullanıcı adı ve zamanı yazar.
+- **Onay istekleri** (`app.guardian_requests`): Onay gerekiyorsa sunucu, çocuğun kodunu (özetiyle)
+  ya da kullanıcı adını saklar ve `403 GUARDIAN_APPROVAL` döner. Aynı istek iki kez saklanmaz. Kod
+  çalışmıyorsa, etkinlik için arkadaş kodu kuralı tutmuyorsa ya da kişi zaten içerideyse istek
+  saklanmaz, normal cevap döner. Ebeveyn "Onayla" deyince sunucu katılımı çocuğun adına yapar
+  (`POST .../requests/:id/approve`); kod bu arada çalışmaz olduysa `409 REQUEST_FAILED`. "Onaylama"
+  isteği siler. Cevapsız istek 7 gün sonra işçiyle silinir.
+- **Kullanım süresi** (`app.usage_days`): Çocuğun telefonu uygulamanın ön planda kaldığı süreyi kendi
+  takviminin günü için sayar (şifreli kasada, yeniden başlatmada sıfırlanmaz). Uygulama arka plana
+  geçince ve açıkken en çok 15 dakikada bir günün toplamını gönderir (`PUT /v1/guardians/usage`).
+  Sunucu yalnızca bağlı bir ebeveyn varken ve son 7 gün için tutar.
+- **Günlük sınır:** Telefon kuralları `GET /v1/guardians/rules` ile alır, `guardians.changed`
+  olayıyla yeniler. Sınır dolunca uygulamanın yerine "Bugünlük süren doldu" ekranı gelir; konum
+  paylaşımı arka planda sürer, "Paylaşımı durdur" düğmesi vardır. Ertesi gün kendiliğinden açılır.
+  Telefon değiştirilmiş bir uygulamayla bunu atlatabilir; sınır bir güvenlik değil, ebeveynin
+  koyduğu bir kuraldır.
+- **Son bağlantı bitince** ayarlar, istekler ve dakikalar veritabanı tetikleyicisiyle silinir.
+
 ### 6. İtiraz (md. 10)
 
 - **Kapsam:** Yaş yüzünden askıya alma ya da kapatma (belirteçle) ve 15–17 → 18+ değişikliği.
@@ -259,7 +282,8 @@ kullanır.
   yeni çemberde paylaşımın kapalı başlaması, /gizlilik bölümü.
 - **5b:** Ebeveyn bağlantısı: kurulum, iki taraflı ekranlar, bitirme, bildirimler; "Kullanıcı
   adımla bulunabilirim" ayarı (QA 5a Y2).
-- **5c:** Ebeveyn araçları: yeni kişi onayı, kullanım süresi ve günlük sınır.
+- **5c:** Ebeveyn araçları: yeni kişi onayı, kullanım süresi ve günlük sınır; ikisi de ortak
+  görünümde, çocuk da aynısını görür.
 
 ## Sonuçlar
 

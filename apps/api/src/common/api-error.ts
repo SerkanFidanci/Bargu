@@ -53,6 +53,10 @@ export type ApiErrorCode =
   | 'GUARDIAN_ADULT_ONLY'
   | 'GUARDIAN_LIMIT'
   | 'ALREADY_GUARDIAN'
+  /** Something new for a 15-17 child waits for a parent's yes (docs/ADR/0023 §5). */
+  | 'GUARDIAN_APPROVAL'
+  /** A parent said yes, but the code or the name no longer works. */
+  | 'REQUEST_FAILED'
   | 'CIRCLE_FULL'
   | 'EPOCH_STALE'
   | 'KEYS_INVALID'

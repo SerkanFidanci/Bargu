@@ -17,7 +17,8 @@
     "unknown": "Bir şeyler ters gitti. Tekrar dene.",
     "sessionEnded": "Oturumun kapandı. Tekrar giriş yap.",
     "ageRequired": "Önce yaş grubunu seç. Geri dönüp yeniden dene.",
-    "friendInviteOnly": "15–17 yaşında bir etkinliğe yalnızca bir arkadaşının QR koduyla katılabilirsin. Etkinliği düzenleyeni önce arkadaş olarak ekle."
+    "friendInviteOnly": "15–17 yaşında bir etkinliğe yalnızca bir arkadaşının QR koduyla katılabilirsin. Etkinliği düzenleyeni önce arkadaş olarak ekle.",
+    "guardianApproval": "Ebeveyninin onayı bekleniyor. Onaylayınca katılırsın ve haber alırsın."
   },
   "intro": {
     "skip": "Geç",
@@ -466,7 +467,11 @@
       "guardianRequest": "Biri ebeveynin olmak istiyor; son onayı sen ver",
       "guardianLinked": "Ebeveyn bağlantısı kuruldu",
       "guardianEndRequested": "Çocuğun ebeveyn bağlantısını bitirmek istiyor",
-      "guardianEnded": "Bir ebeveyn bağlantısı bitti"
+      "guardianEnded": "Bir ebeveyn bağlantısı bitti",
+      "guardianApproval": "Çocuğun yeni biriyle bağlantı kurmak istiyor; onayını bekliyor",
+      "guardianApproved": "Ebeveynin isteğini onayladı",
+      "guardianDeclined": "Ebeveynin isteğini onaylamadı",
+      "guardianSettings": "Ebeveynin ayarlarını değiştirdi"
     },
     "mute": {
       "title": "{{name}} için bildirimler",
@@ -939,6 +944,43 @@
     "endBodyParent": "{{name}} ile ebeveyn bağlantın hemen biter ve {{name}} haber alır.",
     "endBodyChild": "{{name}} haber alır. Onaylarsa bağlantı hemen, onaylamazsa 7 gün sonra biter.",
     "childAskedEnd": "Çocuğun bağlantıyı bitirmek istiyor; {{date}} tarihinde biter.",
-    "circleOf": "Kişiler: {{names}}"
+    "circleOf": "Kişiler: {{names}}",
+    "tools": {
+      "requestsTitle": "Onay bekleyenler",
+      "noRequests": "Onay bekleyen bir şey yok.",
+      "askFriend": "Arkadaşlık: @{{name}}",
+      "askGroup": "Grup: {{name}} ({{count}} kişi), davet eden @{{by}}",
+      "askEvent": "Etkinlik: {{name}}, davet eden @{{by}}",
+      "askGone": "Artık geçerli olmayan bir davet",
+      "approve": "Onayla",
+      "decline": "Onaylama",
+      "approved": "Onaylandı.",
+      "declined": "Onaylanmadı.",
+      "waiting": "Ebeveyninin onayını bekliyor.",
+      "requestFailed": "Bu davet ya da istek artık geçerli değil; yapılacak bir şey kalmadı.",
+      "usageTitle": "Kullanım süresi",
+      "noUsage": "Henüz kayıt yok. Süre, uygulamanın açık kaldığı dakikalardır.",
+      "today": "Bugün",
+      "minutes": "{{minutes}} dk",
+      "settingsTitle": "Ayarlar",
+      "approveNew": "Yeni kişiler için onay",
+      "approveNewHint": "Açıkken çocuğun bir arkadaşlık, grup ya da etkinliğe katılmak istediğinde istek sana gelir; sen onaylayınca katılır.",
+      "limit": "Günlük süre sınırı",
+      "limitOff": "Kapalı",
+      "approveNewOn": "Yeni kişiler için ebeveyn onayı: açık",
+      "approveNewOff": "Yeni kişiler için ebeveyn onayı: kapalı",
+      "limitNone": "Günlük süre sınırı: yok",
+      "limitIs": "Günlük süre sınırı: {{minutes}} dk",
+      "defaults": "Bağlantı kurulduğundan beri varsayılan ayarlar.",
+      "changedBy": "Son değiştiren: {{name}}, {{date}}",
+      "saved": "Ayarlar kaydedildi; çocuğuna haber verildi."
+    }
+  },
+  "screenTime": {
+    "upTitle": "Bugünlük süren doldu",
+    "upBody": "Ebeveyninin koyduğu günlük {{minutes}} dakika doldu. Bargu yarın yeniden açılır.",
+    "sharingGoesOn": "Konum paylaşımın arka planda sürüyor. İstersen paylaşımı durdurabilirsin.",
+    "stopSharing": "Paylaşımı durdur",
+    "stopped": "Paylaşım durduruldu."
   }
 }

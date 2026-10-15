@@ -24,6 +24,10 @@ const GUARDIAN_NOTICES: ReadonlySet<string> = new Set([
   'guardianLinked',
   'guardianEndRequested',
   'guardianEnded',
+  'guardianApproval',
+  'guardianApproved',
+  'guardianDeclined',
+  'guardianSettings',
 ]);
 
 /**

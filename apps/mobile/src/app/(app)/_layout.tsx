@@ -8,6 +8,8 @@ import { useAppLock } from '@/features/security/app-lock';
 // Guardian links follow their events (docs/ADR/0023 §4).
 import '@/features/guardians/guardians-session';
 import { LockScreen, useAppLockWatcher } from '@/features/security/lock-screen';
+import { useTimeUp } from '@/features/guardians/screen-time-session';
+import { TimeUpScreen } from '@/features/guardians/time-up-screen';
 
 export const unstable_settings = { initialRouteName: 'index' };
 
@@ -22,11 +24,14 @@ export default function AppLayout() {
   useAppLockWatcher();
   // KVKK (docs/ADR/0022): the information notice, and consent to history where it is on.
   usePrivacyGate(ready);
+  // A parent's daily limit (docs/ADR/0023 §5): the app closes for the day, the location goes on.
+  const timeUp = useTimeUp(ready);
   const locked = useAppLock((state) => state.locked);
   if (!ready) return null;
   // Locked: the lock alone. Nothing under it to read aloud (TalkBack) and no screen presented
   // above it (an iOS modal); unlocked, the app starts again from the map (QA 3a-B2).
   if (locked) return <LockScreen />;
+  if (timeUp) return <TimeUpScreen />;
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />

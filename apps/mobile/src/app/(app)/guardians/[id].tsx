@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { errorMessage } from '@/features/errors';
+import { GuardianTools } from '@/features/guardians/guardian-tools';
 import { guardiansApi, guardiansKey, guardianViewKey } from '@/features/guardians/guardians-api';
 import { radius, space, useTheme } from '@/theme';
 import { Button } from '@/ui/button';
@@ -17,7 +18,8 @@ type Circles = GuardianView['circles'];
 
 /**
  * What the parent sees (docs/ADR/0023 §4), and the child sees the very same screen: the age band,
- * since when, and everyone who could see the child's location. Never the location itself.
+ * since when, everyone who could see the child's location, and the guardian tools (minutes open,
+ * what waits for a yes, the settings). Never the location itself.
  */
 export default function GuardianViewScreen() {
   const { t, i18n } = useTranslation();
@@ -147,6 +149,7 @@ export default function GuardianViewScreen() {
           <Text variant="footnote" color="textMuted">
             {t('guardians.notSees')}
           </Text>
+          <GuardianTools view={data} />
         </>
       )}
     </Screen>

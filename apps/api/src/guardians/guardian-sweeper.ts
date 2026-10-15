@@ -45,11 +45,18 @@ export class GuardianSweeper implements OnApplicationBootstrap, OnApplicationShu
       child_id: string;
       guardian_id: string | null;
     }>(sql`SELECT * FROM app.expire_guardian_links()`);
-    const told = result.rows.flatMap((row) =>
-      row.guardian_id === null ? [row.child_id] : [row.child_id, row.guardian_id],
+    // Requests nobody answered in 7 days, and minutes older than 7 days (docs/ADR/0023 §5).
+    const tools = await this.database.db.execute<{ child_id: string }>(
+      sql`SELECT * FROM app.expire_guardian_tools()`,
     );
+    const told = [
+      ...result.rows.flatMap((row) =>
+        row.guardian_id === null ? [row.child_id] : [row.child_id, row.guardian_id],
+      ),
+      ...tools.rows.map((row) => row.child_id),
+    ];
     if (told.length > 0) await this.events.publish(told, { type: 'guardians.changed' });
-    return result.rows.length;
+    return result.rows.length + tools.rows.length;
   }
 
   async run(): Promise<void> {

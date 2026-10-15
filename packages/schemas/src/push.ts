@@ -16,6 +16,11 @@ export const PUSH_NOTICES = [
   'guardianLinked',
   'guardianEndRequested',
   'guardianEnded',
+  // Guardian tools (docs/ADR/0023 §5).
+  'guardianApproval',
+  'guardianApproved',
+  'guardianDeclined',
+  'guardianSettings',
 ] as const;
 export type PushNotice = (typeof PUSH_NOTICES)[number];
 

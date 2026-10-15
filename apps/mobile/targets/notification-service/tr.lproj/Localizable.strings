@@ -19,3 +19,7 @@
 "notice.guardianLinked" = "Ebeveyn bağlantısı kuruldu";
 "notice.guardianEndRequested" = "Çocuğun ebeveyn bağlantısını bitirmek istiyor";
 "notice.guardianEnded" = "Bir ebeveyn bağlantısı bitti";
+"notice.guardianApproval" = "Çocuğun yeni biriyle bağlantı kurmak istiyor; onayını bekliyor";
+"notice.guardianApproved" = "Ebeveynin isteğini onayladı";
+"notice.guardianDeclined" = "Ebeveynin isteğini onaylamadı";
+"notice.guardianSettings" = "Ebeveynin ayarlarını değiştirdi";
