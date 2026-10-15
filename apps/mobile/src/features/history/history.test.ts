@@ -88,6 +88,19 @@ function historyOf(
   });
 }
 
+/** Ayşe walks north a minute at a time through a quarter hour from `start`, then one step more. */
+async function walkQuarterFrom(
+  history: ReturnType<typeof historyOf>,
+  clock: { now: number },
+  start: number,
+) {
+  const from = start - (start % HISTORY_SLOT_MS) + HISTORY_SLOT_MS;
+  for (let minute = 0; minute <= 15; minute++) {
+    clock.now = from + minute * MIN + 1_000;
+    await history.fix(north(minute * 60, clock.now));
+  }
+}
+
 /** Ayşe walks north a minute at a time through one quarter hour, then one more step. */
 async function walkQuarter(history: ReturnType<typeof historyOf>, clock: { now: number }) {
   for (let minute = 0; minute <= 15; minute++) {
@@ -168,7 +181,7 @@ describe('location history on the phone', () => {
     ]);
   });
 
-  it('stops for a circle that no longer gets it, and is deleted on request', async () => {
+  it('sends nothing of a circle that no longer gets it, and is deleted on request', async () => {
     const [ayse, bora] = [somebody(), somebody()];
     const circle = circleOf([ayse, bora]);
     exchangeKeys(circle, [ayse, bora]);
@@ -183,14 +196,28 @@ describe('location history on the phone', () => {
       () => (shared ? [{ id: circle.id, epoch: circle.epoch }] : []),
     );
     await ayses.fix(north(0, clock.now));
-    // Sharing stops: what was written so far goes up at once, nothing after.
+    // Sharing stops (a ghost, a pause): what was written is dropped, nothing goes up, then or later.
     shared = false;
     clock.now += MIN;
     await ayses.fix(north(400, clock.now));
-    expect(server.rows.size).toBe(1);
     clock.now += HISTORY_SLOT_MS;
     await ayses.fix(north(800, clock.now));
-    expect(server.rows.size).toBe(1);
+    await ayses.flush();
+    expect(server.rows.size).toBe(0);
+    // A quarter hour finished while shared, still waiting when sharing stopped: it stays too.
+    shared = true;
+    clock.now += HISTORY_SLOT_MS;
+    await ayses.fix(north(0, clock.now));
+    server.goOffline();
+    clock.now += HISTORY_SLOT_MS;
+    await ayses.fix(north(100, clock.now));
+    shared = false;
+    server.goOnline();
+    await ayses.flush();
+    expect(server.rows.size).toBe(0);
+    shared = true;
+    await walkQuarterFrom(ayses, clock, clock.now);
+    expect(server.rows.size).toBeGreaterThan(0);
 
     expect(await ayses.forget(circle.id)).toBe(true);
     expect(server.rows.size).toBe(0);
@@ -322,5 +349,58 @@ describe('location history on the phone', () => {
       () => [],
     ).flush();
     expect(server.rows.size).toBe(0);
+  });
+
+  it('leaves nothing on the server when turned off while what waited is going up (QA G1)', async () => {
+    const [ayse, bora] = [somebody(), somebody()];
+    const circle = circleOf([ayse, bora]);
+    exchangeKeys(circle, [ayse, bora]);
+    const rows = new Map<string, MessageEnvelope>();
+    let offline = true;
+    let startedAfterOff = 0;
+    let off = false;
+    /** Answers the network has not given yet, in order. */
+    const answers: (() => void)[] = [];
+    const api: HistoryApi = {
+      put: (circleId, from, envelope) => {
+        if (offline) return Promise.reject(new Offline());
+        if (off) startedAfterOff += 1;
+        return new Promise<void>((resolve) => {
+          answers.push(() => {
+            rows.set(`${circleId}:${String(from)}`, envelope);
+            resolve();
+          });
+        });
+      },
+      list: () => Promise.resolve([]),
+      remove: (circleId) => {
+        for (const key of [...rows.keys()]) if (key.startsWith(circleId)) rows.delete(key);
+        return Promise.resolve();
+      },
+    };
+    const clock = { now: slot };
+    const ayses = historyOf(ayse, () => [circle], api, clock);
+    // Three quarter hours written while offline: three pieces wait.
+    for (let quarter = 0; quarter < 3; quarter++) {
+      for (let minute = 0; minute <= 15; minute++) {
+        clock.now = slot + quarter * HISTORY_SLOT_MS + minute * MIN + 1_000;
+        await ayses.fix(north(minute * 60 + quarter * 1_000, clock.now));
+      }
+    }
+    // Back online, the first piece on its way, and history is turned off right then.
+    offline = false;
+    clock.now = slot + 4 * HISTORY_SLOT_MS;
+    const sending = ayses.flush();
+    await Promise.resolve();
+    off = true;
+    const turnedOff = ayses.forget(circle.id);
+    for (let round = 0; round < 20 && answers.length > 0; round++) {
+      answers.shift()?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    await sending;
+    expect(await turnedOff).toBe(true);
+    expect(startedAfterOff).toBe(0);
+    expect(rows.size).toBe(0);
   });
 });

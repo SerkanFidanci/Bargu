@@ -83,9 +83,9 @@ export interface TrailCircle {
 }
 
 /**
- * The pieces being written after a new position: those of an earlier quarter hour, or of circles
- * no longer getting the history, are finished (to send); the circles that get it now have the
- * position added to theirs.
+ * The pieces being written after a new position: those of an earlier quarter hour are finished (to
+ * send); those of circles no longer getting the history (a ghost, a pause, history off) are dropped,
+ * sent never; the circles that get it now have the position added to theirs.
  */
 export function recordFix(
   open: Readonly<Record<string, Piece>>,
@@ -95,7 +95,7 @@ export function recordFix(
   const slot = historySlot(fix.ts);
   const sharing = new Set(circles.map((circle) => circle.id));
   const finished = Object.values(open).filter(
-    (piece) => (piece.slot < slot || !sharing.has(piece.circleId)) && piece.points.length > 0,
+    (piece) => piece.slot < slot && sharing.has(piece.circleId) && piece.points.length > 0,
   );
   const next: Record<string, Piece> = {};
   for (const circle of circles) {

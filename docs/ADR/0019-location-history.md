@@ -35,13 +35,17 @@ Seçenekler:
   silinir.
 - **Kapalı başlar:** paylaşan kişi o çember için açıkça açmadıkça hiçbir iz yazılmaz ve gönderilmez;
   çembere katılmak onay sayılmaz. Yalnızca tam konum paylaşılırken yazılır (hayalet modda,
-  paylaşım kapalıyken, mahalle/şehir hassasiyetinde yazılmaz).
+  paylaşım kapalıyken, mahalle/şehir hassasiyetinde yazılmaz). Hayalete geçince, paylaşım durunca ya
+  da hassasiyet düşünce o ana kadar yazılmış ama henüz gönderilmemiş parça da atılır: hayalet = hiçbir
+  şey gitmez (proje sahibinin kararı, QA G6).
 - **Kimin gördüğünü görür:** "Geçmişini kimler görüyor" ekranı (profil sayfasından ve her çemberin
   ekranından) geçmişin açık olduğu çemberleri ve onu görebilen kişileri listeler. Çembere yeni biri
-  girince telefon "Artık X de … geçmişini görebilir" der (uygulama açıkken satır, kapalıyken
-  telefonun kendi bildirimi). 7 günlük paylaşım hatırlatması Faz 9'da gelir; geçmiş de orada yazacak.
+  girince telefon "Artık X de … geçmişini görebilir" der (uygulama açıkken satır, arka plandayken
+  telefonun kendi bildirimi). Uygulama tamamen kapalıyken uyarı açılınca gelir; kapalı uygulamada
+  uyarı Faz 9'da (QA G2). 7 günlük paylaşım hatırlatması da Faz 9'da; geçmiş orada da yazacak.
 - **Tek dokunuşla kapanır:** kapatınca yazma durur, bekleyen parçalar atılır, sunucudaki parçalar
-  silinir; çevrimdışıysa silme bağlantı gelince tekrar denenir.
+  silinir; çevrimdışıysa silme bağlantı gelince tekrar denenir. Kapatma anında gönderilmekte olan
+  bir parça varsa silme ondan sonra gider; kapatmadan sonra hiçbir parça gönderilmeye başlamaz (QA G1).
 - **14 gün, Bargu+:** sunucu parçaları 14 gün tutar (işçi 10 dakikada bir siler). Plana göre son 14
   gün Bargu+ özelliği; ödeme Faz 9B'de geldiğinde ödeyeni olmayan çember zaten durur. Faz 9B'ye
   kadar herkes deneme sayılır: 14 gün herkese açık. Abonelik kontrolü Faz 9B'de bu kurala eklenir.

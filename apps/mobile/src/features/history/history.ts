@@ -129,12 +129,23 @@ export function createHistory(deps: HistoryDeps) {
     }).envelope;
   }
 
+  /**
+   * Whether a waiting piece may still go: history not turned off for its circle, and the circle
+   * still getting this phone's history now (a ghost, a pause or a coarser precision send nothing,
+   * not even what was written before).
+   */
+  function mayGo(piece: Piece): boolean {
+    if (deps.store().get(`${FORGET_PREFIX}${piece.circleId}`) !== undefined) return false;
+    return deps.recording(now()).some((circle) => circle.id === piece.circleId);
+  }
+
   async function sendAll(): Promise<void> {
     const device = deps.device();
     if (device === null) return;
     const store = deps.store();
+    // Each piece checked right before it goes: history may be turned off while others are sent.
     for (const piece of outbox()) {
-      const envelope = stillKept(piece, now()) ? seal(piece, device) : null;
+      const envelope = stillKept(piece, now()) && mayGo(piece) ? seal(piece, device) : null;
       if (envelope === null) {
         store.delete(outKey(piece));
         continue;
@@ -273,6 +284,8 @@ export function createHistory(deps: HistoryDeps) {
      */
     async forget(circleId: string): Promise<boolean> {
       const store = deps.store();
+      // First: no piece of this circle starts going up from now on.
+      store.set(`${FORGET_PREFIX}${circleId}`, '1');
       const open = read(store, OPEN_KEY, openSchema, {});
       store.set(
         OPEN_KEY,
@@ -281,7 +294,8 @@ export function createHistory(deps: HistoryDeps) {
       for (const piece of outbox()) {
         if (piece.circleId === circleId) store.delete(outKey(piece));
       }
-      store.set(`${FORGET_PREFIX}${circleId}`, '1');
+      // A piece already on its way lands before the deletion, not after it.
+      if (flushing !== null) await flushing.catch(() => undefined);
       return deleteCopy(circleId);
     },
 

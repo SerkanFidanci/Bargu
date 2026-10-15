@@ -93,10 +93,11 @@ describe('pieces per circle', () => {
     expect(open.b?.epoch).toBe(7);
   });
 
-  it('finishes a quarter hour once the next begins, and a circle no longer getting it at once', () => {
+  it('finishes a quarter hour once the next begins, and drops that of a circle no longer getting it', () => {
     const first = recordFix({}, north(0, slot + MIN), circles).open;
     const next = recordFix(first, north(0, slot + HISTORY_SLOT_MS + MIN), [{ id: 'a', epoch: 4 }]);
-    expect(next.finished.map((piece) => piece.circleId).sort()).toEqual(['a', 'b']);
+    // "b" stopped getting it (a ghost, a pause): what was written for it is never sent.
+    expect(next.finished.map((piece) => piece.circleId)).toEqual(['a']);
     expect(next.open.a).toMatchObject({ slot: slot + HISTORY_SLOT_MS, epoch: 4 });
     expect(next.open.b).toBeUndefined();
   });

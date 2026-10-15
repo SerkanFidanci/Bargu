@@ -375,7 +375,7 @@ export function decryptDocument(input: OpenInput): DocPayload {
 /**
  * The key a sender's pieces of location history are sealed with in an epoch (docs/ADR/0019):
  * HMAC-SHA256(senderKey, "bargu/v1/hist-key" ‖ circleId ‖ epoch ‖ senderDeviceId). Members keep it
- * for a week after the epoch ends, to read that week's history, while the sender key itself goes as
+ * for two weeks more once the epoch ends, to read that history, while the sender key itself goes as
  * soon as the protocol stops accepting its epoch: live locations stay forward secret.
  */
 export function historyKeyOf(senderKey: SenderKey): SenderKey {
