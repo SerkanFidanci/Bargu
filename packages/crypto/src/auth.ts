@@ -2,7 +2,7 @@
 // audited primitives and labels as the E2EE protocol but are not part of the message wire format.
 import { equalBytes } from '@noble/ciphers/utils.js';
 
-import { KEY_BYTES, LABELS, SIGNATURE_BYTES } from './constants.js';
+import { KEY_BYTES, type Label, LABELS, SIGNATURE_BYTES } from './constants.js';
 import {
   concatBytes,
   fromBase64url,
@@ -109,10 +109,31 @@ export function verifyRequestSignature(
  * attempt budgets in apps/api otp.service (3 per code, 10 a day and 20 a week per address).
  */
 export const OTP_DIGITS = 4;
-const OTP_MODULUS = 10 ** OTP_DIGITS;
 
 function requireKey(key: Uint8Array): void {
   if (key.length !== KEY_BYTES) throw new BarguCryptoError('INVALID_KEY', 'expected a 32-byte key');
+}
+
+/**
+ * 8 digits for the account web page (docs/ADR/0021): typed from an email on a computer, so length
+ * costs little, and 10^8 codes make guessing hopeless within its small attempt budgets.
+ */
+export const WEB_CODE_DIGITS = 8;
+
+/** A code derived from the challenge id (HOTP-style, RFC 4226, with HMAC-SHA256). */
+function deriveCode(key: Uint8Array, label: Label, challengeId: string, digits: number): string {
+  requireKey(key);
+  const mac = hmacWithLabel(key, label, uuidToBytes(challengeId));
+  let value = 0;
+  for (const byte of mac.subarray(0, 6)) value = value * 256 + byte;
+  mac.fill(0);
+  return String(value % 10 ** digits).padStart(digits, '0');
+}
+
+function codeMatches(expected: string, code: string): boolean {
+  const want = utf8Encode(expected);
+  const given = utf8Encode(code);
+  return given.length === want.length && equalBytes(given, want);
 }
 
 /**
@@ -122,19 +143,25 @@ function requireKey(key: Uint8Array): void {
  * 48 bits reduced mod 10^4: bias below 10^-10.
  */
 export function deriveOtpCode(otpKey: Uint8Array, challengeId: string): string {
-  requireKey(otpKey);
-  const mac = hmacWithLabel(otpKey, LABELS.otpCode, uuidToBytes(challengeId));
-  let value = 0;
-  for (const byte of mac.subarray(0, 6)) value = value * 256 + byte;
-  mac.fill(0);
-  return String(value % OTP_MODULUS).padStart(OTP_DIGITS, '0');
+  return deriveCode(otpKey, LABELS.otpCode, challengeId, OTP_DIGITS);
 }
 
 /** Constant-time check of a submitted code. */
 export function verifyOtpCode(otpKey: Uint8Array, challengeId: string, code: string): boolean {
-  const expected = utf8Encode(deriveOtpCode(otpKey, challengeId));
-  const given = utf8Encode(code);
-  return given.length === expected.length && equalBytes(given, expected);
+  return codeMatches(deriveOtpCode(otpKey, challengeId), code);
+}
+
+/**
+ * The account web page's code (docs/ADR/0021), derived like the login code under its own label:
+ * one is never valid as the other. 48 bits reduced mod 10^8: bias below 10^-6.
+ */
+export function deriveWebCode(otpKey: Uint8Array, challengeId: string): string {
+  return deriveCode(otpKey, LABELS.webCode, challengeId, WEB_CODE_DIGITS);
+}
+
+/** Constant-time check of a code typed into the account web page. */
+export function verifyWebCode(otpKey: Uint8Array, challengeId: string, code: string): boolean {
+  return codeMatches(deriveWebCode(otpKey, challengeId), code);
 }
 
 /** Canonical form used for lookups: trimmed, Unicode NFC, lower case. */

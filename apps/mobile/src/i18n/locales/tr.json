@@ -574,7 +574,8 @@
       "body": "Senin yönettiğin bir buluşma kurulur ve davet gider. Saati ve yeri hemen seçersin. 3 saat sonra kendiliğinden biter, bitince her şey silinir.",
       "start": "Kur",
       "name": "{{name}} ile buluşma",
-      "started": "{{name}} ile buluşma kuruldu; saat ve yeri seç"
+      "started": "{{name}} ile buluşma kuruldu; saat ve yeri seç",
+      "failed": "Buluşma kurulamadı, davet gitmedi. {{reason}}"
     }
   },
   "places": {
@@ -751,6 +752,11 @@
       "title": "Bargu kilitli",
       "body": "Devam etmek için Face ID, parmak izi ya da telefon şifreni kullan.",
       "unlock": "Kilidi aç"
+    },
+    "event_device_revoked_remote": "Telefon web sayfasından hesaptan çıkarıldı",
+    "lost": {
+      "title": "Telefonun kaybolursa",
+      "body": "Başka bir cihazdan bu adrese gir. E-postana gelen 8 haneli kodla telefonunu hesabından çıkar: oturumu hemen kapanır, çemberlerin yeni anahtara geçer, telefon bir dahaki bağlanışında kendini siler."
     }
   },
   "seers": {

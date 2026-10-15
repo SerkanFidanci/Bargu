@@ -10,9 +10,10 @@ import { JOB_QUEUE } from './tokens.js';
 
 const SEAL_CONTEXT = 'job/email';
 
+/** A login code (`otp`), or the account web page's code (`web`, docs/ADR/0021). */
 export const emailJobSchema = z
   .object({
-    kind: z.literal('otp'),
+    kind: z.enum(['otp', 'web']),
     to: z.email(),
     locale: localeSchema,
     challengeId: z.uuid(),
@@ -39,6 +40,18 @@ export class EmailJobs {
       SEAL_CONTEXT,
     );
     // The job id is the challenge id: at most one email per challenge, even on a retried request.
+    await this.boss.send(QUEUES.email, { v: 1, box } satisfies QueuedEmail, {
+      id: job.challengeId,
+    });
+  }
+
+  /** Queues the account web page's code (8 digits, its own label); derived by the worker too. */
+  async enqueueWebCode(job: Omit<EmailJob, 'kind'>): Promise<void> {
+    const box = sealAtRest(
+      this.keys.jobPayloadKey,
+      new TextEncoder().encode(JSON.stringify({ kind: 'web', ...job } satisfies EmailJob)),
+      SEAL_CONTEXT,
+    );
     await this.boss.send(QUEUES.email, { v: 1, box } satisfies QueuedEmail, {
       id: job.challengeId,
     });

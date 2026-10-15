@@ -16,6 +16,10 @@ export const CLIENT_LIMITS = {
   attestationChallenge: 30,
   passkeyOptions: 30,
   passkeyVerify: 30,
+  // The account web page (docs/ADR/0021).
+  webCode: 10,
+  webVerify: 30,
+  webRevoke: 10,
 } as const;
 
 /**

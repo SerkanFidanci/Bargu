@@ -39,6 +39,8 @@ export const LABELS = {
   // Account and server-side helpers (not part of the message wire format).
   requestSignature: 'bargu/v1/req-sig',
   otpCode: 'bargu/v1/otp',
+  /** The account web page's code (docs/ADR/0021): never valid as a login code, nor the reverse. */
+  webCode: 'bargu/v1/web-code',
   emailLookup: 'bargu/v1/email',
   tokenHash: 'bargu/v1/token',
   atRest: 'bargu/v1/at-rest',

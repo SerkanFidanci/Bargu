@@ -51,6 +51,7 @@ export { applyPrecision, PRECISION_CELL_KM, type PrecisionLevel } from './precis
 export { rekeyReason, type RekeyReason } from './rekey.js';
 export {
   deriveOtpCode,
+  deriveWebCode,
   emailLookupKey,
   generateRequestNonce,
   generateToken,
@@ -63,6 +64,8 @@ export {
   signRequest,
   verifyOtpCode,
   verifyRequestSignature,
+  verifyWebCode,
+  WEB_CODE_DIGITS,
   type RequestToSign,
 } from './auth.js';
 export { openAtRest, sealAtRest } from './at-rest.js';

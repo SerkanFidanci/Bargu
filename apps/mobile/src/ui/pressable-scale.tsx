@@ -38,7 +38,8 @@ export function PressableScale({
   ...props
 }: PressableScaleProps) {
   const pressed = useSharedValue(0);
-  const flat = StyleSheet.flatten(style);
+  // An array always flattens to an object, even with no style at all (QA 3a-B3).
+  const flat = StyleSheet.flatten([style]);
   const base = typeof flat.opacity === 'number' ? flat.opacity : 1;
   const animated = useAnimatedStyle(
     () => ({

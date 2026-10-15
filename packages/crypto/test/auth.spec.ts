@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { openAtRest, sealAtRest } from '../src/at-rest.js';
 import {
   deriveOtpCode,
+  deriveWebCode,
   emailLookupKey,
   generateRequestNonce,
   generateToken,
@@ -14,6 +15,8 @@ import {
   pseudonym,
   signRequest,
   verifyOtpCode,
+  verifyWebCode,
+  WEB_CODE_DIGITS,
   verifyRequestSignature,
   type RequestToSign,
 } from '../src/auth.js';
@@ -154,6 +157,41 @@ describe('one-time codes', () => {
 
   it('require a 32-byte key', () => {
     expect(codeOf(() => deriveOtpCode(new Uint8Array(16), challenge))).toBe('INVALID_KEY');
+    expect(codeOf(() => deriveWebCode(new Uint8Array(16), challenge))).toBe('INVALID_KEY');
+  });
+});
+
+describe('account web page codes (docs/ADR/0021)', () => {
+  const challenge = '0190f7a4-3333-7333-8333-000000000002';
+
+  it('match an independent HMAC-SHA256 computation under their own label', () => {
+    const mac = createHmac('sha256', key)
+      .update(Buffer.concat([Buffer.from('bargu/v1/web-code\0'), uuidToBytes(challenge)]))
+      .digest();
+    const expected = String(mac.readUIntBE(0, 6) % 100_000_000).padStart(8, '0');
+    expect(deriveWebCode(key, challenge)).toBe(expected);
+    expect(WEB_CODE_DIGITS).toBe(8);
+  });
+
+  it('are eight digits, and never a login code for the same challenge (property)', () => {
+    fc.assert(
+      fc.property(fc.uuid({ version: 7 }), (id) => {
+        const code = deriveWebCode(key, id);
+        expect(code).toMatch(/^\d{8}$/);
+        expect(verifyWebCode(key, id, code)).toBe(true);
+        expect(verifyOtpCode(key, id, code)).toBe(false);
+        expect(verifyWebCode(key, id, deriveOtpCode(key, id))).toBe(false);
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it('verify only the exact code', () => {
+    const code = deriveWebCode(key, challenge);
+    const wrong = String((Number(code) + 1) % 100_000_000).padStart(8, '0');
+    expect(verifyWebCode(key, challenge, wrong)).toBe(false);
+    expect(verifyWebCode(key, challenge, code.slice(1))).toBe(false);
+    expect(verifyWebCode(key, challenge, '')).toBe(false);
   });
 });
 

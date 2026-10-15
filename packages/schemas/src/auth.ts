@@ -130,6 +130,8 @@ export const SECURITY_EVENT_TYPES = [
   'refresh_reuse',
   'passkey_added',
   'logout',
+  /** Taken off the account from the web page (docs/ADR/0021). */
+  'device_revoked_remote',
 ] as const;
 /** How far back the list goes, and how many at most. */
 export const SECURITY_EVENTS_DAYS = 90;

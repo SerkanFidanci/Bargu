@@ -28,6 +28,8 @@ describe('a meeting from a friend’s card (Faz 9)', () => {
         adopt: (circle) => {
           adopted.push(`${circle.id}:${String(circle.epoch)}`);
         },
+        end: () => Promise.resolve(),
+        drop: () => undefined,
       },
       NOW,
     );
@@ -35,6 +37,33 @@ describe('a meeting from a friend’s card (Faz 9)', () => {
     expect(invited).toEqual([[event.id, 'ada']]);
     expect(adopted).toEqual([`${event.id}:1`, `${event.id}:2`]);
     expect(result.epoch).toBe(2);
+  });
+
+  it('ends the meeting again when its invitation does not go out (QA 3a-B1)', async () => {
+    const event = circleOf([somebody()], { kind: 'event' });
+    const ended: string[] = [];
+    const dropped: string[] = [];
+    await expect(
+      startMeetingWith(
+        { username: 'ada', name: 'Ada' },
+        (name) => name,
+        {
+          create: () => Promise.resolve(event),
+          invite: () => Promise.reject(new Error('offline')),
+          adopt: () => undefined,
+          end: (id) => {
+            ended.push(id);
+            return Promise.resolve();
+          },
+          drop: (id) => {
+            dropped.push(id);
+          },
+        },
+        NOW,
+      ),
+    ).rejects.toThrow('offline');
+    expect(ended).toEqual([event.id]);
+    expect(dropped).toEqual([event.id]);
   });
 
   it('keeps a long name within the limit of a circle name', async () => {
@@ -50,6 +79,8 @@ describe('a meeting from a friend’s card (Faz 9)', () => {
         },
         invite: () => Promise.resolve(event),
         adopt: () => undefined,
+        end: () => Promise.resolve(),
+        drop: () => undefined,
       },
       NOW,
     );

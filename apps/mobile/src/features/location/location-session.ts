@@ -442,6 +442,8 @@ function shareSeenWithExtension(settings: SharingSettings): void {
  * taken back while nobody does. Set again on every change of who sees what.
  */
 let reminderPlanned: number | null | undefined;
+/** The ghost mode before "Tümünü durdur", to carry on as it was. */
+const BEFORE_STOP_KEY = 'sharing:before-stop:v1';
 function planSharingReminder(): void {
   const me = useAuth.getState().userId;
   if (me === null || !isVaultOpen()) return;
@@ -486,12 +488,20 @@ export function reviewSharing(): void {
  * sent or written (ghost "hide"; the history waiting to go is dropped, ADR 0019).
  */
 export function stopSharing(): void {
+  const before = loadSharingSettings().ghost;
+  if (before !== 'hide') vault().set(BEFORE_STOP_KEY, before);
   updateSharing((current) => ({ ...current, ghost: 'hide' }));
 }
 
-/** "Paylaşmaya devam et": every circle gets what the user chose for it again. */
+/**
+ * "Paylaşmaya devam et": back to how it was before the stop (a frozen location stays frozen, QA
+ * 3a-B4); with nothing stopped by it, sharing again.
+ */
 export function resumeSharing(): void {
-  updateSharing((current) => ({ ...current, ghost: 'off' }));
+  const before = vault().get(BEFORE_STOP_KEY);
+  vault().delete(BEFORE_STOP_KEY);
+  const ghost = before === 'freeze' ? 'freeze' : 'off';
+  updateSharing((current) => ({ ...current, ghost }));
 }
 
 /**

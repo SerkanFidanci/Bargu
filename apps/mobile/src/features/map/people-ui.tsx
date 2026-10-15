@@ -67,15 +67,20 @@ export function usePeopleUi(
     [t],
   );
 
+  /** A meeting being set up: one at a time, whatever is tapped meanwhile (QA 3a-B1). */
+  const meeting = useRef(false);
   const meet = useCallback(
     (person: PersonView) => {
       const username = person.username;
-      if (username === null) return;
+      if (username === null || meeting.current) return;
       Alert.alert(t('map.meetUp.title', { name: person.name }), t('map.meetUp.body'), [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('map.meetUp.start'),
           onPress: () => {
+            if (meeting.current) return;
+            meeting.current = true;
+            closeCard();
             void startMeetingWith(
               { username, name: person.name },
               (name) => t('map.meetUp.name', { name }),
@@ -85,18 +90,23 @@ export function usePeopleUi(
                 adopt: (circle) => {
                   void circleSync.adopt(circle).catch(() => undefined);
                 },
+                end: (id) => circlesApi.end(id),
+                drop: (id) => {
+                  circleSync.drop(id);
+                },
               },
               Date.now(),
             ).then(
               (event) => {
+                meeting.current = false;
                 feedback('success');
-                closeCard();
                 toast.success(t('map.meetUp.started', { name: person.name }));
                 router.push({ pathname: '/circle/[id]', params: { id: event.id } });
               },
               (error: unknown) => {
+                meeting.current = false;
                 feedback('error');
-                toast.error(errorMessage(error, t));
+                toast.error(t('map.meetUp.failed', { reason: errorMessage(error, t) }));
               },
             );
           },

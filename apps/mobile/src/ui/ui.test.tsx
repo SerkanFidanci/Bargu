@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { typography } from '@/theme';
 
 import { ACTION_LABEL_MIN_SCALE, ActionTile } from './action-tile';
+import { PressableScale } from './pressable-scale';
 import { Avatar, initialOf } from './avatar';
 import { AvatarStack } from './avatar-stack';
 import { Button } from './button';
@@ -26,6 +27,17 @@ describe('Text', () => {
   it('follows the system text size up to the cap of its variant', async () => {
     await render(<Text variant="display">Bargu</Text>);
     expect(screen.getByText('Bargu').props.maxFontSizeMultiplier).toBe(typography.display.maxScale);
+  });
+});
+
+describe('PressableScale', () => {
+  it('draws without any style (QA 3a-B3)', async () => {
+    await render(
+      <PressableScale onPress={jest.fn()} testID="bare">
+        <Text>Dokun</Text>
+      </PressableScale>,
+    );
+    expect(screen.getByTestId('bare')).toBeTruthy();
   });
 });
 

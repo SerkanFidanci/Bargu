@@ -216,3 +216,15 @@ export {
   type TrailPayload,
   type TrailPoint,
 } from './history.js';
+export {
+  type WebChallenge,
+  webChallengeSchema,
+  type WebCodeRequest,
+  webCodeRequestSchema,
+  type WebCodeVerify,
+  webCodeVerifySchema,
+  type WebRevoke,
+  webRevokeSchema,
+  type WebSession,
+  webSessionSchema,
+} from './web.js';

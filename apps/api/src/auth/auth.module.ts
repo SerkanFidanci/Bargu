@@ -21,9 +21,11 @@ import { OtpService } from './otp.service.js';
 import { PasskeysService } from './passkeys.service.js';
 import { RequestSignatures } from './request-signatures.js';
 import { SessionsService } from './sessions.service.js';
+import { WebAccountController } from './web-account.controller.js';
+import { WebAccountService } from './web-account.service.js';
 
 @Module({
-  controllers: [AuthController, WellKnownController],
+  controllers: [AuthController, WellKnownController, WebAccountController],
   providers: [
     AccessTokens,
     AuthContexts,
@@ -33,6 +35,7 @@ import { SessionsService } from './sessions.service.js';
     SessionsService,
     PasskeysService,
     LoginService,
+    WebAccountService,
     DeviceRegistry,
     DeviceLifecycle,
     AttestationService,

@@ -34,8 +34,9 @@ export function useAppLockWatcher(): void {
 }
 
 /**
- * What a locked app shows, over everything: nothing of the map, the circles or the people. It asks
- * the phone at once, and again with the button.
+ * What a locked app shows, instead of everything: nothing of the map, the circles or the people.
+ * It asks the phone when shown and when the app comes back from the background; after a "Cancel"
+ * only the button asks again.
  */
 export function LockScreen() {
   const { t } = useTranslation();
@@ -55,8 +56,13 @@ export function LockScreen() {
 
   useEffect(() => {
     if (AppState.currentState === 'active') void unlock();
+    let away = false;
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void unlock();
+      if (state === 'background') away = true;
+      else if (state === 'active' && away) {
+        away = false;
+        void unlock();
+      }
     });
     return () => {
       subscription.remove();
@@ -68,7 +74,7 @@ export function LockScreen() {
       entering={motion.fadeIn}
       testID="lock-screen"
       accessibilityViewIsModal
-      style={[StyleSheet.absoluteFill, styles.screen, { backgroundColor: colors.background }]}
+      style={[styles.screen, { backgroundColor: colors.background }]}
     >
       <View style={[styles.badge, { backgroundColor: colors.primarySoft }]}>
         <Lock color={colors.primary} size={32} strokeWidth={2.25} />
@@ -93,6 +99,7 @@ export function LockScreen() {
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.lg,

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
+import { env } from '@/config/env';
 import { vault } from '@/features/storage/vault';
 import { setAppLock, useAppLock } from '@/features/security/app-lock';
 import { SecurityEvents } from '@/features/security/security-events';
@@ -18,6 +19,8 @@ export default function SecurityScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const enabled = useAppLock((state) => state.enabled);
+  // The account web page (docs/ADR/0021): from any browser, with a code sent to the email.
+  const accountPage = `${env.apiUrl}/hesap`;
 
   const toggleLock = async (on: boolean) => {
     const result = await setAppLock(vault(), on, {
@@ -41,6 +44,16 @@ export default function SecurityScreen() {
         />
         <Text variant="footnote" color="textMuted">
           {t('security.lock.hint')}
+        </Text>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.surface }]} testID="lost-phone">
+        <Text variant="bodyStrong">{t('security.lost.title')}</Text>
+        <Text variant="footnote" color="textMuted">
+          {t('security.lost.body')}
+        </Text>
+        <Text variant="callout" selectable>
+          {accountPage}
         </Text>
       </View>
 

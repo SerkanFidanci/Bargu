@@ -294,6 +294,7 @@ ve `at-rest.ts`'te tanımlıdır. Kararlar: [ADR 0005](ADR/0005-auth-and-devices
 | -------------------- | ---------------------------------------------- |
 | `bargu/v1/req-sig`   | Cihaz imzalı API isteği                        |
 | `bargu/v1/otp`       | Giriş kodunun türetilmesi                      |
+| `bargu/v1/web-code`  | Hesap web sayfası kodunun türetilmesi          |
 | `bargu/v1/email`     | E-posta adresinin anahtarlı özeti              |
 | `bargu/v1/token`     | Refresh token özeti                            |
 | `bargu/v1/at-rest`   | Sunucuda saklanan hassas verinin şifrelenmesi  |
@@ -314,6 +315,11 @@ anahtarıyla imzalanır (anahtara sahip olma kanıtı).
 **Giriş kodu**: `kod = (ilk 48 bit HMAC-SHA256(OTP_KEY, "bargu/v1/otp\0" ‖ challengeId(16))) mod 10⁴`,
 4 haneye sıfırla doldurulur (ADR 0012; önce 8 haneydi). Kod veya özeti hiçbir yerde saklanmaz. Meydan okuma, kodu isteyen cihazın
 kimlik anahtarına bağlıdır; yalnızca o anahtarla imzalı giriş kodu kullanabilir.
+
+**Hesap sayfası kodu** (ADR 0021): aynı biçim, kendi etiketiyle ve 8 hane:
+`kod = (ilk 48 bit HMAC-SHA256(OTP_KEY, "bargu/v1/web-code\0" ‖ challengeId(16))) mod 10⁸`.
+Biri ötekinin yerine geçmez. Meydan okuma, sayfanın ürettiği rastgele değerin (binding) SHA-256
+özetine bağlıdır.
 
 **Takma ad** (ör. hız sınırı anahtarındaki istemci ağı): ilk 16 baytı hex olarak
 `HMAC-SHA256(EMAIL_LOOKUP_KEY, "bargu/v1/pseudonym\0" ‖ amaç\0 ‖ değer)`.

@@ -574,7 +574,8 @@
       "body": "A meeting you run is set up and an invitation goes out. Choose the time and place right away. It ends on its own in 3 hours, and everything is deleted then.",
       "start": "Set up",
       "name": "Meeting with {{name}}",
-      "started": "Meeting with {{name}} set up; choose the time and place"
+      "started": "Meeting with {{name}} set up; choose the time and place",
+      "failed": "The meeting was not set up; no invitation went out. {{reason}}"
     }
   },
   "places": {
@@ -751,6 +752,11 @@
       "title": "Bargu is locked",
       "body": "Use Face ID, a fingerprint or your phone’s passcode to carry on.",
       "unlock": "Unlock"
+    },
+    "event_device_revoked_remote": "A phone was taken off the account from the web page",
+    "lost": {
+      "title": "If you lose your phone",
+      "body": "Open this address on another device. With the 8-digit code sent to your email, take your phone off your account: its session ends at once, your circles move to new keys, and the phone wipes itself the next time it connects."
     }
   },
   "seers": {

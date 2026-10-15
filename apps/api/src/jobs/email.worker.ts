@@ -1,11 +1,11 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
-import { deriveOtpCode } from '@bargu/crypto';
+import { deriveOtpCode, deriveWebCode } from '@bargu/crypto';
 import type { Job, JobResult, PgBoss } from 'pg-boss';
 
 import { AuthKeys } from '../auth/auth-keys.js';
 import { type EmailJob, EmailJobs } from './email-jobs.js';
 import { Mailer } from './mailer.js';
-import { otpEmail } from './otp-email.js';
+import { otpEmail, webCodeEmail } from './otp-email.js';
 import { QUEUES } from './queues.js';
 import { JOB_QUEUE } from './tokens.js';
 
@@ -54,8 +54,11 @@ export class EmailWorker implements OnApplicationBootstrap {
       return { id: job.id, status: 'deadletter' };
     }
     try {
-      const code = deriveOtpCode(this.keys.otpKey, email.challengeId);
-      await this.mailer.send(otpEmail(email.to, email.locale, code));
+      await this.mailer.send(
+        email.kind === 'web'
+          ? webCodeEmail(email.to, email.locale, deriveWebCode(this.keys.otpKey, email.challengeId))
+          : otpEmail(email.to, email.locale, deriveOtpCode(this.keys.otpKey, email.challengeId)),
+      );
     } catch (error) {
       // Job id and error type only: never the address or the code.
       this.logger.warn(

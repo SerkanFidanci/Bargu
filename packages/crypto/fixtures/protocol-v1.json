@@ -12,6 +12,7 @@
     "safetyNumber": "bargu/v1/safety",
     "requestSignature": "bargu/v1/req-sig",
     "otpCode": "bargu/v1/otp",
+    "webCode": "bargu/v1/web-code",
     "emailLookup": "bargu/v1/email",
     "tokenHash": "bargu/v1/token",
     "atRest": "bargu/v1/at-rest",

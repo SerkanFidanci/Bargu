@@ -24,3 +24,28 @@ export function otpEmail(to: string, locale: Locale, code: string): OutgoingEmai
   const copy = COPY[locale];
   return { to, subject: copy.subject, text: copy.body(code) };
 }
+
+const WEB_COPY: Record<Locale, { subject: string; body: (code: string) => string }> = {
+  tr: {
+    subject: 'Bargu hesap sayfası kodun',
+    body: (code) =>
+      `Bargu hesap sayfası kodun: ${code}\n\n` +
+      'Bu kod yalnızca hesap sayfası içindir: kaybolan telefonu hesabından çıkarmak için. ' +
+      'Uygulamada geçmez. Kod 10 dakika geçerli; kimseyle paylaşma.\n' +
+      'Sen istemediysen bu e-postayı yok sayabilirsin; telefonun hesabında kalır.\n',
+  },
+  en: {
+    subject: 'Your Bargu account page code',
+    body: (code) =>
+      `Your Bargu account page code: ${code}\n\n` +
+      'This code is for the account page only: to take a lost phone off your account. ' +
+      'It does not work in the app. It is valid for 10 minutes; never share it.\n' +
+      "If you didn't ask for it, ignore this email; your phone stays on your account.\n",
+  },
+};
+
+/** The account web page's code (docs/ADR/0021); like the login code, in the body only. */
+export function webCodeEmail(to: string, locale: Locale, code: string): OutgoingEmail {
+  const copy = WEB_COPY[locale];
+  return { to, subject: copy.subject, text: copy.body(code) };
+}

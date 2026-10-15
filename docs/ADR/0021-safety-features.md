@@ -46,6 +46,12 @@ buluşmanın bir arkadaşla kolayca başlatılamadığını söyledi; kişi kart
   - Açmak da kapatmak da telefonun doğrulamasını ister: kilidi açık telefonu eline alan biri kilidi
     sessizce kapatamaz.
   - Ayar şifreli kasada tutulur. Kasa açılınca, ekranda hiçbir şey çizilmeden önce okunur.
+  - Kilitliyken uygulamanın ekranları hiç çizilmez, yalnızca kilit ekranı vardır (QA 3a-B2). Böylece
+    ekran okuyucu (TalkBack) altta bir şey okuyamaz ve iOS'ta tam ekran açılan bir pencere kilidin
+    üstüne çıkamaz. Bedeli: kilidi açınca uygulama haritadan başlar.
+  - Kilit ekranı telefonu açılınca ve uygulama arka plandan dönünce kendiliğinden sorar. "Vazgeç"ten
+    sonra yalnızca düğme yeniden sorar; sistemin Face ID penceresinin kısa "pasif" hâli yeni bir soru
+    açmaz.
   - Yeni bağımlılık: **expo-local-authentication 57.0.3**.
     - Expo'nun resmî paketidir, Expo SDK 57 ile aynı sürüm hattındadır ve bakımı Expo ekibindedir.
     - Telefonun yerel doğrulamasını kullanır (iOS LocalAuthentication, Android BiometricPrompt ve
@@ -62,14 +68,29 @@ buluşmanın bir arkadaşla kolayca başlatılamadığını söyledi; kişi kart
 - **Kişi kartından buluşma ("Buluş"):** tek dokunuşla o arkadaşla 3 saatlik bir etkinlik kurulur
   ve arkadaşa davet gider. Etkinliği kuran yöneticidir (ADR 0020), saati ve yeri hemen seçer. Bitince
   her şey silinir (ADR 0017). Uzun basınca açılan menü 5 öğe için ayarlı, oraya eklenmedi.
-- **Uzaktan cihaz iptali (bu dilimin ikinci parçası):** geçici alan adında bir web sayfası. Akış:
+  Onaydan sonra kart kapanır ve bir kurulum bitmeden ikincisi başlamaz. Davet gitmezse etkinlik
+  hemen bitirilir ve "davet gitmedi" denir: arkadaşsız bir buluşma kalmaz (QA 3a-B1).
+- **"Paylaşmaya devam et":** "Tümünü durdur"dan önceki hayalet hâline döner. Öncesinde "dondur"
+  açıksa yine "dondur" olur (QA 3a-B4).
+- **Uzaktan cihaz iptali:** API'nin geçici alan adında `/hesap` web sayfası. Akış:
   - E-posta yazılır, e-postayla gelen 8 haneli kod girilir, "Telefonumu hesaptan çıkar"
-    denir.
-  - Kod girişteki 4 haneli koddan ayrıdır: ayrı bir etiketle türetilir, yalnızca bu sayfada geçer ve
-    sayfanın ürettiği rastgele bir değere bağlıdır.
-  - Kendi sınırları vardır: adres başına günde birkaç kod ve birkaç yanlış deneme, IP başına
-    sınır. Girişin haklarını tüketmez; olmayan bir hesaba e-posta gitmez; cevap hesap olsun
-    olmasın aynıdır.
+    denir. Telefonun "Ben → Güvenlik" ekranı bu adresi gösterir.
+  - Kod girişteki 4 haneli koddan ayrıdır: `bargu/v1/web-code` etiketiyle türetilir
+    (PROTOCOL.md), yalnızca bu sayfada geçer ve sayfanın sekme için ürettiği rastgele değere
+    (binding) bağlıdır.
+  - Kendi sınırları vardır:
+    - adres başına saatte 3, günde 5 kod (e-posta bombalamaya karşı);
+    - kod başına 3 deneme, adres başına günde 5 yanlış kod;
+    - ağ başına saatte 10 kod isteği, 30 doğrulama ve 10 iptal.
+
+    Girişin hakları tüketilmez; hesap sayfasında yanlış kod denemek girişi kilitlemez. Olmayan bir
+    hesaba e-posta gitmez, ama cevaplar (kod isteme ve kod denetleme) hesap olsun olmasın aynıdır.
+
+  - Doğrulanan kod 10 dakikalık, tek işlemlik bir oturum verir; sayfa bu sürede hesapta hangi tür
+    telefon olduğunu ve ne zamandan beri olduğunu gösterir.
+  - Sayfa sunucunun kendisinden gelir; betik ve stil de oradan, dışarıdan hiçbir şey yüklenmez.
+    Sıkı içerik politikası (CSP) vardır, başka sitede çerçeve içinde açılamaz, önbelleğe alınmaz.
+    Başka sitelerden gelen tarayıcı istekleri zaten reddedilir (CSRF koruması).
   - 10^8 kod ve günde birkaç yanlış denemeyle tahmin şansı fiilen yoktur. ADR 0012'nin 4 haneli
     kod riski bu sayfaya taşınmaz. Bu, dilim 4'te aynı sayfaya eklenecek hesap silme için de
     gereklidir.

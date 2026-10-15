@@ -1,6 +1,7 @@
 import type { SecurityEvent } from '@bargu/schemas';
 import { useQuery } from '@tanstack/react-query';
 import {
+  Globe,
   KeyRound,
   LogOut,
   type LucideIcon,
@@ -25,10 +26,14 @@ const ICONS: Record<SecurityEvent['type'], LucideIcon> = {
   refresh_reuse: ShieldAlert,
   passkey_added: KeyRound,
   logout: LogOut,
+  device_revoked_remote: Globe,
 };
 
 /** Events that need the user's attention: told in the danger colour. */
-const ALARMING: ReadonlySet<SecurityEvent['type']> = new Set(['refresh_reuse']);
+const ALARMING: ReadonlySet<SecurityEvent['type']> = new Set([
+  'refresh_reuse',
+  'device_revoked_remote',
+]);
 
 /**
  * The account's security events (Faz 9, "güvenlik olayları"): what happened, when, and on this

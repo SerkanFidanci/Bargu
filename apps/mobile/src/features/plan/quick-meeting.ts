@@ -11,6 +11,10 @@ export interface QuickMeetingDeps {
   create: (input: CircleCreate) => Promise<Circle>;
   invite: (circleId: string, username: string) => Promise<Circle>;
   adopt: (circle: Circle) => void;
+  /** Ends an event at once (its admin): a meeting whose invitation did not go out. */
+  end: (circleId: string) => Promise<void>;
+  /** Forgets an ended event on this phone. */
+  drop: (circleId: string) => void;
 }
 
 /**
@@ -30,7 +34,14 @@ export async function startMeetingWith(
   const title = Array.from(name(friend.name)).slice(0, NAME_MAX).join('').trim();
   const event = await deps.create({ kind: 'event', name: title, endsAt });
   deps.adopt(event);
-  const invited = await deps.invite(event.id, friend.username);
-  deps.adopt(invited);
-  return invited;
+  try {
+    const invited = await deps.invite(event.id, friend.username);
+    deps.adopt(invited);
+    return invited;
+  } catch (error) {
+    // No meeting without the friend (QA 3a-B1): it goes again, and the caller says why.
+    await deps.end(event.id).catch(() => undefined);
+    deps.drop(event.id);
+    throw error;
+  }
 }

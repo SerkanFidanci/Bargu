@@ -19,26 +19,26 @@ export default function AppLayout() {
   useAppLockWatcher();
   const locked = useAppLock((state) => state.locked);
   if (!ready) return null;
+  // Locked: the lock alone. Nothing under it to read aloud (TalkBack) and no screen presented
+  // above it (an iOS modal); unlocked, the app starts again from the map (QA 3a-B2).
+  if (locked) return <LockScreen />;
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="circle/new" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="circle/[id]/index" />
-        <Stack.Screen name="circle/[id]/invite" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="circle/[id]/verify/[userId]" />
-        <Stack.Screen name="add/username" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="add/qr" />
-        <Stack.Screen name="add/scan" />
-        <Stack.Screen name="i/[token]" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="place/[circleId]" />
-        <Stack.Screen name="history/viewers" />
-        <Stack.Screen name="history/[userId]" />
-        <Stack.Screen name="security" />
-        <Stack.Screen name="seers" />
-      </Stack>
-      {locked ? <LockScreen /> : null}
-    </>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="circle/new" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="circle/[id]/index" />
+      <Stack.Screen name="circle/[id]/invite" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="circle/[id]/verify/[userId]" />
+      <Stack.Screen name="add/username" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="add/qr" />
+      <Stack.Screen name="add/scan" />
+      <Stack.Screen name="i/[token]" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="place/[circleId]" />
+      <Stack.Screen name="history/viewers" />
+      <Stack.Screen name="history/[userId]" />
+      <Stack.Screen name="security" />
+      <Stack.Screen name="seers" />
+    </Stack>
   );
 }

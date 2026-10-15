@@ -94,6 +94,7 @@ export const securityEventTypes = [
   'refresh_reuse',
   'passkey_added',
   'logout',
+  'device_revoked_remote',
 ] as const;
 export type SecurityEventType = (typeof securityEventTypes)[number];
 
