@@ -68,6 +68,9 @@ export function MeetingCard({ circle }: { circle: Circle }) {
     )
     .sort((a, b) => a.payload.ts - b.payload.ts);
   const range = timeRange(circle, now);
+  // The meeting and polls are the admins' (docs/ADR/0020); everyone votes and tells when late.
+  const admin = circle.myRole === 'owner';
+  const unset = admin ? undefined : t('plan.adminChooses');
 
   const openTime = () => {
     setDraft(
@@ -96,8 +99,8 @@ export function MeetingCard({ circle }: { circle: Circle }) {
         testID="meeting-time"
         leading={<RoundIcon icon={Clock} />}
         title={meetAt === undefined ? t('plan.noTime') : endClock(meetAt, now, i18n.language)}
-        subtitle={meetAt === undefined ? t('plan.chooseTime') : t('plan.time')}
-        onPress={openTime}
+        subtitle={meetAt === undefined ? (unset ?? t('plan.chooseTime')) : t('plan.time')}
+        onPress={admin ? openTime : undefined}
       />
       <ListRow
         testID="meeting-place"
@@ -105,20 +108,22 @@ export function MeetingCard({ circle }: { circle: Circle }) {
           place === undefined ? <RoundIcon icon={MapPin} /> : <PlaceIcon emoji={place.emoji} />
         }
         title={place === undefined ? t('plan.noPlace') : place.name}
-        subtitle={place === undefined ? t('plan.choosePlace') : t('plan.place')}
-        onPress={() => placeSheet.current?.present()}
+        subtitle={place === undefined ? (unset ?? t('plan.choosePlace')) : t('plan.place')}
+        onPress={admin ? () => placeSheet.current?.present() : undefined}
       />
 
       {polls.map((poll) => (
         <PollCard key={poll.payload.id} circle={circle} poll={poll.payload} me={me} />
       ))}
-      <Button
-        testID="poll-start"
-        label={t('plan.pollStart')}
-        icon={Vote}
-        variant="secondary"
-        onPress={() => pollSheet.current?.present()}
-      />
+      {admin ? (
+        <Button
+          testID="poll-start"
+          label={t('plan.pollStart')}
+          icon={Vote}
+          variant="secondary"
+          onPress={() => pollSheet.current?.present()}
+        />
+      ) : null}
 
       {meeting !== null && inEtaWindow(meeting.meetAt, now) ? (
         <ArrivalsBoard circle={circle} meeting={meeting} me={me} now={now} />
@@ -179,7 +184,8 @@ function PollCard({ circle, poll, me }: { circle: Circle; poll: PollPayload; me:
   const result = tally(poll, votes, members);
   const mine = votes.find((doc) => doc.authorId === me && doc.payload.pollId === poll.id);
   const chosen = new Set(mine?.payload.choices ?? []);
-  const may = poll.by === me || circle.myRole === 'owner';
+  // Closing or deleting a poll: its event's admins (docs/ADR/0020).
+  const may = circle.myRole === 'owner';
   const starter = circle.members.find((member) => member.userId === poll.by);
   const closed = poll.closed?.choice;
   const label = (index: number): string => {

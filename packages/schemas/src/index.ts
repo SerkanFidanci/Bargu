@@ -25,11 +25,15 @@ export {
   type VotePayload,
 } from './payload.js';
 export {
+  DOC_KINDS,
+  docKindSchema,
   docPutReplySchema,
   docPutSchema,
   docRecordSchema,
   docsSchema,
   MAX_DOCS_PER_CIRCLE,
+  MAX_POLLS_PER_MEMBER,
+  type DocKind,
   type DocPut,
   type DocRecord,
 } from './docs.js';
@@ -148,6 +152,7 @@ export {
   resumeReplySchema,
   serverEventSchema,
   usernameBodySchema,
+  memberRoleBodySchema,
   type Circle,
   type CircleCreate,
   type DeliveredEvent,

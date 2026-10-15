@@ -11,8 +11,17 @@ import { usePlaces } from './places';
 /** Names show from street level; further out only the circle and its icon. */
 const NAME_ZOOM = 14;
 
-/** The places of the user's circles on the map: a soft circle and the place's icon and name. */
-export function PlacesLayer({ only }: { only?: (place: Place) => boolean }) {
+/**
+ * The places of the user's circles on the map: a soft circle and the place's icon and name.
+ * `untagged` places keep their circle only: something else marks them (an event's meeting point).
+ */
+export function PlacesLayer({
+  only,
+  untagged,
+}: {
+  only?: (place: Place) => boolean;
+  untagged?: ReadonlySet<string>;
+}) {
   const { colors } = useTheme();
   const zoom = useMapZoom((state) => state.zoom);
   const all = Object.values(usePlaces());
@@ -41,24 +50,26 @@ export function PlacesLayer({ only }: { only?: (place: Place) => boolean }) {
           paint={{ 'line-color': colors.primary, 'line-width': 1.5, 'line-opacity': 0.5 }}
         />
       </GeoJSONSource>
-      {shown.map((place) => (
-        <Marker key={place.id} id={`place-${place.id}`} lngLat={[place.lng, place.lat]}>
-          <View
-            pointerEvents="none"
-            style={[styles.tag, { backgroundColor: colors.surfaceRaised }]}
-            accessibilityLabel={place.name}
-          >
-            <Text variant="caption" allowFontScaling={false}>
-              {place.emoji}
-            </Text>
-            {zoom >= NAME_ZOOM ? (
-              <Text variant="caption" numberOfLines={1} style={styles.name}>
-                {place.name}
+      {shown
+        .filter((place) => untagged?.has(place.id) !== true)
+        .map((place) => (
+          <Marker key={place.id} id={`place-${place.id}`} lngLat={[place.lng, place.lat]}>
+            <View
+              pointerEvents="none"
+              style={[styles.tag, { backgroundColor: colors.surfaceRaised }]}
+              accessibilityLabel={place.name}
+            >
+              <Text variant="caption" allowFontScaling={false}>
+                {place.emoji}
               </Text>
-            ) : null}
-          </View>
-        </Marker>
-      ))}
+              {zoom >= NAME_ZOOM ? (
+                <Text variant="caption" numberOfLines={1} style={styles.name}>
+                  {place.name}
+                </Text>
+              ) : null}
+            </View>
+          </Marker>
+        ))}
     </>
   );
 }

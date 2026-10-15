@@ -106,7 +106,20 @@ describe('event planning (docs/ADR/0018)', () => {
     };
     expect(docEnvelopeSchema.parse(envelope)).toEqual(envelope);
     expect(docEnvelopeSchema.safeParse({ ...envelope, ct: b64(528) }).success).toBe(false);
-    expect(docPutSchema.parse({ envelope, version: null, shared: true }).shared).toBe(true);
-    expect(docPutSchema.safeParse({ envelope, version: null }).success).toBe(false);
+    expect(docPutSchema.parse({ envelope, version: null, kind: 'plan', pollId: null }).kind).toBe(
+      'plan',
+    );
+    expect(docPutSchema.parse({ envelope, version: 1, kind: 'vote', pollId: uuid }).pollId).toBe(
+      uuid,
+    );
+    // A vote names its poll, nothing else does; the kind is not optional.
+    for (const put of [
+      { envelope, version: null, kind: 'vote', pollId: null },
+      { envelope, version: null, kind: 'poll', pollId: uuid },
+      { envelope, version: null, pollId: null },
+      { envelope, version: null, shared: true },
+    ]) {
+      expect(docPutSchema.safeParse(put).success).toBe(false);
+    }
   });
 });

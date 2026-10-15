@@ -115,6 +115,7 @@ export const memberStatus = app.enum('member_status', [
   'removed',
 ]);
 export const inviteKind = app.enum('invite_kind', ['circle', 'friend']);
+export const docKind = app.enum('doc_kind', ['plan', 'poll', 'vote']);
 
 export const circles = app.table('circles', {
   id: uuid('id').primaryKey().default(uuidv7),
@@ -194,6 +195,8 @@ export const circleDocs = app.table('circle_docs', {
   id: uuid('id').notNull(),
   authorId: uuid('author_id').notNull(),
   shared: boolean('shared').notNull(),
+  kind: docKind('kind').notNull(),
+  pollId: uuid('poll_id'),
   envelope: jsonb('envelope').notNull(),
   version: integer('version').notNull().default(1),
   updatedAt: timestamptz('updated_at').notNull().defaultNow(),

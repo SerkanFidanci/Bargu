@@ -280,6 +280,7 @@
     "invalid": "Bu davet geçersiz ya da süresi dolmuş",
     "invalidBody": "Davet linkleri tek kullanımlık ve 24 saat geçerli. Arkadaşından yenisini iste.",
     "already": "Zaten bu çemberdesin.",
+    "usedByMe": "Bu kodla bir kez katıldın. Yeniden katılmak için yeni bir kod iste.",
     "eventEnds": "Bitiş: {{time}} · Bitince her şey silinir",
     "eventBody": "Katılırsan etkinlik bitene kadar konumunuzu birbirinizle paylaşırsınız; her şey uçtan uca şifreli. Etkinlik bitince çember herkesten silinir."
   },
@@ -292,7 +293,8 @@
     },
     "errors": {
       "full": "Bu çember dolu (en fazla 50 kişi).",
-      "gone": "Bu çember artık yok ya da içinde değilsin."
+      "gone": "Bu çember artık yok ya da içinde değilsin.",
+      "creatorAdmin": "Çemberi kuranın yöneticiliği alınamaz."
     },
     "sheet": {
       "requests": "İstekler",
@@ -336,7 +338,7 @@
       "goneBody": "Bu çemberden ayrılmış ya da çıkarılmış olabilirsin.",
       "rename": "Adını değiştir",
       "members": "Üyeler ({{count}})",
-      "owner": "Sahip",
+      "owner": "Yönetici",
       "invited": "Davet edildi",
       "you": "Sen",
       "encrypted": "Uçtan uca şifreli",
@@ -365,7 +367,12 @@
       "addPeople": "Kişi ekle",
       "onlyYouTitle": "Şimdilik sadece sen varsın",
       "onlyYouBody": "Arkadaşlarını davet et; kabul edenler çembere katılır.",
-      "inviteFriends": "Arkadaşlarını davet et"
+      "inviteFriends": "Arkadaşlarını davet et",
+      "makeAdmin": "Yönetici yap",
+      "unmakeAdmin": "Yöneticilikten al",
+      "manage": "{{name}} için seçenekler",
+      "madeAdmin": "{{name}} artık yönetici",
+      "unmadeAdmin": "{{name}} artık yönetici değil"
     },
     "invite": {
       "title": "Kişi ekle",
@@ -626,6 +633,7 @@
     "conflict": "Biri az önce değiştirdi. Son hâline bak ve yeniden dene.",
     "failed": "Kaydedilemedi. Bağlantını kontrol et.",
     "full": "Bu etkinlikte daha fazla oylama açılamaz.",
+    "forbidden": "Bunu yalnızca oylamayı başlatan ya da yönetici yapabilir.",
     "pollStart": "Oylama başlat",
     "pollAbout": "Ne oylansın?",
     "pollAboutTime": "Saat",
@@ -665,7 +673,9 @@
     "lateMinutes": "{{minutes}} dk",
     "lateSend": "Haber ver",
     "lateSent": "Haber verildi",
-    "leaveIn": "Buluşmaya yetişmek için {{minutes}} dk içinde çıkmalısın"
+    "leaveIn": "Buluşmaya yetişmek için {{minutes}} dk içinde çıkmalısın",
+    "adminChooses": "Yönetici belirleyecek",
+    "meetingPoint": "{{event}} buluşma noktası: {{place}}, {{time}}"
   },
   "history": {
     "title": "Geçmiş",

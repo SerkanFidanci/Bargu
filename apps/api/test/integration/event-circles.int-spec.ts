@@ -23,6 +23,7 @@ import {
 import type { PgBoss } from 'pg-boss';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { CIRCLE_LIMITS } from '../../src/circles/circles.service.js';
 import { EventExpiry } from '../../src/circles/event-expiry.js';
 import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
 import { QUEUES } from '../../src/jobs/queues.js';
@@ -180,8 +181,50 @@ describe('event circles', () => {
     expect((await join(bora, link)).statusCode).toBe(404);
   });
 
+  it('let each person in once per QR code: leaving and coming back needs a new one (QA Faz 8 O6)', async () => {
+    const [owner, ayse] = await Promise.all([person(test), person(test)]);
+    const event = await createEvent(owner);
+    const qr = await qrOf(owner, event);
+    expect((await join(ayse, qr)).statusCode).toBe(200);
+    // Still in: told so, as before.
+    const again = await join(ayse, qr);
+    expect(again.statusCode).toBe(409);
+    expect(again.json()).toMatchObject({ code: 'ALREADY_MEMBER' });
+
+    const epochOf = async () =>
+      (await as(test, owner, 'GET', `/v1/circles/${event.id}`)).json<Circle>().epoch;
+    expect((await as(test, ayse, 'POST', `/v1/circles/${event.id}/leave`)).statusCode).toBe(204);
+    const afterLeaving = await epochOf();
+    const back = await join(ayse, qr);
+    expect(back.statusCode).toBe(409);
+    expect(back.json()).toMatchObject({ code: 'INVITE_USED' });
+    // Refused with nothing changed: no new epoch, and the code is not used up by it.
+    expect(await epochOf()).toBe(afterLeaving);
+    // A new code lets her back.
+    expect((await join(ayse, await qrOf(owner, event))).statusCode).toBe(200);
+    expect(await epochOf()).toBe(afterLeaving + 1);
+  });
+
+  it('take in only so many people an hour, each of whom starts a new epoch (QA Faz 8 O6)', async () => {
+    const [owner, late] = await Promise.all([person(test), person(test)]);
+    const event = await createEvent(owner);
+    const redis = test.app.get<RedisClient>(REDIS);
+    // As if a hundred people had come in this hour already.
+    await redis.set(`rl:circle-joins:${event.id}`, String(CIRCLE_LIMITS.joinsPerCirclePerHour), {
+      EX: 3600,
+    });
+    const refused = await join(late, await qrOf(owner, event));
+    expect(refused.statusCode).toBe(429);
+    const circle = (await as(test, owner, 'GET', `/v1/circles/${event.id}`)).json<Circle>();
+    expect(circle.members.map((member) => member.userId)).not.toContain(late.userId);
+    expect(circle.epoch).toBe(event.epoch);
+    // Leaving is never limited.
+    expect((await as(test, owner, 'POST', `/v1/circles/${event.id}/leave`)).statusCode).toBe(204);
+  });
+
   it('let their owner close every QR code, whoever made it (QA Faz 8 O2)', async () => {
-    const [owner, ayse, stranger, other] = await Promise.all([
+    const [owner, ayse, bora, stranger, other] = await Promise.all([
+      person(test),
       person(test),
       person(test),
       person(test),
@@ -189,11 +232,15 @@ describe('event circles', () => {
     ]);
     const event = await createEvent(owner);
     await join(ayse, await qrOf(owner, event));
-    // Ayşe makes a QR code of her own; it leaks.
+    await join(bora, await qrOf(owner, event));
+    // Ayşe, made an admin too (docs/ADR/0020), makes a QR code of her own; it leaks.
+    await as(test, owner, 'POST', `/v1/circles/${event.id}/members/${ayse.userId}/role`, {
+      role: 'owner',
+    });
     const leaked = await qrOf(ayse, event);
-    // Only the owner closes the door; for anyone else the circle's links are not theirs.
+    // Only an admin closes the door; for a member the circle's links are not theirs.
     expect(
-      (await as(test, ayse, 'POST', `/v1/circles/${event.id}/invites/revoke`)).statusCode,
+      (await as(test, bora, 'POST', `/v1/circles/${event.id}/invites/revoke`)).statusCode,
     ).toBe(404);
     const closed = await as(test, owner, 'POST', `/v1/circles/${event.id}/invites/revoke`);
     expect(closed.statusCode).toBe(200);
@@ -376,7 +423,8 @@ async function eventWithEverything(): Promise<{ circle: Circle; qr: Invite }> {
       ts: now,
     }),
     version: null,
-    shared: true,
+    kind: 'plan',
+    pollId: null,
   });
   expect(meeting.statusCode).toBe(200);
   const slot = historySlot(now) - HISTORY_SLOT_MS;

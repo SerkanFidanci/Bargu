@@ -11,11 +11,11 @@ import { createDocs, type DocsApi } from './docs';
 
 const docsApi: DocsApi = {
   list: async (circleId) => docsSchema.parse(await api.authed(`/v1/circles/${circleId}/docs`)).docs,
-  put: async (circleId, docId, envelope, version, shared) =>
+  put: async (circleId, docId, envelope, version, kind, pollId) =>
     docPutReplySchema.parse(
       await api.authed(`/v1/circles/${circleId}/docs/${docId}`, {
         method: 'PUT',
-        body: { envelope, version, shared },
+        body: { envelope, version, kind, pollId },
       }),
     ).version,
   remove: async (circleId, docId) => {
@@ -39,6 +39,7 @@ export const docs = createDocs({
     if (isApiError(error, 'VERSION_CONFLICT')) return 'VERSION_CONFLICT';
     if (isApiError(error, 'EPOCH_STALE')) return 'EPOCH_STALE';
     if (isApiError(error, 'DOCS_FULL')) return 'DOCS_FULL';
+    if (isApiError(error, 'FORBIDDEN')) return 'FORBIDDEN';
     return null;
   },
   refreshCircle: async (circleId) => {

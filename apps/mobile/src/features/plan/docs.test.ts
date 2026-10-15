@@ -1,5 +1,5 @@
 import { randomUuid, voteId } from '@bargu/crypto';
-import type { Circle, DocRecord, MessageEnvelope, PollPayload } from '@bargu/schemas';
+import type { Circle, DocRecord, MessageEnvelope, PollPayload, VotePayload } from '@bargu/schemas';
 
 import { circleOf, exchangeKeys, type Person, somebody } from '../location/test-support';
 import { createDocs, type DocRefusal, docKey, type DocsApi, useDocs } from './docs';
@@ -16,7 +16,8 @@ function fakeServer(epochOf: (circleId: string) => number) {
   const api: DocsApi = {
     list: (circleId) =>
       Promise.resolve([...rows.values()].filter((row) => row.circleId === circleId)),
-    put: (circleId, docId, envelope: MessageEnvelope, version, shared) => {
+    put: (circleId, docId, envelope: MessageEnvelope, version, kind) => {
+      const shared = kind !== 'vote';
       if (envelope.epoch !== epochOf(circleId)) return Promise.reject(new Refused('EPOCH_STALE'));
       const row = rows.get(docId);
       const ownedByAnother =
@@ -122,7 +123,7 @@ describe('event documents on the phone', () => {
     ]);
   });
 
-  it('are sealed again under a new epoch: shared ones by anyone, votes by their voter', async () => {
+  it('are sealed again under a new epoch: shared ones by an admin, votes by their voter', async () => {
     const [ayse, bora, cem] = [somebody(), somebody(), somebody()];
     let circle = event([ayse, bora]);
     exchangeKeys(circle, [ayse, bora]);
@@ -138,9 +139,12 @@ describe('event documents on the phone', () => {
     circle = { ...event([ayse, bora, cem]), id: circle.id, epoch: 2 };
     exchangeKeys(circle, [ayse, bora, cem]);
     useDocs.setState({}, true);
-    const boras = docsOf(bora, () => [circle], server.api);
+    // A member seals none of them again (the meeting and polls are the admins', docs/ADR/0020).
+    expect(await docsOf(bora, () => [circle], server.api).sync()).toEqual([]);
+    useDocs.setState({}, true);
+    const boras = docsOf(bora, () => [{ ...circle, myRole: 'owner' }], server.api);
     const stale = await boras.sync();
-    // Bora may seal the meeting and the poll again, not Ayşe's vote.
+    // Bora, an admin, may seal the meeting and the poll again, not Ayşe's vote.
     expect(stale.map((doc) => doc.id).sort()).toEqual([circle.id, pollId].sort());
     expect(await boras.reseal(stale)).toBe(2);
 
@@ -180,6 +184,40 @@ describe('event documents on the phone', () => {
     if (old !== undefined) server.rows.set(pollId, old);
     await ayses.sync();
     expect(useDocs.getState()[docKey(circle.id, pollId)]).toBeUndefined();
+  });
+
+  it("say when only a poll's starter or an admin may change it, and send each kind as such (Faz 9 O4)", async () => {
+    const [ayse, bora] = [somebody(), somebody()];
+    const circle = event([ayse, bora]);
+    exchangeKeys(circle, [ayse, bora]);
+    const server = fakeServer(() => circle.epoch);
+    const sent: [string, string | null][] = [];
+    const pollId = randomUuid();
+    const api: DocsApi = {
+      ...server.api,
+      put: (circleId, docId, envelope, version, kind, poll) => {
+        sent.push([kind, poll]);
+        if (kind === 'poll' && version !== null) return Promise.reject(new Refused('FORBIDDEN'));
+        return server.api.put(circleId, docId, envelope, version, kind, poll);
+      },
+    };
+    const boras = docsOf(bora, () => [circle], api);
+    await boras.save(circle.id, pollFor(pollId, ayse.userId));
+    const vote: VotePayload = {
+      kind: 'vote',
+      id: voteId(pollId, bora.userId),
+      pollId,
+      choices: [0],
+      ts: 0,
+    };
+    await boras.save(circle.id, vote);
+    const closing = { ...pollFor(pollId, ayse.userId), closed: { choice: 0 } };
+    expect(await boras.save(circle.id, closing)).toBe('forbidden');
+    expect(sent).toEqual([
+      ['poll', null],
+      ['vote', pollId],
+      ['poll', null],
+    ]);
   });
 
   it('exist only for events this phone is active in', async () => {

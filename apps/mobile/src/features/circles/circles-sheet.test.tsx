@@ -97,7 +97,10 @@ describe('CirclesSheet', () => {
 
     await act(async () => {
       await fireEvent.press(screen.getByLabelText('Kabul et'));
-      await Promise.resolve();
+      // Let the mutation settle (its success updates the row) inside act.
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
     });
     expect(mockAccept).toHaveBeenCalledWith(REQUEST);
   });

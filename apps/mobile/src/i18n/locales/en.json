@@ -280,6 +280,7 @@
     "invalid": "This invitation is invalid or has expired",
     "invalidBody": "Invite links work once and for 24 hours. Ask your friend for a new one.",
     "already": "You're already in this circle.",
+    "usedByMe": "You already joined once with this code. Ask for a new one to join again.",
     "eventEnds": "Ends: {{time}} · Everything is deleted then",
     "eventBody": "If you join, you share your locations with each other until the event ends; everything is end-to-end encrypted. When it ends, the circle is deleted for everyone."
   },
@@ -292,7 +293,8 @@
     },
     "errors": {
       "full": "This circle is full (50 people at most).",
-      "gone": "This circle no longer exists or you're not in it."
+      "gone": "This circle no longer exists or you're not in it.",
+      "creatorAdmin": "Whoever created the circle stays its admin."
     },
     "sheet": {
       "requests": "Requests",
@@ -336,7 +338,7 @@
       "goneBody": "You may have left it or been removed.",
       "rename": "Rename",
       "members": "Members ({{count}})",
-      "owner": "Owner",
+      "owner": "Admin",
       "invited": "Invited",
       "you": "You",
       "encrypted": "End-to-end encrypted",
@@ -365,7 +367,12 @@
       "addPeople": "Add people",
       "onlyYouTitle": "It's just you for now",
       "onlyYouBody": "Invite your friends; those who accept join the circle.",
-      "inviteFriends": "Invite friends"
+      "inviteFriends": "Invite friends",
+      "makeAdmin": "Make admin",
+      "unmakeAdmin": "Remove as admin",
+      "manage": "Options for {{name}}",
+      "madeAdmin": "{{name}} is now an admin",
+      "unmadeAdmin": "{{name}} is no longer an admin"
     },
     "invite": {
       "title": "Add people",
@@ -626,6 +633,7 @@
     "conflict": "Someone just changed it. Look at the latest and try again.",
     "failed": "Could not save. Check your connection.",
     "full": "No more polls can be started in this event.",
+    "forbidden": "Only whoever started the poll or an admin can do this.",
     "pollStart": "Start a poll",
     "pollAbout": "Vote on",
     "pollAboutTime": "Time",
@@ -665,7 +673,9 @@
     "lateMinutes": "{{minutes}} min",
     "lateSend": "Let them know",
     "lateSent": "They know",
-    "leaveIn": "Leave within {{minutes}} min to make the meeting"
+    "leaveIn": "Leave within {{minutes}} min to make the meeting",
+    "adminChooses": "An admin will choose",
+    "meetingPoint": "{{event}} meeting point: {{place}}, {{time}}"
   },
   "history": {
     "title": "History",

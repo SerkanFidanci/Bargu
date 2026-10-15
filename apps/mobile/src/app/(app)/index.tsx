@@ -20,6 +20,10 @@ import { useWatchCircles } from '@/features/location/use-location';
 import { memberName } from '@/features/circles/names';
 import { PeopleLayer } from '@/features/map/people-layer';
 import { PlacesLayer } from '@/features/places/places-layer';
+import { usePlaces } from '@/features/places/places';
+import { useDocs } from '@/features/plan/docs';
+import { meetingPoints } from '@/features/plan/meeting-points';
+import { MeetingPointsLayer } from '@/features/plan/meeting-points-layer';
 import { MeSheet } from '@/features/home/sheets';
 import { StatusSheet } from '@/features/social/status-sheet';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
@@ -58,6 +62,11 @@ export default function HomeScreen() {
   const map = useRef<BarguMapHandle>(null);
   const people = usePeopleUi(map, circleList.data ?? [], insets.top);
   const weather = useWeatherHere();
+  // Events' meeting points: their own flag, tappable (the project owner's request, Faz 9).
+  const docs = useDocs();
+  const places = usePlaces();
+  const points = meetingPoints(circleList.data ?? [], docs, places, now);
+  const meetingPlaces = new Set(points.map((point) => point.place.id));
   // While the map is on screen, the circles' phones send live updates.
   useWatchCircles();
   const seers = seersOf(circleList.data ?? [], sharing, myUserId, now).map((member) => ({
@@ -88,7 +97,8 @@ export default function HomeScreen() {
         }}
         focus={myFix === null ? null : [myFix.lng, myFix.lat]}
       >
-        <PlacesLayer />
+        <PlacesLayer untagged={meetingPlaces} />
+        <MeetingPointsLayer points={points} now={now} />
         <PeopleLayer
           me={me.data}
           circles={circleList.data ?? []}

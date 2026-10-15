@@ -58,6 +58,7 @@ export default function InviteScreen() {
       feedback('error');
       if (isApiError(error, 'INVITE_INVALID')) toast.error(t('invite.invalid'));
       else if (isApiError(error, 'ALREADY_MEMBER')) toast.info(t('invite.already'));
+      else if (isApiError(error, 'INVITE_USED')) toast.error(t('invite.usedByMe'));
       else if (isApiError(error, 'CIRCLE_FULL')) toast.error(t('circles.errors.full'));
       else toast.error(errorMessage(error, t));
     },

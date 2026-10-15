@@ -63,6 +63,8 @@ export class InvitesService {
           throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
         }
         if (circle.expiresAt !== undefined) {
+          // Only an event's admins let people in (docs/ADR/0020; row-level security too).
+          if (circle.myRole !== 'owner') throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
           expires = new Date(circle.expiresAt);
           maxUses = EVENT_INVITE_USES;
         }
@@ -136,6 +138,7 @@ export class InvitesService {
         );
         const id = result.rows[0]?.id ?? null;
         if (id === null) throw new ApiError(HttpStatus.NOT_FOUND, 'INVITE_INVALID');
+        await this.circles.limitJoins(id);
         await this.circles.startEpoch(tx, id);
         return id;
       })
@@ -200,6 +203,9 @@ function refusal(error: unknown): unknown {
   if (message.includes('circle is full')) return new ApiError(HttpStatus.CONFLICT, 'CIRCLE_FULL');
   if (message.includes('already a member or removed')) {
     return new ApiError(HttpStatus.CONFLICT, 'ALREADY_MEMBER');
+  }
+  if (message.includes('code already used by this person')) {
+    return new ApiError(HttpStatus.CONFLICT, 'INVITE_USED');
   }
   if (message.includes('inviter left') || message.includes('predates the end')) {
     return new ApiError(HttpStatus.NOT_FOUND, 'INVITE_INVALID');

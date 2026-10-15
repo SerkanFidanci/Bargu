@@ -25,6 +25,7 @@ import {
   type PublicProfile,
   type SenderKeyDistribution,
   usernameBodySchema,
+  memberRoleBodySchema,
 } from '@bargu/schemas';
 import { z } from 'zod';
 
@@ -129,6 +130,17 @@ export class CirclesController {
     @Param('userId', idPipe) userId: string,
   ): Promise<Circle> {
     return this.circles.remove(auth, id, userId);
+  }
+
+  @Post('circles/:id/members/:userId/role')
+  @HttpCode(HttpStatus.OK)
+  setRole(
+    @CurrentAuth() auth: AuthContext,
+    @Param('id', idPipe) id: string,
+    @Param('userId', idPipe) userId: string,
+    @Body(new ZodPipe(memberRoleBodySchema)) body: { role: 'owner' | 'member' },
+  ): Promise<Circle> {
+    return this.circles.setRole(auth, id, userId, body.role);
   }
 
   @Post('circles/:id/keys')

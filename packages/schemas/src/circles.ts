@@ -86,6 +86,8 @@ export type Circle = z.infer<typeof circleSchema>;
 export const circlesSchema = z.object({ circles: z.array(circleSchema) }).strict();
 
 export const usernameBodySchema = z.object({ username: usernameSchema }).strict();
+/** An admin makes a member admin (`owner`) or takes it back (`member`); docs/ADR/0020. */
+export const memberRoleBodySchema = z.object({ role: z.enum(MEMBER_ROLES) }).strict();
 export const profileQuerySchema = z.object({ username: z.string().max(64) }).strict();
 
 /** Invite links and QR codes: opaque 256-bit tokens; only their hash is stored. */

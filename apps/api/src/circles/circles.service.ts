@@ -7,11 +7,11 @@ import {
   EVENT_DURATION_MS,
   type MemberCard,
 } from '@bargu/schemas';
-import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
-import { circleMembers, circles } from '../db/schema.js';
+import { circleMembers, circles, invites } from '../db/schema.js';
 import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
@@ -21,10 +21,15 @@ import { RateLimiter } from '../infra/redis/rate-limiter.js';
 
 const HOUR = 3600;
 
-/** Per-account budgets: inviting people and requesting friends (no spam), asking for a new epoch. */
+/**
+ * Per-account budgets: inviting people and requesting friends (no spam), asking for a new epoch.
+ * Per circle: people coming in, each of whom starts a new epoch for everyone (QA Faz 8 O6); a full
+ * event of 50 fits twice. Leaving and removing are never limited.
+ */
 export const CIRCLE_LIMITS = {
   invitationsPerHour: 30,
   rekeysPerHour: 30,
+  joinsPerCirclePerHour: 100,
 } as const;
 
 /** Row of app.circle_member_cards (migrations/0003). */
@@ -207,6 +212,7 @@ export class CirclesService implements OnModuleInit {
         )
         .returning({ circleId: circleMembers.circleId });
       if (updated.length === 0) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      await this.limitJoins(circleId);
       await this.startEpoch(tx, circleId);
       return this.mustRead(tx, circleId, auth.userId);
     });
@@ -301,10 +307,74 @@ export class CirclesService implements OnModuleInit {
     return circle;
   }
 
+  /**
+   * An admin makes a member admin, or takes it back from another admin (docs/ADR/0020): not from
+   * themselves, not from whoever created the circle, never in a pair. Keys do not change (no new
+   * epoch); the members hear `circle.changed`. Who is no longer an admin of an event loses the QR
+   * codes they made: only admins let people into an event.
+   */
+  async setRole(
+    auth: AuthContext,
+    circleId: string,
+    userId: string,
+    role: 'owner' | 'member',
+  ): Promise<Circle> {
+    const circle = await this.database.asUser(auth.userId, async (tx) => {
+      await this.lock(tx, circleId);
+      const before = await this.mustRead(tx, circleId, auth.userId);
+      if (
+        before.kind === 'pair' ||
+        before.myRole !== 'owner' ||
+        before.myStatus !== 'active' ||
+        userId === auth.userId
+      ) {
+        throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+      }
+      const target = before.members.find(
+        (member) => member.userId === userId && member.status === 'active',
+      );
+      if (target === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      if (target.role === role) return before;
+      if (role === 'member') {
+        const [row] = await tx
+          .select({ createdBy: circles.createdBy })
+          .from(circles)
+          .where(eq(circles.id, circleId));
+        if (row?.createdBy === userId) {
+          throw new ApiError(HttpStatus.FORBIDDEN, 'CREATOR_ADMIN');
+        }
+      }
+      await tx
+        .update(circleMembers)
+        .set({ role })
+        .where(and(eq(circleMembers.circleId, circleId), eq(circleMembers.userId, userId)));
+      if (role === 'member' && before.expiresAt !== undefined) {
+        await tx
+          .update(invites)
+          .set({ revokedAt: new Date() })
+          .where(
+            and(
+              eq(invites.circleId, circleId),
+              eq(invites.createdBy, userId),
+              isNull(invites.revokedAt),
+            ),
+          );
+      }
+      return this.mustRead(tx, circleId, auth.userId);
+    });
+    await this.changed(circle);
+    return circle;
+  }
+
   /** Invites someone into a group by username; they join only if they accept. */
   async inviteUser(auth: AuthContext, circleId: string, username: string): Promise<Circle> {
     await this.limit(auth.userId);
     const circle = await this.database.asUser(auth.userId, async (tx) => {
+      // Into an event only its admins invite (docs/ADR/0020; app.invite_user holds it too).
+      const before = await this.mustRead(tx, circleId, auth.userId);
+      if (before.expiresAt !== undefined && before.myRole !== 'owner') {
+        throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+      }
       const result = await tx.execute<{ ok: boolean }>(
         sql`SELECT app.invite_user(${circleId}, ${username}) AS ok`,
       );
@@ -466,6 +536,21 @@ export class CirclesService implements OnModuleInit {
         .where(and(eq(circleMembers.circleId, circleId), inArray(circleMembers.userId, invited)));
     }
     return invited;
+  }
+
+  /**
+   * Someone is coming in (and with them a new epoch for everyone): refused, with nothing changed,
+   * once the circle had too many arrivals this hour (QA Faz 8 O6). Call inside the transaction.
+   */
+  async limitJoins(circleId: string): Promise<void> {
+    const result = await this.limiter.hit(
+      `circle-joins:${circleId}`,
+      CIRCLE_LIMITS.joinsPerCirclePerHour,
+      HOUR,
+    );
+    if (!result.allowed) {
+      throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', result.retryAfter);
+    }
   }
 
   private async limit(userId: string): Promise<void> {

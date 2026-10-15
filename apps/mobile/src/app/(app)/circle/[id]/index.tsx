@@ -10,14 +10,14 @@ import {
   Pencil,
   ShieldAlert,
   ShieldCheck,
-  UserMinus,
+  EllipsisVertical,
   UserPlus,
   Users,
   X,
 } from 'lucide-react-native';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, type AlertButton, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { useAuth } from '@/features/auth/auth-store';
@@ -52,6 +52,7 @@ import { Screen, SectionTitle } from '@/ui/screen';
 import { Skeleton } from '@/ui/skeleton';
 import { Text } from '@/ui/text';
 import { TextField } from '@/ui/text-field';
+import { toast } from '@/ui/toast';
 
 /**
  * One friend or circle: who is in it, whether its encryption is ready, warnings when someone's
@@ -117,6 +118,8 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
   const partner = partnerOf(circle, me);
   const isOwner = circle.myRole === 'owner' && !pair;
   const active = circle.myStatus === 'active';
+  // In an event only admins bring people in; in a group everyone does (docs/ADR/0020).
+  const mayInvite = circle.kind !== 'event' || isOwner;
   const others = circle.members.filter((member) => member.userId !== me);
   const changed = others.filter((member) => status?.trust[member.userId] === 'changed');
   const title = pair ? (partner === undefined ? '' : memberName(partner)) : (circle.name ?? '');
@@ -248,7 +251,7 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
         </Appear>
       ) : null}
 
-      {active && !pair && others.length === 0 ? (
+      {active && !pair && mayInvite && others.length === 0 ? (
         <Appear index={2}>
           <Notice
             icon={Users}
@@ -286,7 +289,7 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
               member={member}
               isMe={member.userId === me}
               trust={status?.trust[member.userId]}
-              canRemove={isOwner && active && member.userId !== me && member.role !== 'owner'}
+              canManage={isOwner && active && member.userId !== me}
             />
           ))}
         </Appear>
@@ -299,12 +302,12 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
             member={partner}
             isMe={false}
             trust={status?.trust[partner.userId]}
-            canRemove={false}
+            canManage={false}
           />
         </Appear>
       ) : null}
 
-      {active && !pair && others.length > 0 ? (
+      {active && !pair && mayInvite && others.length > 0 ? (
         <Appear index={4}>
           <Button
             testID="add-people"
@@ -484,17 +487,18 @@ function MemberRow({
   member,
   isMe,
   trust,
-  canRemove,
+  canManage,
 }: {
   circle: Circle;
   member: MemberCard;
   isMe: boolean;
   trust: Trust | undefined;
-  canRemove: boolean;
+  /** An admin's view of someone else: make or unmake admin, remove (docs/ADR/0020). */
+  canManage: boolean;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const { remove } = useCircleActions();
+  const { remove, setRole } = useCircleActions();
   const name = memberName(member);
   const subtitle = [
     member.role === 'owner' && circle.kind !== 'pair' ? t('circles.detail.owner') : null,
@@ -514,6 +518,42 @@ function MemberRow({
         },
       },
     ]);
+  };
+  const changeRole = (role: 'owner' | 'member') => {
+    setRole.mutate(
+      { circleId: circle.id, userId: member.userId, role },
+      {
+        onSuccess: () => {
+          toast.success(
+            t(role === 'owner' ? 'circles.detail.madeAdmin' : 'circles.detail.unmadeAdmin', {
+              name,
+            }),
+          );
+        },
+      },
+    );
+  };
+  const manage = () => {
+    const admin = member.role === 'owner';
+    const choices: AlertButton[] = [];
+    if (member.status === 'active') {
+      choices.push({
+        text: admin ? t('circles.detail.unmakeAdmin') : t('circles.detail.makeAdmin'),
+        onPress: () => {
+          changeRole(admin ? 'member' : 'owner');
+        },
+      });
+    }
+    // An admin is not removed: first no longer an admin (the circle's creator never).
+    if (!admin) {
+      choices.push({
+        text: t('circles.detail.remove'),
+        style: 'destructive',
+        onPress: confirmRemove,
+      });
+    }
+    choices.push({ text: t('common.cancel'), style: 'cancel' });
+    Alert.alert(name, undefined, choices);
   };
   const verifiable = !isMe && member.status === 'active' && member.device !== null;
   return (
@@ -544,13 +584,14 @@ function MemberRow({
             <Crown size={16} color={colors.accent} />
           ) : null}
           {verifiable ? <TrustBadge trust={trust} /> : null}
-          {canRemove ? (
+          {canManage ? (
             <IconButton
-              icon={UserMinus}
+              testID={`member-manage-${member.userId}`}
+              icon={EllipsisVertical}
               tone="plain"
               size={touchTarget - space.sm}
-              label={t('circles.detail.removeTitle', { name })}
-              onPress={confirmRemove}
+              label={t('circles.detail.manage', { name })}
+              onPress={manage}
             />
           ) : null}
         </View>

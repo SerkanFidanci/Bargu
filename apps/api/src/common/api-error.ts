@@ -34,6 +34,10 @@ export type ApiErrorCode =
   | 'USERNAME_TAKEN'
   | 'INVITE_INVALID'
   | 'ALREADY_MEMBER'
+  /** This person already came in once with this code (QA Faz 8 O6): a new code is needed. */
+  | 'INVITE_USED'
+  /** Whoever created a circle stays its admin (docs/ADR/0020). */
+  | 'CREATOR_ADMIN'
   | 'CIRCLE_FULL'
   | 'EPOCH_STALE'
   | 'KEYS_INVALID'

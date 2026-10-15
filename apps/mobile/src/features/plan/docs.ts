@@ -49,14 +49,16 @@ export interface DocsApi {
     docId: string,
     envelope: MessageEnvelope,
     version: number | null,
-    shared: boolean,
+    kind: DocPayload['kind'],
+    /** A vote's poll (the server files it there); null for anything else. */
+    pollId: string | null,
   ) => Promise<number>;
   remove: (circleId: string, docId: string) => Promise<void>;
 }
 
 /** Why the server refused a save, from the API error (null: some other failure). */
-export type DocRefusal = 'VERSION_CONFLICT' | 'EPOCH_STALE' | 'DOCS_FULL' | null;
-export type DocSaveResult = 'saved' | 'conflict' | 'full' | 'failed';
+export type DocRefusal = 'VERSION_CONFLICT' | 'EPOCH_STALE' | 'DOCS_FULL' | 'FORBIDDEN' | null;
+export type DocSaveResult = 'saved' | 'conflict' | 'full' | 'forbidden' | 'failed';
 
 export interface DocsDeps {
   api: DocsApi;
@@ -90,6 +92,9 @@ function fits(payload: DocPayload, record: DocRecord, authorId: string): boolean
   return !record.shared && payload.id === voteId(payload.pollId, authorId);
 }
 
+const pollOf = (payload: DocPayload): string | null =>
+  payload.kind === 'vote' ? payload.pollId : null;
+
 const activeEvents = (circles: readonly Circle[]) =>
   circles.filter((circle) => circle.kind === 'event' && circle.myStatus === 'active');
 
@@ -97,7 +102,7 @@ const activeEvents = (circles: readonly Circle[]) =>
  * The documents of event circles (docs/ADR/0018): the meeting, polls and votes. Like places
  * (places.ts): each is stored on the server as the encrypted document of the member who last saved
  * it, opened here with that member's sender key, kept in plaintext only in the vault, sealed again
- * under a newer epoch by any member when shared (by its author when not), never taken back to an
+ * under a newer epoch by an admin when shared (by its author when not), never taken back to an
  * older `ts` and never back once deleted.
  */
 export function createDocs(deps: DocsDeps) {
@@ -217,7 +222,9 @@ export function createDocs(deps: DocsDeps) {
           ? { ...held, version: record.version }
           : opened;
       const mine = opened.authorId === me;
-      if (record.envelope.epoch < circle.epoch && (record.shared || mine)) {
+      // Shared ones (the meeting, polls) only an admin may save again (docs/ADR/0020).
+      const mayReseal = record.shared ? circle.myRole === 'owner' : mine;
+      if (record.envelope.epoch < circle.epoch && mayReseal) {
         stale.push({ circleId: circle.id, id: record.id, version: record.version });
       }
     }
@@ -276,7 +283,8 @@ export function createDocs(deps: DocsDeps) {
             record.id,
             seal(circle, doc.payload, device),
             record.version,
-            doc.shared,
+            doc.payload.kind,
+            pollOf(doc.payload),
           );
           useDocs.setState({ [docKey(circle.id, record.id)]: { ...doc, version } });
           saved += 1;
@@ -308,7 +316,8 @@ export function createDocs(deps: DocsDeps) {
           payload.id,
           seal(circle, payload, device),
           held?.version ?? null,
-          shared,
+          payload.kind,
+          pollOf(payload),
         );
         replace({
           ...useDocs.getState(),
@@ -318,6 +327,7 @@ export function createDocs(deps: DocsDeps) {
       } catch (error) {
         const refusal = deps.refusal(error);
         if (refusal === 'DOCS_FULL') return 'full';
+        if (refusal === 'FORBIDDEN') return 'forbidden';
         if (refusal === 'VERSION_CONFLICT') {
           await syncCircle(circle).catch(() => undefined);
           return 'conflict';

@@ -61,6 +61,15 @@ export const circlesApi = {
       await api.authed(`/v1/circles/${id}/members/${userId}/remove`, { method: 'POST' }),
     );
   },
+  /** An admin makes a member admin (`owner`) or takes it back (`member`); docs/ADR/0020. */
+  async setRole(id: string, userId: string, role: 'owner' | 'member'): Promise<Circle> {
+    return circleSchema.parse(
+      await api.authed(`/v1/circles/${id}/members/${userId}/role`, {
+        method: 'POST',
+        body: { role },
+      }),
+    );
+  },
   async requestFriend(username: string): Promise<Circle> {
     return circleSchema.parse(
       await api.authed('/v1/friends', { method: 'POST', body: { username } }),

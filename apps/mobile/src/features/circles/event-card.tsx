@@ -16,7 +16,8 @@ import { useCircleActions } from './queries';
 
 /**
  * What an event circle adds to its screen (BARGU_PLAN Faz 8): when it ends and that everything
- * goes with it, its QR code for joining, and, for its owner, ending it now.
+ * goes with it, and, for its admins (docs/ADR/0020), its QR code for joining, closing every code
+ * and ending it now.
  */
 export function EventCard({ circle }: { circle: Circle }) {
   const { t, i18n } = useTranslation();
@@ -78,14 +79,16 @@ export function EventCard({ circle }: { circle: Circle }) {
           </Text>
         </View>
       </View>
-      <Button
-        testID="event-qr"
-        label={t('circles.event.qr')}
-        icon={QrCode}
-        onPress={() => {
-          router.push({ pathname: '/add/qr', params: { circle: circle.id } });
-        }}
-      />
+      {circle.myRole === 'owner' ? (
+        <Button
+          testID="event-qr"
+          label={t('circles.event.qr')}
+          icon={QrCode}
+          onPress={() => {
+            router.push({ pathname: '/add/qr', params: { circle: circle.id } });
+          }}
+        />
+      ) : null}
       {circle.myRole === 'owner' ? (
         <Button
           testID="event-close-door"

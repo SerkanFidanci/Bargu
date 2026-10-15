@@ -40,6 +40,7 @@ function useFailure() {
   return (error: unknown) => {
     feedback('error');
     if (isApiError(error, 'CIRCLE_FULL')) toast.error(t('circles.errors.full'));
+    else if (isApiError(error, 'CREATOR_ADMIN')) toast.error(t('circles.errors.creatorAdmin'));
     else if (isApiError(error, 'NOT_FOUND')) toast.error(t('circles.errors.gone'));
     else toast.error(errorMessage(error, t));
   };
@@ -100,6 +101,15 @@ export function useCircleActions() {
     remove: useMutation({
       mutationFn: async (input: { circleId: string; userId: string }) =>
         adopt(await circlesApi.remove(input.circleId, input.userId)),
+      onError,
+    }),
+    /** An admin makes someone admin or takes it back (never from the circle's creator). */
+    setRole: useMutation({
+      mutationFn: async (input: { circleId: string; userId: string; role: 'owner' | 'member' }) =>
+        adopt(await circlesApi.setRole(input.circleId, input.userId, input.role)),
+      onSuccess: () => {
+        feedback('success');
+      },
       onError,
     }),
   };

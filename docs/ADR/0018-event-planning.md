@@ -64,3 +64,10 @@ gitmez (CLAUDE.md).
 - Android'de zamanlanmış yerel bildirim birkaç dakika kayabilir (tam zamanlı alarm izni istenmiyor).
 - Konumu hiç paylaşmayan telefon kendi konumunu almadığı için hatırlatıcı ve otomatik gecikme
   çalışmaz; elle bildirim çalışır.
+
+## Ek (2026-10-15, Faz 9 dilim 2)
+
+Kimin neyi değiştirebileceği ADR 0020 ile değişti. Buluşmayı ve oylamaları artık yalnızca
+etkinliğin yöneticileri belirler, değiştirir ve siler; üyeler oy verir. Sunucu belgenin türünü
+(buluşma, oylama, oy) ve oyun hangi oylamaya ait olduğunu bilir ve kuralları kendisi denetler.
+Yukarıdaki "Buluşma ve oylamalar ortak (her üye değiştirir)" cümlesi bu yüzden geçerli değil.
