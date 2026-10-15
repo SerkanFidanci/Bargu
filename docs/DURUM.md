@@ -15,6 +15,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)         |
 | Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                       |
 | Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                      |
+| Faz 8 — Etkinlik Çemberleri      | ⏳ Onay bekliyor (+ etkinlik planlama, çember geçmişi)                |
 
 ## Ortamlar
 
@@ -28,6 +29,113 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Yerel Android derlemesi | EAS'ın aylık ücretsiz hakkı bitince: `scripts/build-android-local.sh` (Docker, aynı imza anahtarı, ~22 dk), `scripts/publish-apk.sh` → `https://api.46-62-162-70.sslip.io/apk/…` (tahmin edilemez ad) |
 | Uygulama kimliği        | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                                                         |
 | Harita dosyaları        | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                                                 |
+
+## Faz 8 — Etkinlik Çemberleri (2026-10-15) · onay bekliyor
+
+Kararlar: [ADR 0017](ADR/0017-event-circles.md) (etkinlik çemberleri),
+[ADR 0018](ADR/0018-event-planning.md) (etkinlik planlama, proje sahibinin isteği),
+[ADR 0019](ADR/0019-location-history.md) (çember geçmişi, proje sahibinin isteği; kuralları
+BARGU_PLAN `62a33a7`). Commit'ler: `8621727` (etkinlik), `33c7d5f` (planlama), `846bd20`
+(geçmiş). Android: yerel derleme `846bd20`,
+<https://api.46-62-162-70.sslip.io/apk/bargu-846bd20-508cdf1c536215aa.apk> (tüm CI yeşil, staging'de).
+
+### DoD
+
+| Ölçüt                                                    | Durum                                                                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Süre dolunca sunucuda çembere ait hiçbir kayıt kalmaz    | ✅ Entegrasyon testi: etkinliğe anahtar, konum, durum, profil, yer, buluşma, geçmiş parçası, dürtme, davet, bekleyen bildirim ve olay akışı kaydı yazılır; süre dolup temizlik çalışınca veritabanının bütün tablolarında, iş kuyruğunda ve Redis'in bütün anahtar ve değerlerinde çemberin kimliği hiç geçmez |
+| Telefon bitişte çemberi ve anahtarlarını kendisi siler   | ✅ Birim testi (çevrimdışıyken de, açılınca)                                                                                                                                                                                                                                                                   |
+| Geçmiş kapalı başlar; açılmadan hiçbir parça gitmez      | ✅ Telefon testi                                                                                                                                                                                                                                                                                               |
+| Katılmadan öncesi okunamaz; çıkarılan yeniyi açamaz      | ✅ Sunucu (satır güvenliği) ve telefon (anahtar) testleri                                                                                                                                                                                                                                                      |
+| "Kimler görüyor" doğru; yeni izleyici bildirimi          | ✅ Telefon testi                                                                                                                                                                                                                                                                                               |
+| Kapatınca sunucudan silinir; 14 günden eskisi kalmaz     | ✅ Telefon (çevrimdışıysa bağlanınca) ve sunucu (işçi) testleri                                                                                                                                                                                                                                                |
+| Sunucuda, log'da, Redis'te düz koordinat yok (geçmiş de) | ✅ Mevcut otomatik test geçmiş parçasını da kapsıyor (koordinatın iki biçimi de aranıyor)                                                                                                                                                                                                                      |
+
+### Yapılanlar — etkinlik çemberleri
+
+- Yeni çember türü **Etkinlik**: ad ve bitiş (1 saat, 3 saat, bu gece, yarın gece, 1 hafta).
+  Oluşturunca QR doğrudan açılır; QR / link etkinlik bitene kadar 50 kişiye kadar geçerli
+  (gruplarınki tek kullanımlık, 24 saat). Okutan önizlemede bitişi ve "bitince her şey silinir"i
+  görür, "Katıl"a kendisi basar.
+- **Geri sayım halkası** çember listesinde ve çember ekranında; "Bitiş: 22:00 · 2 sa 14 dk kaldı".
+  Sahibi "Etkinliği şimdi bitir" diyebilir.
+- **Bitişte silme**: sunucuda işçi yarım dakikada bir siler (anahtarlar, üyeler, yerler,
+  buluşma, geçmiş, davetler, Redis, olay akışları, bekleyen bildirimler); telefon da bitiş saatinde
+  çemberi ve anahtarlarını kendisi atar.
+
+### Yapılanlar — etkinlik planlama (proje sahibinin isteği)
+
+- **Buluşma**: etkinlik ekranında saat (çeyrek saat adımlarla) ve yer (etkinliğin yerlerinden biri;
+  "Yeni yer ekle"). Yer olduğu için oraya varınca herkese "vardı" bildirimi kendiliğinden gelir.
+  Saat ve yer şifreli; sunucu göremez.
+- **Oylama**: saat ya da yer için 2–4 seçenek; herkes uyanları işaretler (birden çok). Başlatan ya
+  da etkinliğin sahibi bitirir; en çok oyu alan buluşmaya işlenir. Herkesin her oylamada tek oyu var,
+  kimse başkası adına oy veremez.
+- **"Kim ne zaman orada?"**: buluşmadan 90 dk önce ile 30 dk sonrası arasında herkes için "Orada",
+  "~19:12" ya da "~19:40 · 15 dk geç". Tahmini her telefon kendisi yapar ve konumunun içinde şifreli
+  gönderir (yalnızca tam konumda).
+- **Tahmin nasıl yapılıyor** (proje sahibinin sorusu: Google mı?): Google'a sormak kişinin tam
+  konumunu ve gideceği yeri Google'a vermek olurdu, yapılmadı. Yola çıkmadan önce mesafe ve nasıl
+  gelindiği (yürüyerek / bisiklet / araç; kişi seçebilir), yolda ise kişinin son 10 dakikada
+  gerçekte ne hızla yaklaştığı: trafikte yavaşlarsa tahmin kendiliğinden uzar.
+- **"Geç kalacak"**: tahmin buluşmayı 10 dakikadan fazla aşar ve bu 3 dakika sürerse diğerlerine
+  kendiliğinden şifreli bildirim gider ("Ali yaklaşık 15 dk gecikecek"); gecikme büyürse yeniden.
+  Kişi "Geç kalacağım" deyip 10 / 20 / 30 / 45 dk seçerek kendisi de bildirebilir.
+- **Çıkış hatırlatıcısı**: yola çıkılması gereken zamandan 15 dk önce telefonun kendi bildirimi
+  ("Buluşmaya yetişmek için 15 dk içinde çıkmalısın"); kişi yola çıkınca geri alınır, kapatılabilir.
+  Yeni bildirim kanalı: "Buluşmalar".
+
+### Yapılanlar — çember geçmişi (proje sahibinin isteği)
+
+- Kişi kartında ve basılı tutma menüsünde **Geçmiş**: seçilen günün rotası haritada çizgi,
+  duraklar nokta; altta "🏠 Ev · 22:10 – 08:35", "Araçla · 12,4 km · 08:35 – 09:05" gibi zaman
+  akışı; son 14 gün.
+- **Kapalı başlar** (plan, `62a33a7`): çember ekranındaki "Konum geçmişi (14 gün)" açılmadıkça
+  hiçbir iz yazılmaz ve gönderilmez. Yalnızca tam konum paylaşılırken yazılır.
+- Açıkken altında kimlerin görebildiği yazar; **"Geçmişini kimler görüyor"** ekranı (profil
+  sayfasında "Konum geçmişim") bütün çemberleri ve kişileri listeler. Çembere yeni biri girince
+  "Artık X de … geçmişini görebilir" bildirimi.
+- **Tek dokunuşla kapanır**, kapatınca sunucudaki parçalar da silinir.
+- İz telefonda şifrelenir; sunucu konumu göremez, 14 gün sonra siler. Sonradan katılan öncesini
+  göremez; ayrılanın izi o çemberden silinir.
+
+### Test sonuçları
+
+| Paket              | Test | Not                                                                                                |
+| ------------------ | ---- | -------------------------------------------------------------------------------------------------- |
+| `packages/crypto`  | 155  | + belge zarfı, oy kimliği, geçmiş anahtarı ve zarfı (canlı mesajla karışmaz); %100 kapsam          |
+| `packages/schemas` | 90   | + etkinlik, buluşma, oylama, oy, geç kalma, geçmiş                                                 |
+| Swift (CryptoKit)  | CI   | + "geç kalacak" bildirim gövdesi (iOS eklentisi de yazıyor)                                        |
+| API entegrasyon    | 142  | + etkinlik (DoD dahil), belgeler (ortak/kişisel kuralları), geçmiş (katılım öncesi, silme, 14 gün) |
+| API birim          | 81   | —                                                                                                  |
+| Mobil              | 318  | + geri sayım, planlama modeli, tahmin, gecikme, hatırlatıcı, belge saklama, geçmiş, kimler görüyor |
+
+### Açık riskler
+
+1. **Telefonda denenmedi**: yeni sürüm `846bd20` ile denenmeli (aşağıda).
+2. **Tahmin kaba olabilir** (trafik verisi yok): yolda gerçek ilerleme bunu büyük ölçüde düzeltir.
+   Uzaktayken (3 km+) yürüme hızında ilerleme tipik tahminle karşılanır; ağır trafikte gecikme
+   geç fark edilebilir. Elle "Geç kalacağım" her zaman var.
+3. Android'de zamanlanmış hatırlatıcı birkaç dakika kayabilir (tam zamanlı alarm izni istenmedi).
+4. Konumu kimseyle paylaşmayan telefon kendi konumunu almaz: hatırlatıcı, otomatik gecikme ve
+   geçmiş çalışmaz (elle bildirim çalışır).
+5. Geçmiş: sunucu kimin hangi çeyrek saatlerde izi olduğunu ve parça boyutunu görür (konumu değil).
+   Partner takibi riski: kapalı başlama, kimler görüyor ekranı, yeni izleyici bildirimi ve tek
+   dokunuşla kapatma bunun için. 7 günlük paylaşım hatırlatmasında geçmiş Faz 9'da yazacak.
+6. Geçmiş: telefonu değişen kişinin eski izi doğrulanamadığı için gösterilmez; iki anahtar
+   yenilemesinden uzun çevrimdışı kalan telefonun o arası gönderilemez.
+7. Geçmişte "son 14 gün" Bargu+ özelliği; ödeme Faz 9B'de. O zamana kadar herkes deneme sayılıyor.
+8. Etkinlikte sunucudaki silme ile telefondaki silme arasında en çok yarım dakika fark olabilir.
+9. iPhone denenmedi (Apple hesabı).
+
+### Senden gerekenler
+
+1. Yeni sürümü kur, birkaç şey dene: etkinlik oluştur (QR açılır), buluşma saati ve yeri seç,
+   saat ya da yer oylaması başlat ve oy ver, "Geç kalacağım"; bir çemberde "Konum geçmişi"ni aç,
+   biraz dolaş, "Geçmişimi gör" ve "Kimler görüyor?"a bak.
+2. **Geçmişin varsayılanı**: bana önce "açık başlasın" demiştin; plan (`62a33a7`) "kapalı
+   başlar" diyor, plana göre kapalı yaptım. Böyle kalsın mı?
+3. Uygunsa Faz 8'i onayla; sonraki faz Faz 9 (güvenlik özellikleri ve uyum).
 
 ## Faz 7 — Yerler & Bildirimler (2026-10-14)
 
