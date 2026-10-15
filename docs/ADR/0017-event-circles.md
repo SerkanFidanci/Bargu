@@ -41,3 +41,13 @@ sunucuda çembere ait hiçbir kayıt kalmaz; telefonlar anahtarları atar.
 - Etkinlik QR'ı ele geçerse yabancı biri katılabilir: sahibi kişiyi çıkarabilir, QR'ı yenileyebilir;
   etkinlik bitince her şey gider. QR ekranında ekran görüntüsü engeli var.
 - Sunucudaki silmeyle telefonun silmesi arasında en çok yarım dakika fark olabilir.
+
+## Ek (2026-10-15, QA bulguları Y1, Y2)
+
+- Silinen her çember, dışarıdaki izi (Redis, olay akışları, iş kuyruğu) temizlenene kadar
+  `app.event_cleanups`ta kaydı tutulur (çemberin silindiği işlemde yazılır). Temizlik yarıda kalırsa
+  (Redis kesintisi, işçinin yeniden başlaması) bir sonraki süpürme onu tamamlar; temizlik tekrar
+  çalıştırılabilir. Sahibin "şimdi bitir"i de bu yüzden temizlik beklemeden başarılı döner.
+- Kalıcı hatayla biten bildirimlerin ölü kuyruktaki kopyaları (`push.send.dead`) da silinir.
+- DoD testi iki durumu da kapsıyor: bildirim kalıcı olarak başarısız olmuş etkinlik, ve temizliği
+  bir kez hata veren etkinlik.

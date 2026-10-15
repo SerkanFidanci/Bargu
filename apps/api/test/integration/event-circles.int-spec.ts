@@ -20,9 +20,13 @@ import {
   type MessageEnvelope,
   type Payload,
 } from '@bargu/schemas';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { PgBoss } from 'pg-boss';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { EventExpiry } from '../../src/circles/event-expiry.js';
+import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
+import { QUEUES } from '../../src/jobs/queues.js';
+import { JOB_QUEUE } from '../../src/jobs/tokens.js';
 import { createTestApp, type TestApp, testEnv } from './support/app.js';
 import { as, type Person, person } from './support/people.js';
 
@@ -196,106 +200,12 @@ describe('event circles', () => {
   });
 
   it('leave nothing of themselves on the server once they end (BARGU_PLAN Faz 8 DoD)', async () => {
-    const [owner, ayse] = await Promise.all([person(test), person(test)]);
-    const event = await createEvent(owner);
-    const qr = await qrOf(owner, event);
-    await join(ayse, qr);
-    const circle = (await as(test, owner, 'GET', `/v1/circles/${event.id}`)).json<Circle>();
-
-    // Everything the circle can hold: keys, a location, a status, a profile, a place, a meeting,
-    // a piece of history, a poke,
-    // an invite, queued notices, events in both members' streams.
-    for (const [who, other] of [
-      [owner, ayse],
-      [ayse, owner],
-    ] as const) {
-      const member = circle.members.find((candidate) => candidate.userId === other.userId);
-      const device = member?.device;
-      if (device === undefined || device === null) throw new Error('no device');
-      const senderKey = generateSenderKey({
-        circleId: circle.id,
-        epoch: circle.epoch,
-        senderDeviceId: who.device.deviceId,
-      });
-      const upload = await as(test, who, 'POST', `/v1/circles/${circle.id}/keys`, {
-        epoch: circle.epoch,
-        distributions: [
-          createSenderKeyDistribution({
-            senderKey,
-            sender: who.device,
-            recipient: verifyDeviceKeyBundle(device.bundle),
-          }),
-        ],
-      });
-      expect(upload.statusCode).toBe(204);
-    }
-    const ownerPhone = phone(owner, circle);
-    const now = Date.now();
-    await as(test, owner, 'POST', '/v1/locations', {
-      envelopes: [
-        ownerPhone.seal({
-          kind: 'loc',
-          lat: 41.0,
-          lng: 29.0,
-          acc: 8,
-          bat: 50,
-          chg: false,
-          ts: now,
-        }),
-      ],
-    });
-    await as(test, owner, 'POST', '/v1/statuses', {
-      envelopes: [ownerPhone.seal({ kind: 'status', emoji: '🎸', expiresAt: now + HOUR, ts: now })],
-      ttlSeconds: 3600,
-    });
-    await as(test, owner, 'POST', '/v1/profile-keys', {
-      envelopes: [ownerPhone.seal({ kind: 'profile', photo: null, ts: now })],
-    });
-    const placeId = randomUuid();
-    const place = await as(test, owner, 'PUT', `/v1/circles/${circle.id}/places/${placeId}`, {
-      envelope: ownerPhone.seal({
-        kind: 'place',
-        id: placeId,
-        name: 'Sahne',
-        emoji: '🎸',
-        lat: 41.0,
-        lng: 29.0,
-        radius: 100,
-        ts: now,
-      }),
-      version: null,
-    });
-    expect(place.statusCode).toBe(200);
-    const meeting = await as(test, owner, 'PUT', `/v1/circles/${circle.id}/docs/${circle.id}`, {
-      envelope: ownerPhone.document({
-        kind: 'plan',
-        id: circle.id,
-        meetAt: now + HOUR,
-        placeId,
-        ts: now,
-      }),
-      version: null,
-      shared: true,
-    });
-    expect(meeting.statusCode).toBe(200);
-    const slot = historySlot(now) - HISTORY_SLOT_MS;
-    const piece = await as(test, owner, 'PUT', `/v1/circles/${circle.id}/history/${String(slot)}`, {
-      envelope: ownerPhone.trail(slot),
-    });
-    expect(piece.statusCode).toBe(204);
-    await as(test, owner, 'POST', '/v1/bumps', {
-      envelope: ownerPhone.seal({ kind: 'bump', ts: now }),
-    });
-
+    const { circle, qr } = await eventWithEverything();
     // Before: the circle is all over the place.
-    const before = await everything();
-    expect(before).toContain(circle.id);
+    expect(await everything()).toContain(circle.id);
 
     // The event ends (as if its time had come), the worker sweeps.
-    await test.admin.query(
-      `UPDATE app.circles SET expires_at = now() - interval '1 second' WHERE id = $1`,
-      [circle.id],
-    );
+    await endOnTime(circle.id);
     expect(await test.app.get(EventExpiry).sweep()).toBeGreaterThanOrEqual(1);
 
     const after = await everything();
@@ -306,7 +216,165 @@ describe('event circles', () => {
     const late = await person(test);
     expect((await join(late, qr)).statusCode).toBe(404);
   });
+
+  it('leave nothing either when a notice about them failed for good (dead letter queue)', async () => {
+    const { circle } = await eventWithEverything();
+    // Every queued notice fails for good (a permanent FCM or APNs refusal): pg-boss copies it to
+    // the dead letter queue, payload and all.
+    const boss = test.app.get<PgBoss>(JOB_QUEUE);
+    await test.admin.query(`UPDATE pgboss.job SET retry_count = retry_limit WHERE name = $1`, [
+      QUEUES.push,
+    ]);
+    const jobs = await boss.fetch(QUEUES.push, { batchSize: 100 });
+    expect(jobs.length).toBeGreaterThan(0);
+    await boss.fail(
+      QUEUES.push,
+      jobs.map((job) => job.id),
+    );
+    const { rows } = await test.admin.query(
+      `SELECT 1 FROM pgboss.job WHERE name = $1 AND data->>'circleId' = $2`,
+      [QUEUES.pushDead, circle.id],
+    );
+    expect(rows.length).toBeGreaterThan(0);
+
+    await endOnTime(circle.id);
+    await test.app.get(EventExpiry).sweep();
+    expect(await everything()).not.toContain(circle.id);
+  });
+
+  it('leave nothing either when the clean-up is cut short: the next sweep finishes it', async () => {
+    const { circle } = await eventWithEverything();
+    await endOnTime(circle.id);
+    // Redis fails once, after the database already let the circle go.
+    const redis = test.app.get<RedisClient>(REDIS);
+    const del = vi.spyOn(redis, 'del').mockRejectedValueOnce(new Error('redis hiccup'));
+    const expiry = test.app.get(EventExpiry);
+    await expect(expiry.sweep()).rejects.toThrow('redis hiccup');
+    del.mockRestore();
+    // What is left waits for the next round, which finishes it.
+    expect(await everything()).toContain(circle.id);
+    await expiry.sweep();
+    const after = await everything();
+    expect(after).not.toContain(circle.id);
+    expect(after).toContain('circles.reload');
+  });
+
+  it('end early for their owner even when the clean-up has to wait for the next round', async () => {
+    const [owner, ayse] = await Promise.all([person(test), person(test)]);
+    const event = await createEvent(owner);
+    await join(ayse, await qrOf(owner, event));
+    const redis = test.app.get<RedisClient>(REDIS);
+    const del = vi.spyOn(redis, 'del').mockRejectedValueOnce(new Error('redis hiccup'));
+    expect((await as(test, owner, 'POST', `/v1/circles/${event.id}/end`)).statusCode).toBe(204);
+    del.mockRestore();
+    await test.app.get(EventExpiry).sweep();
+    expect(await everything()).not.toContain(event.id);
+  });
 });
+
+/** An event with everything it can hold, written by its two members. */
+async function eventWithEverything(): Promise<{ circle: Circle; qr: Invite }> {
+  const [owner, ayse] = await Promise.all([person(test), person(test)]);
+  const event = await createEvent(owner);
+  const qr = await qrOf(owner, event);
+  await join(ayse, qr);
+  const circle = (await as(test, owner, 'GET', `/v1/circles/${event.id}`)).json<Circle>();
+
+  // Everything the circle can hold: keys, a location, a status, a profile, a place, a meeting,
+  // a piece of history, a poke,
+  // an invite, queued notices, events in both members' streams.
+  for (const [who, other] of [
+    [owner, ayse],
+    [ayse, owner],
+  ] as const) {
+    const member = circle.members.find((candidate) => candidate.userId === other.userId);
+    const device = member?.device;
+    if (device === undefined || device === null) throw new Error('no device');
+    const senderKey = generateSenderKey({
+      circleId: circle.id,
+      epoch: circle.epoch,
+      senderDeviceId: who.device.deviceId,
+    });
+    const upload = await as(test, who, 'POST', `/v1/circles/${circle.id}/keys`, {
+      epoch: circle.epoch,
+      distributions: [
+        createSenderKeyDistribution({
+          senderKey,
+          sender: who.device,
+          recipient: verifyDeviceKeyBundle(device.bundle),
+        }),
+      ],
+    });
+    expect(upload.statusCode).toBe(204);
+  }
+  const ownerPhone = phone(owner, circle);
+  const now = Date.now();
+  await as(test, owner, 'POST', '/v1/locations', {
+    envelopes: [
+      ownerPhone.seal({
+        kind: 'loc',
+        lat: 41.0,
+        lng: 29.0,
+        acc: 8,
+        bat: 50,
+        chg: false,
+        ts: now,
+      }),
+    ],
+  });
+  await as(test, owner, 'POST', '/v1/statuses', {
+    envelopes: [ownerPhone.seal({ kind: 'status', emoji: '🎸', expiresAt: now + HOUR, ts: now })],
+    ttlSeconds: 3600,
+  });
+  await as(test, owner, 'POST', '/v1/profile-keys', {
+    envelopes: [ownerPhone.seal({ kind: 'profile', photo: null, ts: now })],
+  });
+  const placeId = randomUuid();
+  const place = await as(test, owner, 'PUT', `/v1/circles/${circle.id}/places/${placeId}`, {
+    envelope: ownerPhone.seal({
+      kind: 'place',
+      id: placeId,
+      name: 'Sahne',
+      emoji: '🎸',
+      lat: 41.0,
+      lng: 29.0,
+      radius: 100,
+      ts: now,
+    }),
+    version: null,
+  });
+  expect(place.statusCode).toBe(200);
+  const meeting = await as(test, owner, 'PUT', `/v1/circles/${circle.id}/docs/${circle.id}`, {
+    envelope: ownerPhone.document({
+      kind: 'plan',
+      id: circle.id,
+      meetAt: now + HOUR,
+      placeId,
+      ts: now,
+    }),
+    version: null,
+    shared: true,
+  });
+  expect(meeting.statusCode).toBe(200);
+  const slot = historySlot(now) - HISTORY_SLOT_MS;
+  const piece = await as(test, owner, 'PUT', `/v1/circles/${circle.id}/history/${String(slot)}`, {
+    envelope: ownerPhone.trail(slot),
+  });
+  expect(piece.statusCode).toBe(204);
+  await as(test, owner, 'POST', '/v1/bumps', {
+    envelope: ownerPhone.seal({ kind: 'bump', ts: now }),
+  });
+
+  return { circle, qr };
+}
+
+/** The event's end has come (as if its time had passed). */
+async function endOnTime(circleId: string): Promise<void> {
+  await test.admin.query(
+    `UPDATE app.circles SET expires_at = now() - interval '1 second' WHERE id = $1`,
+    [circleId],
+  );
+}
 
 /** Every table of the app and the job queue, every Redis key and value, as one text. */
 async function everything(): Promise<string> {
