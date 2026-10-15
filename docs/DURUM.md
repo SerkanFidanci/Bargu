@@ -15,7 +15,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)         |
 | Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                       |
 | Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                      |
-| Faz 8 — Etkinlik Çemberleri      | ⏳ Onay bekliyor (+ etkinlik planlama, çember geçmişi)                |
+| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)            |
 
 ## Ortamlar
 
@@ -30,14 +30,21 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Uygulama kimliği        | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                                                         |
 | Harita dosyaları        | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                                                 |
 
-## Faz 8 — Etkinlik Çemberleri (2026-10-15) · onay bekliyor
+## Faz 8 — Etkinlik Çemberleri (2026-10-15)
 
 Kararlar: [ADR 0017](ADR/0017-event-circles.md) (etkinlik çemberleri),
 [ADR 0018](ADR/0018-event-planning.md) (etkinlik planlama, proje sahibinin isteği),
 [ADR 0019](ADR/0019-location-history.md) (çember geçmişi, proje sahibinin isteği; kuralları
 BARGU_PLAN `62a33a7`). Commit'ler: `8621727` (etkinlik), `33c7d5f` (planlama), `846bd20`
-(geçmiş). Android: yerel derleme `846bd20`,
-<https://api.46-62-162-70.sslip.io/apk/bargu-846bd20-508cdf1c536215aa.apk> (tüm CI yeşil, staging'de).
+(geçmiş); QA düzeltmeleri `127245c` (Y1, Y2), `b72235d` ve `2913e7f` (G1, G6). Android: yerel derleme
+`2913e7f`, <https://api.46-62-162-70.sslip.io/apk/bargu-2913e7f-d3235c27d4a846cf.apk> (tüm CI yeşil,
+staging'de).
+
+Proje sahibi fazı 2026-10-15'te onayladı. Telefonda test arkadaşıyla denendi: etkinlik daveti,
+buluşma kartı, oylama, "Kim ne zaman orada?", otomatik ve elle "geç kalacak", geçmiş, etkinliği
+bitirince her şeyin silinmesi (sunucuda da kontrol edildi). Denemede çıkan iki hata ve iki istek
+("Çember bulunamadı" yarışı, kabulde 15 sn gecikme, buluşma noktalarının haritada ayrı görünmesi,
+çember rolleri) BARGU_PLAN Faz 9'da.
 
 ### DoD
 
@@ -835,6 +842,6 @@ geçti.
   sender key, kullanıcı uyarıyı onaylayana kadar otomatik dağıtılmasın.
 - **Faz 7:** iOS bildirim eklentisi tekrar korumasını (`ReplayGuard` durumu) uygulamayla uygulama
   grubu üzerinden paylaşsın.
-- **2026-11-01** (proje sahibi): 15 yaş altı sosyal ağ yönetmeliği yürürlükte; Bargu'nun 5651 kapsamına
-  girip girmediği için avukat görüşü al (mevcut hesaplar için son tarih 2027-03-31). Sonuç → yaş ADR'si
-  (BARGU_PLAN Faz 9).
+- **2026-11-01**: 15 yaş altı sosyal ağ yönetmeliği yürürlükte; Bargu kapsamda varsayılıyor (ön araştırma
+  `docs/arastirma/yas-siniri-ve-kvkk.md`, avukat ertelendi). Yaş sınırı 15+; yaş doğrulama ve 15–18 kuralları
+  Faz 9'da ADR ile. Mevcut hesaplar için son tarih 2027-03-31.
