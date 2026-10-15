@@ -313,7 +313,7 @@ Faz 8'den sonra proje sahibinin isteğiyle yapılıyor (yapım aşamasında).
 - Her üyenin izi çeyrek saatlik parçalar hâlinde telefonda, o çemberin geçmiş anahtarıyla şifrelenir. Sunucu parçaları 14 gün saklar, sonra siler. Sunucu konum görmez; yalnızca kimin izi olduğunu, hangi çeyrek saat olduğunu ve parçanın boyutunu (üç boydan biri) görür.
 - **Ücretli (Bargu+):** çemberde Bargu+ abonesi ya da denemesi süren biri varsa üyeler son 14 günü görür (karar 2026-10-15). Ödeyeni kalmayan çember zaten duraklar (Faz 9B).
 - Üyeler bir çemberin geçmişini yalnızca katıldıkları andan sonrası için görür; kendi izlerini her zaman görür.
-- Yalnızca o çembere tam konum paylaşılırken kaydedilir; hayalet modda, paylaşım kapalıyken ya da mahalle/şehir hassasiyetinde kaydedilmez. Hayalet moda geçince ya da paylaşım durunca henüz gönderilmemiş son parça da atılır: hiçbir şey gitmez (karar 2026-10-15, QA G6).
+- Yalnızca o çembere tam konum paylaşılırken kaydedilir; hayalet modda, paylaşım kapalıyken ya da mahalle/şehir hassasiyetinde kaydedilmez. Hayalet moda geçince ya da paylaşım durunca henüz gönderilmemiş son parça da atılır: hiçbir şey gitmez; konum servisi dururken de, hayaletten dönünce eski parça gönderilmez (karar 2026-10-15, QA G6; Faz 8 onayından önce).
 - Kapatma, o anda süren gönderimle yarışmaz: kapattıktan sonra sunucuya hiçbir parça yazılmaz (QA G1; Faz 8 onayından önce).
 - **Kapalı başlar:** paylaşan kişi o çember için açıkça açmadıkça hiçbir iz kaydedilmez ve gönderilmez. Çembere katılmak geçmişe onay sayılmaz.
 - **Kimin gördüğünü görür:** paylaşan kişi, geçmişinin hangi çemberlerde açık olduğunu ve onu kimlerin görebildiğini her an görür. Çembere yeni üye girince "artık X de geçmişini görebilir" bildirimi gelir; 7 günlük paylaşım hatırlatmasında geçmiş de yazar.
@@ -342,6 +342,7 @@ Faz 8'den sonra proje sahibinin isteğiyle yapılıyor (yapım aşamasında).
   - **O7:** 50 kişilik etkinlik yük testi. D1–D10 küçük bulgular iş listesine.
   - **G2, yeni izleyici uyarısı uygulama kapalıyken:** geçmişi açık çemberlerde "yeni biri katıldı" bildirimi "artık geçmişini görebilir" desin ya da arka plan işleyicisi kontrol etsin.
   - **G3, geçmiş listeleme sınırı:** istek başına aralık ve parça sınırı, kullanıcı başına hız sınırı.
+  - **Geçmiş kapatma ayrıntıları (QA 4):** çevrimdışı kapatıp hemen açınca kapatma işareti yeni parçaları da reddetmesin (işaret zamana bağlı); geçmiş isteklerine 15–20 sn zaman aşımı, böylece yanıt gelmese de sunucudaki kopya silinir. Etkinlik DoD testlerinin süresi 30 sn sınırına yakın (O1 ile birlikte).
   - **G4, G5, G7–G10:** iş listesine (hassasiyet düşünce anahtar ile bayrak tutarlılığı, yeniden kurulumda eski parçaları silebilme, toplu katılımda bildirim yağmuru, ağ hatasını "veri yok" gibi göstermeme).
 - Store: iOS privacy manifest + nutrition label, Play background location beyanı + video, Data safety formu.
 - **DoD:** OWASP MASVS-PRIVACY checklist tamam; hukuki görüş ve yaş ADR'si yazılı; rıza ekranları amaç başına ayrı (test); Faz 8 QA bulgularından O2, O3, O4, O5, G2 ve G3 kapalı ve test oturumunun ilgili senaryoları yeşil.
