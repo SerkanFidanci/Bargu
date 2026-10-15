@@ -6,7 +6,7 @@ import {
   PRIVACY_NOTICE_VERSION,
   type PrivacyState,
 } from '@bargu/schemas';
-import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { CirclesService } from '../circles/circles.service.js';
@@ -24,6 +24,7 @@ import {
   users,
 } from '../db/schema.js';
 import { DeviceLifecycle } from '../devices/device-lifecycle.js';
+import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { AccountPurge } from './account-purge.js';
@@ -46,6 +47,7 @@ export class AccountService {
     private readonly lifecycle: DeviceLifecycle,
     private readonly purge: AccountPurge,
     private readonly limiter: RateLimiter,
+    private readonly events: EventsService,
   ) {}
 
   /**
@@ -216,23 +218,52 @@ export class AccountService {
     if (input.given && input.version !== HISTORY_CONSENT_VERSION) {
       throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
     }
-    return this.database.asUser(auth.userId, async (tx) => {
+    const { state, told } = await this.database.asUser(auth.userId, async (tx) => {
       if (input.given) {
         await this.give(tx, auth.userId, 'history', input.version);
-      } else {
-        await tx
-          .update(consents)
-          .set({ withdrawnAt: new Date() })
-          .where(
-            and(
-              eq(consents.userId, auth.userId),
-              eq(consents.purpose, 'history'),
-              isNull(consents.withdrawnAt),
-            ),
-          );
+        return { state: await this.readPrivacy(tx, auth.userId), told: [] };
       }
-      return this.readPrivacy(tx, auth.userId);
+      await tx
+        .update(consents)
+        .set({ withdrawnAt: new Date() })
+        .where(
+          and(
+            eq(consents.userId, auth.userId),
+            eq(consents.purpose, 'history'),
+            isNull(consents.withdrawnAt),
+          ),
+        );
+      // The trail goes with the consent, in the same step: a phone that is offline cannot leave
+      // it readable to its circles (QA Faz 9 slice 4, K3).
+      const dropped = await tx
+        .delete(historyChunks)
+        .where(eq(historyChunks.userId, auth.userId))
+        .returning({ circleId: historyChunks.circleId });
+      const circleIds = [...new Set(dropped.map((row) => row.circleId))];
+      const others =
+        circleIds.length === 0
+          ? []
+          : await tx
+              .select({ circleId: circleMembers.circleId, userId: circleMembers.userId })
+              .from(circleMembers)
+              .where(
+                and(
+                  inArray(circleMembers.circleId, circleIds),
+                  eq(circleMembers.status, 'active'),
+                  ne(circleMembers.userId, auth.userId),
+                ),
+              );
+      return { state: await this.readPrivacy(tx, auth.userId), told: others };
     });
+    // Whoever has the circle's history open sees the trail go, as with "Geçmişimi sil".
+    const byCircle = new Map<string, string[]>();
+    for (const { circleId, userId } of told) {
+      byCircle.set(circleId, [...(byCircle.get(circleId) ?? []), userId]);
+    }
+    for (const [circleId, userIds] of byCircle) {
+      this.events.emitLive(userIds, 'history', { circleId, userId: auth.userId });
+    }
+    return state;
   }
 
   private async give(tx: Tx, userId: string, purpose: 'notice' | 'history', version: number) {

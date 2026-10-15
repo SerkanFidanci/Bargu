@@ -124,7 +124,7 @@ Proje sahibinin kararları (PM üzerinden, 2026-10-15):
 | Listeler gizli (c)                | Üyeleri yalnızca aynı çemberdekiler görür               | Değişiklik yok                                                                                                                     |
 | Mesaj, okundu (ç)                 | Mesaj yok; dürtme yalnızca çember üyesinden             | Değişiklik yok                                                                                                                     |
 | Rehber, öneri (d, e)              | Rehbere bakılmaz, öneri yok                             | Değişiklik yok                                                                                                                     |
-| Ekran görüntüsü (f)               | QR ekranında engel var                                  | Başkalarının konumu ya da fotoğrafının göründüğü ekranlarda herkes için engel (aşağıda)                                            |
+| Ekran görüntüsü (f)               | QR ekranında engel var                                  | Değişiklik yok; harita ve kişi kartı serbest (aşağıda)                                                                             |
 | Canlı yayın, sonsuz akış (g, ğ)   | Yok ("canlı mod" yayın değil, konum sıklığı)            | Değişiklik yok                                                                                                                     |
 | Kişiselleştirme, reklam (h)       | Kimse için yok                                          | Değişiklik yok                                                                                                                     |
 | Bağımlılık (a)                    | Seri, sıralama ya da ödül yok                           | Değişiklik yok; ebeveyn günlük süre sınırı koyabilir                                                                               |
@@ -134,12 +134,20 @@ Proje sahibinin kararları (PM üzerinden, 2026-10-15):
 | Ücretli işlemler (md. 9 b)        | Henüz yok                                               | Bargu+ ve süs paketleri geldiğinde her satın alma ebeveyn onayı ister; ebeveyn bağlı değilse satın alma kapalı                     |
 | Çocuğa uygun metin (8/3)          | /gizlilik                                               | /gizlilik'e "15–17 yaş için kısaca" bölümü                                                                                         |
 
-**Ekran görüntüsü:** Engel yalnızca 15–17 kişinin göründüğü ekranlarda olsaydı, uygulamanın kimin
-15–17 olduğunu her üyenin telefonuna söylemesi gerekirdi. Bu, bir etkinlikte çocukları belli eder.
-Bu yüzden başkalarının konumunu ya da fotoğrafını gösteren ekranlarda (harita, kişi kartı, üye
-listesi, fotoğraf) herkes için ekran görüntüsü ve kayıt engellenir. Android'de sistem bunu kesin
-engeller; iOS yalnızca algılar. Kapalı testte (staging derlemesi) engel kapalıdır, çünkü proje
-sahibi hata bildirimini ekran görüntüsüyle yapıyor; üretim derlemesinde açıktır.
+**Ekran görüntüsü (proje sahibinin kararı, 2026-10-15):** Harita, kişi kartı ve üye listelerinde
+ekran görüntüsü serbest kalır; engel yalnızca bugünkü hassas ekranda, arkadaş ekleme QR'ında
+sürer. Güvenlik numarası gizli değildir (karşılaştırılmak için vardır), engel gerekmez.
+
+- **Gerekçe:** Haritanın paylaşılması büyümenin bir parçası.
+- **Yalnızca 15–17 için engel neden yok:** Engeli yalnızca 15–17 kişi görünürken koymak,
+  uygulamanın kimin 15–17 olduğunu her üyenin telefonuna söylemesini gerektirirdi. Bu, bir
+  etkinlikte çocukları belli eder.
+- **Hafifletenler:** 15–17 kişi yalnızca karşılıklı onayla eklenen kişilere görünür (kullanıcı
+  adıyla bulunmaz, etkinliğe yalnızca arkadaş QR'ıyla girer). Herkese açık profil ya da gönderi
+  yoktur.
+- **Not:** Yönetmeliğin md. 8/5(f) bendi bir önlem istiyor. Teknik kılavuz ya da Başkanlık bunu
+  harita gibi ekranlar için şart koşarsa bu karar yeniden ele alınır; avukata sorulacaklar
+  listesindedir.
 
 ### 4. Ebeveyn bağlantısı
 
@@ -220,7 +228,7 @@ kullanır.
 
 - **5a:** Yaş beyanı ve yaş grubu, 15'ten küçük reddi, mevcut hesaplara bir kez soru, 15–17 için
   kullanıcı adıyla bulunmama, geçmişin kapalı olması, etkinliğe yalnızca arkadaş QR'ıyla girme,
-  yeni çemberde paylaşımın kapalı başlaması, ekran görüntüsü engeli, /gizlilik bölümü.
+  yeni çemberde paylaşımın kapalı başlaması, /gizlilik bölümü.
 - **5b:** Ebeveyn bağlantısı: kurulum, iki taraflı ekranlar, bitirme, bildirimler.
 - **5c:** Ebeveyn araçları: yeni kişi onayı, kullanım süresi ve günlük sınır.
 
@@ -228,22 +236,24 @@ kullanır.
 
 - Sunucu yeni olarak yaş grubunu, ebeveyn bağlantılarını, ebeveyn ayarlarını, onay isteklerini ve
   son 7 günün kullanım dakikalarını tutar. Konum, doğum tarihi ya da belirteç tutmaz.
-- Yaş grubu başkasına gösterilmez; ekran görüntüsü engeli bu yüzden herkes için.
+- Yaş grubu başkasına gösterilmez.
+- Harita ekran görüntüsü serbesttir; md. 8/5(f) için yalnızca hassas ekranlarda engel vardır. Bu,
+  kılavuza göre yeniden değerlendirilecek bir risktir.
 - 15–17 kişiyi kullanıcı adıyla eklemek mümkün değildir; arkadaşları QR ya da link kullanır.
 - Beyan doğrulama değildir. Belirteç gelene kadar kapalı test sürer; takvim kılavuza bağlıdır.
 - Gerçek ebeveynlik doğrulanamaz; iki taraflı yüz yüze onay ve çocuğun her şeyi görmesi bunu
   hafifletir.
 - Eski uygulama sürümleri yeni hesap açamaz (yaş grubu gönderemez).
 
-## Varsayılanlarla ilerlenen ürün soruları
+## Ürün soruları (PM ve proje sahibi, 2026-10-15)
 
-PM'e bildirildi. İtiraz gelirse değişir; 5a bunlara bağlı değildir.
-
-1. **Ekran görüntüsü:** Herkes için, başkalarının konumunun ya da fotoğrafının göründüğü ekranlarda
-   engel. Kapalı test derlemesinde kapalı.
+1. **Ekran görüntüsü:** Önerilen "herkes için engel" seçilmedi; harita serbest, yalnızca hassas
+   ekranlarda engel (bölüm 3).
 2. **Çocuğun bağlantıyı bitirmesi:** Ebeveyn onaylarsa hemen, onaylamazsa 7 gün sonra.
 3. **Ebeveynin çocuğun bir çemberindeki paylaşımı kapatması:** İlk sürümde yok. Ebeveyn kişileri
    görür ve yeni kişileri onaylar.
 4. **Yeni kişi onayı:** Bağlantı kurulunca varsayılan olarak açık; ebeveyn kapatabilir.
 5. **Ebeveyn bağlantısı:** 15–17 için isteğe bağlı, zorunlu değil.
 6. **15–17 → 18+:** Belirteç gelene kadar destek e-postasıyla, insan incelemesiyle.
+
+2–6 PM önerildiği gibi onayladı; 5 proje sahibine soruldu ve onaylandı.

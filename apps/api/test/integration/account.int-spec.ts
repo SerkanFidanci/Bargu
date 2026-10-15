@@ -105,6 +105,16 @@ describe('deleting an account (docs/ADR/0022)', () => {
         ip,
       })
     ).json<WebSession>();
+    // A code asked for again and left waiting carries the account inside it (QA 4 K1).
+    await call(test.app, {
+      url: '/v1/web/code',
+      body: {
+        email: someone.email,
+        locale: 'tr',
+        binding: toBase64url(globalThis.crypto.getRandomValues(new Uint8Array(32))),
+      },
+      ip,
+    });
     const deleted = await call(test.app, {
       url: '/v1/web/delete-account',
       body: { token: session.token },
@@ -171,14 +181,24 @@ describe('KVKK records (docs/ADR/0022)', () => {
     });
     expect(given.json<PrivacyState>().history?.version).toBe(1);
     expect((await upload()).statusCode).toBe(204);
+    // The server's copy, whoever could read it (members see only pieces from after they joined).
+    const trail = async () =>
+      (
+        await test.admin.query<{ slot: Date }>(
+          'SELECT slot FROM app.history_chunks WHERE user_id = $1',
+          [ayse.userId],
+        )
+      ).rows;
+    expect(await trail()).toHaveLength(1);
 
-    // Withdrawn: no more.
+    // Withdrawn: no more, and what was there goes at once, phone online or not (QA 4 K3).
     const withdrawn = await as(test, ayse, 'PUT', '/v1/me/privacy/history', {
       given: false,
       version: 1,
     });
     expect(withdrawn.json<PrivacyState>().history).toBeNull();
     expect((await upload()).statusCode).toBe(403);
+    expect(await trail()).toEqual([]);
     // Someone else's records are not theirs to read.
     expect((await as(test, bora, 'GET', '/v1/me/privacy')).json()).toEqual({
       notice: null,

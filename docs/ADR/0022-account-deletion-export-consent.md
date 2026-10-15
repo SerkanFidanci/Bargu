@@ -48,8 +48,9 @@ sözleşme kapsamında.
   - Kullanıcının satırı silinir; ona bağlı her şey veritabanı tarafından birlikte silinir:
     cihazlar, oturumlar, geçiş anahtarları, güvenlik olayları, üyelikler, anahtar zarfları,
     davetleri, şifreli profil fotoğrafı, oyları ve belgeleri, konum geçmişi parçaları.
-  - Sonra Redis'te kullanıcı kimliğini taşıyan anahtarlar (hız sınırları, olay akışı) ve kuyruktaki
-    bekleyen bildirimleri silinir.
+  - Sonra Redis'te kullanıcı kimliğini taşıyan anahtarlar (hız sınırları, olay akışı), hesap
+    sayfasının bekleyen kod ve oturumları (kimliği adında değil içinde taşırlar; hesap başına bir
+    dizinle bulunur, QA dilim 4 K1) ve kuyruktaki bekleyen bildirimleri silinir.
   - Silme isteği `app.account_deletions` tablosunda dayanıklı tutulur; işçi yarıda kalsa bir
     sonraki tur tamamlar. Etkinlik temizliğindeki (ADR 0017) yöntemin aynısıdır.
   - Neden hemen değil de işçide: istek hızlı ve tekrarlanabilir kalsın, dış izlerin (Redis, kuyruk)
@@ -100,9 +101,11 @@ sözleşme kapsamında.
   - Sunucu, geçerli rızası olmayan kullanıcının geçmiş parçasını kabul etmez (403
     `CONSENT_REQUIRED`). Rıza yalnızca telefonun sözüne dayanmaz.
   - "Rızamı geri çek": bütün çemberlerde geçmiş kapanır, sunucudaki kopya silinir, rıza kaydına
-    geri çekme zamanı yazılır.
+    geri çekme zamanı yazılır. Sunucu kopyayı rızanın geri çekildiği adımda kendisi siler; telefon
+    çevrimdışı olsa da kimse okuyamaz (QA dilim 4 K3).
   - Geçmişi açık olan mevcut kullanıcılara güncellemeden sonra bir kez sorulur; vermezlerse geçmiş
-    kapanır ve silinir.
+    kapanır ve silinir. Ekranı cevap vermeden kapatmak da "vermedi" sayılır; her açılışta yeniden
+    sorulmaz (QA dilim 4 K4).
 - **Rıza gerekmeyenler:** canlı konum paylaşımı (ana hizmet), profil fotoğrafı (kullanıcının kendi
   yüklediği içerik), bildirimler (sistem izni). Analitik, reklam ya da üçüncü tarafa veri yok; o
   yüzden başka rıza kutusu da yok.

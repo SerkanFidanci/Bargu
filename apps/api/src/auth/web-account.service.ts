@@ -25,10 +25,13 @@ import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 import { EmailJobs } from '../jobs/email-jobs.js';
 import { AuthKeys } from './auth-keys.js';
-import { ClientLimits, DAY, HOUR } from './client-limits.js';
+import { ClientLimits, DAY } from './client-limits.js';
 
 export const WEB_CODE_TTL_SECONDS = 10 * 60;
 export const WEB_SESSION_TTL_SECONDS = 10 * 60;
+/** How long a browser that came in with a code is remembered, and how many per account. */
+export const WEB_REMEMBER_TTL_SECONDS = 180 * 24 * 3600;
+const WEB_REMEMBERED_MAX = 5;
 /** A challenge dies after this many wrong codes. */
 export const WEB_MAX_ATTEMPTS = 3;
 /**
@@ -36,11 +39,12 @@ export const WEB_MAX_ATTEMPTS = 3;
  * someone who knows only the address cannot use up its owner's codes or tries from elsewhere (a
  * thief blocking the owner, QA 3b N1); per address alone only far higher ceilings, against mail
  * bombing and guessing from many networks. At most 150 wrong codes a day out of 10^8: a 1.5·10^-6
- * chance a day. The login code's budgets are not touched (docs/ADR/0021).
+ * chance a day. Using up the address's ceilings takes 17 networks a day, and even then a browser
+ * that came in with a code before is not held back by them (QA 4 K2). The login code's budgets
+ * are not touched (docs/ADR/0021).
  */
 export const WEB_LIMITS = {
-  requestsPerNetworkHour: 3,
-  requestsPerNetworkDay: 10,
+  requestsPerNetworkDay: 3,
   requestsPerAddressDay: 50,
   failuresPerNetworkDay: 10,
   failuresPerAddressDay: 150,
@@ -67,6 +71,8 @@ return { attempts, redis.call('HGET', KEYS[1], 'u'), redis.call('HGET', KEYS[1],
 `;
 
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
+/** The set naming an account's pending web codes and sessions (see WebAccountService.index). */
+export const webKeysOf = (userId: string) => `web-of:${userId}`;
 const bindingHash = (binding: string) => hex(sha256(new TextEncoder().encode(binding)));
 
 /**
@@ -95,17 +101,18 @@ export class WebAccountService {
     const lookup = emailLookupKey(this.keys.emailLookupKey, input.email);
     const address = hex(lookup);
     const network = this.clients.clientId(ip);
-    for (const [key, limit, window] of [
-      [`web-req-nh:${address}:${network}`, WEB_LIMITS.requestsPerNetworkHour, HOUR],
-      [`web-req-nd:${address}:${network}`, WEB_LIMITS.requestsPerNetworkDay, DAY],
-      [`web-req-a:${address}`, WEB_LIMITS.requestsPerAddressDay, DAY],
-    ] as const) {
-      const result = await this.limiter.hit(key, limit, window);
+    const userId = await this.database.userIdForEmail(lookup);
+    const known = await this.isRemembered(userId, input.remember);
+    const budgets: [string, number][] = [
+      [`web-req-nd:${address}:${network}`, WEB_LIMITS.requestsPerNetworkDay],
+    ];
+    if (!known) budgets.push([`web-req-a:${address}`, WEB_LIMITS.requestsPerAddressDay]);
+    for (const [budget, limit] of budgets) {
+      const result = await this.limiter.hit(budget, limit, DAY);
       if (!result.allowed) {
         throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', result.retryAfter);
       }
     }
-    const userId = await this.database.userIdForEmail(lookup);
     const challengeId = randomUuid();
     const key = `web:${challengeId}`;
     // Kept for an unknown address too (no email goes out): checking a code answers the same.
@@ -114,6 +121,7 @@ export class WebAccountService {
       .hSet(key, { u: userId ?? '', e: address, b: bindingHash(input.binding), a: '0' })
       .expire(key, WEB_CODE_TTL_SECONDS)
       .exec();
+    if (userId !== null) await this.index(userId, key);
     if (userId !== null) {
       // Not waited for: an account's answer takes as long as a stranger's (QA 3b N3). Should it
       // fail, no email comes and asking again sends a new code.
@@ -139,13 +147,12 @@ export class WebAccountService {
       await this.redis.del(key);
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'OTP_LOCKED');
     }
-    const budgets = [
-      `rl:web-fail-n:${address}:${this.clients.clientId(ip)}`,
-      `rl:web-fail-a:${address}`,
-    ];
+    const known = await this.isRemembered(userId === '' ? null : userId, input.remember);
+    const budgets = [`rl:web-fail-n:${address}:${this.clients.clientId(ip)}`];
+    if (!known) budgets.push(`rl:web-fail-a:${address}`);
     const [perNetwork = 0, perAddress = 0] = (await this.redis.eval(RESERVE, {
       keys: budgets,
-      arguments: [String(DAY), String(DAY)],
+      arguments: budgets.map(() => String(DAY)),
     })) as number[];
     if (
       perNetwork > WEB_LIMITS.failuresPerNetworkDay ||
@@ -168,9 +175,17 @@ export class WebAccountService {
     await Promise.all(budgets.map((budget) => this.redis.decr(budget)));
 
     const token = generateToken();
-    await this.redis.set(`web-session:${hex(hashToken(token))}`, userId, {
-      EX: WEB_SESSION_TTL_SECONDS,
-    });
+    const session = `web-session:${hex(hashToken(token))}`;
+    await this.redis.set(session, userId, { EX: WEB_SESSION_TTL_SECONDS });
+    await this.index(userId, session);
+    const remember = generateToken();
+    const remembered = `web-known:${userId}`;
+    await this.redis
+      .multi()
+      .zAdd(remembered, { score: Date.now(), value: hex(hashToken(remember)) })
+      .zRemRangeByRank(remembered, 0, -(WEB_REMEMBERED_MAX + 1))
+      .expire(remembered, WEB_REMEMBER_TTL_SECONDS)
+      .exec();
     const [device] = await this.database.asUser(userId, (tx) =>
       tx
         .select({ platform: devices.platform, createdAt: devices.createdAt })
@@ -180,11 +195,28 @@ export class WebAccountService {
     return {
       token,
       expiresIn: WEB_SESSION_TTL_SECONDS,
+      remember,
       device:
         device === undefined
           ? null
           : { platform: device.platform, since: device.createdAt.getTime() },
     };
+  }
+
+  /** Whether this browser came in with a code for the account before (and not too long ago). */
+  private async isRemembered(userId: string | null, remember: string | undefined) {
+    if (userId === null || remember === undefined) return false;
+    const score = await this.redis.zScore(`web-known:${userId}`, hex(hashToken(remember)));
+    return score !== null;
+  }
+
+  /**
+   * The account's pending codes and sessions, by name: deleting the account deletes them too, though
+   * their own names do not say whose they are (QA 4 K1).
+   */
+  private async index(userId: string, key: string): Promise<void> {
+    const of = webKeysOf(userId);
+    await this.redis.multi().sAdd(of, key).expire(of, WEB_SESSION_TTL_SECONDS).exec();
   }
 
   /**

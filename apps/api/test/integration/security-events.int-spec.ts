@@ -1,6 +1,7 @@
 import { type SecurityEvent, SECURITY_EVENTS_DAYS } from '@bargu/schemas';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { AccountPurge } from '../../src/account/account-purge.js';
 import { createTestApp, type TestApp } from './support/app.js';
 import { call, login, uniqueEmail } from './support/client.js';
 
@@ -16,6 +17,25 @@ const list = (accessToken: string) =>
   call(test.app, { method: 'GET', url: '/v1/me/security-events', accessToken });
 
 describe('security events (Faz 9)', () => {
+  it('are kept no longer than they are shown (QA Faz 9 slice 4, K5)', async () => {
+    const email = uniqueEmail();
+    const first = await login(test, email);
+    const { userId } = first.session;
+    await test.admin.query(
+      `UPDATE app.security_events SET created_at = now() - interval '91 days' WHERE user_id = $1`,
+      [userId],
+    );
+    await login(test, email);
+    expect(await test.app.get(AccountPurge).expireSecurityEvents()).toBeGreaterThanOrEqual(1);
+    const { rows } = await test.admin.query<{ created_at: Date }>(
+      `SELECT created_at FROM app.security_events WHERE user_id = $1`,
+      [userId],
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    const oldest = Math.min(...rows.map((row) => row.created_at.getTime()));
+    expect(Date.now() - oldest).toBeLessThan(SECURITY_EVENTS_DAYS * 24 * 3600_000);
+  });
+
   it('list the account’s own, newest first, with the kind of phone and whether it is this one', async () => {
     const email = uniqueEmail();
     const first = await login(test, email);

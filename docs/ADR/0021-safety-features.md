@@ -64,7 +64,7 @@ buluşmanın bir arkadaşla kolayca başlatılamadığını söyledi; kişi kart
   - Son 90 gün, en çok 100 olay.
   - Telefonun türü ve bu telefon olup olmadığı gösterilir. IP ya da yer yok; sunucu tutmuyor.
   - Telefon tanımadığı yeni olay türlerini atlar; liste bozulmaz.
-  - Eski olayların silinmesi dilim 4'te, KVKK saklama süreleriyle birlikte.
+  - 90 günden eski olaylar işçi tarafından silinir (5 dakikada bir; QA dilim 4 K5).
 - **Kişi kartından buluşma ("Buluş"):** tek dokunuşla o arkadaşla 3 saatlik bir etkinlik kurulur
   ve arkadaşa davet gider. Etkinliği kuran yöneticidir (ADR 0020), saati ve yeri hemen seçer. Bitince
   her şey silinir (ADR 0017). Uzun basınca açılan menü 5 öğe için ayarlı, oraya eklenmedi.
@@ -80,12 +80,34 @@ buluşmanın bir arkadaşla kolayca başlatılamadığını söyledi; kişi kart
     (binding) bağlıdır.
   - Kendi sınırları vardır. Bütçeler adres ve ağ (IPv4 ya da IPv6 /64, takma adla) başına
     tutulur; yalnızca adresi bilen biri, sahibin kendi ağından girmesini engelleyemez (QA 3b N1):
-    - kod istekleri: adres+ağ başına saatte 3, günde 10; adres başına (bütün ağlar) günde 50;
+    - kod istekleri: adres+ağ başına günde 3; adres başına (bütün ağlar) günde 50;
     - kod başına 3 deneme; yanlış kod adres+ağ başına günde 10, adres başına (bütün ağlar) günde 150.
       Bu tavanla tahmin şansı günde 1,5·10⁻⁶;
     - ağ başına saatte 10 kod isteği, 30 doğrulama, 10 iptal ve 10 silme.
     - E-posta kuyruğa beklenmeden yazılır; hesabı olan ve olmayan adres aynı sürede cevap alır
       (QA 3b N3).
+
+    **Çok ağlı saldırgan (QA dilim 4 K2):** Adresi bilen biri birçok ağdan, adresin bütün ağlar için
+    olan günlük tavanını (50 kod isteği ya da 150 yanlış kod) bitirirse sahip de o gün kod alamazdı.
+    Karar:
+    - Ağ başına günlük kod isteği 10'dan 3'e indi. Sahibe bir günde bir ağdan 3 kod yeter; tavanı
+      bitirmek artık en az 17 ağ ister (önce 5).
+    - **Hatırlanan tarayıcı:** Kodla bir kez giren tarayıcı rastgele bir değer saklar (sayfanın
+      kendi deposunda, 180 gün, hesap başına en yeni 5). Bu değeri gösteren tarayıcı adresin bütün
+      ağlar tavanlarına takılmaz; ağ başına sınırlar yine geçerlidir. Değer tek başına hiçbir şey
+      açmaz: kod yine e-postaya gider ve sayfaya bağlıdır. Sunucu yalnızca özetini tutar; hesapla
+      silinir.
+    - Tahmin güvenliği değişmez: hatırlanmayan her tarayıcı için adres başına günde en çok 150
+      yanlış kod; hatırlanan değeri ancak daha önce doğru kodu giren bilir.
+    - Telefonu olmayan sahip için başka yol da var: Bargu'yu başka bir telefona kurup e-postasıyla
+      giriş yapınca eski telefon hemen çıkar (ADR 0005). Bu yol hesap sayfasının sınırlarını
+      kullanmaz.
+
+    Seçilmeyenler:
+    - Sahibin daha önce girdiği ağları tutmak: IP takma adı da olsa sunucuda kişinin hangi ağlarda
+      olduğunun bir kaydı olurdu (kaba bir yer bilgisi).
+    - Tavanı yükseltmek: e-posta bombalamasını büyütür.
+    - Geri çekilmeli (backoff) sınır: saldırgan her açılan hakkı sahipten önce kapabilir.
 
     Girişin hakları tüketilmez; hesap sayfasında yanlış kod denemek girişi kilitlemez. Olmayan bir
     hesaba e-posta gitmez, ama cevaplar (kod isteme ve kod denetleme) hesap olsun olmasın aynıdır.

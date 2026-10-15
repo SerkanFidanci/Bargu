@@ -152,13 +152,60 @@ describe('the account web page (docs/ADR/0021)', () => {
     expect(
       (await verify(next.challengeId, codeFor(next.challengeId), owners)).json(),
     ).toMatchObject({ code: 'OTP_LOCKED' });
-    // A few codes an hour per address and network: the fourth from home is refused, while the
+    // A few codes a day per address and network: the fourth from home is refused, while the
     // same address can still be asked for from another network.
     const limited = await askCode(someone.email, binding);
     expect(limited.statusCode).toBe(429);
     expect((await askCode(someone.email, binding, '192.0.2.44')).statusCode).toBe(202);
     // The login code still works for this address.
     expect((await login(test, someone.email)).session.userId).toBe(someone.userId);
+  });
+
+  it('lets a browser that came in before past what all networks together have (QA 4 K2)', async () => {
+    const someone = await person(test);
+    const binding = newBinding();
+    const first = (await askCode(someone.email, binding)).json<WebChallenge>();
+    const { remember } = (
+      await verify(first.challengeId, codeFor(first.challengeId), binding)
+    ).json<WebSession>();
+    expect(remember).toMatch(/^[A-Za-z0-9_-]{43}$/);
+
+    // Someone who knows the address used up, from many networks, all it has for the day.
+    const address = Buffer.from(
+      emailLookupKey(test.app.get(AuthKeys).emailLookupKey, someone.email),
+    ).toString('hex');
+    const redis = test.app.get<RedisClient>(REDIS);
+    await redis.set(`rl:web-req-a:${address}`, String(WEB_LIMITS.requestsPerAddressDay), {
+      EX: 3600,
+    });
+    await redis.set(`rl:web-fail-a:${address}`, String(WEB_LIMITS.failuresPerAddressDay), {
+      EX: 3600,
+    });
+    const travelling = '192.0.2.77';
+    const ask = (kept?: string) =>
+      call(test.app, {
+        url: '/v1/web/code',
+        body: { email: someone.email, locale: 'tr', binding, remember: kept },
+        ip: travelling,
+      });
+    // A stranger's browser, or one with a made-up value, is held back...
+    expect((await ask()).statusCode).toBe(429);
+    expect((await ask(newBinding())).statusCode).toBe(429);
+    // ...the owner's own browser is not, from any network, and its code works.
+    const asked = await ask(remember);
+    expect(asked.statusCode).toBe(202);
+    const { challengeId } = asked.json<WebChallenge>();
+    const verified = await call(test.app, {
+      url: '/v1/web/verify',
+      body: { challengeId, code: codeFor(challengeId), binding, remember },
+      ip: travelling,
+    });
+    expect(verified.statusCode).toBe(200);
+    // What it keeps opens nothing by itself.
+    expect(
+      (await call(test.app, { url: '/v1/web/revoke-device', body: { token: remember } }))
+        .statusCode,
+    ).toBe(401);
   });
 
   it('serves its page with nothing from elsewhere and a strict content policy', async () => {

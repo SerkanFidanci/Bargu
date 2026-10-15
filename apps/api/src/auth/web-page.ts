@@ -193,6 +193,24 @@ export const WEB_PAGE_JS = `'use strict';
     return made;
   }
 
+  // A browser that came in with a code is remembered: someone who only knows the address cannot
+  // lock it out (it gives no access by itself).
+  function remembered() {
+    try {
+      var held = localStorage.getItem('bargu-remember');
+      return held && /^[A-Za-z0-9_-]{43}$/.test(held) ? held : undefined;
+    } catch (error) {
+      return undefined;
+    }
+  }
+  function remember(value) {
+    try {
+      if (value) localStorage.setItem('bargu-remember', value);
+    } catch (error) {
+      // Not kept (private window): the page works the same.
+    }
+  }
+
   var state = { challengeId: null, token: null };
 
   function show(step) {
@@ -245,7 +263,7 @@ export const WEB_PAGE_JS = `'use strict';
     event.preventDefault();
     var button = $('email-send');
     busy(button, true);
-    post('/v1/web/code', { email: $('email').value.trim(), locale: lang, binding: binding() })
+    post('/v1/web/code', { email: $('email').value.trim(), locale: lang, binding: binding(), remember: remembered() })
       .then(function (data) {
         busy(button, false);
         state.challengeId = data.challengeId;
@@ -258,10 +276,11 @@ export const WEB_PAGE_JS = `'use strict';
     event.preventDefault();
     var button = $('code-send');
     busy(button, true);
-    post('/v1/web/verify', { challengeId: state.challengeId, code: $('code').value.trim(), binding: binding() })
+    post('/v1/web/verify', { challengeId: state.challengeId, code: $('code').value.trim(), binding: binding(), remember: remembered() })
       .then(function (data) {
         busy(button, false);
         state.token = data.token;
+        remember(data.remember);
         if (data.device) {
           var since = new Date(data.device.since).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-GB');
           text('device-text', w.device(data.device.platform, since));

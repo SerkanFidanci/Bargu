@@ -11,7 +11,8 @@ import { AccountPurge } from './account-purge.js';
 
 /**
  * How often the worker finishes deleting accounts. The API purges right after a deletion; this
- * catches what that could not finish (docs/ADR/0022: at most 7 days, in practice minutes).
+ * catches what that could not finish (docs/ADR/0022: at most 7 days, in practice minutes). The
+ * same round deletes security events past their 90 days.
  */
 export const ACCOUNT_SWEEP_MS = 5 * 60_000;
 const LOCK_KEY = 'accounts:sweep:lock';
@@ -42,12 +43,19 @@ export class AccountSweeper implements OnApplicationBootstrap, OnApplicationShut
     });
     if (locked !== 'OK') return;
     try {
-      await this.purge.sweep();
-    } catch (error) {
-      // The next round tries again; nothing about the account is logged.
-      this.logger.warn(`sweep failed: ${error instanceof Error ? error.name : 'unknown'}`);
+      await this.attempt('sweep', () => this.purge.sweep());
+      await this.attempt('security events', () => this.purge.expireSecurityEvents());
     } finally {
       await this.redis.del(LOCK_KEY);
+    }
+  }
+
+  /** The next round tries again; nothing about the accounts is logged. */
+  private async attempt(what: string, step: () => Promise<number>): Promise<void> {
+    try {
+      await step();
+    } catch (error) {
+      this.logger.warn(`${what} failed: ${error instanceof Error ? error.name : 'unknown'}`);
     }
   }
 }

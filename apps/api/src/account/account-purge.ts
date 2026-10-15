@@ -1,12 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 
+import { webKeysOf } from '../auth/web-account.service.js';
 import { DatabaseService } from '../infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 import { QUEUES } from '../jobs/queues.js';
 
 /** Accounts handled per round; a full page means there may be more. */
 const PAGE = 100;
+/** app.expire_security_events() deletes at most this many per call. */
+const EXPIRE_BATCH = 5000;
 
 /**
  * The second half of deleting an account (docs/ADR/0022): the user row goes, and with it, by
@@ -55,9 +58,26 @@ export class AccountPurge {
     return purged;
   }
 
+  /**
+   * Security events older than they are shown (90 days, docs/ADR/0021) go, everyone's; returns how
+   * many (QA Faz 9 slice 4, K5).
+   */
+  async expireSecurityEvents(): Promise<number> {
+    let total = 0;
+    for (;;) {
+      const result = await this.database.db.execute<{ removed: number }>(
+        sql`SELECT app.expire_security_events() AS removed`,
+      );
+      const removed = result.rows[0]?.removed ?? 0;
+      total += removed;
+      if (removed < EXPIRE_BATCH) return total;
+    }
+  }
+
   /** Everything outside the database that names the account; safe to run again. */
   private async clearOutside(userId: string): Promise<void> {
-    const keys: string[] = [];
+    // Pending web codes and sessions carry the account inside, not in their names.
+    const keys: string[] = await this.redis.sMembers(webKeysOf(userId));
     for await (const found of this.redis.scanIterator({ MATCH: `*${userId}*`, COUNT: 500 })) {
       keys.push(...found);
     }

@@ -29,6 +29,7 @@ export async function dumpEverything(test: TestApp): Promise<string> {
         if (type === 'list') parts.push(JSON.stringify(await redis.lRange(key, 0, -1)));
         if (type === 'set') parts.push(JSON.stringify(await redis.sMembers(key)));
         if (type === 'zset') parts.push(JSON.stringify(await redis.zRange(key, 0, -1)));
+        if (type === 'zset') parts.push(JSON.stringify(await redis.zRange(key, 0, -1)));
       }
     }
   } finally {

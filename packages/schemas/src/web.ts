@@ -12,8 +12,23 @@ const bindingSchema = z
   .length(43)
   .regex(/^[A-Za-z0-9_-]*$/);
 
+/**
+ * What a browser that once came in with a code keeps (QA 4 K2): it is not held back by the ceiling
+ * every network together has for one address, so someone who only knows the address cannot lock
+ * its owner out from many networks. It gives no access by itself.
+ */
+const rememberSchema = z
+  .string()
+  .length(43)
+  .regex(/^[A-Za-z0-9_-]*$/);
+
 export const webCodeRequestSchema = z
-  .object({ email: emailSchema, locale: localeSchema, binding: bindingSchema })
+  .object({
+    email: emailSchema,
+    locale: localeSchema,
+    binding: bindingSchema,
+    remember: rememberSchema.optional(),
+  })
   .strict();
 export type WebCodeRequest = z.infer<typeof webCodeRequestSchema>;
 
@@ -28,6 +43,7 @@ export const webCodeVerifySchema = z
     challengeId: z.uuid(),
     code: z.string().regex(/^\d{8}$/),
     binding: bindingSchema,
+    remember: rememberSchema.optional(),
   })
   .strict();
 export type WebCodeVerify = z.infer<typeof webCodeVerifySchema>;
@@ -42,6 +58,8 @@ export const webSessionSchema = z
       .object({ platform: z.enum(PLATFORMS), since: z.number().int() })
       .strict()
       .nullable(),
+    /** For this browser to keep (see rememberSchema). */
+    remember: rememberSchema,
   })
   .strict();
 export type WebSession = z.infer<typeof webSessionSchema>;
