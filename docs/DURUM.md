@@ -727,3 +727,6 @@ geçti.
   sender key, kullanıcı uyarıyı onaylayana kadar otomatik dağıtılmasın.
 - **Faz 7:** iOS bildirim eklentisi tekrar korumasını (`ReplayGuard` durumu) uygulamayla uygulama
   grubu üzerinden paylaşsın.
+- **2026-11-01** (proje sahibi): 15 yaş altı sosyal ağ yönetmeliği yürürlükte; Bargu'nun 5651 kapsamına
+  girip girmediği için avukat görüşü al (mevcut hesaplar için son tarih 2027-03-31). Sonuç → yaş ADR'si
+  (BARGU_PLAN Faz 9).

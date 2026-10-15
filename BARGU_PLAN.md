@@ -11,6 +11,9 @@ Arkadaşlar ve aile ile canlı konum paylaşımı. **Zenly hissi, Signal güvenl
 - Konum verisi **uçtan uca şifreli (E2EE)**. Sunucu hiçbir zaman düz koordinat görmez.
 - Map-first, tek ana ekran, animasyon dolu, her aksiyon en fazla 2 dokunuş.
 - iOS + Android. Dil: tr (varsayılan) + en (i18n).
+- Ücretli ürün: ilk günden gelir; reklam ve konum verisi satışı yok (Bölüm 1, Faz 9B).
+
+Pazar araştırması (2026-10-15): [Bargu — Sektör ve Rakip Analizi](https://claude.ai/code/artifact/0cb450e2-0c22-412b-99a9-6be834654dc8). Faz 9, 9B ve 11'deki ürün ve para maddeleri bu rapordan gelir.
 
 ---
 
@@ -32,10 +35,12 @@ Arkadaşlar ve aile ile canlı konum paylaşımı. **Zenly hissi, Signal güvenl
 | Animasyon | Reanimated 4, Gesture Handler, Skia, Rive, expo-haptics | UI thread'de 60/120 fps |
 | Backend | NestJS (Fastify) + PostgreSQL + Drizzle + Redis + BullMQ + Socket.io (Redis adapter) | — |
 | Gerçek zamanlı | Tek kalıcı WebSocket; tüm durum değişiklikleri sunucudan push; event stream + resume. Polling / yenileme / kapat-aç YOK | Her şey herkeste anında |
-| Konum saklama | Sadece Redis, şifreli zarf, TTL 24 saat. Postgres'te konum YOK | Geçmiş yok = sızacak geçmiş yok |
+| Konum saklama | Canlı konum: yalnızca Redis, şifreli zarf, TTL 24 saat. Geçmiş: yalnızca paylaşan açtıysa, telefonda şifrelenmiş parçalar Postgres'te 14 gün (ADR 0019). Düz koordinat hiçbir yerde YOK | Sunucu ele geçse bile okunacak konum yok; geçmiş kısa ve isteğe bağlı |
 | Push | FCM v1 + APNs direkt (Expo push servisi değil), payload şifreli | 3. parti bağımlılığı azaltma |
 | Yerel cache | MMKV (şifreli, anahtar SecureStore'da) | — |
 | Monorepo | pnpm + Turborepo | — |
+| Gelir | "Kuran öder" (karar 2026-10-15): bir çember, üyelerinden biri Bargu+ abonesi ya da denemedeyse çalışır; davetle katılmak hep bedava. Tek abonelik (Bargu+) + tek seferlik paketler. Reklam ve konum verisi satışı YOK. Acil durum özellikleri hep bedava (Faz 9B) | Zenly gelirsiz kaldığı için kapandı. Ödeme duvarı kurulum başına yaklaşık 8 kat gelir getirir, bedava katılım davet döngüsünü korur. E2EE ile konum satmak zaten imkânsız, reklam güven vaadiyle çelişir |
+| Yayın sırası | Önce Android (Google Play), iOS sonra (Apple üyeliği alınınca; karar 2026-10-15). iOS kodu ve CI derlemesi bu arada bozulmadan sürer | Türkiye'de telefonların ~%77'si Android. Google Play bir kerelik 25 dolar, Apple Developer Program yıllık 99 dolar |
 
 > MLS (RFC 9420) v2'de değerlendirilir. ≤50 kişilik çemberler için sender keys yeterli.
 
@@ -303,12 +308,67 @@ export const haptic = { select: 'selection', success: 'success', bump: 'heavy' }
 - Süreli çember, QR ile katılım, geri sayım halkası, bitişte otomatik silme + anahtar imhası.
 - **DoD:** süre dolunca sunucuda çembere ait hiçbir kayıt kalmaz.
 
+### Ek iş — Çember Geçmişi (ADR 0019)
+Faz 8'den sonra proje sahibinin isteğiyle yapılıyor (yapım aşamasında).
+- Her üyenin izi çeyrek saatlik parçalar hâlinde telefonda, o çemberin geçmiş anahtarıyla şifrelenir. Sunucu parçaları 14 gün saklar, sonra siler. Sunucu konum görmez; yalnızca kimin izi olduğunu, hangi çeyrek saat olduğunu ve parçanın boyutunu (üç boydan biri) görür.
+- **Ücretli (Bargu+):** çemberde Bargu+ abonesi ya da denemesi süren biri varsa üyeler son 14 günü görür (karar 2026-10-15). Ödeyeni kalmayan çember zaten duraklar (Faz 9B).
+- Üyeler bir çemberin geçmişini yalnızca katıldıkları andan sonrası için görür; kendi izlerini her zaman görür.
+- Yalnızca o çembere tam konum paylaşılırken kaydedilir; hayalet modda, paylaşım kapalıyken ya da mahalle/şehir hassasiyetinde kaydedilmez.
+- **Kapalı başlar:** paylaşan kişi o çember için açıkça açmadıkça hiçbir iz kaydedilmez ve gönderilmez. Çembere katılmak geçmişe onay sayılmaz.
+- **Kimin gördüğünü görür:** paylaşan kişi, geçmişinin hangi çemberlerde açık olduğunu ve onu kimlerin görebildiğini her an görür. Çembere yeni üye girince "artık X de geçmişini görebilir" bildirimi gelir; 7 günlük paylaşım hatırlatmasında geçmiş de yazar.
+- Tek dokunuşla kapatılır; kapatınca sunucudaki parçalar da silinir.
+- THREAT_MODEL güncellenir: geçmiş artık sunucuda (şifreli, 14 gün); hangi çeyrek saatlerde iz olduğu meta veri olarak görünür; partner takibi riski.
+- **DoD:**
+  - Geçmiş kapalı başlar; açılmadan hiçbir parça gönderilmez (test).
+  - Sunucuda, log'da ve Redis'te düz koordinat yok (mevcut otomatik test geçmişi de kapsar).
+  - Katılmadan önceki parçalar okunamaz; çıkarılan üye yeni parçaları açamaz (test).
+  - Yeni üye girince paylaşan bildirim alır; "geçmişimi kim görüyor" ekranı doğru listeler (test).
+  - Kapatınca sunucudaki parçalar silinir (test); 14 günden eski parça kalmaz (işçi testi).
+
 ### Faz 9 — Güvenlik Özellikleri & Uyum
 - Periyodik paylaşım hatırlatması (7 günde bir), yeni izleyici bildirimi, tek dokunuşla tüm paylaşımı durdur.
 - Biyometrik uygulama kilidi (opsiyonel), uzaktan cihaz iptali, güvenlik olayları listesi.
 - KVKK: aydınlatma metni, konum için açık rıza, veri dışa aktarma, uygulama içinden hesap silme (anında devre dışı, 7 gün içinde kalıcı silme).
+- **Hukuki görüş (hemen başlar, 1 Kasım 2026'dan önce; proje sahibi):** 5651 sayılı kanunun "sosyal ağ sağlayıcı" tanımı "konum" paylaşımını açıkça sayıyor. 15 yaş altı yönetmeliği 1 Kasım 2026'da yürürlükte; mevcut hesaplar 31 Mart 2027'ye kadar yaş doğrulamalı. Avukat görüşüne göre ADR: yaş sınırı (15+ / 18+), yaş doğrulama yolu (gerekirse e-Devlet yaş belirteci), 15–18 yaş için kapalı varsayılanlar ve ebeveyn araçları.
+- **KVKK 2026 kuralları:** her amaç için ayrı rıza (konum paylaşımı, arka planda konum, her bildirim türü ayrı); aydınlatma metni ile rıza metni ayrı, birleşik "okudum, kabul ediyorum" kutusu yok. Rıza hiçbir zaman ilgisiz bir özelliğin şartı olmaz.
+- **Yurt dışı sunucu:** KVKK standart sözleşmesi imzalanır, 5 iş günü içinde KVKK'ya bildirilir. Şifreleme konumu korur ama hesap, çember üyeliği ve bildirim token'ı yine kişisel veridir.
 - Store: iOS privacy manifest + nutrition label, Play background location beyanı + video, Data safety formu.
-- **DoD:** OWASP MASVS-PRIVACY checklist tamam.
+- **DoD:** OWASP MASVS-PRIVACY checklist tamam; hukuki görüş ve yaş ADR'si yazılı; rıza ekranları amaç başına ayrı (test).
+
+### Faz 9B — Para Modeli & Yayın Öncesi Ürün
+Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırması (Bölüm 0).
+- **Para modeli: "kuran öder"** (karar 2026-10-15; kuralların son hâli ve ödeme kütüphanesi ADR'de):
+  - Bir çember (1:1 arkadaşlık dahil), üyelerinden en az biri Bargu+ abonesi ya da denemedeyse çalışır. Davetle katılmak hep bedava.
+  - Yeni kullanıcıya 21 günlük deneme: bu sürede istediği kadar çember kurar ve davet eder.
+  - Ödeyen kalmazsa çember silinmez, veri kaybolmaz; konum paylaşımı duraklar ve "çemberi açık tutmak için biri abone olsun" kartı çıkar. Ödeme hatasında önce ek süre tanınır.
+  - Güvendeyim, eve vardım ve "hepsini durdur" duraklamış çemberde de çalışır; hep bedava.
+  - **Tek abonelik: Bargu+.** Abonenin kurduğu ve içinde olduğu tüm çemberleri açık tutar; üstüne harita temaları, avatar ve figür stilleri, widget stilleri, özel bitiş saatli paylaşım, daha fazla yer, çember geçmişinin son 14 günü (ADR 0019), her ay bir hediye süs ve "kendi geçmişin" (Faz 11). Aylık ve indirimli yıllık; öğrenci indirimi.
+  - **Tek seferlik süs paketleri** (paket başına ₺19–49, indirimli setler; isteğe bağlı "kurucu üye" ömür boyu planı):
+    - Avatar çerçeveleri (altın, neon, hareketli)
+    - Figür kostümleri (yürüyen figüre şapka, forma; araç yerine spor araba, motosiklet, scooter)
+    - Hız izi renkleri ve desenleri
+    - Buluşma efektleri (konfeti, kalpler, havai fişek), dürtme animasyonları, hayalet modu kostümleri
+    - Harita temaları
+    - Sezon paketleri (yılbaşı, bayram, yaz); maç günü takım renkleri kulüp adı ve logosu olmadan (tescilli marka)
+  - Süs kuralları: yalnızca görünüş, hiçbir işlev ya da güvenlik özelliği süsün arkasında değil; rastgele kutu (sürpriz paket) yok. Arkadaşın telefonu bir süsü göstermeden önce satın alındığını doğrular (sunucunun imzaladığı hak), değiştirilmiş uygulama bedava süs gösteremez.
+  - Etkinlik çemberini düzenleyen öder (Faz 11'deki etkinlik paketi), katılımcı bedava.
+  - Önce Google Play Billing; App Store abonelikleri iOS yayınıyla gelir. Abonelik hakkı mağazaya değil hesaba bağlı tutulur, böylece iOS gelince aynı hak orada da geçerli olur. Satın alma, yenileme, iptal ve iade mağaza sunucu bildirimleriyle sunucuda doğrulanır; hak ve duraklama değişiklikleri WS olayıyla herkese anında gider (polling yok).
+  - Ödeme ekranı Türkçe, fiyatlar TL, iptal tek dokunuş; yıllık plan özendirilir. Sınırlar yayından önce ekranda yazılıdır; sonradan bedava bir özellik ücretliye taşınmaz.
+  - Ödeme kütüphanesi seçimi ADR ile (gerekçe + bakım durumu). Ödeme kayıtlarında konum ya da çember içeriği yok.
+  - Vergi yapısı (bireysel 20/B istisnası ya da şirket) mali müşavirle; KDV ve dijital hizmet vergisini mağaza keser (proje sahibi).
+- **Güvendeyim düğmesi:** tek dokunuşla seçilen çemberlere "iyiyim" + konum + pil. Mevcut şifreli bildirim yolundan gider; zayıf ağda kuyruğa alınır, küçük paketle tekrar denenir. SMS yedeği ayrı karar (Bölüm 7).
+- **"Neden eski?" durumu:** eski konumun yanında nedeni: çevrim dışı (saatiyle), pil tasarrufu, konum izni kapalı. Nedeni gönderen telefon bilir, şifreli nabız mesajına eklenir. Hayalet modda neden gösterilmez.
+- **Zengin davet kartı:** davet linki WhatsApp ve Instagram'da önizlemeli açılır. Önizlemeyi o şirketlerin sunucuları çektiği için kişisel veri içermez (ad, fotoğraf yok); ad ve fotoğraf uygulamada çözülür.
+- **Sade mod:** efekt, ses ve titreşim yoğunluğu ayarı (tam / az / kapalı); motion tokenlarıyla ölçeklenir, sistemin "Hareketi azalt" ayarından bağımsız.
+- **Düşük detaylı dünya haritası:** Türkiye dışındaki arkadaş boş haritada kalmasın; self-host düşük zoom'lu dünya katmanı.
+- **Lansman ölçümü:** konum ve kimlik içermeyen sayımlar (günlük aktif, davet başına katılan, 30. gün tutunma, ödemeye geçiş). Üçüncü parti analitik SDK'sı yok.
+- **DoD:**
+  - Satın alma, yenileme, iptal ve iade çemberdeki herkeste yenileme gerektirmeden WS olayıyla görünür (entegrasyon testi).
+  - Ödeyeni kalmayan çember duraklar, biri abone olunca yenileme gerektirmeden açılır; duraklamış çemberde Güvendeyim çalışır (test).
+  - Ödeme kayıtlarında ve log'larda konum, e-posta, token yok (otomatik test).
+  - Güvendeyim uçak modunda kuyruğa girer, ağ gelince bir kez gider (test); içeriği APNs/FCM'de düz görünmez.
+  - Davet önizlemesinde kişisel veri yok (test).
+  - Bedava ve ücretli sınırlar ekranda yazılı, iptal tek dokunuş (3 kişiyle kullanılabilirlik testi).
 
 ### Faz 10 — Sertleştirme & Yayın
 - OWASP MASVS L2 + ASVS L2 checklist; mümkünse bağımsız pentest.
@@ -318,8 +378,31 @@ export const haptic = { select: 'selection', success: 'success', bump: 'heavy' }
 - Prod: en az yetkili DB rolü, şifreli yedek (WAL-G) + restore testi, Redis ACL + TLS, firewall, Caddy (TLS 1.3, HSTS).
 - SPKI pinning (2 yedek pin) + rotasyon planı.
 - EAS Build/Submit; OTA güncellemeleri kod imzalı veya kapalı; `runtimeVersion` fingerprint policy.
+- **Önce Google Play:** 13 Kasım 2023'ten sonra açılan kişisel geliştirici hesabı, üretime çıkmadan önce en az 12 test kullanıcısıyla 14 gün kesintisiz kapalı test yapmak zorunda ([Google](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)). Hesap ve 12 kişilik test grubu Faz 10'dan önce hazırlanır (proje sahibi); bu grup ilk lansman grubunun çekirdeği olabilir. iOS yayını Apple üyeliğinden sonra.
 - Jailbreak/root tespiti: sadece uyarı.
 - **DoD:** kritik/yüksek bulgu yok, restore testi başarılı.
+
+### Faz 11 — Yayın Sonrası: Büyüme (ilk 3 ay)
+- **Eve vardım kontrolü:** hedef ya da süre seçilir; varılmaz ve cevap verilmezse seçilen kişilere konum ve pil gider. KADES ve 112'ye kısayol (yalnızca bağlantı; Bargu acil servis değildir).
+- **Uygulamasız şifreli konum linki:** süreli web linki; anahtar linkin `#` kısmında, sunucuya hiç gitmez; sayfa self-host haritayla çizer. Süre bitince ya da tek dokunuşla iptal. ADR + THREAT_MODEL güncellemesi (link sızarsa ne olur).
+- **Widget ve Live Activity:** Android ana ekran widget'ı; iOS kilit ekranında "Yoldayım, 4 dk" (varış tahmini). İçerik şifreli kalır (Bölüm 8'den taşındı).
+- **Yüz yüze ekleme:** QR'a ek olarak telefonları sallayarak ekleme.
+- **Özel bitiş saati ve kişiye dondurma:** "21:30'a kadar" gibi süre; tek kişiye sessizce dondurma.
+- **Davet ödülü:** davet eden ve gelen birer ay Bargu+. Nakit ödül ve zorla davet yok.
+- **Etkinlik paketi:** Faz 8 etkinlik çemberinin, düzenleyenin ödediği süreli paketi (gezi, tur, kamp); katılımcı bedava. Fiyat denemesi.
+- **Kendi geçmişin (Bargu+, isteğe bağlı):**
+  - Kapalı başlar; kullanıcı açarsa çalışır. Kendi izin telefonda, şifreli kasada tutulur (ADR 0019'daki yerel kayıt). Aşağıdaki özetler telefonda üretilir, sunucuya gitmez.
+  - İçinde: keşif haritası ("kazıma haritası"), "geçen cumartesi neredeydim" rotaları, haftalık özet, paylaşılabilir yıl sonu kartı ("2026'da 14 şehir, 230 buluşma"; kartta koordinat yok).
+  - Kayıt yalnızca paylaşım açıkken zaten alınan konumlardan yapılır; ayrıca arka planda konum istemez (Play beyanı tek özellik kalır).
+  - Süre seçilir (30 gün / 1 yıl), tek dokunuşla silinir, dışa aktarılabilir. Abonelik bitince kayıt durur ama mevcut geçmiş silinmez; görülebilir ve dışa aktarılabilir.
+  - Arkadaşların izi yalnızca çember geçmişi kurallarıyla görünür (Ek iş, ADR 0019; Bargu+ ile son 14 gün). THREAT_MODEL güncellenir: kilidi açık telefonda geçmiş görünür, biyometrik kilit önerilir.
+- **Lansman:** önce tek bir fakülte, yurt ya da kulüp; 72 saatte grubun %25'i aktif değilse sebebi bulunmadan genişlenmez. Şubat 2027 deneme, Eylül 2027 yeni kayıt dönemi. Ücretli içerik paylaşımlarında "#Reklam" etiketi.
+- **DoD:**
+  - Konum linki sayfası anahtarı hiçbir isteğe koymaz (test); süresi biten link açılmaz.
+  - Widget ve Live Activity içeriği APNs/FCM'de düz görünmez.
+  - Eve vardım, uygulama kapalı ve telefon kilitliyken iOS + Android'de çalışır (saha testi).
+  - İlk lansman grubunun 72 saat ölçümü raporlanır.
+  - Kendi geçmişin kapalı başlar; Bargu+ özetleri telefonda üretilir, sunucuya, log'a ya da bildirime koordinat gitmez (otomatik test); "geçmişi sil" telefondaki kaydı tamamen siler (test).
 
 ---
 
@@ -345,9 +428,13 @@ export const haptic = { select: 'selection', success: 'success', bump: 'heavy' }
 - **Arkaplan konum:** Transistorsoft (önerilen, ücretli) vs `expo-location` + `expo-task-manager` (ücretsiz, daha az güvenilir).
 - **Hosting:** Hetzner (AB) + KVKK standart sözleşme (önerilen) vs Türkiye'de sunucu.
 - **Marka:** renk paleti, logo, display font.
+- **Fiyatlar (tahmin, doğrulanmadı):** Bargu+ yaklaşık ₺99,99/ay (Life360 Silver ile aynı seviye), öğrenciye ₺59,99–69,99, yıllıkta indirim; tek seferlik paket ₺19–49; etkinlik paketi ₺199–499. ₺99,99'luk aboneliğin net getirisi yaklaşık ₺57. Para modelinin kendisi kararlaştırıldı (Bölüm 1, Faz 9B).
+- **Yaş sınırı ve doğrulama:** hukuki görüşe bağlı (Faz 9).
+- **Güvendeyim SMS yedeği:** şebeke çökünce işe yarar ama SMS düz metindir; konumsuz "iyiyim" SMS'i mi, hiç SMS yok mu?
+- **Gelirin vergi yapısı:** bireysel (20/B istisnası) ya da şirket; mali müşavirle.
+- **Kendi geçmişinin uzun yedeği:** çember geçmişi sunucuda en çok 14 gün kalır; telefon değişince daha eski kendi izin kaybolur. Yalnızca dışa aktarma mı, yoksa şifreli uzun yedek mi? Uzun yedek ADR ister.
 
 ## 8. v2 Fikirleri
-- iOS widget + Live Activity ("Ali yolda, 4 dk")
-- Varış tahmini (ETA) paylaşımı
+- Operatör kanalı: Turkcell Pasaj gibi pazar yerlerinde yıllık aile paketi kodu
 - Apple Watch
 - MLS'e geçiş, multi-device
