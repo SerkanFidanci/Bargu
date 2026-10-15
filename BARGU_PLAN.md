@@ -327,6 +327,13 @@ Faz 8'den sonra proje sahibinin isteğiyle yapılıyor (yapım aşamasında).
   - Kapatınca sunucudaki parçalar silinir (test); 14 günden eski parça kalmaz (işçi testi).
 
 ### Faz 9 — Güvenlik Özellikleri & Uyum
+**Sıra (PM, 2026-10-15; her dilim ayrı commit, her dilimden sonra test oturumu):**
+1. Gizlilik açıkları: ayrılınca geçmiş kapanır (W4), QR iptali (O2, O3), hatırlatıcı temizliği (O5), kapalı uygulamada yeni izleyici uyarısı (G2), geçmiş listeleme sınırı (G3), istek zaman aşımı + tek yeniden deneme (kabulde 15 sn, geçmiş silme), "Çember bulunamadı" yarışı.
+2. Çember rolleri ve planlama yetkisi: roller, O4 sunucu yetkisi, O6 QR katıl–ayrıl, buluşma noktaları haritada (ADR).
+3. Güvenlik özellikleri: 7 günlük hatırlatma (geçmiş dahil), yeni izleyici bildirimi, tümünü durdur, biyometrik kilit, uzaktan cihaz iptali, güvenlik olayları listesi.
+4. KVKK ve Play: hesap silme + web silme sayfası (K7), veri dışa aktarma, amaç başına ayrı rıza ve ayrı aydınlatma, K10, K11, K13 (sayfalar geçici alan adında), ön plan servisi beyanı ve video.
+5. Yaş 15+: önce ADR (e-Devlet yaş belirtecine bireysel geliştirici erişebiliyor mu; erişemiyorsa geçiş çözümü), sonra uygulama.
+6. Ölçek ve küçükler: O1, O7 yük testi, D1–D10, G4, G5, G7–G10, eskiyen temizlik kaydı uyarısı, kalıcı C1–C4 / M1–M2 testleri.
 - **İlk iş (proje sahibi kararı 2026-10-15, QA 5 / W4):** çemberden ayrılınca ya da çıkarılınca geçmiş, bekleyen parçaları atar ve o çemberin ayar kaydı silinir. Aynı çembere dönünce geçmiş kapalı başlar; katılmak geçmişe onay sayılmaz.
 - Periyodik paylaşım hatırlatması (7 günde bir), yeni izleyici bildirimi, tek dokunuşla tüm paylaşımı durdur.
 - Biyometrik uygulama kilidi (opsiyonel), uzaktan cihaz iptali, güvenlik olayları listesi.
@@ -345,6 +352,11 @@ Faz 8'den sonra proje sahibinin isteğiyle yapılıyor (yapım aşamasında).
   - **G2, yeni izleyici uyarısı uygulama kapalıyken:** geçmişi açık çemberlerde "yeni biri katıldı" bildirimi "artık geçmişini görebilir" desin ya da arka plan işleyicisi kontrol etsin.
   - **G3, geçmiş listeleme sınırı:** istek başına aralık ve parça sınırı, kullanıcı başına hız sınırı.
   - **Geçmiş kapatma ayrıntıları (QA 4):** çevrimdışı kapatıp hemen açınca kapatma işareti yeni parçaları da reddetmesin (işaret zamana bağlı); geçmiş isteklerine 15–20 sn zaman aşımı, böylece yanıt gelmese de sunucudaki kopya silinir. Etkinlik DoD testlerinin süresi 30 sn sınırına yakın (O1 ile birlikte).
+  - **Telefon denemesi (proje sahibi, 2026-10-15; "sonra düzeltirsin, task olarak topla"):**
+    - Hata: davet bildirimine basınca çember listesi yüklenmeden "Çember bulunamadı" açılıyor. Ekran çemberi getirmeyi beklesin; yalnızca sunucu "yok" derse bu ekran çıksın.
+    - Hata: daveti kabul etmek yaklaşık 15 sn sürüyor; sunucuda istek 35 ms, gecikme telefonda. Büyük olasılıkla arka plandan dönünce ilk istek ölü bağlantıda bekliyor. İsteklere zaman aşımı ve tek seferlik yeniden deneme eklensin (geçmiş isteklerindeki zaman aşımıyla birlikte), cihazda doğrulansın.
+    - İstek: buluşma noktaları haritada ayrı görünsün ve dokunulabilir olsun.
+    - İstek: çemberde roller (WhatsApp grupları gibi temel düzeyde). Yönetici olmayan üye oylama ve etkinlik başlatamasın; sunucu da denetlesin. O4 (anket kapatma ve belge yetkisi) ile birlikte ele alınsın.
   - **G4, G5, G7–G10:** iş listesine (hassasiyet düşünce anahtar ile bayrak tutarlılığı, yeniden kurulumda eski parçaları silebilme, toplu katılımda bildirim yağmuru, ağ hatasını "veri yok" gibi göstermeme).
 - Store: iOS privacy manifest + nutrition label, Play background location beyanı + video, Data safety formu.
 - **DoD:** OWASP MASVS-PRIVACY checklist tamam; hukuki görüş ve yaş ADR'si yazılı; rıza ekranları amaç başına ayrı (test); Faz 8 QA bulgularından O2, O3, O4, O5, G2 ve G3 kapalı ve test oturumunun ilgili senaryoları yeşil.
