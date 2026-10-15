@@ -2,6 +2,7 @@ import {
   createSenderKeyDistribution,
   createSenderState,
   encryptDocument,
+  encryptHistory,
   encryptMessage,
   generateSenderKey,
   randomUuid,
@@ -12,6 +13,8 @@ import {
   type Circle,
   type DocPayload,
   EVENT_DURATION_MS,
+  HISTORY_SLOT_MS,
+  historySlot,
   type Invite,
   type InvitePreview,
   type MessageEnvelope,
@@ -95,6 +98,15 @@ function phone(who: Person, circle: Circle) {
     },
     document(payload: DocPayload): MessageEnvelope {
       const { envelope, nextState } = encryptDocument({ state, sender: who.device, payload });
+      state = nextState;
+      return envelope;
+    },
+    trail(from: number): MessageEnvelope {
+      const { envelope, nextState } = encryptHistory({
+        state,
+        sender: who.device,
+        payload: { kind: 'trail', from, points: [[0, 4_100_000, 2_900_000, 9]], ts: from },
+      });
       state = nextState;
       return envelope;
     },
@@ -190,7 +202,8 @@ describe('event circles', () => {
     await join(ayse, qr);
     const circle = (await as(test, owner, 'GET', `/v1/circles/${event.id}`)).json<Circle>();
 
-    // Everything the circle can hold: keys, a location, a status, a profile, a place, a meeting, a poke,
+    // Everything the circle can hold: keys, a location, a status, a profile, a place, a meeting,
+    // a piece of history, a poke,
     // an invite, queued notices, events in both members' streams.
     for (const [who, other] of [
       [owner, ayse],
@@ -265,6 +278,11 @@ describe('event circles', () => {
       shared: true,
     });
     expect(meeting.statusCode).toBe(200);
+    const slot = historySlot(now) - HISTORY_SLOT_MS;
+    const piece = await as(test, owner, 'PUT', `/v1/circles/${circle.id}/history/${String(slot)}`, {
+      envelope: ownerPhone.trail(slot),
+    });
+    expect(piece.statusCode).toBe(204);
     await as(test, owner, 'POST', '/v1/bumps', {
       envelope: ownerPhone.seal({ kind: 'bump', ts: now }),
     });

@@ -4,7 +4,13 @@ import { create } from 'zustand';
 import { space, touchTarget } from '@/theme';
 
 /** What can be done with a person from the map (BARGU_PLAN §4.3 radial menu). */
-export const PERSON_ACTIONS = ['poke', 'directions', 'profile', 'notifications'] as const;
+export const PERSON_ACTIONS = [
+  'poke',
+  'directions',
+  'history',
+  'profile',
+  'notifications',
+] as const;
 export type PersonAction = (typeof PERSON_ACTIONS)[number];
 
 /** A point on the screen (window coordinates). */
@@ -25,9 +31,9 @@ export const usePersonFocus = create<FocusState>(() => ({ selected: null, menu: 
 /** Distance from the avatar to the menu items' centres. */
 export const RADIAL_RADIUS = space.xxxl * 2;
 /** Items fan out above the avatar; near the top of the screen, below it instead. */
-const ANGLES_ABOVE = [-150, -110, -70, -30] as const;
+const ANGLES_ABOVE = [-160, -125, -90, -55, -20] as const;
 /** An item is chosen when the finger is this close to its direction (degrees)… */
-const HIT_ANGLE = 22;
+const HIT_ANGLE = 17;
 /** …and at least this far from the avatar (px). */
 const HIT_MIN_DISTANCE = RADIAL_RADIUS / 2;
 

@@ -2,15 +2,20 @@ import {
   DOC_PADDED_BYTES,
   docEnvelopeSchema,
   docPayloadSchema,
+  HISTORY_PADDED_SIZES,
+  historyEnvelopeSchema,
   messageEnvelopeSchema,
   payloadSchema,
+  trailPayloadSchema,
   type DocPayload,
   type MessageEnvelope,
   type Payload,
   type PlacePayload,
+  type TrailPayload,
 } from '@bargu/schemas';
 
 import {
+  type Label,
   LABELS,
   MAX_U32,
   MESSAGE_PADDED_BYTES,
@@ -34,6 +39,7 @@ import {
   aeadOpen,
   aeadSeal,
   deriveKeyAndNonce,
+  hmacWithLabel,
   randomBytes,
   signWithLabel,
   verifyWithLabel,
@@ -75,12 +81,13 @@ function messageHeader(fields: HeaderFields): Uint8Array {
 }
 
 /**
- * Per-message key and nonce: HKDF-SHA256(senderKey, salt, "bargu/v1/msg" ‖ header). Each message
- * gets its own key, so loss or reordering never blocks decryption (O(1), no ratchet state), and the
- * random salt keeps keys unique even if a sequence number were ever reused.
+ * Per-message key and nonce: HKDF-SHA256(senderKey, salt, "bargu/v1/msg" ‖ header) (history:
+ * "bargu/v1/hist"). Each message gets its own key, so loss or reordering never blocks decryption
+ * (O(1), no ratchet state), and the random salt keeps keys unique even if a sequence number were
+ * ever reused.
  */
-function messageKey(senderKey: Uint8Array, salt: Uint8Array, header: Uint8Array) {
-  return deriveKeyAndNonce(senderKey, salt, LABELS.messageKdf, header);
+function messageKey(senderKey: Uint8Array, salt: Uint8Array, header: Uint8Array, kdf: Label) {
+  return deriveKeyAndNonce(senderKey, salt, kdf, header);
 }
 
 interface EncryptInput {
@@ -94,18 +101,35 @@ interface DocumentEncryptInput extends Omit<EncryptInput, 'payload'> {
 }
 
 /**
- * The two envelope sizes (docs/PROTOCOL.md): messages, and the documents a circle keeps
- * (docs/ADR/0018). Header, keys and signature are the same; the fixed ciphertext size tells them
- * apart, so a signed message can never pass for a document or the other way round.
+ * The envelopes (docs/PROTOCOL.md): messages; the documents a circle keeps (docs/ADR/0018), same
+ * header, keys and signature but a larger fixed size, which tells them apart, so a signed message
+ * never passes for a document or the other way round; and pieces of location history
+ * (docs/ADR/0019), sealed with a key derived for history and their own labels.
  */
 interface Format {
   readonly envelope: {
     safeParse(value: unknown): { success: true; data: MessageEnvelope } | { success: false };
   };
-  readonly paddedBytes: number;
+  /** Plaintexts are padded to the smallest of these that fits. */
+  readonly sizes: readonly number[];
+  readonly kdf: Label;
+  readonly signature: Label;
 }
-const MESSAGE: Format = { envelope: messageEnvelopeSchema, paddedBytes: MESSAGE_PADDED_BYTES };
-const DOCUMENT: Format = { envelope: docEnvelopeSchema, paddedBytes: DOC_PADDED_BYTES };
+const MESSAGE: Format = {
+  envelope: messageEnvelopeSchema,
+  sizes: [MESSAGE_PADDED_BYTES],
+  kdf: LABELS.messageKdf,
+  signature: LABELS.messageSignature,
+};
+const DOCUMENT: Format = { ...MESSAGE, envelope: docEnvelopeSchema, sizes: [DOC_PADDED_BYTES] };
+const HISTORY: Format = {
+  envelope: historyEnvelopeSchema,
+  sizes: HISTORY_PADDED_SIZES,
+  kdf: LABELS.historyKdf,
+  signature: LABELS.historySignature,
+};
+/** @internal The formats, for tests that model a malicious sender. */
+export const FORMATS = { message: MESSAGE, document: DOCUMENT, history: HISTORY } as const;
 
 export interface EncryptResult {
   envelope: MessageEnvelope;
@@ -121,6 +145,7 @@ export function encryptPaddedWith(
   { state, sender }: Omit<EncryptInput, 'payload'>,
   paddedPlaintext: Uint8Array,
   salt: Uint8Array,
+  format: Format = MESSAGE,
 ): EncryptResult {
   const { senderKey, nextSeq: seq } = state;
   if (sender.deviceId !== senderKey.senderDeviceId) {
@@ -137,14 +162,10 @@ export function encryptPaddedWith(
     salt,
   };
   const header = messageHeader(fields);
-  const keyAndNonce = messageKey(senderKey.key, salt, header);
+  const keyAndNonce = messageKey(senderKey.key, salt, header, format.kdf);
   const ct = aeadSeal(keyAndNonce, paddedPlaintext, header);
   keyAndNonce.key.fill(0);
-  const sig = signWithLabel(
-    LABELS.messageSignature,
-    concatBytes(header, ct),
-    sender.identity.secretKey,
-  );
+  const sig = signWithLabel(format.signature, concatBytes(header, ct), sender.identity.secretKey);
 
   return {
     envelope: {
@@ -161,20 +182,22 @@ export function encryptPaddedWith(
   };
 }
 
-/** Pads a validated payload to its format's fixed size, then encrypts and signs it. */
+/** Pads a validated payload to the smallest size of its format that fits, encrypts, signs. */
 function encryptValidated(
   input: Omit<EncryptInput, 'payload'>,
-  payload: Payload | DocPayload,
+  payload: Payload | DocPayload | TrailPayload,
   format: Format,
   salt: Uint8Array,
 ): EncryptResult {
-  const plaintext = pad(
-    utf8Encode(JSON.stringify(payload)),
-    format.paddedBytes,
-    format.paddedBytes,
+  const json = utf8Encode(JSON.stringify(payload));
+  // None fits: the largest, which `pad` refuses.
+  const size = Math.min(
+    ...format.sizes.filter((candidate) => json.length < candidate),
+    Math.max(...format.sizes),
   );
+  const plaintext = pad(json, size, size);
   try {
-    return encryptPaddedWith(input, plaintext, salt);
+    return encryptPaddedWith(input, plaintext, salt, format);
   } finally {
     plaintext.fill(0);
   }
@@ -237,12 +260,7 @@ export function verifyDocumentEnvelope(envelope: unknown, senderIdentityKey: Uin
 function verifyEnvelope(envelope: unknown, senderIdentityKey: Uint8Array, format: Format): boolean {
   try {
     const { ct, sig, header } = parseEnvelope(envelope, format);
-    return verifyWithLabel(
-      LABELS.messageSignature,
-      concatBytes(header, ct),
-      sig,
-      senderIdentityKey,
-    );
+    return verifyWithLabel(format.signature, concatBytes(header, ct), sig, senderIdentityKey);
   } catch {
     return false;
   }
@@ -264,7 +282,7 @@ function authenticate({ envelope, senderKey, sender }: OpenInput, format: Format
   if (data.circleId !== senderKey.circleId || data.epoch !== senderKey.epoch) {
     throw new BarguCryptoError('KEY_MISMATCH', 'envelope uses another circle or epoch');
   }
-  if (!verifyWithLabel(LABELS.messageSignature, concatBytes(header, ct), sig, sender.identityKey)) {
+  if (!verifyWithLabel(format.signature, concatBytes(header, ct), sig, sender.identityKey)) {
     throw new BarguCryptoError('BAD_SIGNATURE', 'invalid envelope signature');
   }
   return parsed;
@@ -276,7 +294,7 @@ function decryptAuthenticated(
   { ct, header, salt }: ReturnType<typeof parseEnvelope>,
   format: Format,
 ): unknown {
-  const keyAndNonce = messageKey(senderKey.key, salt, header);
+  const keyAndNonce = messageKey(senderKey.key, salt, header, format.kdf);
   let padded: Uint8Array;
   try {
     padded = aeadOpen(keyAndNonce, ct, header);
@@ -285,7 +303,8 @@ function decryptAuthenticated(
   }
   let text: string;
   try {
-    text = utf8Decode(unpad(padded, format.paddedBytes));
+    // The envelope schema allowed only the format's sizes.
+    text = utf8Decode(unpad(padded, padded.length));
   } finally {
     padded.fill(0);
   }
@@ -350,5 +369,79 @@ export function decryptDocument(input: OpenInput): DocPayload {
   const json = decryptAuthenticated(input.senderKey, authenticate(input, DOCUMENT), DOCUMENT);
   const payload = docPayloadSchema.safeParse(json);
   if (!payload.success) throw new BarguCryptoError('MALFORMED', 'invalid document');
+  return payload.data;
+}
+
+/**
+ * The key a sender's pieces of location history are sealed with in an epoch (docs/ADR/0019):
+ * HMAC-SHA256(senderKey, "bargu/v1/hist-key" ‖ circleId ‖ epoch ‖ senderDeviceId). Members keep it
+ * for a week after the epoch ends, to read that week's history, while the sender key itself goes as
+ * soon as the protocol stops accepting its epoch: live locations stay forward secret.
+ */
+export function historyKeyOf(senderKey: SenderKey): SenderKey {
+  return {
+    ...senderKey,
+    key: hmacWithLabel(
+      senderKey.key,
+      LABELS.historyKey,
+      concatBytes(
+        uuidToBytes(senderKey.circleId),
+        u32be(senderKey.epoch),
+        uuidToBytes(senderKey.senderDeviceId),
+      ),
+    ),
+  };
+}
+
+interface HistoryEncryptInput extends Omit<EncryptInput, 'payload'> {
+  payload: TrailPayload;
+}
+
+/** @internal Deterministic core of `encryptHistory`. */
+export function encryptHistoryWith(input: HistoryEncryptInput, salt: Uint8Array): EncryptResult {
+  const parsed = trailPayloadSchema.safeParse(input.payload);
+  if (!parsed.success) throw new BarguCryptoError('MALFORMED', 'invalid trail');
+  const { state } = input;
+  const historyKey = historyKeyOf(state.senderKey);
+  try {
+    const { envelope } = encryptValidated(
+      { state: { senderKey: historyKey, nextSeq: state.nextSeq }, sender: input.sender },
+      parsed.data,
+      HISTORY,
+      salt,
+    );
+    return { envelope, nextState: { senderKey: state.senderKey, nextSeq: state.nextSeq + 1 } };
+  } finally {
+    historyKey.key.fill(0);
+  }
+}
+
+/**
+ * Seals a quarter hour of this device's trail for a circle (docs/ADR/0019) with the history key of
+ * its current sender key, in one of three padded sizes. Persist `nextState` first, as for messages.
+ */
+export function encryptHistory(input: HistoryEncryptInput): EncryptResult {
+  return encryptHistoryWith(input, randomBytes(SALT_BYTES));
+}
+
+/** The server-side check for a piece of history (docs/ADR/0019). Never throws. */
+export function verifyHistoryEnvelope(envelope: unknown, senderIdentityKey: Uint8Array): boolean {
+  return verifyEnvelope(envelope, senderIdentityKey, HISTORY);
+}
+
+/**
+ * Opens a piece of a member's history with the history key of the epoch it was sealed in: author,
+ * circle, epoch and signature checked as for stored messages, no replay window (it is read again
+ * and again). The caller checks it is the quarter hour it is filed under.
+ */
+export function decryptHistory(input: {
+  envelope: unknown;
+  historyKey: SenderKey;
+  sender: DevicePublicKeys;
+}): TrailPayload {
+  const opened = { envelope: input.envelope, senderKey: input.historyKey, sender: input.sender };
+  const json = decryptAuthenticated(input.historyKey, authenticate(opened, HISTORY), HISTORY);
+  const payload = trailPayloadSchema.safeParse(json);
+  if (!payload.success) throw new BarguCryptoError('MALFORMED', 'invalid trail');
   return payload.data;
 }

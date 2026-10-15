@@ -51,6 +51,22 @@ export const docEnvelopeSchema = messageEnvelopeSchema.extend({
 export type DocEnvelope = z.infer<typeof docEnvelopeSchema>;
 
 /**
+ * Pieces of location history (docs/ADR/0019) are padded to the smallest of these that fits: a
+ * still quarter hour, a walk, a drive. Their size says about as much as how often a phone sends
+ * its location, which the server sees anyway (docs/THREAT_MODEL.md).
+ */
+export const HISTORY_PADDED_SIZES = [512, 2048, 8192] as const;
+
+export const historyEnvelopeSchema = messageEnvelopeSchema.extend({
+  ct: z.union([
+    base64urlOf(HISTORY_PADDED_SIZES[0] + AEAD_TAG_BYTES),
+    base64urlOf(HISTORY_PADDED_SIZES[1] + AEAD_TAG_BYTES),
+    base64urlOf(HISTORY_PADDED_SIZES[2] + AEAD_TAG_BYTES),
+  ]),
+});
+export type HistoryEnvelope = z.infer<typeof historyEnvelopeSchema>;
+
+/**
  * A sender key wrapped for exactly one recipient device (docs/PROTOCOL.md §4). Stored by the
  * server as an opaque blob and delivered to that device only.
  */

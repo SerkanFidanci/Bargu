@@ -14,6 +14,7 @@ import { WeatherWorker } from './weather/weather.worker.js';
 import { EventExpiry } from './circles/event-expiry.js';
 import { EventSweeper } from './circles/event-sweeper.js';
 import { EventsService } from './events/events.service.js';
+import { HistorySweeper } from './history/history-sweeper.js';
 
 /** The background worker process: runs jobs and maintains the queues. No HTTP. */
 @Module({})
@@ -37,6 +38,7 @@ export class WorkerModule {
         EventsService,
         EventExpiry,
         EventSweeper,
+        HistorySweeper,
       ],
     };
   }

@@ -3,6 +3,7 @@ import { Writable } from 'node:stream';
 import {
   createSenderState,
   decryptMessage,
+  encryptHistory,
   encryptMessage,
   generateRequestNonce,
   generateSenderKey,
@@ -14,6 +15,8 @@ import {
 } from '@bargu/crypto';
 import {
   type Circle,
+  HISTORY_SLOT_MS,
+  historySlot,
   type MessageEnvelope,
   type Payload,
   type PublishReply,
@@ -29,7 +32,7 @@ import { as, circleWith, type Person, person } from './support/people.js';
 // Somewhere in Istanbul: the test proves these numbers never reach the server in any form.
 const LAT = 41.008_237;
 const LNG = 28.978_359;
-const COORDINATE_TEXTS = ['41.008', '28.978', '41,008', '28,978'];
+const COORDINATE_TEXTS = ['41.008', '28.978', '41,008', '28,978', '4100824', '2897836'];
 
 let test: TestApp;
 let url: string;
@@ -166,7 +169,25 @@ describe('location relay', () => {
     // Ayşe's own location is not echoed back to her.
     expect((await as(test, ayse, 'GET', '/v1/locations')).json()).toEqual({ envelopes: [] });
 
-    // DoD (Faz 5): no plain coordinate anywhere on the server: Redis, the database, the logs.
+    // A quarter hour of her trail as well (location history, docs/ADR/0019), in its own form.
+    const slot = historySlot(Date.now()) - HISTORY_SLOT_MS;
+    const trail = encryptHistory({
+      state: { senderKey: ayseSends.key, nextSeq: 1_000 },
+      sender: ayse.device,
+      payload: {
+        kind: 'trail',
+        from: slot,
+        points: [[0, Math.round(LAT * 100_000), Math.round(LNG * 100_000), 9]],
+        ts: Date.now(),
+      },
+    }).envelope;
+    const piece = await as(test, ayse, 'PUT', `/v1/circles/${circle.id}/history/${String(slot)}`, {
+      envelope: trail,
+    });
+    expect(piece.statusCode).toBe(204);
+
+    // DoD (Faz 5, ADR 0019): no plain coordinate anywhere on the server: Redis, the database, the
+    // logs, in either form.
     const redisDump: string[] = [];
     const redis = (await import('redis')).createClient({ url: test.env.REDIS_URL });
     await redis.connect();

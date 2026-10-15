@@ -59,6 +59,9 @@ export {
   deviceKeyBundleSchema,
   DOC_PADDED_BYTES,
   docEnvelopeSchema,
+  HISTORY_PADDED_SIZES,
+  historyEnvelopeSchema,
+  type HistoryEnvelope,
   type DocEnvelope,
   MESSAGE_PADDED_BYTES,
   messageEnvelopeSchema,
@@ -185,3 +188,20 @@ export {
 } from './locations.js';
 export { type WeatherSnapshot, weatherEventSchema, weatherSnapshotSchema } from './weather.js';
 export { photoSchema, photoUploadSchema, type Photo } from './photos.js';
+export {
+  HISTORY_DAYS,
+  HISTORY_KEEP_MS,
+  HISTORY_SLOT_MS,
+  historyEventSchema,
+  historyPutSchema,
+  historyQuerySchema,
+  historyRecordSchema,
+  historySchema,
+  historySlot,
+  MAX_TRAIL_POINTS,
+  trailPayloadSchema,
+  trailPointSchema,
+  type HistoryRecord,
+  type TrailPayload,
+  type TrailPoint,
+} from './history.js';

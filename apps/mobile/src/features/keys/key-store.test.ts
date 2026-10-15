@@ -6,11 +6,12 @@ import {
   generateSenderKey,
   randomUuid,
   verifyDeviceKeyBundle,
+  historyKeyOf,
 } from '@bargu/crypto';
 import type { Circle, MemberCard } from '@bargu/schemas';
 
 import type { KeyValueStore } from '../storage/vault';
-import { KeyStore } from './key-store';
+import { HISTORY_KEY_KEEP_MS, KeyStore } from './key-store';
 
 function memoryStore(): KeyValueStore {
   const data = new Map<string, string>();
@@ -187,5 +188,33 @@ describe('KeyStore', () => {
     expect(store.knownCircles()).toEqual([circleId]);
     store.prune(circleId, null);
     expect(store.knownCircles()).toEqual([]);
+  });
+
+  it('keeps the history key of an old epoch after its sender key goes (docs/ADR/0019)', () => {
+    const bob = somebody();
+    const store = new KeyStore(memoryStore(), me);
+    const old = circleOf(circleId, 1, [card(me), card(bob)]);
+    store.observe(old);
+    const { senderKey, distribution } = keyFrom(bob, me, old);
+    store.accept(old, [distribution]);
+    const historyKey = historyKeyOf(senderKey).key;
+    expect(store.historyKey(circleId, 1, bob.device.deviceId)?.key).toEqual(historyKey);
+
+    // Epoch 4: the sender key is gone, the history key stays, as long as the server keeps history.
+    const now = 1_791_880_200_000;
+    store.prune(circleId, 4, now);
+    expect(store.receivedKey(circleId, 1, bob.device.deviceId)).toBeNull();
+    expect(store.historyKey(circleId, 1, bob.device.deviceId)?.key).toEqual(historyKey);
+    store.prune(circleId, 5, now + HISTORY_KEY_KEEP_MS - 1);
+    expect(store.historyKey(circleId, 1, bob.device.deviceId)).not.toBeNull();
+    store.prune(circleId, 5, now + HISTORY_KEY_KEEP_MS);
+    expect(store.historyKey(circleId, 1, bob.device.deviceId)).toBeNull();
+
+    // Leaving the circle takes them all at once.
+    const current = circleOf(circleId, 5, [card(me), card(bob)]);
+    store.observe(current);
+    store.accept(current, [keyFrom(bob, me, current).distribution]);
+    store.prune(circleId, null);
+    expect(store.historyKey(circleId, 5, bob.device.deviceId)).toBeNull();
   });
 });

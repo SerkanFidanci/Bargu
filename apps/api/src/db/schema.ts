@@ -199,6 +199,14 @@ export const circleDocs = app.table('circle_docs', {
   updatedAt: timestamptz('updated_at').notNull().defaultNow(),
 });
 
+export const historyChunks = app.table('history_chunks', {
+  circleId: uuid('circle_id').notNull(),
+  userId: uuid('user_id').notNull(),
+  slot: timestamptz('slot').notNull(),
+  envelope: jsonb('envelope').notNull(),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
+});
+
 export const schema = {
   users,
   devices,
@@ -213,4 +221,5 @@ export const schema = {
   profilePhotos,
   places,
   circleDocs,
+  historyChunks,
 };

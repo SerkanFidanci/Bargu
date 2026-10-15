@@ -193,8 +193,19 @@ dolgulanarak şifrelenir (`ct` 1040 bayt; `encryptDocument` / `decryptDocument` 
 `verifyDocumentEnvelope`). Boyut iki zarfı ayırır: bir mesaj imzası belge, bir belge imzası mesaj
 yerine geçemez; mesaj içerikleri belgeye, belge içerikleri mesaja konamaz. Belgeler yerler gibi tekrar
 penceresiz açılır, `ts` yalnızca büyür, silineni telefon geri almaz. Oy kimliği
-`UUIDv8(SHA-256("bargu/v1/vote-id�" ‖ pollId ‖ userId))` (sürüm 8, varyant 10): alıcı, oyun onu
+`UUIDv8(SHA-256("bargu/v1/vote-id\0" ‖ pollId ‖ userId))` (sürüm 8, varyant 10): alıcı, oyun onu
 imzalayan kişinin kimliğiyle dosyalandığını denetler.
+
+**Konum geçmişi (ADR 0019).** Paylaşanın izi, çember başına çeyrek saatlik `trail` parçaları
+(`from` = çeyreğin başı, `points` = 1–250 nokta `[saniye, enlem×1e5, boylam×1e5, doğruluk]`, `ts`)
+olarak, çeyreğin başladığı epoch'ın **geçmiş anahtarıyla** şifrelenir:
+`historyKey = HMAC-SHA256(senderKey, "bargu/v1/hist-key\0" ‖ circleId ‖ epoch(u32 BE) ‖ senderDeviceId)`.
+Başlık mesajla aynı; anahtar/nonce `HKDF(historyKey, salt, "bargu/v1/hist\0", header)`, imza
+`"bargu/v1/hist-sig\0" ‖ header ‖ ct`; düz metin 512, 2048 ya da 8192 bayttan sığan en küçüğüne
+dolgulanır (`encryptHistory` / `decryptHistory` / `verifyHistoryEnvelope`). Ayrı anahtar ve
+etiketler sayesinde geçmiş ile canlı mesajlar birbirinin yerine geçemez; alıcılar gönderen anahtarını
+iki epoch sonra silmeye devam eder, yalnızca geçmiş anahtarını 15 gün daha tutar. Alıcı, parçanın
+üyenin güncel cihazınca imzalandığını ve dosyalandığı çeyrek saatle (`from`) aynı olduğunu denetler.
 
 ## 7. Hassasiyet (şifrelemeden önce, gönderende)
 

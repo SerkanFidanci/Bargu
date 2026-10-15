@@ -162,7 +162,10 @@
       "notifications_unavailable": "Not in this version yet",
       "notifications_unknown": "Checking",
       "status": "Status",
-      "statusNone": "Share an emoji and a few words"
+      "statusNone": "Share an emoji and a few words",
+      "history": "My location history",
+      "historyOff": "Off",
+      "historyOn": "On in {{count}} circles"
     }
   },
   "ui": {
@@ -464,7 +467,16 @@
       "until": "On until {{time}}.",
       "ghostOn": "You are a ghost: nobody sees your location right now.",
       "precision": "How detailed",
-      "duration": "For how long"
+      "duration": "For how long",
+      "history": "Location history (14 days)",
+      "historyDetail": "Off. Turn it on and people in this circle can see where you went over the last 14 days. Encrypted on your phone, unreadable to the server, deleted after 14 days. Anyone joining later cannot see what came before. Turning it off deletes it from the server too.",
+      "historyExactOnly": "History is only kept while you share your exact location.",
+      "historyView": "See my history",
+      "historySeenBy": "On · Seen by: {{names}}",
+      "historyNobody": "On · Nobody else is in this circle yet.",
+      "historyViewers": "Who sees it?",
+      "historyOff": "History turned off and deleted from the server",
+      "historyOffLater": "History turned off; it is deleted from the server once you are online"
     },
     "precision": {
       "exact": "Exact",
@@ -501,7 +513,8 @@
       "directions": "Directions",
       "profile": "Profile",
       "notifications": "Notifications",
-      "close": "Close the menu"
+      "close": "Close the menu",
+      "history": "History"
     },
     "card": {
       "noLocation": "Location not visible right now",
@@ -646,5 +659,28 @@
     "lateSend": "Let them know",
     "lateSent": "They know",
     "leaveIn": "Leave within {{minutes}} min to make the meeting"
+  },
+  "history": {
+    "title": "History",
+    "me": "You",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "stay": "Somewhere",
+    "walk": "Walking · {{distance}}",
+    "bike": "Cycling · {{distance}}",
+    "vehicle": "By car · {{distance}}",
+    "gap": "Nothing known",
+    "minutes": "{{minutes}} min",
+    "hours": "{{hours}} h {{minutes}} min",
+    "empty": "No history for this day",
+    "emptyMine": "Turn location history on in a circle and your trail is kept while you share your exact location.",
+    "emptyTheirs": "Kept when they turned history on for this circle and share their exact location. Nothing from before you joined shows.",
+    "privacy": "History is encrypted on phones; the server cannot read it and deletes it after 14 days.",
+    "viewersTitle": "Who sees your history",
+    "viewersEmpty": "Your history is off everywhere",
+    "viewersEmptyBody": "Turn on \"Location history\" on a circle's screen and its members can see your last 14 days.",
+    "viewersHint": "Each circle only sees the history you turned on for it; people cannot see what came before they joined.",
+    "turnOff": "Turn off here",
+    "newViewer": "{{name}} can now see your location history in {{circle}}"
   }
 }

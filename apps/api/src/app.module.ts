@@ -6,6 +6,7 @@ import { ConfigModule } from './config/config.module.js';
 import { DocsModule } from './docs/docs.module.js';
 import type { Env } from './config/env.js';
 import { HealthModule } from './health/health.module.js';
+import { HistoryModule } from './history/history.module.js';
 import { CirclesModule } from './circles/circles.module.js';
 import { EventsModule } from './events/events.module.js';
 import { DatabaseModule } from './infra/database/database.module.js';
@@ -41,6 +42,7 @@ export class AppModule {
         PhotosModule,
         PlacesModule,
         DocsModule,
+        HistoryModule,
       ],
     };
   }

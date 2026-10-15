@@ -1,14 +1,21 @@
+import { router } from 'expo-router';
+import { Eye, History } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
+import { useAuth } from '@/features/auth/auth-store';
+import { memberName } from '@/features/circles/names';
+import { useCircle } from '@/features/circles/queries';
 import { radius, space, useTheme } from '@/theme';
+import { Button } from '@/ui/button';
 import { SectionTitle } from '@/ui/screen';
 import { Segmented } from '@/ui/segmented';
 import { Text } from '@/ui/text';
+import { toast } from '@/ui/toast';
 import { Toggle } from '@/ui/toggle';
 
 import { useNow } from './clock';
-import { updateSharing } from './location-session';
+import { setHistory, updateSharing } from './location-session';
 import {
   type CircleSharing,
   circleSharing,
@@ -110,9 +117,95 @@ export function SharingCard({ circleId, name }: { circleId: string; name: string
               label: t(`location.duration.${value}`),
             }))}
           />
+          <HistoryControl
+            circleId={circleId}
+            exact={sharing.precision === 'exact'}
+            on={sharing.history === true}
+          />
         </>
       ) : null}
     </View>
+  );
+}
+
+/**
+ * Location history for one circle (docs/ADR/0019): off until the user turns it on, only with the
+ * exact location, kept two weeks. Shows who can see it; one tap turns it off and deletes what the
+ * circle holds on the server.
+ */
+function HistoryControl({
+  circleId,
+  exact,
+  on,
+}: {
+  circleId: string;
+  exact: boolean;
+  on: boolean;
+}) {
+  const { t } = useTranslation();
+  const me = useAuth((state) => state.userId);
+  const circle = useCircle(circleId);
+  const viewers =
+    circle?.members.filter((member) => member.userId !== me && member.status === 'active') ?? [];
+  const names = viewers.slice(0, 3).map((member) => memberName(member));
+  const more = viewers.length - names.length;
+  const seenBy =
+    viewers.length === 0
+      ? t('location.sharing.historyNobody')
+      : t('location.sharing.historySeenBy', {
+          names: more > 0 ? `${names.join(', ')} +${String(more)}` : names.join(', '),
+        });
+
+  const toggle = (value: boolean) => {
+    void setHistory(circleId, value).then((result) => {
+      if (result === 'off') toast.success(t('location.sharing.historyOff'));
+      if (result === 'later') toast.info(t('location.sharing.historyOffLater'));
+    });
+  };
+
+  return (
+    <>
+      <Toggle
+        testID="history-toggle"
+        label={t('location.sharing.history')}
+        description={
+          !exact
+            ? t('location.sharing.historyExactOnly')
+            : on
+              ? seenBy
+              : t('location.sharing.historyDetail')
+        }
+        value={exact && on}
+        disabled={!exact}
+        onChange={toggle}
+      />
+      <View style={styles.historyActions}>
+        {me === null ? null : (
+          <View style={styles.historyAction}>
+            <Button
+              testID="history-mine"
+              label={t('location.sharing.historyView')}
+              icon={History}
+              variant="secondary"
+              onPress={() => {
+                router.push({ pathname: '/history/[userId]', params: { userId: me, circleId } });
+              }}
+            />
+          </View>
+        )}
+        <View style={styles.historyAction}>
+          <Button
+            testID="history-viewers"
+            label={t('location.sharing.historyViewers')}
+            icon={Eye}
+            variant="ghost"
+            onPress={() => {
+              router.push('/history/viewers');
+            }}
+          />
+        </View>
+      </View>
+    </>
   );
 }
 
@@ -144,4 +237,6 @@ export function GhostControl() {
 const styles = StyleSheet.create({
   card: { gap: space.md, padding: space.lg, borderRadius: radius.lg },
   ghost: { gap: space.sm },
+  historyActions: { flexDirection: 'row', gap: space.sm },
+  historyAction: { flex: 1 },
 });

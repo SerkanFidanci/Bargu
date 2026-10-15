@@ -1,4 +1,4 @@
-import { Bell, Hand, type LucideIcon, Navigation, UserRound } from 'lucide-react-native';
+import { Bell, Hand, History, type LucideIcon, Navigation, UserRound } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
@@ -19,6 +19,7 @@ import {
 const ICONS: Record<PersonAction, LucideIcon> = {
   poke: Hand,
   directions: Navigation,
+  history: History,
   profile: UserRound,
   notifications: Bell,
 };

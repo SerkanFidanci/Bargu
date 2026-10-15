@@ -162,7 +162,10 @@
       "notifications_unavailable": "Bu sürümde henüz yok",
       "notifications_unknown": "Kontrol ediliyor",
       "status": "Durum",
-      "statusNone": "Bir emoji ve birkaç kelime paylaş"
+      "statusNone": "Bir emoji ve birkaç kelime paylaş",
+      "history": "Konum geçmişim",
+      "historyOff": "Kapalı",
+      "historyOn": "{{count}} çemberde açık"
     }
   },
   "ui": {
@@ -464,7 +467,16 @@
       "until": "{{time}} saatine kadar açık.",
       "ghostOn": "Hayalet modundasın: şu an kimse konumunu görmüyor.",
       "precision": "Ne kadar ayrıntılı",
-      "duration": "Ne kadar süre"
+      "duration": "Ne kadar süre",
+      "history": "Konum geçmişi (14 gün)",
+      "historyDetail": "Kapalı. Açarsan bu çemberdekiler son 14 günde nereden nereye gittiğini görebilir. Telefonunda şifrelenir, sunucu göremez; 14 gün sonra silinir. Sonradan katılan öncesini göremez. Kapatınca sunucudan da silinir.",
+      "historyExactOnly": "Geçmiş yalnızca tam konum paylaşırken kaydedilir.",
+      "historyView": "Geçmişimi gör",
+      "historySeenBy": "Açık · Görebilenler: {{names}}",
+      "historyNobody": "Açık · Şu an çemberde senden başka kimse yok.",
+      "historyViewers": "Kimler görüyor?",
+      "historyOff": "Geçmiş kapatıldı ve sunucudan silindi",
+      "historyOffLater": "Geçmiş kapatıldı; bağlantı gelince sunucudan da silinecek"
     },
     "precision": {
       "exact": "Tam",
@@ -501,7 +513,8 @@
       "directions": "Yol tarifi",
       "profile": "Profil",
       "notifications": "Bildirimler",
-      "close": "Menüyü kapat"
+      "close": "Menüyü kapat",
+      "history": "Geçmiş"
     },
     "card": {
       "noLocation": "Konumu şu an görünmüyor",
@@ -646,5 +659,28 @@
     "lateSend": "Haber ver",
     "lateSent": "Haber verildi",
     "leaveIn": "Buluşmaya yetişmek için {{minutes}} dk içinde çıkmalısın"
+  },
+  "history": {
+    "title": "Geçmiş",
+    "me": "Sen",
+    "today": "Bugün",
+    "yesterday": "Dün",
+    "stay": "Bir yerde",
+    "walk": "Yürüyerek · {{distance}}",
+    "bike": "Bisikletle · {{distance}}",
+    "vehicle": "Araçla · {{distance}}",
+    "gap": "Bilgi yok",
+    "minutes": "{{minutes}} dk",
+    "hours": "{{hours}} sa {{minutes}} dk",
+    "empty": "Bu gün için geçmiş yok",
+    "emptyMine": "Bir çemberde konum geçmişini açarsan, tam konum paylaşırken izin kaydedilir.",
+    "emptyTheirs": "Kişi geçmişini bu çember için açtıysa ve tam konum paylaşıyorsa kaydedilir. Çembere katıldığın andan öncesi görünmez.",
+    "privacy": "Geçmiş telefonlarda şifrelenir; sunucu içini göremez ve 14 gün sonra siler.",
+    "viewersTitle": "Geçmişini kimler görüyor",
+    "viewersEmpty": "Geçmişin hiçbir çemberde açık değil",
+    "viewersEmptyBody": "Bir çemberin ekranında \"Konum geçmişi\"ni açarsan, o çemberdekiler son 14 günü görebilir.",
+    "viewersHint": "Her çember yalnızca kendisi için açtığın geçmişi görür; kişiler katıldıkları andan öncesini göremez.",
+    "turnOff": "Bu çemberde kapat",
+    "newViewer": "Artık {{name}} de {{circle}} çemberindeki konum geçmişini görebilir"
   }
 }

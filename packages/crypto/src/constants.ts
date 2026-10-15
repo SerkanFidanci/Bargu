@@ -47,6 +47,10 @@ export const LABELS = {
   profilePhoto: 'bargu/v1/profile-photo',
   // Event documents (docs/ADR/0018): the id of a member's vote in a poll.
   voteId: 'bargu/v1/vote-id',
+  // Location history (docs/ADR/0019): its key per epoch, and its own message labels.
+  historyKey: 'bargu/v1/hist-key',
+  historyKdf: 'bargu/v1/hist',
+  historySignature: 'bargu/v1/hist-sig',
 } as const;
 
 export type Label = (typeof LABELS)[keyof typeof LABELS];

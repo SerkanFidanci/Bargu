@@ -3,12 +3,18 @@ import {
   type DeviceKeys,
   fromBase64url,
   generateSenderKey,
+  historyKeyOf,
   openSenderKeyDistribution,
   type SenderKey,
   toBase64url,
   verifyDeviceKeyBundle,
 } from '@bargu/crypto';
-import type { Circle, MemberCard, SenderKeyDistribution } from '@bargu/schemas';
+import {
+  type Circle,
+  HISTORY_KEEP_MS,
+  type MemberCard,
+  type SenderKeyDistribution,
+} from '@bargu/schemas';
 import { z } from 'zod';
 
 import { type Seen, seenSchema } from '../circles/notices';
@@ -19,6 +25,13 @@ import type { KeyValueStore } from '../storage/vault';
  * deleted and older distributions refused, so a server replaying old ones cannot bring them back.
  */
 export const RETAINED_EPOCHS = 2;
+
+/**
+ * History keys (docs/ADR/0019) of an epoch outlive its sender key by this long once the epoch is no
+ * longer accepted: the history sealed in it stays readable as long as the server keeps it.
+ */
+export const HISTORY_KEY_KEEP_MS = HISTORY_KEEP_MS + 24 * 60 * 60_000;
+const historySchema = z.object({ key: z.string(), until: z.number().optional() }).strict();
 
 const ownSchema = z.object({ key: z.string(), sentTo: z.array(z.string()) }).strict();
 const identitySchema = z
@@ -31,6 +44,8 @@ const k = {
   seq: (circleId: string, epoch: number) => `seq:${circleId}:${String(epoch)}`,
   received: (circleId: string, epoch: number, senderDeviceId: string) =>
     `recv:${circleId}:${String(epoch)}:${senderDeviceId}`,
+  history: (circleId: string, epoch: number, senderDeviceId: string) =>
+    `hist:${circleId}:${String(epoch)}:${senderDeviceId}`,
   floor: (circleId: string) => `floor:${circleId}`,
   identity: (userId: string) => `identity:${userId}`,
   seen: (circleId: string) => `seen:${circleId}`,
@@ -287,6 +302,11 @@ export class KeyStore {
           sender: senderKeys,
         });
         this.store.set(slot, toBase64url(opened.key));
+        // Kept longer than the sender key, for the history sealed in this epoch only.
+        this.store.set(
+          k.history(circle.id, distribution.epoch, distribution.senderDeviceId),
+          JSON.stringify({ key: toBase64url(historyKeyOf(opened).key) }),
+        );
         added += 1;
       } catch {
         // Forged or damaged: dropped, the sender's next upload will be tried again.
@@ -301,6 +321,17 @@ export class KeyStore {
     return raw === undefined
       ? null
       : { circleId, epoch, senderDeviceId, key: fromBase64url(raw, 32) };
+  }
+
+  /**
+   * The key a member's location history of an epoch opens with (docs/ADR/0019): kept two weeks
+   * after the epoch's sender key is gone.
+   */
+  historyKey(circleId: string, epoch: number, senderDeviceId: string): SenderKey | null {
+    const held = read(this.store, k.history(circleId, epoch, senderDeviceId), historySchema);
+    if (held !== null) return { circleId, epoch, senderDeviceId, key: fromBase64url(held.key, 32) };
+    const received = this.receivedKey(circleId, epoch, senderDeviceId);
+    return received === null ? null : historyKeyOf(received);
   }
 
   /** Whether every trusted active member's key for the current epoch has arrived, and ours went out. */
@@ -319,10 +350,17 @@ export class KeyStore {
     return { ready: waitingFor === 0, waitingFor };
   }
 
-  /** Drops keys of epochs the protocol no longer accepts, and everything of a circle we left. */
-  prune(circleId: string, currentEpoch: number | null): void {
+  /**
+   * Drops keys of epochs the protocol no longer accepts, and everything of a circle we left. History
+   * keys of such epochs go two weeks later.
+   */
+  prune(circleId: string, currentEpoch: number | null, now = Date.now()): void {
     for (const key of this.store.keys()) {
       const parts = key.split(':');
+      if (parts[0] === 'hist' && parts[1] === circleId) {
+        this.pruneHistoryKey(key, Number(parts[2]), currentEpoch, now);
+        continue;
+      }
       if (
         (parts[0] !== 'own' && parts[0] !== 'recv' && parts[0] !== 'seq') ||
         parts[1] !== circleId
@@ -335,6 +373,25 @@ export class KeyStore {
     if (currentEpoch === null) {
       this.store.delete(k.floor(circleId));
       this.store.delete(k.seen(circleId));
+    }
+  }
+
+  private pruneHistoryKey(
+    key: string,
+    epoch: number,
+    currentEpoch: number | null,
+    now: number,
+  ): void {
+    if (currentEpoch === null) {
+      this.store.delete(key);
+      return;
+    }
+    if (epoch >= currentEpoch - RETAINED_EPOCHS) return;
+    const held = read(this.store, key, historySchema);
+    if (held === null || (held.until !== undefined && held.until <= now)) {
+      this.store.delete(key);
+    } else if (held.until === undefined) {
+      this.store.set(key, JSON.stringify({ ...held, until: now + HISTORY_KEY_KEEP_MS }));
     }
   }
 

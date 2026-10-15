@@ -7,6 +7,7 @@ import {
   locEventSchema,
   locGoneEventSchema,
   MAX_CIRCLES_PER_REQUEST,
+  historyEventSchema,
   MEMBER_STATUSES,
   type MessageEnvelope,
   placeEventSchema,
@@ -29,6 +30,17 @@ import { api, onSignedOut, useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
 import { memberName } from '../circles/names';
 import { useCircleKeys } from '../circles/circle-sync';
+import { isApiError } from '../errors';
+import { createHistory } from '../history/history';
+import { historyApi, useHistoryPings } from '../history/history-api';
+import { tellNewViewer } from '../history/viewer-notice';
+import {
+  historyAudience,
+  knownViewers,
+  newViewers,
+  rememberViewers,
+  setKnownViewers,
+} from '../history/viewers';
 import {
   circleSync,
   keys,
@@ -61,7 +73,9 @@ import { isVaultOpen, vault } from '../storage/vault';
 import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix } from './engine';
 import { createReceiver } from './receive';
 import {
+  circleSharing,
   DEFAULT_SHARING,
+  historyOn,
   isSharingWith,
   loadSharing,
   saveSharing,
@@ -238,6 +252,26 @@ export const meetings = createMeetings({
   }),
 });
 
+/** Location history (docs/ADR/0019): written down here, a quarter hour per circle at a time. */
+export const history = createHistory({
+  api: historyApi,
+  keys,
+  device: () => useAuth.getState().device,
+  userId: () => useAuth.getState().userId,
+  recording: (now) => {
+    const settings = loadSharingSettings();
+    return sendCircles()
+      .filter(
+        (circle) =>
+          circle.myStatus === 'active' && circle.withOthers && historyOn(settings, circle.id, now),
+      )
+      .map((circle) => ({ id: circle.id, epoch: circle.epoch }));
+  },
+  circles: () => cachedCircles() ?? [],
+  store: vault,
+  refused: (error) => isApiError(error, 'VALIDATION_FAILED', 'NOT_FOUND', 'EPOCH_STALE'),
+});
+
 /** The one engine of this run: fed by the location service, open app or locked screen alike. */
 export const locationEngine = createLocationEngine({
   keys,
@@ -255,8 +289,9 @@ export const locationEngine = createLocationEngine({
   onFix: async (fix) => {
     // Meetings first: they note this position at once, before the location goes out with it.
     const meeting = meetings.fix(fix).catch(() => undefined);
+    const trail = history.fix(fix).catch(() => undefined);
     await presence.fix(fix);
-    await meeting;
+    await Promise.all([meeting, trail]);
   },
   eta: (circleId, fix, now) => meetings.eta(circleId, fix, now),
 });
@@ -294,6 +329,42 @@ export function finishSharingReview(shareAll: boolean): void {
   }
   if (isVaultOpen()) vault().delete(SHARING_REVIEW_KEY);
   useSharingReview.setState({ pending: false });
+}
+
+/**
+ * Location history on or off for a circle (docs/ADR/0019). On: written down from now, while the
+ * exact location goes there. Off, one tap: nothing more is written, and what the circle holds on the
+ * server is deleted ('later' when offline: it goes once connected).
+ */
+export async function setHistory(circleId: string, on: boolean): Promise<'on' | 'off' | 'later'> {
+  updateSharing((current) => ({
+    ...current,
+    circles: {
+      ...current.circles,
+      [circleId]: { ...circleSharing(current, circleId), history: on },
+    },
+  }));
+  const me = useAuth.getState().userId;
+  const audience =
+    me === null ? [] : historyAudience(cachedCircles() ?? [], loadSharingSettings(), me);
+  const viewers = audience.find((entry) => entry.circle.id === circleId)?.viewers ?? [];
+  setKnownViewers(vault(), circleId, on ? viewers.map((viewer) => viewer.userId) : null);
+  if (on) return 'on';
+  return (await history.forget(circleId)) ? 'off' : 'later';
+}
+
+/** Someone new can see the history ("artık X de geçmişini görebilir"): told once, then known. */
+function checkViewers(circles: readonly Circle[]): void {
+  const me = useAuth.getState().userId;
+  if (me === null) return;
+  const audience = historyAudience(circles, loadSharingSettings(), me);
+  for (const { circle, viewer } of newViewers(knownViewers(vault()), audience)) {
+    tellNewViewer(
+      i18n.t('history.newViewer', { name: memberName(viewer), circle: circle.name ?? '' }),
+      circle.id,
+    );
+  }
+  rememberViewers(vault(), audience);
 }
 
 /** Changes one circle's sharing (or the ghost mode); takes effect at once. */
@@ -389,6 +460,13 @@ onLiveMessage((name, payload) => {
   } else if (name === 'place') {
     const parsed = placeEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope);
+  } else if (name === 'history') {
+    // Someone's new quarter hour is up: an open history screen of theirs fetches again.
+    const parsed = historyEventSchema.safeParse(payload);
+    if (parsed.success) {
+      const key = `${parsed.data.circleId}:${parsed.data.userId}`;
+      useHistoryPings.setState((pings) => ({ [key]: (pings[key] ?? 0) + 1 }));
+    }
   } else if (name === 'watch') {
     const parsed = watchEventSchema.safeParse(payload);
     // Only a circle this phone shares with may switch it to live updates.
@@ -416,6 +494,7 @@ onOnline(() => {
     }
   })();
   void locationEngine.flush();
+  void history.flush().catch(() => undefined);
 });
 
 // Keys arrived or trust changed: messages that waited for them get another try.
@@ -446,6 +525,7 @@ queryClient.getQueryCache().subscribe((event) => {
   knownCircles = current;
   receiver.prune();
   pruneStatuses(circles);
+  checkViewers(circles);
   // New circles and new epochs get the photo key (members who joined could not read the old one).
   void publishProfile().catch(() => undefined);
   receiver.retryWaiting();
@@ -455,6 +535,8 @@ queryClient.getQueryCache().subscribe((event) => {
 onSignedOut(() => {
   locationEngine.reset();
   meetings.reset();
+  history.reset();
+  useHistoryPings.setState({}, true);
   receiver.reset();
   resetStatuses();
   resetPhotos();

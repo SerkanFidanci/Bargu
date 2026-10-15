@@ -19,6 +19,11 @@ const circleSharingSchema = z
     precision: z.enum(PRECISIONS),
     /** Sharing ends at this time (Unix ms); null: until turned off. */
     until: z.number().int().nullable(),
+    /**
+     * Location history for the circle (docs/ADR/0019). Off until the user turns it on: joining a
+     * circle is not consent to history (BARGU_PLAN).
+     */
+    history: z.boolean().optional(),
   })
   .strict();
 export type CircleSharing = z.infer<typeof circleSharingSchema>;
@@ -56,6 +61,19 @@ export function saveSharing(store: KeyValueStore, settings: SharingSettings): vo
 
 export function circleSharing(settings: SharingSettings, circleId: string): CircleSharing {
   return settings.circles[circleId] ?? DEFAULT_CIRCLE_SHARING;
+}
+
+/**
+ * Whether this phone writes down its history for a circle now (docs/ADR/0019): the user turned it
+ * on for that circle, and its exact location goes there.
+ */
+export function historyOn(settings: SharingSettings, circleId: string, now: number): boolean {
+  const sharing = circleSharing(settings, circleId);
+  return (
+    isSharingWith(settings, circleId, now) &&
+    sharing.precision === 'exact' &&
+    sharing.history === true
+  );
 }
 
 /** Whether this phone sends its location to a circle right now. */

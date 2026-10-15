@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Bell,
+  History,
   KeyRound,
   Map as MapIcon,
   LogOut,
@@ -26,6 +27,7 @@ import {
 } from '@/features/auth/passkeys';
 import { errorMessage } from '@/features/errors';
 import { GhostControl } from '@/features/location/sharing-card';
+import { useSharing } from '@/features/location/sharing';
 import { useMyStatus } from '@/features/social/status';
 import { startSwarm } from '@/features/dev/map-swarm';
 import { useMyFix } from '@/features/location/engine';
@@ -53,6 +55,9 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
     const queryClient = useQueryClient();
     const push = usePushState((state) => state.state);
     const myStatus = useMyStatus((state) => state.status);
+    const historyCircles = Object.values(useSharing((state) => state.circles)).filter(
+      (sharing) => sharing.history === true,
+    ).length;
     const appearance = useMapAppearance((state) => state.mode);
     const setAppearance = useMapAppearance((state) => state.setMode);
     const createPasskey = async () => {
@@ -130,6 +135,19 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
           onPress={onStatus}
         />
         <GhostControl />
+        <Row
+          icon={History}
+          label={t('sheets.me.history')}
+          detail={
+            historyCircles === 0
+              ? t('sheets.me.historyOff')
+              : t('sheets.me.historyOn', { count: historyCircles })
+          }
+          onPress={() => {
+            onClose();
+            router.push('/history/viewers');
+          }}
+        />
         <Row
           icon={Bell}
           label={t('sheets.me.notifications')}

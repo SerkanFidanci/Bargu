@@ -82,6 +82,8 @@ Sunucu içerik görmez ama şunları görür; belgeleniyor ve kabul ediliyor:
 | Yerler (sunucuda)               | Bir çemberde kaç yer olduğu, ne zaman değiştiği, kimin kaydettiği       | Ad, konum, yarıçap şifreli (ADR 0015)                                                   |
 | Varış / ayrılış olayları        | Bir üyenin bir yere girdiği ya da çıktığı an (hangisi, hangi yer değil) | Yalnızca tam konum paylaşılan çembere gider; sunucu saklamaz                            |
 | Etkinlik belgeleri (sunucuda)   | Kaç buluşma/oylama/oy olduğu, kimin oluşturduğu, ne zaman değiştiği     | Saat, yer, seçenekler ve oylar şifreli; etkinlik bitince silinir (ADR 0017, 0018)       |
+| Konum geçmişi (sunucuda)        | Kimin hangi çeyrek saatlerde izi olduğu, parça boyutu (3 boydan biri)   | Konum şifreli; 14 gün; kapalı başlar; sonradan katılan öncesini açamaz (ADR 0019)       |
+| Geçmişle partner takibi         | Bir çember üyesinin geçmişi izlemesi (sunucu değil, üye riski)          | Açıkça açılır; kimin gördüğü ekranı; yeni izleyici bildirimi; tek dokunuşla kapat+sil   |
 | "Geç kalacak" olayları          | Bir üyenin etkinliğe bir şey bildirdiği an (ne olduğu değil)            | İçerik ve bildirim mühürlü; varış tahmini telefonda, harita servisine sorulmaz          |
 
 ## Gözden geçirme

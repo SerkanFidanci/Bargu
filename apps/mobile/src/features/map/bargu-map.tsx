@@ -2,6 +2,7 @@ import {
   Camera,
   type CameraRef,
   type LngLat,
+  type LngLatBounds,
   Map,
   type MapRef,
   type ViewPadding,
@@ -39,6 +40,8 @@ export interface BarguMapHandle {
   focusOn(at: LngLat, bottom: number): void;
   /** Zooms in on a point (a cluster of people, so they separate). */
   zoomIn(at: LngLat): void;
+  /** Shows an area whole (a day of someone's history), clear of the `bottom` px a panel covers. */
+  fitTo(bounds: LngLatBounds, bottom: number): void;
   /** The place name around a point, read from the labels the map shows (place-name.ts). */
   placeName(at: LngLat, language: string): Promise<string | null>;
 }
@@ -85,6 +88,16 @@ export function BarguMap({
           if (reduced) camera.current?.jumpTo({ center: at, zoom: target });
           else camera.current?.easeTo({ center: at, zoom: target, duration: duration.slow });
         });
+      },
+      fitTo(bounds, bottom) {
+        const margin = 48;
+        const padding = {
+          top: (insets.top ?? 0) + margin,
+          left: margin,
+          right: margin,
+          bottom: Math.max(insets.bottom ?? 0, bottom) + margin,
+        };
+        camera.current?.fitBounds(bounds, { padding, duration: reduced ? 0 : duration.slow });
       },
       async placeName(at, language) {
         const current = map.current;

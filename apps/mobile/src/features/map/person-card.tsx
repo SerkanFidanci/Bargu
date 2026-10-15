@@ -3,6 +3,7 @@ import {
   BatteryLow,
   BatteryMedium,
   Hand,
+  History,
   type LucideIcon,
   MapPin,
   Navigation,
@@ -34,6 +35,7 @@ import { distanceBetween } from './glide';
 import { LOW_BATTERY, staleMinutes } from './people-layer';
 import type { PersonView } from './person-actions';
 import { closeCard, type PersonAction, type ScreenPoint } from './person-focus';
+import { distanceText } from './distance-text';
 
 /** Dragging the card down this far (px) closes it. */
 const DISMISS_PX = space.xxxl * 2;
@@ -53,13 +55,6 @@ function useBackToClose(open: boolean): void {
       subscription.remove();
     };
   }, [open]);
-}
-
-function distanceText(metres: number, language: string): string {
-  const format = new Intl.NumberFormat(language, {
-    maximumFractionDigits: metres < 10_000 ? 1 : 0,
-  });
-  return metres < 1_000 ? `${String(Math.round(metres))} m` : `${format.format(metres / 1_000)} km`;
 }
 
 /**
@@ -243,6 +238,16 @@ export function PersonCard({
                 disabled={loc === null}
                 onPress={() => {
                   onAction('directions');
+                }}
+              />
+            </View>
+            <View style={styles.action}>
+              <Button
+                label={t('map.actions.history')}
+                icon={History}
+                variant="secondary"
+                onPress={() => {
+                  onAction('history');
                 }}
               />
             </View>

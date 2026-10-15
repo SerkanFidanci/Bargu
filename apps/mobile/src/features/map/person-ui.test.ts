@@ -12,7 +12,13 @@ import {
   somebody,
 } from '../location/test-support';
 import { personView } from './person-actions';
-import { hoveredItem, opensBelow, RADIAL_RADIUS, radialPosition } from './person-focus';
+import {
+  hoveredItem,
+  opensBelow,
+  PERSON_ACTIONS,
+  RADIAL_RADIUS,
+  radialPosition,
+} from './person-focus';
 import { placeName } from './place-name';
 
 // The card's actions navigate; the router itself is not part of these tests.
@@ -24,7 +30,7 @@ describe('radial menu', () => {
   it('fans out above the avatar, or below it near the top of the screen', () => {
     expect(opensBelow(ORIGIN, 40)).toBe(false);
     expect(opensBelow({ x: 200, y: 90 }, 40)).toBe(true);
-    for (const index of [0, 1, 2, 3]) {
+    for (const index of PERSON_ACTIONS.keys()) {
       const above = radialPosition(ORIGIN, false, index);
       expect(above.y).toBeLessThan(ORIGIN.y);
       expect(Math.hypot(above.x - ORIGIN.x, above.y - ORIGIN.y)).toBeCloseTo(RADIAL_RADIUS, 5);
@@ -33,7 +39,7 @@ describe('radial menu', () => {
   });
 
   it('picks the item the finger slides onto, and nothing near the avatar', () => {
-    for (const index of [0, 1, 2, 3]) {
+    for (const index of PERSON_ACTIONS.keys()) {
       const item = radialPosition(ORIGIN, false, index);
       expect(hoveredItem(ORIGIN, false, item)).toBe(index);
       expect(hoveredItem(ORIGIN, true, radialPosition(ORIGIN, true, index))).toBe(index);

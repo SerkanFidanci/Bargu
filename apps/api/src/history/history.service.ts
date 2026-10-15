@@ -1,0 +1,138 @@
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { verifyHistoryEnvelope } from '@bargu/crypto';
+import {
+  HISTORY_KEEP_MS,
+  HISTORY_SLOT_MS,
+  type HistoryEnvelope,
+  historyEnvelopeSchema,
+  type HistoryRecord,
+} from '@bargu/schemas';
+import { and, asc, eq, gte, lt } from 'drizzle-orm';
+
+import type { AuthContext } from '../auth/request-context.js';
+import { ApiError } from '../common/api-error.js';
+import { circleMembers, circles, historyChunks } from '../db/schema.js';
+import { EventsService } from '../events/events.service.js';
+import { DatabaseService, type Tx } from '../infra/database/database.service.js';
+import { RateLimiter } from '../infra/redis/rate-limiter.js';
+
+/**
+ * Pieces per user: a quarter hour per circle normally; a phone that was offline sends what
+ * waited, a little at a time.
+ */
+export const HISTORY_LIMITS = { puts: { limit: 120, windowSeconds: 60 } } as const;
+
+/**
+ * Location history (docs/ADR/0019): each member's trail in quarter hours, sealed on their phone for
+ * one circle with the history key of an epoch they were in. The server checks the signature (the
+ * caller's device), the membership and the quarter hour, keeps the pieces two weeks (the worker
+ * deletes older ones) and gives each member only the pieces from when they joined (row-level
+ * security). Members on the circle's screen hear about a new piece live.
+ */
+@Injectable()
+export class HistoryService {
+  constructor(
+    private readonly database: DatabaseService,
+    private readonly events: EventsService,
+    private readonly limiter: RateLimiter,
+  ) {}
+
+  async put(
+    auth: AuthContext,
+    circleId: string,
+    slot: number,
+    envelope: HistoryEnvelope,
+  ): Promise<void> {
+    await this.limit(auth);
+    const now = Date.now();
+    if (
+      slot % HISTORY_SLOT_MS !== 0 ||
+      slot > now ||
+      slot < now - HISTORY_KEEP_MS ||
+      envelope.circleId !== circleId ||
+      envelope.senderDeviceId !== auth.deviceId ||
+      !verifyHistoryEnvelope(envelope, auth.identityKey)
+    ) {
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+    }
+    const others = await this.database.asUser(auth.userId, async (tx) => {
+      const members = await this.activeMembers(tx, circleId);
+      const epoch = members.find((member) => member.userId === auth.userId)?.epoch;
+      if (epoch === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      // Sealed in an epoch the trail was recorded in: never one that has not begun.
+      if (envelope.epoch > epoch) throw new ApiError(HttpStatus.CONFLICT, 'EPOCH_STALE');
+      await tx
+        .insert(historyChunks)
+        .values({ circleId, userId: auth.userId, slot: new Date(slot), envelope })
+        .onConflictDoUpdate({
+          target: [historyChunks.circleId, historyChunks.userId, historyChunks.slot],
+          set: { envelope, createdAt: new Date() },
+        });
+      return members.filter((member) => member.userId !== auth.userId).map((m) => m.userId);
+    });
+    this.events.emitLive(others, 'history', { circleId, userId: auth.userId });
+  }
+
+  /** A member's pieces between two moments (row-level security: from when the caller joined). */
+  async list(
+    auth: AuthContext,
+    circleId: string,
+    userId: string,
+    range: { from: number; to: number },
+  ): Promise<HistoryRecord[]> {
+    const from = Math.max(range.from, Date.now() - HISTORY_KEEP_MS);
+    const rows = await this.database.asUser(auth.userId, (tx) =>
+      tx
+        .select({ slot: historyChunks.slot, envelope: historyChunks.envelope })
+        .from(historyChunks)
+        .where(
+          and(
+            eq(historyChunks.circleId, circleId),
+            eq(historyChunks.userId, userId),
+            gte(historyChunks.slot, new Date(from)),
+            lt(historyChunks.slot, new Date(range.to)),
+          ),
+        )
+        .orderBy(asc(historyChunks.slot)),
+    );
+    return rows.flatMap((row) => {
+      const envelope = historyEnvelopeSchema.safeParse(row.envelope);
+      return envelope.success
+        ? [{ userId, from: row.slot.getTime(), envelope: envelope.data }]
+        : [];
+    });
+  }
+
+  /** Deletes the caller's own trail in a circle ("Geçmişimi sil"). */
+  async remove(auth: AuthContext, circleId: string): Promise<void> {
+    await this.limit(auth);
+    const others = await this.database.asUser(auth.userId, async (tx) => {
+      await tx
+        .delete(historyChunks)
+        .where(and(eq(historyChunks.circleId, circleId), eq(historyChunks.userId, auth.userId)));
+      const members = await this.activeMembers(tx, circleId);
+      return members.filter((member) => member.userId !== auth.userId).map((m) => m.userId);
+    });
+    this.events.emitLive(others, 'history', { circleId, userId: auth.userId });
+  }
+
+  private async limit(auth: AuthContext): Promise<void> {
+    const hit = await this.limiter.hit(
+      `history:${auth.userId}`,
+      HISTORY_LIMITS.puts.limit,
+      HISTORY_LIMITS.puts.windowSeconds,
+    );
+    if (!hit.allowed) {
+      throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', hit.retryAfter);
+    }
+  }
+
+  /** Active members of a circle with its epoch; empty unless the caller is one (RLS). */
+  private activeMembers(tx: Tx, circleId: string) {
+    return tx
+      .select({ userId: circleMembers.userId, epoch: circles.epoch })
+      .from(circleMembers)
+      .innerJoin(circles, eq(circles.id, circleMembers.circleId))
+      .where(and(eq(circleMembers.circleId, circleId), eq(circleMembers.status, 'active')));
+  }
+}

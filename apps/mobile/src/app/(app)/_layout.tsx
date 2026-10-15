@@ -27,6 +27,8 @@ export default function AppLayout() {
       <Stack.Screen name="add/scan" />
       <Stack.Screen name="i/[token]" options={{ presentation: 'modal' }} />
       <Stack.Screen name="place/[circleId]" />
+      <Stack.Screen name="history/viewers" />
+      <Stack.Screen name="history/[userId]" />
     </Stack>
   );
 }

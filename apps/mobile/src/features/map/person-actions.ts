@@ -54,6 +54,13 @@ export async function openDirections(loc: Pick<LocPayload, 'lat' | 'lng'>): Prom
   await Linking.openURL(url);
 }
 
+/** Their location history (docs/ADR/0019), in the circle this phone sees them through. */
+export function openHistory(person: PersonView): void {
+  const circleId = person.location?.circleId ?? person.circleId;
+  if (circleId === null) return;
+  router.push({ pathname: '/history/[userId]', params: { userId: person.userId, circleId } });
+}
+
 export function openProfile(person: PersonView): void {
   if (person.circleId === null) return;
   router.push({ pathname: '/circle/[id]', params: { id: person.circleId } });
@@ -72,6 +79,9 @@ export function runPersonAction(action: PersonAction, person: PersonView, deps: 
       return;
     case 'directions':
       if (person.location !== null) void openDirections(person.location.loc).catch(() => undefined);
+      return;
+    case 'history':
+      openHistory(person);
       return;
     case 'profile':
       openProfile(person);
