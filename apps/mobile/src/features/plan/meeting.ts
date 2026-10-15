@@ -364,6 +364,40 @@ export function createMeetings(deps: MeetingDeps) {
       setChoices({ ...current, [circleId]: { ...current[circleId], remind } });
     },
 
+    /**
+     * Events this phone is no longer in (left, removed, over): their reminders are taken back and
+     * everything kept about them goes (QA Faz 8 O5; docs/ADR/0017: nothing of an event stays).
+     */
+    async forget(isGone: (circleId: string) => boolean): Promise<void> {
+      const store = deps.store();
+      const reminders = read(store, REMINDERS_KEY, remindersSchema, {});
+      for (const [circleId, reminder] of Object.entries(reminders)) {
+        if (isGone(circleId) && !reminder.done) await deps.cancel(circleId).catch(() => undefined);
+      }
+      // Keys are `circleId` or `circleId:meetAt`.
+      const keep = (key: string, schema: z.ZodType<Record<string, unknown>>) => {
+        const all = read(store, key, schema, {});
+        const kept = Object.entries(all).filter(([id]) => !isGone(id.split(':')[0] ?? ''));
+        if (kept.length !== Object.keys(all).length) {
+          store.set(key, JSON.stringify(Object.fromEntries(kept)));
+        }
+      };
+      keep(REMINDERS_KEY, remindersSchema);
+      keep(TRACKS_KEY, tracksSchema);
+      keep(TOLD_KEY, toldSchema);
+      keep(LATE_SINCE_KEY, toldSchema);
+      const chosen = choices();
+      const keptChoices = Object.entries(chosen).filter(([circleId]) => !isGone(circleId));
+      if (keptChoices.length !== Object.keys(chosen).length) {
+        setChoices(Object.fromEntries(keptChoices));
+      }
+      const lates = useLates.getState();
+      const keptLates = Object.entries(lates).filter(([key]) => !isGone(key.split(':')[0] ?? ''));
+      if (keptLates.length !== Object.keys(lates).length) {
+        useLates.setState(Object.fromEntries(keptLates), true);
+      }
+    },
+
     reset(): void {
       choicesLoaded = false;
       useMeetingChoices.setState({}, true);

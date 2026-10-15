@@ -164,6 +164,25 @@ export class InvitesService {
     });
   }
 
+  /**
+   * The owner closes the door: every open link of the circle is revoked, whoever made it (a leaked
+   * event QR, QA Faz 8 O2). Someone else than the owner gets 404, as for a circle they cannot see.
+   */
+  async revokeAll(auth: AuthContext, circleId: string): Promise<{ revoked: number }> {
+    return this.database.asUser(auth.userId, async (tx) => {
+      const circle = await this.circles.read(tx, circleId, auth.userId);
+      if (circle?.myStatus !== 'active' || circle.myRole !== 'owner') {
+        throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      }
+      const revoked = await tx
+        .update(invites)
+        .set({ revokedAt: new Date() })
+        .where(and(eq(invites.circleId, circleId), isNull(invites.revokedAt)))
+        .returning({ id: invites.id });
+      return { revoked: revoked.length };
+    });
+  }
+
   private async limit(key: string, budget: number): Promise<void> {
     const result = await this.limiter.hit(key, budget, HOUR);
     if (!result.allowed) {

@@ -41,8 +41,9 @@ Seçenekler:
 - **Kimin gördüğünü görür:** "Geçmişini kimler görüyor" ekranı (profil sayfasından ve her çemberin
   ekranından) geçmişin açık olduğu çemberleri ve onu görebilen kişileri listeler. Çembere yeni biri
   girince telefon "Artık X de … geçmişini görebilir" der (uygulama açıkken satır, arka plandayken
-  telefonun kendi bildirimi). Uygulama tamamen kapalıyken uyarı açılınca gelir; kapalı uygulamada
-  uyarı Faz 9'da (QA G2). 7 günlük paylaşım hatırlatması da Faz 9'da; geçmiş orada da yazacak.
+  telefonun kendi bildirimi). Uygulama tamamen kapalıyken sunucunun "yeni biri katıldı"
+  bildirimi, geçmişin açık olduğu çemberde "artık o da konum geçmişini görebilir" diye yazar (Faz 9,
+  QA G2). 7 günlük paylaşım hatırlatması da Faz 9'da; geçmiş orada da yazacak.
 - **Tek dokunuşla kapanır:** kapatınca yazma durur, bekleyen parçalar atılır, sunucudaki parçalar
   silinir; çevrimdışıysa silme bağlantı gelince tekrar denenir. Kapatma anında gönderilmekte olan
   bir parça varsa silme ondan sonra gider; kapatmadan sonra hiçbir parça gönderilmeye başlamaz (QA G1).
@@ -63,3 +64,13 @@ Seçenekler:
   gösterilmez; kişinin kendi geçmişi yeni telefonda baştan başlar.
 - Epoch, çeyrek saat bitmeden değişirse parça başladığı epoch'la mühürlenir; o anahtar telefonda
   artık yoksa (iki epoch'tan eski) parça atılır.
+
+## Ek (2026-10-15, Faz 9 dilim 1)
+
+- Çemberden ayrılınca, çıkarılınca ya da etkinlik bitince telefon o çember için tuttuğu paylaşım
+  seçimlerini siler: aynı çembere yeniden katılan kişinin geçmişi yine kapalı başlar, katılmak onay
+  sayılmaz (QA W4).
+- Kapalı uygulamadaki yeni izleyici uyarısı yukarıda (QA G2); iOS bildirim uzantısı geçmişin açık
+  olduğu çemberlerin kimliklerini paylaşılan alandan okur (çember kimlikleri orada zaten vardı).
+- Parça listesi isteği kişi başına dakikada 30 ile ve tek istekte en çok 2 günlük aralıkla sınırlı
+  (QA G3); bir günün görüntülenmesi tek istektir.

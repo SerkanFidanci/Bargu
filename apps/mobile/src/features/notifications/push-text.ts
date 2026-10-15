@@ -23,11 +23,18 @@ export function pushText(
   body: PushBody,
   senderDeviceId: string | null,
   contacts: PushContacts,
+  /** Whether this phone's location history goes to a circle (docs/ADR/0019). */
+  historyIn: (circleId: string) => boolean = () => false,
 ): ShownPush | null {
   if (body.kind === 'notice') {
     const circle = contacts.circles[body.circleId]?.name ?? '';
-    const text =
-      body.notice === 'memberJoined' && circle !== ''
+    // Someone new in a circle that gets the history: they can see it too (BARGU_PLAN, QA G2).
+    const history = body.notice === 'memberJoined' && historyIn(body.circleId);
+    const text = history
+      ? circle === ''
+        ? i18n.t('notifications.notice.memberJoinedHistory')
+        : i18n.t('notifications.notice.memberJoinedHistoryIn', { circle })
+      : body.notice === 'memberJoined' && circle !== ''
         ? i18n.t('notifications.notice.memberJoinedIn', { circle })
         : i18n.t(`notifications.notice.${body.notice}`);
     return {

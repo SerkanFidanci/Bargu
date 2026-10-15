@@ -2,10 +2,12 @@ import i18n from '@/i18n';
 
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
+import { Hand } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { typography } from '@/theme';
 
+import { ACTION_LABEL_MIN_SCALE, ActionTile } from './action-tile';
 import { Avatar, initialOf } from './avatar';
 import { AvatarStack } from './avatar-stack';
 import { Button } from './button';
@@ -23,6 +25,21 @@ describe('Text', () => {
   it('follows the system text size up to the cap of its variant', async () => {
     await render(<Text variant="display">Bargu</Text>);
     expect(screen.getByText('Bargu').props.maxFontSizeMultiplier).toBe(typography.display.maxScale);
+  });
+});
+
+describe('ActionTile', () => {
+  it('keeps its name on one line, shrinking a little rather than breaking it (Faz 9)', async () => {
+    const onPress = jest.fn();
+    await render(<ActionTile label="Yol tarifi" icon={Hand} onPress={onPress} />);
+    const label = screen.getByText('Yol tarifi');
+    expect(label.props.numberOfLines).toBe(1);
+    expect(label.props.adjustsFontSizeToFit).toBe(true);
+    expect(label.props.minimumFontScale).toBe(ACTION_LABEL_MIN_SCALE);
+    // Even at the largest system text size it is capped, then shrunk to fit.
+    expect(label.props.maxFontSizeMultiplier).toBe(typography.footnote.maxScale);
+    await fireEvent.press(screen.getByRole('button', { name: 'Yol tarifi' }));
+    expect(onPress).toHaveBeenCalledTimes(1);
   });
 });
 

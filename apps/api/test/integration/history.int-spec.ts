@@ -72,7 +72,7 @@ const list = async (
   who: Person,
   circleId: string,
   userId: string,
-  from = 0,
+  from = Date.now() - 24 * 3_600_000,
   to = Date.now() + HISTORY_SLOT_MS,
 ) =>
   (
@@ -231,5 +231,25 @@ describe('location history', () => {
       [circle.id],
     );
     expect(rows.map((row) => row.slot.getTime())).toEqual([slot]);
+  });
+
+  it('gives a day or two at a time, and not without end (QA Faz 8 G3)', async () => {
+    const [ayse, bora] = await Promise.all([person(test), person(test)]);
+    const circle = await circleOf(ayse, bora);
+    const now = Date.now();
+    const ask = (from: number, to: number) =>
+      as(
+        test,
+        bora,
+        'GET',
+        `/v1/circles/${circle.id}/history/${ayse.userId}?from=${String(from)}&to=${String(to)}`,
+      );
+    expect((await ask(now - 3 * 24 * 3_600_000, now)).statusCode).toBe(400);
+    expect((await ask(now - 2 * 24 * 3_600_000, now)).statusCode).toBe(200);
+    let refused = 0;
+    for (let i = 0; i < 31; i++) {
+      if ((await ask(now - 3_600_000, now)).statusCode === 429) refused += 1;
+    }
+    expect(refused).toBeGreaterThan(0);
   });
 });

@@ -71,7 +71,8 @@ enum PushOpener {
 
   static func open(
     sealed: String, now: Date,
-    device: PushShare.Device?, contacts: PushShare.Contacts?, mutes: PushShare.Mutes?
+    device: PushShare.Device?, contacts: PushShare.Contacts?, mutes: PushShare.Mutes?,
+    history: [String]? = nil
   ) -> ShownPush? {
     guard let device, let contacts,
       let secret = try? Encoding.base64url(device.dhSecretKey, length: 32),
@@ -89,10 +90,19 @@ enum PushOpener {
     switch body.kind {
     case .notice:
       let circle = contacts.circles[body.circleId]?.name ?? ""
-      let text =
-        body.notice == "memberJoined" && !circle.isEmpty
-        ? String(format: localized("notice.memberJoinedIn"), circle)
-        : localized("notice.\(body.notice ?? "")")
+      // Someone new in a circle that gets the history: they can see it too (docs/ADR/0019).
+      let seesHistory = body.notice == "memberJoined" && (history ?? []).contains(body.circleId)
+      let text: String
+      if seesHistory {
+        text =
+          circle.isEmpty
+          ? localized("notice.memberJoinedHistory")
+          : String(format: localized("notice.memberJoinedHistoryIn"), circle)
+      } else if body.notice == "memberJoined" && !circle.isEmpty {
+        text = String(format: localized("notice.memberJoinedIn"), circle)
+      } else {
+        text = localized("notice.\(body.notice ?? "")")
+      }
       return .show(title: "Bargu", body: text, circleId: body.circleId, thread: "social")
     case .bump:
       guard let sender = opened.senderDeviceId.flatMap({ contacts.devices[$0] }) else { return nil }

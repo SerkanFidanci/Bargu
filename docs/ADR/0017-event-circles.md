@@ -51,3 +51,14 @@ sunucuda çembere ait hiçbir kayıt kalmaz; telefonlar anahtarları atar.
 - Kalıcı hatayla biten bildirimlerin ölü kuyruktaki kopyaları (`push.send.dead`) da silinir.
 - DoD testi iki durumu da kapsıyor: bildirim kalıcı olarak başarısız olmuş etkinlik, ve temizliği
   bir kez hata veren etkinlik.
+
+## Ek (2026-10-15, Faz 9 dilim 1, QA O2, O3, O5)
+
+- Etkinliğin sahibi, kim üretmiş olursa olsun etkinliğin bütün QR kodlarını tek düğmeyle iptal
+  eder ("Bütün QR kodlarını iptal et"; `POST /v1/circles/:id/invites/revoke`, migration 0012 sahibe davetleri
+  görme ve iptal etme izni verir). Sahip olmayan için çember yokmuş gibi 404 döner.
+- "Yeni kod" eski kodu iptal edemezse yeni kod üretmez, "Eski kod iptal edilemedi; hâlâ çalışıyor" uyarısı
+  gösterir.
+- Etkinlik bitince ya da kişi ayrılınca telefondaki buluşma kayıtları (hatırlatıcı, yol izi,
+  gecikme bilgisi, seçimler) silinir ve kurulmuş hatırlatma bildirimi iptal edilir; çıkışta
+  bütün buluşma hatırlatmaları iptal edilir.

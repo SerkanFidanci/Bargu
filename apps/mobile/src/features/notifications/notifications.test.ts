@@ -76,6 +76,17 @@ describe('notification texts', () => {
         ?.body,
     ).toBe('Bir çembere davet edildin');
   });
+
+  it('warn that a newcomer will see the location history too, in a circle that keeps it (Faz 9 G2)', () => {
+    const joined = { kind: 'notice', notice: 'memberJoined', circleId: circle.id, ts: 1 } as const;
+    const kept = (circleId: string) => circleId === circle.id;
+    expect(pushText(joined, null, contacts, kept)?.body).toBe(
+      'Aile çemberine yeni biri katıldı; artık o da konum geçmişini görebilir',
+    );
+    expect(pushText(joined, null, contacts, () => false)?.body).toBe(
+      'Aile çemberine yeni biri katıldı',
+    );
+  });
 });
 
 describe('muting', () => {

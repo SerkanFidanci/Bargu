@@ -179,4 +179,52 @@ describe('api client', () => {
       api.public('/v1/auth/otp/request', { method: 'POST', body: {} }),
     ).rejects.toMatchObject({ status: 429, code: 'RATE_LIMITED' });
   });
+
+  it('gives up a stuck attempt and tries once more, newly signed (QA Faz 8: a 15 s accept)', async () => {
+    const store = memoryStore(session('a'));
+    let calls = 0;
+    const nonces: string[] = [];
+    const fetch = jest.fn((_url: string, init: RequestInit) => {
+      calls += 1;
+      nonces.push((init.headers as Record<string, string>)['x-bargu-nonce'] ?? '');
+      if (calls > 1) return Promise.resolve(json(200, { ok: true }));
+      // A dead connection: nothing comes back until the attempt is given up.
+      return new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => {
+          reject(new Error('aborted'));
+        });
+      });
+    });
+    const api = createApiClient({
+      baseUrl: 'https://api.test',
+      device: () => device,
+      session: store,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      timeoutMs: 20,
+    });
+    await expect(api.authed('/v1/circles/x/accept', { method: 'POST' })).resolves.toEqual({
+      ok: true,
+    });
+    expect(calls).toBe(2);
+    expect(nonces[0]).not.toBe(nonces[1]);
+
+    // Twice stuck: the error goes to the caller (the screen says so).
+    const stuck = jest.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => {
+            reject(new Error('aborted'));
+          });
+        }),
+    );
+    const api2 = createApiClient({
+      baseUrl: 'https://api.test',
+      device: () => device,
+      session: store,
+      fetch: stuck as unknown as typeof globalThis.fetch,
+      timeoutMs: 20,
+    });
+    await expect(api2.authed('/v1/circles')).rejects.toThrow('aborted');
+    expect(stuck).toHaveBeenCalledTimes(2);
+  });
 });

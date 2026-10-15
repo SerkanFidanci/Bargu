@@ -78,6 +78,7 @@ function setup() {
   const store = new KeyStore(memoryStore(), me);
   const notify = jest.fn<undefined, [Notice[]]>();
   const firstLoad = jest.fn<undefined, [Circle[]]>();
+  const gone = jest.fn<undefined, [(circleId: string) => boolean]>();
   // No garbage-collection timers: they would outlive the test.
   const queryClient = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
   const sync = createCircleSync({
@@ -86,6 +87,7 @@ function setup() {
     keys: () => store,
     notify,
     firstLoad,
+    gone,
     now: () => NOW,
   });
   /** Bob's sender key for the circle, wrapped for this phone. */
@@ -99,7 +101,7 @@ function setup() {
       sender: bob.device,
       recipient: verifyDeviceKeyBundle(exportDeviceKeyBundle(me.device)),
     });
-  return { me, bob, circle, api, store, queryClient, sync, fromBob, notify, firstLoad };
+  return { me, bob, circle, api, store, queryClient, sync, fromBob, notify, firstLoad, gone };
 }
 
 describe('circle sync', () => {
@@ -193,6 +195,28 @@ describe('circle sync', () => {
     api.list.mockResolvedValueOnce([]);
     await sync.reload();
     expect(firstLoad).not.toHaveBeenCalled();
+  });
+
+  it('says which circles are gone only as the server said it, never from the cache (Faz 9 W4)', async () => {
+    const { circle, queryClient, sync, gone } = setup();
+    const other = randomUuid();
+    // A circle fetched before the list arrived: the cache holds it alone, nothing is gone.
+    await sync.refresh(circle.id);
+    expect(queryClient.getQueryData<Circle[]>(circlesKey)?.map((c) => c.id)).toEqual([circle.id]);
+    expect(gone).not.toHaveBeenCalled();
+
+    // The full list: whatever it lacks is gone, what it has is not.
+    await sync.reload();
+    const isGone = gone.mock.calls.at(-1)?.[0];
+    expect(isGone?.(other)).toBe(true);
+    expect(isGone?.(circle.id)).toBe(false);
+
+    // One circle gone (left, removed, an event over): that one only.
+    gone.mockClear();
+    sync.drop(circle.id);
+    const dropped = gone.mock.calls.at(-1)?.[0];
+    expect(dropped?.(circle.id)).toBe(true);
+    expect(dropped?.(other)).toBe(false);
   });
 
   it('reload drops circles this phone still had keys for but is no longer in', async () => {

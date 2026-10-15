@@ -4,6 +4,7 @@ import type { LocPayload } from '@bargu/schemas';
 import { bestPerPerson, createReceiver, type ReceivedLocation, useLocations } from './receive';
 import { buildEnvelopes, locPayload, SEND_RULES, shouldSend } from './send';
 import {
+  circleSharing,
   DEFAULT_SHARING,
   endOfDay,
   isSharingWith,
@@ -13,6 +14,7 @@ import {
   type SharingSettings,
   withAllShared,
   withNothingShared,
+  withoutGoneCircles,
 } from './sharing';
 import {
   card,
@@ -50,6 +52,18 @@ describe('sharing settings', () => {
     const all = withAllShared(fresh, [known, circleId]);
     expect(all.circles[circleId]).toEqual({ sharing: true, precision: 'exact', until: null });
     expect(all.circles[known]?.precision).toBe('exact');
+  });
+
+  it('forgets the choices of circles left behind, so joining again starts with history off (Faz 9 W4)', () => {
+    const gone = randomUuid();
+    const settings = settingsWith({
+      [gone]: { sharing: true, precision: 'exact', until: null, history: true },
+      [circleId]: { sharing: false, precision: 'city', until: null },
+    });
+    const kept = withoutGoneCircles(settings, (id) => id === gone);
+    expect(Object.keys(kept.circles)).toEqual([circleId]);
+    expect(circleSharing(kept, gone).history).not.toBe(true);
+    expect(kept.circles[circleId]).toEqual(settings.circles[circleId]);
   });
 
   it('shares with a joined circle by default, until a timed share runs out', () => {

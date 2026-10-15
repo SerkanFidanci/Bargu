@@ -25,7 +25,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { avatarSize, elevation, radius, space, spring, useTheme } from '@/theme';
 import { useMotion } from '@/theme/use-motion';
 import { Avatar } from '@/ui/avatar';
-import { Button } from '@/ui/button';
+import { ActionTile } from '@/ui/action-tile';
 import { Text } from '@/ui/text';
 
 import { useNow } from '../location/clock';
@@ -221,46 +221,40 @@ export function PersonCard({
             </View>
           )}
           <View style={styles.actions}>
-            <View style={styles.action}>
-              <Button
-                label={t('map.actions.poke')}
-                icon={Hand}
-                onPress={() => {
-                  onAction('poke');
-                }}
-              />
-            </View>
-            <View style={styles.action}>
-              <Button
-                label={t('map.actions.directions')}
-                icon={Navigation}
-                variant="secondary"
-                disabled={loc === null}
-                onPress={() => {
-                  onAction('directions');
-                }}
-              />
-            </View>
-            <View style={styles.action}>
-              <Button
-                label={t('map.actions.history')}
-                icon={History}
-                variant="secondary"
-                onPress={() => {
-                  onAction('history');
-                }}
-              />
-            </View>
-            <View style={styles.action}>
-              <Button
-                label={t('map.actions.profile')}
-                icon={UserRound}
-                variant="secondary"
-                onPress={() => {
-                  onAction('profile');
-                }}
-              />
-            </View>
+            <ActionTile
+              testID="card-poke"
+              label={t('map.actions.poke')}
+              icon={Hand}
+              primary
+              onPress={() => {
+                onAction('poke');
+              }}
+            />
+            <ActionTile
+              testID="card-directions"
+              label={t('map.actions.directions')}
+              icon={Navigation}
+              disabled={loc === null}
+              onPress={() => {
+                onAction('directions');
+              }}
+            />
+            <ActionTile
+              testID="card-history"
+              label={t('map.actions.history')}
+              icon={History}
+              onPress={() => {
+                onAction('history');
+              }}
+            />
+            <ActionTile
+              testID="card-profile"
+              label={t('map.actions.profile')}
+              icon={UserRound}
+              onPress={() => {
+                onAction('profile');
+              }}
+            />
           </View>
         </Animated.View>
       </GestureDetector>
@@ -312,5 +306,4 @@ const styles = StyleSheet.create({
   fact: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   factText: { flex: 1 },
   actions: { flexDirection: 'row', gap: space.sm },
-  action: { flex: 1 },
 });

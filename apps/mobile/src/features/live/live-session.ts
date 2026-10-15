@@ -77,6 +77,19 @@ export function onFirstLoad(listener: (circles: readonly Circle[]) => void): () 
   return () => firstLoadListeners.delete(listener);
 }
 
+const goneListeners = new Set<(isGone: (circleId: string) => boolean) => void>();
+
+/**
+ * Circles the account is no longer in, as the server said (see CircleSyncDeps.gone). Returns the
+ * unsubscribe.
+ */
+export function onCirclesGone(
+  listener: (isGone: (circleId: string) => boolean) => void,
+): () => void {
+  goneListeners.add(listener);
+  return () => goneListeners.delete(listener);
+}
+
 export const circleSync = createCircleSync({
   queryClient,
   api: circlesApi,
@@ -84,6 +97,9 @@ export const circleSync = createCircleSync({
   notify: announce,
   firstLoad: (circles) => {
     for (const listener of firstLoadListeners) listener(circles);
+  },
+  gone: (isGone) => {
+    for (const listener of goneListeners) listener(isGone);
   },
 });
 

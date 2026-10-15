@@ -32,3 +32,13 @@ export async function remindToLeave(
 export async function cancelReminder(circleId: string): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(idOf(circleId));
 }
+
+/** Sign-out: no reminder of this account may come later (they name its places). */
+export async function cancelAllReminders(): Promise<void> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  for (const request of scheduled) {
+    if (request.identifier.startsWith(idOf(''))) {
+      await Notifications.cancelScheduledNotificationAsync(request.identifier);
+    }
+  }
+}

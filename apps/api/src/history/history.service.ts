@@ -20,7 +20,13 @@ import { RateLimiter } from '../infra/redis/rate-limiter.js';
  * Pieces per user: a quarter hour per circle normally; a phone that was offline sends what
  * waited, a little at a time.
  */
-export const HISTORY_LIMITS = { puts: { limit: 120, windowSeconds: 60 } } as const;
+export const HISTORY_LIMITS = {
+  puts: { limit: 120, windowSeconds: 60 },
+  /** Reads per user: a day of someone's history at a time, as the app asks (QA Faz 8 G3). */
+  lists: { limit: 30, windowSeconds: 60 },
+  /** At most this much history in one answer (the app asks for one day). */
+  maxRangeMs: 2 * 24 * 60 * 60_000,
+} as const;
 
 /**
  * Location history (docs/ADR/0019): each member's trail in quarter hours, sealed on their phone for
@@ -80,6 +86,10 @@ export class HistoryService {
     userId: string,
     range: { from: number; to: number },
   ): Promise<HistoryRecord[]> {
+    if (range.to - range.from > HISTORY_LIMITS.maxRangeMs) {
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+    }
+    await this.limit(auth, 'lists');
     const from = Math.max(range.from, Date.now() - HISTORY_KEEP_MS);
     const rows = await this.database.asUser(auth.userId, (tx) =>
       tx
@@ -116,12 +126,9 @@ export class HistoryService {
     this.events.emitLive(others, 'history', { circleId, userId: auth.userId });
   }
 
-  private async limit(auth: AuthContext): Promise<void> {
-    const hit = await this.limiter.hit(
-      `history:${auth.userId}`,
-      HISTORY_LIMITS.puts.limit,
-      HISTORY_LIMITS.puts.windowSeconds,
-    );
+  private async limit(auth: AuthContext, kind: 'puts' | 'lists' = 'puts'): Promise<void> {
+    const { limit, windowSeconds } = HISTORY_LIMITS[kind];
+    const hit = await this.limiter.hit(`history-${kind}:${auth.userId}`, limit, windowSeconds);
     if (!hit.allowed) {
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', hit.retryAfter);
     }

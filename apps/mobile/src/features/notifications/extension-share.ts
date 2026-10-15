@@ -14,7 +14,13 @@ import type { PushContacts } from './push-contacts';
  * Apple team id is configured (app.config.ts `extra.iosPushKeychainGroup`).
  */
 export const EXTENSION_SERVICE = 'bargu.push';
-export const EXTENSION_ITEMS = { device: 'device', contacts: 'contacts', mutes: 'mutes' } as const;
+export const EXTENSION_ITEMS = {
+  device: 'device',
+  contacts: 'contacts',
+  mutes: 'mutes',
+  /** Circles with location history on: "someone new can see your history" (docs/ADR/0019). */
+  history: 'history',
+} as const;
 
 function options(): SecureStore.SecureStoreOptions | null {
   const extra: unknown = Constants.expoConfig?.extra;
@@ -37,6 +43,10 @@ async function put(item: string, value: unknown): Promise<void> {
 
 export function shareWithExtension(contacts: PushContacts): Promise<void> {
   return put(EXTENSION_ITEMS.contacts, contacts);
+}
+
+export function shareHistoryWithExtension(circleIds: readonly string[]): Promise<void> {
+  return put(EXTENSION_ITEMS.history, circleIds);
 }
 
 export function shareMutesWithExtension(mutes: Mutes): Promise<void> {

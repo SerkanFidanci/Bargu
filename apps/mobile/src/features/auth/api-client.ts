@@ -13,7 +13,15 @@ export interface ApiClientOptions {
   session: SessionStore;
   fetch?: typeof fetch;
   now?: () => number;
+  /** How long one attempt may take before it is given up (REQUEST_TIMEOUT_MS). */
+  timeoutMs?: number;
 }
+
+/**
+ * One attempt may take this long. A request that started on a connection that died while the app
+ * was in the background would otherwise wait for the system's own timeout (QA Faz 8: a 15 s accept).
+ */
+export const REQUEST_TIMEOUT_MS = 15_000;
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -44,6 +52,7 @@ export function createApiClient(options: ApiClientOptions) {
   // Looked up per call, not captured at creation: the app-wide client is created at import time.
   const fetchImpl: typeof fetch = options.fetch ?? ((input, init) => fetch(input, init));
   const now = options.now ?? Date.now;
+  const timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
   let refreshing: Promise<Session> | null = null;
   /** Server time minus local time, learned from the Date header when the server reports skew. */
   let clockOffset = 0;
@@ -67,11 +76,25 @@ export function createApiClient(options: ApiClientOptions) {
     };
   }
 
+  /** One attempt with a deadline. */
+  async function attempt(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+    try {
+      return await fetchImpl(url, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function send(
     path: string,
     request: RequestOptions,
     accessToken?: string,
     retriedSkew = false,
+    retriedNetwork = false,
   ): Promise<unknown> {
     const method = request.method ?? 'GET';
     const body = request.body === undefined ? '' : JSON.stringify(request.body);
@@ -80,11 +103,18 @@ export function createApiClient(options: ApiClientOptions) {
       ...(accessToken === undefined ? {} : { authorization: `Bearer ${accessToken}` }),
       ...(UNSIGNED_METHODS.has(method) ? {} : signedHeaders(method, path, body)),
     };
-    const response = await fetchImpl(`${options.baseUrl}${path}`, {
-      method,
-      headers,
-      ...(body === '' ? {} : { body }),
-    });
+    let response: Response;
+    try {
+      response = await attempt(`${options.baseUrl}${path}`, {
+        method,
+        headers,
+        ...(body === '' ? {} : { body }),
+      });
+    } catch (error) {
+      if (retriedNetwork) throw error;
+      // Timed out or the connection failed: once more, newly signed, on a fresh connection.
+      return send(path, request, accessToken, retriedSkew, true);
+    }
     if (response.ok) {
       return response.status === 204 ? undefined : ((await response.json()) as unknown);
     }
@@ -94,7 +124,7 @@ export function createApiClient(options: ApiClientOptions) {
     if (code === 'CLOCK_SKEW' && !retriedSkew && Number.isFinite(serverTime)) {
       // The phone's clock is off by more than the signature window: adopt the server's and retry.
       clockOffset = serverTime - now();
-      return send(path, request, accessToken, true);
+      return send(path, request, accessToken, true, retriedNetwork);
     }
     throw new ApiError(response.status, code);
   }

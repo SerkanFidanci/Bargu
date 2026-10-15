@@ -209,4 +209,22 @@ describe('the reminder to leave', () => {
     await off.meetings.fix(at(3_100, meetAt - 120 * MIN));
     expect(off.reminders).toEqual([]);
   });
+
+  it('is taken back with all this phone noted once the event is gone, and kept for others (Faz 9 O5)', async () => {
+    const clock = { now: meetAt - 120 * MIN };
+    const { meetings, cancelled, store } = setup({ clock });
+    meetings.setRemind(circleId, false);
+    meetings.setRemind(circleId, true);
+    await meetings.fix(at(3_100, clock.now));
+    const noted = () => store.keys().filter((key) => (store.get(key) ?? '').includes(circleId));
+    expect(noted()).not.toEqual([]);
+
+    await meetings.forget((id) => id !== circleId);
+    expect(cancelled).toEqual([]);
+    expect(noted()).not.toEqual([]);
+
+    await meetings.forget((id) => id === circleId);
+    expect(cancelled).toEqual([circleId]);
+    expect(noted()).toEqual([]);
+  });
 });

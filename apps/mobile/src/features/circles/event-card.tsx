@@ -1,6 +1,6 @@
 import type { Circle } from '@bargu/schemas';
 import { router } from 'expo-router';
-import { Flag, QrCode, Trash2 } from 'lucide-react-native';
+import { DoorClosed, Flag, QrCode, Trash2 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
 
@@ -11,6 +11,7 @@ import { toast } from '@/ui/toast';
 
 import { useNow } from '../location/clock';
 import { endText, timeLeftText } from './event-ui';
+import { circlesApi } from './circles-api';
 import { useCircleActions } from './queries';
 
 /**
@@ -43,6 +44,27 @@ export function EventCard({ circle }: { circle: Circle }) {
     ]);
   };
 
+  // A QR code that leaked, whoever made it: every open one stops working (QA Faz 8 O2).
+  const closeDoor = () => {
+    Alert.alert(t('circles.event.closeDoorTitle'), t('circles.event.closeDoorBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('circles.event.closeDoor'),
+        style: 'destructive',
+        onPress: () => {
+          circlesApi
+            .revokeAllInvites(circle.id)
+            .then(() => {
+              toast.success(t('circles.event.doorClosed'));
+            })
+            .catch(() => {
+              toast.error(t('add.qr.revokeFailed'));
+            });
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={[styles.card, { backgroundColor: colors.surfaceRaised }]} testID="event-card">
       <View style={styles.head}>
@@ -64,6 +86,15 @@ export function EventCard({ circle }: { circle: Circle }) {
           router.push({ pathname: '/add/qr', params: { circle: circle.id } });
         }}
       />
+      {circle.myRole === 'owner' ? (
+        <Button
+          testID="event-close-door"
+          label={t('circles.event.closeDoor')}
+          icon={DoorClosed}
+          variant="secondary"
+          onPress={closeDoor}
+        />
+      ) : null}
       {circle.myRole === 'owner' ? (
         <Button
           testID="event-end"

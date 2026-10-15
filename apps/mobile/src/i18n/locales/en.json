@@ -266,7 +266,8 @@
       "share": "Share as a link",
       "renew": "New code",
       "connected": "You and {{name}} are now friends!",
-      "eventBody": "Valid until the event ends: everyone who scans it joins (up to 50 people). Only show it to people you are with."
+      "eventBody": "Valid until the event ends: everyone who scans it joins (up to 50 people). Only show it to people you are with.",
+      "revokeFailed": "The old code could not be revoked and still works. Check your connection and try again."
     }
   },
   "invite": {
@@ -400,7 +401,11 @@
       "endConfirmTitle": "End the event now?",
       "endConfirmBody": "The circle is deleted for everyone at once; this cannot be undone.",
       "ended": "Event ended",
-      "qr": "Invite with a QR code"
+      "qr": "Invite with a QR code",
+      "closeDoor": "Revoke every QR code",
+      "closeDoorTitle": "Revoke every QR code?",
+      "closeDoorBody": "Every QR code and link of the event stops working, whoever made it. People already in stay; make a new code for anyone else.",
+      "doorClosed": "Every QR code was revoked"
     }
   },
   "verify": {
@@ -435,7 +440,9 @@
       "friendAdded": "You have a new friend",
       "circleInvite": "You were invited to a circle",
       "memberJoined": "Someone joined your circle",
-      "memberJoinedIn": "Someone joined {{circle}}"
+      "memberJoinedIn": "Someone joined {{circle}}",
+      "memberJoinedHistory": "Someone joined your circle; they can now see your location history too",
+      "memberJoinedHistoryIn": "Someone joined {{circle}}; they can now see your location history too"
     },
     "mute": {
       "title": "Notifications from {{name}}",

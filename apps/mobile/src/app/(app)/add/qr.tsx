@@ -99,10 +99,20 @@ export default function ShowQrScreen() {
             icon={RefreshCw}
             variant="ghost"
             onPress={() => {
-              // The old code stops working: a group's lasts a day, an event's to its end.
-              const old = invite.data?.id;
-              if (old !== undefined) void circlesApi.revokeInvite(old).catch(() => undefined);
-              void invite.refetch();
+              // The old code stops working first (a group's lasts a day, an event's to its end);
+              // if that fails, it is said, and no new code pretends the old one is gone (QA O3).
+              void (async () => {
+                const old = invite.data?.id;
+                if (old !== undefined) {
+                  try {
+                    await circlesApi.revokeInvite(old);
+                  } catch {
+                    toast.error(t('add.qr.revokeFailed'));
+                    return;
+                  }
+                }
+                await invite.refetch();
+              })();
             }}
             loading={invite.isFetching}
           />

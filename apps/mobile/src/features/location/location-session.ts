@@ -45,6 +45,7 @@ import {
   circleSync,
   keys,
   liveRequest,
+  onCirclesGone,
   onFirstLoad,
   onLiveMessage,
   onOnline,
@@ -58,7 +59,8 @@ import { createPresence, placeEvent } from '../places/presence';
 import { useDocs } from '../plan/docs';
 import { docs } from '../plan/docs-session';
 import { createMeetings, lateEvent, useLates } from '../plan/meeting';
-import { cancelReminder, remindToLeave } from '../plan/reminders';
+import { cancelAllReminders, cancelReminder, remindToLeave } from '../plan/reminders';
+import { shareHistoryWithExtension } from '../notifications/extension-share';
 import { queryClient } from '../query-client';
 import { publishProfile, receivedProfile, resetPhotos, restorePhotos } from '../profile/photo';
 import { receivePoke } from '../social/poke';
@@ -85,6 +87,7 @@ import {
   useSharingReview,
   withAllShared,
   withNothingShared,
+  withoutGoneCircles,
 } from './sharing';
 import { stopTracking } from './tracker';
 
@@ -312,6 +315,8 @@ const PLACE_EVENT_FRESH_MS = 10 * 60_000;
 
 // A reinstall or a new phone: earlier choices stayed on the old phone, so nothing is shared with
 // the circles the account is already in until the user chooses (before anything is sent).
+onCirclesGone(forgetGoneCircles);
+
 onFirstLoad((circles) => {
   const active = circles.filter((circle) => circle.myStatus === 'active').map((c) => c.id);
   updateSharing((current) => withNothingShared(current, active));
@@ -353,6 +358,21 @@ export async function setHistory(circleId: string, on: boolean): Promise<'on' | 
   return (await history.forget(circleId)) ? 'off' : 'later';
 }
 
+/**
+ * Circles this phone is no longer in (left, removed, an event over): their sharing choices go, so
+ * coming back starts afresh, history off (joining again is not consent, BARGU_PLAN), and what was
+ * written for them goes too; their meeting reminders are taken back (QA Faz 8 W4, O5).
+ */
+function forgetGoneCircles(isGone: (circleId: string) => boolean): void {
+  if (!isVaultOpen()) return;
+  const gone = Object.keys(loadSharingSettings().circles).filter(isGone);
+  if (gone.length > 0) {
+    updateSharing((current) => withoutGoneCircles(current, isGone));
+    for (const circleId of gone) setKnownViewers(vault(), circleId, null);
+  }
+  void meetings.forget(isGone).catch(() => undefined);
+}
+
 /** Someone new can see the history ("artık X de geçmişini görebilir"): told once, then known. */
 function checkViewers(circles: readonly Circle[]): void {
   const me = useAuth.getState().userId;
@@ -376,6 +396,11 @@ export function updateSharing(change: (current: SharingSettings) => SharingSetti
   saveSharing(vault(), next);
   history.sharingChanged();
   watchSharingEnd();
+  // The iOS extension words "someone new can see your history" from this (G2).
+  const withHistory = Object.entries(next.circles)
+    .filter(([, sharing]) => sharing.history === true)
+    .map(([circleId]) => circleId);
+  void shareHistoryWithExtension(withHistory).catch(() => undefined);
   void locationEngine.changed();
 }
 
@@ -568,6 +593,7 @@ queryClient.getQueryCache().subscribe((event) => {
 onSignedOut(() => {
   if (sharingEndTimer !== null) clearTimeout(sharingEndTimer);
   sharingEndTimer = null;
+  void cancelAllReminders().catch(() => undefined);
   locationEngine.reset();
   meetings.reset();
   history.reset();

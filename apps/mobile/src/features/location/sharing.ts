@@ -76,6 +76,22 @@ export function historyOn(settings: SharingSettings, circleId: string, now: numb
   );
 }
 
+/**
+ * The choices without those of circles this phone is no longer in (left, removed, an event over):
+ * coming back starts afresh, location history off (joining again is not consent, QA Faz 8 W4).
+ */
+export function withoutGoneCircles(
+  settings: SharingSettings,
+  isGone: (circleId: string) => boolean,
+): SharingSettings {
+  return {
+    ...settings,
+    circles: Object.fromEntries(
+      Object.entries(settings.circles).filter(([circleId]) => !isGone(circleId)),
+    ),
+  };
+}
+
 /** Whether this phone sends its location to a circle right now. */
 export function isSharingWith(settings: SharingSettings, circleId: string, now: number): boolean {
   if (settings.ghost !== 'off') return false;

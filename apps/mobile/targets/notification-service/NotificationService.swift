@@ -23,7 +23,8 @@ final class NotificationService: UNNotificationServiceExtension {
         sealed: sealed, now: Date(),
         device: PushShare.read("device", as: PushShare.Device.self),
         contacts: PushShare.read("contacts", as: PushShare.Contacts.self),
-        mutes: PushShare.read("mutes", as: PushShare.Mutes.self))
+        mutes: PushShare.read("mutes", as: PushShare.Mutes.self),
+        history: PushShare.read("history", as: [String].self))
     else {
       contentHandler(content)
       return

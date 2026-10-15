@@ -35,6 +35,12 @@ export interface CircleSyncDeps {
    * new phone): called before anything shows or sends them, so settings can be made safe first.
    */
   firstLoad?: (circles: Circle[]) => void;
+  /**
+   * Circles the account is no longer in (left, declined, removed, an event over), as the server
+   * said it: one circle, or every circle missing from the full list. Never from the cache alone,
+   * which may hold only some circles before the list arrives.
+   */
+  gone?: (isGone: (circleId: string) => boolean) => void;
   now?: () => number;
 }
 
@@ -50,6 +56,7 @@ export function createCircleSync({
   keys,
   notify = () => undefined,
   firstLoad = () => undefined,
+  gone = () => undefined,
   now = Date.now,
 }: CircleSyncDeps) {
   const queues = new Map<string, Promise<void>>();
@@ -95,6 +102,7 @@ export function createCircleSync({
   }
 
   function forget(circleId: string): void {
+    gone((id) => id === circleId);
     removeCircle(queryClient, circleId);
     keys().prune(circleId, null);
     useCircleKeys.setState(
@@ -261,6 +269,9 @@ export function createCircleSync({
       for (const circleId of store.knownCircles()) {
         if (!circles.some((circle) => circle.id === circleId)) forget(circleId);
       }
+      // Also what this phone kept about circles it had no keys for any more.
+      const listed = new Set(circles.map((circle) => circle.id));
+      gone((circleId) => !listed.has(circleId));
       // What happened while the app was closed is announced once; the very first load only records.
       for (const circle of circles) remember(circle, true);
       store.markNoticesReady();

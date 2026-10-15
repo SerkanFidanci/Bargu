@@ -266,7 +266,8 @@
       "share": "Link olarak paylaş",
       "renew": "Yeni kod",
       "connected": "{{name}} ile artık arkadaşsınız!",
-      "eventBody": "Etkinlik bitene kadar geçerli: okutan herkes katılır (en çok 50 kişi). Sadece birlikte olduğun kişilere göster."
+      "eventBody": "Etkinlik bitene kadar geçerli: okutan herkes katılır (en çok 50 kişi). Sadece birlikte olduğun kişilere göster.",
+      "revokeFailed": "Eski kod iptal edilemedi; hâlâ çalışıyor. Bağlantını kontrol edip yeniden dene."
     }
   },
   "invite": {
@@ -400,7 +401,11 @@
       "endConfirmTitle": "Etkinlik şimdi bitsin mi?",
       "endConfirmBody": "Çember herkes için hemen silinir; geri alınamaz.",
       "ended": "Etkinlik bitti",
-      "qr": "QR ile davet et"
+      "qr": "QR ile davet et",
+      "closeDoor": "Bütün QR kodlarını iptal et",
+      "closeDoorTitle": "Bütün QR kodları iptal edilsin mi?",
+      "closeDoorBody": "Kimin oluşturduğuna bakılmadan etkinliğin bütün QR kodları ve linkleri çalışmaz olur. İçerdekiler kalır; yeni gelecekler için yeni kod üretebilirsin.",
+      "doorClosed": "Bütün QR kodları iptal edildi"
     }
   },
   "verify": {
@@ -435,7 +440,9 @@
       "friendAdded": "Yeni bir arkadaşın var",
       "circleInvite": "Bir çembere davet edildin",
       "memberJoined": "Çemberine yeni biri katıldı",
-      "memberJoinedIn": "{{circle}} çemberine yeni biri katıldı"
+      "memberJoinedIn": "{{circle}} çemberine yeni biri katıldı",
+      "memberJoinedHistory": "Çemberine yeni biri katıldı; artık o da konum geçmişini görebilir",
+      "memberJoinedHistoryIn": "{{circle}} çemberine yeni biri katıldı; artık o da konum geçmişini görebilir"
     },
     "mute": {
       "title": "{{name}} için bildirimler",

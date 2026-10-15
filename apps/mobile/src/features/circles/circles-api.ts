@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   type Circle,
   type CircleCreate,
@@ -17,6 +18,8 @@ import {
 import { api } from '../auth/auth-store';
 
 /** Thin, validated calls for circles, friends, invites and keys (apps/api circles.controller). */
+const revokedSchema = z.object({ revoked: z.number().int().nonnegative() }).strict();
+
 export const circlesApi = {
   async list(): Promise<Circle[]> {
     return circlesSchema.parse(await api.authed('/v1/circles')).circles;
@@ -81,6 +84,12 @@ export const circlesApi = {
   /** A link or QR code stops working (renewed; an event's code would otherwise last to the end). */
   async revokeInvite(id: string): Promise<void> {
     await api.authed(`/v1/invites/${id}/revoke`, { method: 'POST' });
+  },
+  /** The owner closes the door: every open link of the circle stops working (QA Faz 8 O2). */
+  async revokeAllInvites(circleId: string): Promise<number> {
+    return revokedSchema.parse(
+      await api.authed(`/v1/circles/${circleId}/invites/revoke`, { method: 'POST' }),
+    ).revoked;
   },
   async acceptInvite(token: string): Promise<string> {
     return inviteAcceptedSchema.parse(

@@ -180,6 +180,29 @@ describe('event circles', () => {
     expect((await join(bora, link)).statusCode).toBe(404);
   });
 
+  it('let their owner close every QR code, whoever made it (QA Faz 8 O2)', async () => {
+    const [owner, ayse, stranger, other] = await Promise.all([
+      person(test),
+      person(test),
+      person(test),
+      person(test),
+    ]);
+    const event = await createEvent(owner);
+    await join(ayse, await qrOf(owner, event));
+    // Ayşe makes a QR code of her own; it leaks.
+    const leaked = await qrOf(ayse, event);
+    // Only the owner closes the door; for anyone else the circle's links are not theirs.
+    expect(
+      (await as(test, ayse, 'POST', `/v1/circles/${event.id}/invites/revoke`)).statusCode,
+    ).toBe(404);
+    const closed = await as(test, owner, 'POST', `/v1/circles/${event.id}/invites/revoke`);
+    expect(closed.statusCode).toBe(200);
+    expect(closed.json<{ revoked: number }>().revoked).toBeGreaterThanOrEqual(2);
+    expect((await join(stranger, leaked)).statusCode).toBe(404);
+    // A new code works again.
+    expect((await join(other, await qrOf(owner, event))).statusCode).toBe(200);
+  });
+
   it('can be ended early by its owner only', async () => {
     const [owner, ayse] = await Promise.all([person(test), person(test)]);
     const event = await createEvent(owner);

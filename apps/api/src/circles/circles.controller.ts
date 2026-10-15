@@ -200,4 +200,14 @@ export class CirclesController {
   revokeInvite(@CurrentAuth() auth: AuthContext, @Param('id', idPipe) id: string): Promise<void> {
     return this.invites.revoke(auth, id);
   }
+
+  /** The owner revokes every open link of the circle (an event's QR codes, whoever made them). */
+  @Post('circles/:id/invites/revoke')
+  @HttpCode(HttpStatus.OK)
+  revokeAllInvites(
+    @CurrentAuth() auth: AuthContext,
+    @Param('id', idPipe) id: string,
+  ): Promise<{ revoked: number }> {
+    return this.invites.revokeAll(auth, id);
+  }
 }

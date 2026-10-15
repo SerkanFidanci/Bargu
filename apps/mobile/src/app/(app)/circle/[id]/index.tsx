@@ -15,7 +15,7 @@ import {
   Users,
   X,
 } from 'lucide-react-native';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -49,6 +49,7 @@ import { EmptyState } from '@/ui/empty-state';
 import { IconButton } from '@/ui/icon-button';
 import { ListRow } from '@/ui/list-row';
 import { Screen, SectionTitle } from '@/ui/screen';
+import { Skeleton } from '@/ui/skeleton';
 import { Text } from '@/ui/text';
 import { TextField } from '@/ui/text-field';
 
@@ -61,7 +62,31 @@ export default function CircleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const circle = useCircle(id);
   const me = useAuth((state) => state.userId);
+  // Opened from a notification before the list caught up (a new invitation): ask for this circle
+  // before saying it is gone (QA Faz 8).
+  const [looked, setLooked] = useState(false);
+  const missing = circle === undefined;
+  useEffect(() => {
+    if (!missing) return;
+    let alive = true;
+    void circleSync
+      .refresh(id)
+      .catch(() => undefined)
+      .finally(() => {
+        if (alive) setLooked(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [id, missing]);
 
+  if (circle === undefined && !looked) {
+    return (
+      <Screen title="">
+        <Skeleton width="100%" height={space.xxxl * 2} />
+      </Screen>
+    );
+  }
   if (circle === undefined) {
     return (
       <Screen title={t('circles.detail.goneTitle')}>
