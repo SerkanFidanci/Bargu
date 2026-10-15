@@ -16,6 +16,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                       |
 | Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                      |
 | Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)            |
+| Faz 9 — Güvenlik & Uyum          | ⏳ Onay bekliyor (telefon denemesi bekliyor; iPhone denenmedi)        |
 
 ## Ortamlar
 
@@ -29,6 +30,162 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Yerel Android derlemesi | EAS'ın aylık ücretsiz hakkı bitince: `scripts/build-android-local.sh` (Docker, aynı imza anahtarı, ~22 dk), `scripts/publish-apk.sh` → `https://api.46-62-162-70.sslip.io/apk/…` (tahmin edilemez ad) |
 | Uygulama kimliği        | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                                                         |
 | Harita dosyaları        | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                                                 |
+
+## Faz 9 — Güvenlik Özellikleri & Uyum (2026-10-16) — onay bekliyor
+
+Kararlar: [ADR 0020](ADR/0020-circle-admins-and-planning-authority.md) (çember yöneticileri ve
+planlama yetkisi), [ADR 0021](ADR/0021-safety-features.md) (güvenlik özellikleri, uzaktan iptal),
+[ADR 0022](ADR/0022-account-deletion-export-consent.md) (hesap silme, dışa aktarma, KVKK rızası,
+yayın sayfaları), [ADR 0023](ADR/0023-age-15-plus.md) (yaş 15+, 15–17 kuralları, ebeveyn araçları).
+Faz altı dilimde yapıldı; her dilimden sonra test oturumu ayrı bir QA turu yaptı (rapor 6–17). Son
+Android sürümü: yerel derleme `2d4178b`,
+<https://api.46-62-162-70.sslip.io/apk/bargu-2d4178b-38982e0c43341dac.apk>. Sonraki tek sunucu
+düzeltmesi (K2b-1) uygulamayı değiştirmez, staging'e kendiliğinden gider.
+
+### Bitiş şartları (DoD)
+
+| Ölçüt                                                              | Durum                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OWASP MASVS-PRIVACY kontrol listesi                                | 2 karşılanıyor, 2 kısmen; kalanlar belge ve Faz 10 ([kontrol listesi](MASVS-PRIVACY-Faz9.md)). Karşılanan: veri azaltma, kullanıcı kontrolü. Kısmen: kimlik belirlemeyi önleme (sunucunun gördüğü sosyal grafik kabul edilmiş; G-2, S-1) ve şeffaflık (Play veri güvenliği belgesi eskimiş, gizlilik sayfasında boşluklar). Analitik, reklam, kilitlenme ya da izleme kitaplığı yok       |
+| Hukuki görüş                                                       | Avukat ertelendi (proje sahibi kararı). Yerine ön araştırma ([yaş ve KVKK](arastirma/yas-siniri-ve-kvkk.md), [vergi](arastirma/bireysel-vergi.md)) ve ADR 0023. Avukata sorulacaklar araştırmanın 4. bölümünde                                                                                                                                                                            |
+| Yaş ADR'si yazılı                                                  | ✅ ADR 0023. e-Devlet yaş belirteci için Cumhurbaşkanlığı'na mektup taslağı: [yazismalar/0001](yazismalar/0001-sgb-yas-dogrulama-kilavuzu.md). Belirteç gelene kadar kapalı test                                                                                                                                                                                                          |
+| Rıza ekranları amaç başına ayrı (test)                             | ✅ ADR 0022: aydınlatma ile rıza ayrı, birleşik "okudum, kabul ediyorum" kutusu yok. Ana hizmet (canlı konum) sözleşmenin ifasına dayanır; açık rıza yalnızca konum geçmişi için: ayrı ekran, işaretli kutu yok, geri çekilebilir, sunucu rızasız parçayı reddeder. Arka planda konum ve bildirimler bağlam içinde ayrı izinlerle istenir. Ekran ve geri çekme testleri yeşil (QA 10, 11) |
+| Faz 8 QA bulguları O2, O3, O4, O5, G2, G3 kapalı, senaryolar yeşil | ✅ QA 6 (O2, O3, O5, G2, G3) ve QA 7 (O4). G2'nin iOS eksiği (QA 6 B3) dilim 3a'da kapandı                                                                                                                                                                                                                                                                                                |
+| iOS privacy manifest ve App Store etiketi                          | iOS sürümüne kaldı (Apple geliştirici hesabı yok)                                                                                                                                                                                                                                                                                                                                         |
+| Play: arka planda konum beyanı, video, veri güvenliği formu        | Metinler hazır: [docs/play-store](play-store/KONTROL-LISTESI.md) (kontrol listesi, izinler, veri güvenliği, gizlilik politikası, mağaza metni). Video ve formlar Play hesabı açılınca                                                                                                                                                                                                     |
+
+### Yapılanlar
+
+1. **Gizlilik açıkları** (`206dbc1`, düzeltme `7a1ba92`): çemberden çıkınca geçmiş kapanır ve
+   dönünce kapalı başlar (W4); etkinlik QR'ları iptal edilebilir (O2, O3); hatırlatıcılar temizlenir
+   (O5); uygulama kapalıyken "artık geçmişini de görebilir" uyarısı (G2); geçmiş listeleme sınırı (G3);
+   15 sn zaman aşımı ve yalnızca iki kez gitmesi güvenli isteklerde tek yeniden deneme; "Çember
+   bulunamadı" yarışı; kişi kartı düğmeleri.
+2. **Çember rolleri ve planlama yetkisi** (`544a8f9`, ADR 0020): grup ve etkinlik yöneticileri;
+   buluşma ve oylamaları yalnızca yöneticiler kurar, sunucu denetler (O4); aynı QR ile kişi başına tek
+   giriş (O6); buluşma noktaları haritada bayrak.
+3. **Güvenlik özellikleri** (`296ae9b`, `59b313b`, ADR 0021): haftalık "kim görüyor" hatırlatması
+   (geçmiş dahil), yeni izleyici bildirimi, "Tümünü durdur", biyometrik uygulama kilidi, güvenlik
+   olayları listesi, kişi kartından "Buluş"; telefonu olmayan kişi için e-posta kodlu hesap sayfasından
+   uzaktan cihaz iptali (`/hesap`).
+4. **KVKK ve Play** (`1a9aba4`, düzeltme `ea2c25e`, ADR 0022): uygulamadan ve web sayfasından hesap
+   silme (hemen kapanır, en geç 7 günde tamamen silinir), veri dışa aktarma, amaç başına ayrı rıza ve
+   rızayı geri çekme (sunucudaki geçmiş de silinir), `/gizlilik` sayfası, güvenlik olaylarının 90
+   günde silinmesi, Play metinleri.
+5. **Yaş 15+** (ADR `0ec0cc4`; `c2bace0`, `4437080`, `cfe3c3b`, düzeltme `0ab70e8`; ADR 0023): hesap
+   açarken yaş grubu; 15 yaşından küçük hesap açamaz; 15–17 için kapalı varsayılanlar (yeni çemberde
+   konum kapalı, kullanıcı adıyla bulunamaz); "Kullanıcı adımla bulunabilirim" ayarı; yüz yüze, iki
+   taraflı ebeveyn bağlantısı; ebeveyn araçları (yeni kişiye onay, grupta yeni biri bildirimi, günlük
+   kullanım süresi). Ebeveyn konum, geçmiş ya da yer görmez; çocuk her şeyi görür.
+6. **Ölçek ve küçükler** (`c885798`, `2d4178b`, K2b-1 düzeltmesi): çok etkinlik aynı anda bitince
+   süpürme (O1), 50 kişilik etkinlik yük testi (O7: hepsi ~8 sn'de katıldı), "Şimdi bitir" hemen
+   biter, D1–D10, G4–G10 (toplu katılımda tek bildirim, "Geçmişimi de sil" sunucudaki bütün parçaları
+   siler, ağ hatası "veri yok" gibi görünmez), hayalet modunda yeni izleyici, geri sayım halkası pil
+   dostu, hesap sayfasında "bu tarayıcıyı tanıt" e-postası (K2b).
+
+### QA turları
+
+| Rapor | Neyi denedi         | Sonuç                                                                                                                                                       |
+| ----- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6     | Dilim 1             | O2, O3, O5, G2, G3, W4 geçti. Orta: B1 (zaman aşımında çift işlem) ve B2 (tekrar kabulde hata) → `7a1ba92`                                                  |
+| 7     | Dilim 2 + B1, B2    | Orta ya da yüksek bulgu yok                                                                                                                                 |
+| 8     | Dilim 3a            | Orta: "Buluş" çift etkinlik açabiliyordu; düşük/orta: kilit ekranı döngüsü → 3b'de kapandı                                                                  |
+| 9     | Dilim 3b            | Orta: başkası adresin kod haklarını bitirip sahibi kilitleyebiliyordu (N1) → dilim 4'te ağ başına sınırlar                                                  |
+| 10    | Dilim 4             | Orta: çok ağdan kilitleme (K2); orta/düşük: rıza geri çekilince sunucu kopyası kalıyordu (K3) → `ea2c25e`                                                   |
+| 11    | Dilim 4 düzeltmesi  | Ürün hatası yok. IPv6 kovası (K2a) ve ilk kez gelen sahip (K2b) açık nokta → 6a ve 6b'de kapandı                                                            |
+| 12    | Dilim 5a            | Orta/düşük: kullanıcı adı müsaitliğinden 15–17 sezilebiliyordu (Y2) → 5b'de "bulunabilirim" ayarı                                                           |
+| 13    | Dilim 5b            | Orta/düşük: ebeveyn üçüncü kişilerin kullanıcı adını görüyordu (G-1) → yalnız görünen ad                                                                    |
+| 14    | Dilim 5c            | Orta: çocuğun kendi davetleri onaysızdı (F-2); orta/düşük: kurallar yalnız bellekteydi (F-1); düşük: geçersiz tarihte 500 (F-3) → `0ab70e8`                 |
+| 15    | 5b ve 5c düzeltmesi | Orta/düşük: başka üyenin koduyla gelen onaysız giriyordu (S-2) → PM kararı: ebeveyne bildirim (6a). S-1 kabul edilen risk                                   |
+| 16    | Dilim 6a            | Orta ya da yüksek bulgu yok. Düşük: S-4, Y1b (6b'de kapandı), G-5                                                                                           |
+| 17    | Dilim 6b            | Orta ya da yüksek bulgu yok. Düşük: K2b-1 (bu raporla birlikte kapandı). Entegrasyon 3 kez, mobil 4 kez üst üste yeşil; 0024'ten 0027'ye yükseltme sorunsuz |
+
+### Test sonuçları
+
+| Paket              | Test | Not                                                                                                                          |
+| ------------------ | ---- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `packages/crypto`  | 160  | + hesap sayfası "tarayıcıyı tanıt" bağlantısının sırrı; + 1 başarım testi                                                    |
+| `packages/schemas` | 90   | + roller, güvenlik olayları, silme, dışa aktarma, rıza, yaş, ebeveyn, hesap sayfası                                          |
+| Swift (CryptoKit)  | CI   | + yeni bildirim türleri (ebeveyn bildirimleri, iOS eklentisi)                                                                |
+| API entegrasyon    | 202  | + roller, uzaktan iptal, hesap sayfası sınırları, silme (her yerden), dışa aktarma, rıza, yaş, ebeveyn, 50 kişilik yük testi |
+| API birim          | 88   | + e-posta içerikleri, ortam ayarları                                                                                         |
+| Mobil              | 373  | + kilit, hatırlatma, yeni izleyici, tümünü durdur, rıza ekranları, yaş, ebeveyn araçları, günlük süre, yeniden deneme        |
+
+Biçim, gizli karakter, tip ve lint kontrolleri temiz. Faz 8 sonunda: crypto 155, API entegrasyon 142,
+API birim 81, mobil 318.
+
+### Kalan açıklar
+
+**Faz 10 iş listesi:**
+
+1. **S-4:** Çok sayıda yabancı hesap, bir çocuğun 20'lik ebeveyn onayı kuyruğunu doldurursa gerçek
+   bir yeni gelen ebeveyn yanıtlayana ya da 7 gün dolana kadar giremez. Çözüm: çocuğun zaten arkadaşı
+   olan kişi sınıra takılmasın (yeni migration).
+2. **O5 kalanı:** Uygulama kapalıyken biten etkinliğin buluşma hatırlatıcısı, uygulama bir sonraki
+   açılışa kadar telefonda kalabilir.
+3. **Kilitli uygulamada bildirim hedefi:** Kilit açılınca uygulama haritadan başlar; kilitliyken
+   dokunulan bildirimin ya da davet bağlantısının hedefi kaybolabilir.
+4. **Ağ yakalaması (MASVS):** Telefonda ilk açılış, harita, bildirim ve paylaşım sırasında yalnızca
+   kendi API'mize ve FCM'ye gidildiğini ağ yakalamasıyla doğrulamak (NetInfo dahil).
+5. **Üretim paketi (MASVS):** Üretim derlemesinde geliştirici başlatıcısının (`expo-dev-client`)
+   bulunmadığını doğrulamak; isteğe bağlı CycloneDX SBOM çıktısı.
+6. **Play veri güvenliği belgesi** (`docs/play-store/VERI-GUVENLIGI.md`) eskimiş: yeni veri türleri
+   (yaş grubu, rıza kayıtları, ebeveyn bağlantısı, kullanım dakikaları, güvenlik olayları) ve hesap
+   silme eksik. Play hazırlık oturumu güncelliyor.
+
+**Kabul edilen riskler (ADR'lerde yazılı):**
+
+1. **Yaş beyana dayalı (Y3):** Hesabı silip yeniden açarak ya da "18+" seçerek atlatılabilir.
+   e-Devlet yaş belirteciyle kapanacak; o zamana kadar kapalı test.
+2. **S-1:** Gözetimli çocuğun kodunu tarayan kişi "ebeveyn onayı gerekiyor" cevabından kodun
+   sahibinin çocuk olduğunu sezebilir (kodun sahibini zaten görmüştür).
+3. **S-2 kararı:** Çocuğun grubuna başka bir üyenin koduyla gelen kişi beklemeden girer; ebeveyne
+   "grupta yeni biri" bildirimi gider.
+4. **G-2:** Yetişkinler varsayılan olarak bulunabilir olduğu için "kullanıcı adı alınmış ama
+   bulunmuyor" durumu yine de 15–17'ye işaret edebilir (olasılıksal).
+5. **F-1 kalanı:** Günlük süre sınırı telefonun saatini geri alarak ya da uygulama verisini silerek
+   atlatılabilir; kural hiç almamış yeni bir kurulum çevrimdışıyken sınırsızdır. Sınır bir güvenlik
+   değil, ebeveynin koyduğu bir kuraldır.
+6. **Ebeveyn görünümü:** Ebeveyn çocuğun çemberlerindeki kişilerin yalnız görünen adını görür; konum,
+   geçmiş ya da yer görmez. Çocuk 7 gün sonra bağlantıyı bitirmeyi isteyebilir.
+7. **Çocuğun ayarına başkası dokunursa 404** (kaynağı gizlemek için, 403 değil).
+8. **Etkinlik QR'ı:** Kodu yapan ayrılınca ya da yöneticilikten çıkınca kodu çalışmaz (D7, bilinçli);
+   migration 0013'ten önce açılmış etkinlik kodları bir kez daha kullanılabilir (N1, etkinlikler en
+   çok bir hafta).
+9. **Hesap sayfası e-postası:** Biri bir adrese günde en çok 50 kod ve 1 "tarayıcıyı tanıt" e-postası
+   gönderdirebilir (tavan).
+10. **Oturum yenileme** zaman aşımında yeniden denenmez; zayıf ağda bir kez başarısız olabilir, oturum
+    düşmez.
+11. **Geçmiş silme ölçütü:** Bir parça sunucuda 14 gün 25 dakikaya kadar kalabilir (G10).
+12. **Test altyapısı (G-5):** Aynı test veritabanına aynı anda tek entegrasyon süreci bağlanmalı.
+
+### Telefonda denenecekler (proje sahibi)
+
+Hepsi kodda ve testlerde geçti; cihazda denenmedi. **iPhone hiç denenmedi** (Apple hesabı yok).
+
+1. Yeni hesap: yaş sorusu; "15–17" seçince yeni bir çemberde konum kapalı başlasın.
+2. Ebeveyn: iki telefonla yüz yüze bağlantı kur; ebeveynde çocuğun çemberleri, yeni kişiye onay,
+   günlük süre sınırı (uçak modunda açınca da).
+3. Kilit: Ben → Güvenlik'ten aç; 1 dakikadan uzun arka planda kalınca sorsun, "Vazgeç"te takılmasın;
+   kilitliyken konum paylaşımı sürsün.
+4. "Tümünü durdur" ve "Paylaşmaya devam et"; hayalet modunda biri katılınca "katıldı", hayalet kalkınca
+   "artık konumunu görebilir".
+5. Geçmiş: rıza ekranı, açma, "Geçmişimi de sil" (diğer telefonda iz gitsin), hassasiyeti düşürünce
+   kapanması, uçak modunda "yüklenemedi".
+6. Hesap: "Verilerimi indir", bilgisayardan `/hesap` sayfasıyla telefonu çıkarma (eski telefon kendini
+   kapatsın), bir test hesabıyla hesap silme.
+7. Etkinlik: kişi kartından "Buluş", haritada buluşma bayrağı, "Şimdi bitir", çevrimdışı "Geç
+   kalacağım".
+8. Kilit ekranında bildirim metinleri (yeni izleyici, ebeveyn bildirimleri).
+
+### Senden gerekenler
+
+1. Yukarıdaki listeyi telefonda dene (botla da olur).
+2. Gizlilik sayfasındaki boşluklar için bilgiler: ad soyad, adres, destek ve güvenlik e-postası,
+   e-posta servisi. Gelince doldururum.
+3. Cumhurbaşkanlığı'na yaş belirteci mektubu ([taslak](yazismalar/0001-sgb-yas-dogrulama-kilavuzu.md)):
+   göndermek sende.
+4. Uygunsa Faz 9'u onayla. Sonraki fazın sırasını PM belirler.
 
 ## Faz 8 — Etkinlik Çemberleri (2026-10-15)
 

@@ -330,6 +330,26 @@ describe('the account web page (docs/ADR/0021)', () => {
     expect(await redis.ttl(`web-of:${third.userId}`)).toBeGreaterThan(3600);
     offered.mockRestore();
     await redis.del([`web-unlock-sent:${address}`, `web-unlock-sent:${thirdAddress}`]);
+
+    // The email could not be queued: the day's one is not spent, the next request tries again
+    // (QA 6b K2b-1).
+    const fourth = await person(test);
+    const fourthAddress = await fill(fourth.email);
+    const failing = vi
+      .spyOn(jobs, 'enqueueWebUnlock')
+      .mockRejectedValueOnce(new Error('queue down'));
+    expect((await askCode(fourth.email, binding)).statusCode).toBe(429);
+    await vi.waitFor(async () => {
+      expect(failing).toHaveBeenCalledTimes(1);
+      expect(await redis.exists(`web-unlock-sent:${fourthAddress}`)).toBe(0);
+    });
+    expect((await askCode(fourth.email, binding, ELSEWHERE)).statusCode).toBe(429);
+    await vi.waitFor(() => {
+      expect(failing).toHaveBeenCalledTimes(2);
+    });
+    expect(await redis.exists(`web-unlock-sent:${fourthAddress}`)).toBe(1);
+    failing.mockRestore();
+    await redis.del(`web-unlock-sent:${fourthAddress}`);
   });
 
   it('counts an IPv6 /48 as one network: many /64s of it are not many networks (QA 4 K2a)', async () => {

@@ -161,6 +161,8 @@ buluşmanın bir arkadaşla kolayca başlatılamadığını söyledi; kişi kart
     Cevap hesap olsun olmasın aynıdır (`429`); sayfa "adres seninse e-postana bir bağlantı gelmiş
     olabilir" der.
   - Uç noktanın kendi IP sınırı vardır (saatte 10). Bekleyen bağlantı hesapla silinir.
+  - E-posta kuyruğa yazılamazsa o günün hakkı harcanmış sayılmaz; sonraki istek yeniden dener (QA 6b
+    K2b-1).
   - Bağlantının adresi `WEB_ORIGIN` ayarından, yoksa passkey'lerin ilk web kökeninden gelir
     (staging'de API'nin kendisi). İstekteki `Host` başlığı kullanılmaz: sahte bir başlık bağlantıyı
     başka siteye yönlendirmesin.

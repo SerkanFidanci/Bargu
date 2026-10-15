@@ -232,16 +232,24 @@ export class WebAccountService {
     to: Pick<WebCodeRequest, 'email' | 'locale'>,
   ): Promise<void> {
     // Once a day an address: whoever fills its ceilings can make it come once, no more.
-    const first = await this.redis.set(`web-unlock-sent:${address}`, '1', {
+    const sent = `web-unlock-sent:${address}`;
+    const first = await this.redis.set(sent, '1', {
       condition: 'NX',
       expiration: { type: 'EX', value: DAY },
     });
     if (first !== 'OK') return;
     const unlockId = randomUuid();
     const key = `web-unlock:${unlockId}`;
-    await this.redis.set(key, userId, { EX: WEB_UNLOCK_TTL_SECONDS });
-    await this.index(userId, key, WEB_UNLOCK_TTL_SECONDS);
-    await this.email.enqueueWebUnlock({ to: to.email, locale: to.locale, challengeId: unlockId });
+    try {
+      await this.redis.set(key, userId, { EX: WEB_UNLOCK_TTL_SECONDS });
+      await this.index(userId, key, WEB_UNLOCK_TTL_SECONDS);
+      await this.email.enqueueWebUnlock({ to: to.email, locale: to.locale, challengeId: unlockId });
+    } catch (error) {
+      // Not queued: the day's one email has not gone, so the next request may try again (QA 6b
+      // K2b-1). The link without its email opens nothing anyone has.
+      await this.redis.del([sent, key]);
+      throw error;
+    }
   }
 
   /**
