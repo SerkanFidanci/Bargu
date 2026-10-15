@@ -1,4 +1,5 @@
 import { type DeviceKeys, randomUuid } from '@bargu/crypto';
+import { HISTORY_CONSENT_VERSION } from '@bargu/schemas';
 import type { Circle, Session } from '@bargu/schemas';
 import type { Response } from 'light-my-request';
 
@@ -69,4 +70,13 @@ export async function circleWith(
   }
   const final = await as(test, owner, 'GET', `/v1/circles/${circle.id}`);
   return final.json<Circle>();
+}
+
+/** Explicit consent to location history, as the app asks for it (docs/ADR/0022). */
+export async function consentToHistory(test: TestApp, who: Person): Promise<void> {
+  const given = await as(test, who, 'PUT', '/v1/me/privacy/history', {
+    given: true,
+    version: HISTORY_CONSENT_VERSION,
+  });
+  if (given.statusCode !== 200) throw new Error(`consent: ${given.body}`);
 }

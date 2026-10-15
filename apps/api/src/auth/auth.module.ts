@@ -46,6 +46,6 @@ import { WebAccountService } from './web-account.service.js';
     { provide: APP_FILTER, useClass: ApiErrorFilter },
   ],
   // The WebSocket gateway authenticates connections the same way as HTTP requests.
-  exports: [AuthContexts, RequestSignatures, DeviceRegistry, DeviceLifecycle],
+  exports: [AuthContexts, RequestSignatures, DeviceRegistry, DeviceLifecycle, WebAccountService],
 })
 export class AuthModule {}

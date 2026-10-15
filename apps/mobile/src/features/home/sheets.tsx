@@ -12,6 +12,7 @@ import {
   Smile,
   ShieldCheck,
   Smartphone,
+  UserCog,
   Wrench,
 } from 'lucide-react-native';
 import { forwardRef } from 'react';
@@ -35,6 +36,7 @@ import { useMyFix } from '@/features/location/engine';
 import { INITIAL_VIEW } from '@/features/map/style';
 import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
 import { usePushState } from '@/features/notifications/push';
+import { askForPush } from '@/features/notifications/use-push';
 import { meKey } from '@/features/profile/queries';
 import { feedback } from '@/theme/haptics';
 import { radius, space, touchTarget, useTheme } from '@/theme';
@@ -154,7 +156,13 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
           label={t('sheets.me.notifications')}
           detail={t(`sheets.me.notifications_${push}`)}
           // Once refused, only the system settings can turn them back on.
-          onPress={push === 'denied' ? () => void Linking.openSettings() : undefined}
+          onPress={
+            push === 'denied'
+              ? () => void Linking.openSettings()
+              : push === 'undetermined'
+                ? () => void askForPush()
+                : undefined
+          }
         />
         <Segmented
           testID="map-appearance"
@@ -165,6 +173,15 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
             value,
             label: t(`sheets.me.mapAppearance_${value}`),
           }))}
+        />
+        <Row
+          icon={UserCog}
+          label={t('sheets.me.privacy')}
+          detail={t('sheets.me.privacyDetail')}
+          onPress={() => {
+            onClose();
+            router.push('/privacy');
+          }}
         />
         <Row
           icon={ShieldCheck}

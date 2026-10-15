@@ -44,8 +44,10 @@ export function LocationBanner() {
   const motion = useMotion();
   const permission = useLocationPermission((state) => state.state);
   const connecting = useConnecting();
+  // "Şimdi değil": asked again the next time the app starts.
+  const [later, setLater] = useState(false);
 
-  if (permission === 'undetermined' || permission === 'blocked') {
+  if ((permission === 'undetermined' && !later) || permission === 'blocked') {
     const blocked = permission === 'blocked';
     return (
       <Animated.View
@@ -65,13 +67,33 @@ export function LocationBanner() {
             </Text>
           </View>
         </View>
-        <Button
-          label={blocked ? t('location.permission.settings') : t('location.permission.allow')}
-          onPress={() => {
-            if (blocked) void Linking.openSettings();
-            else void requestLocationPermission();
-          }}
-        />
+        {blocked ? (
+          <Button
+            label={t('location.permission.settings')}
+            onPress={() => void Linking.openSettings()}
+          />
+        ) : (
+          // The disclosure first, the system dialog only after "Devam et" (Google Play K10).
+          <View style={styles.actions}>
+            <View style={styles.half}>
+              <Button
+                testID="location-continue"
+                label={t('location.permission.allow')}
+                onPress={() => void requestLocationPermission()}
+              />
+            </View>
+            <View style={styles.half}>
+              <Button
+                testID="location-later"
+                variant="secondary"
+                label={t('location.permission.later')}
+                onPress={() => {
+                  setLater(true);
+                }}
+              />
+            </View>
+          </View>
+        )}
       </Animated.View>
     );
   }
@@ -90,6 +112,8 @@ export function LocationBanner() {
 }
 
 const styles = StyleSheet.create({
+  actions: { flexDirection: 'row', gap: space.sm },
+  half: { flex: 1 },
   card: { gap: space.md, padding: space.lg, borderRadius: radius.lg, alignSelf: 'stretch' },
   head: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start' },
   text: { flex: 1, gap: space.xxs },

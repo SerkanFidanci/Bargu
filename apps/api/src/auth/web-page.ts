@@ -44,11 +44,14 @@ export const WEB_PAGE_HTML = `<!doctype html>
   <section id="device-step" hidden>
     <p id="device-text"></p>
     <button type="button" id="revoke" class="danger"></button>
+    <p id="delete-text"></p>
+    <button type="button" id="delete" class="danger"></button>
   </section>
   <section id="done-step" hidden>
     <p id="done-text"></p>
   </section>
   <p id="status" role="status" aria-live="polite"></p>
+  <p><a id="privacy" href="/gizlilik"></a></p>
 </main>
 <script src="/hesap/app.js"></script>
 </body>
@@ -85,6 +88,11 @@ button { font: inherit; font-weight: 600; padding: 0.8rem 1rem; border: 0; borde
 button.danger { background: var(--danger); color: var(--on-danger); }
 button:disabled { opacity: 0.5; cursor: default; }
 #status { min-height: 1.5em; color: var(--text); }
+a { color: var(--primary); }
+article { display: grid; gap: 0.5rem; }
+article h2 { font-size: 1.15rem; margin: 1rem 0 0; color: var(--text); }
+article p, article li { color: var(--text); }
+article ul { margin: 0; padding-left: 1.25rem; }
 [hidden] { display: none !important; }
 `;
 
@@ -105,6 +113,11 @@ export const WEB_PAGE_JS = `'use strict';
       },
       noDevice: 'Hesabında şu an giriş yapmış bir telefon yok.',
       revoke: 'Telefonumu hesaptan çıkar',
+      deleteText: 'Ya da hesabını tamamen sil: çemberlerinden çıkarsın, telefonun kapanır, hesabın ve verilerin kalıcı olarak silinir. Geri alınamaz.',
+      deleteButton: 'Hesabımı sil',
+      deleteConfirm: 'Hesabın ve bütün verilerin kalıcı olarak silinsin mi? Bu geri alınamaz.',
+      deleted: 'Hesabın silindi. Verilerin birkaç dakika içinde, en geç 7 günde tamamen kaldırılır.',
+      privacy: 'Gizlilik politikası ve aydınlatma metni',
       confirm: 'Telefon hesabından çıkarılsın mı? Geri alınamaz; yeni bir telefonla yeniden giriş yapabilirsin.',
       done: 'Telefon hesabından çıkarıldı. Yeni telefonunda Bargu\\'ya e-postanla giriş yapabilirsin.',
       nothing: 'Çıkarılacak bir telefon yoktu.',
@@ -130,6 +143,11 @@ export const WEB_PAGE_JS = `'use strict';
       },
       noDevice: 'No phone is signed in to your account right now.',
       revoke: 'Take my phone off my account',
+      deleteText: 'Or delete your account altogether: you leave your circles, your phone is signed out, and your account and data are deleted for good. This cannot be undone.',
+      deleteButton: 'Delete my account',
+      deleteConfirm: 'Delete your account and all your data for good? This cannot be undone.',
+      deleted: 'Your account was deleted. Your data is removed completely within minutes, at most 7 days.',
+      privacy: 'Privacy policy',
       confirm: 'Take the phone off your account? This cannot be undone; you can sign in again on a new phone.',
       done: 'The phone was taken off your account. Sign in to Bargu with your email on your new phone.',
       nothing: 'There was no phone to take off.',
@@ -157,6 +175,9 @@ export const WEB_PAGE_JS = `'use strict';
   text('code-label', w.codeLabel);
   text('code-send', w.codeSend);
   text('revoke', w.revoke);
+  text('delete-text', w.deleteText);
+  text('delete', w.deleteButton);
+  text('privacy', w.privacy);
 
   function base64url(bytes) {
     var s = '';
@@ -250,6 +271,19 @@ export const WEB_PAGE_JS = `'use strict';
           $('revoke').hidden = true;
         }
         show('device-step');
+      }, function (error) { fail(button, error); });
+  });
+
+  $('delete').addEventListener('click', function () {
+    if (!window.confirm(w.deleteConfirm)) return;
+    var button = $('delete');
+    busy(button, true);
+    post('/v1/web/delete-account', { token: state.token })
+      .then(function () {
+        busy(button, false);
+        state.token = null;
+        text('done-text', w.deleted);
+        show('done-step');
       }, function (error) { fail(button, error); });
   });
 

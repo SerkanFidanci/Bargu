@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { useLiveSession } from '@/features/live/live-session';
 import { useLocationSession } from '@/features/location/use-location';
 import { usePushNotifications } from '@/features/notifications/use-push';
+import { usePrivacyGate } from '@/features/account/privacy-gate';
 import { useAppLock } from '@/features/security/app-lock';
 import { LockScreen, useAppLockWatcher } from '@/features/security/lock-screen';
 
@@ -17,6 +18,8 @@ export default function AppLayout() {
   useLocationSession(ready);
   // The optional app lock (docs/ADR/0021): after a minute away, and over everything when locked.
   useAppLockWatcher();
+  // KVKK (docs/ADR/0022): the information notice, and consent to history where it is on.
+  usePrivacyGate(ready);
   const locked = useAppLock((state) => state.locked);
   if (!ready) return null;
   // Locked: the lock alone. Nothing under it to read aloud (TalkBack) and no screen presented
@@ -39,6 +42,9 @@ export default function AppLayout() {
       <Stack.Screen name="history/[userId]" />
       <Stack.Screen name="security" />
       <Stack.Screen name="seers" />
+      <Stack.Screen name="privacy" />
+      <Stack.Screen name="consent" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="notice" options={{ presentation: 'modal', gestureEnabled: false }} />
     </Stack>
   );
 }

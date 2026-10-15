@@ -18,13 +18,14 @@ jest.mock('expo-notifications', () => ({
 }));
 
 const register = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
-const run = () =>
+const run = (ask = true) =>
   enablePush({
     register,
     channelName: 'Arkadaşlar ve çemberler',
     placesChannelName: 'Varışlar ve ayrılışlar',
     meetingsChannelName: 'Buluşmalar',
     privacyChannelName: 'Gizlilik hatırlatmaları',
+    ask,
   });
 
 beforeEach(() => {
@@ -33,7 +34,15 @@ beforeEach(() => {
 });
 
 describe('enablePush', () => {
-  it('asks right away while the user has not decided, then registers this phone', async () => {
+  it('does not ask by itself: the question waits for its moment (Google Play K11)', async () => {
+    mockGetPermissions.mockResolvedValue({ granted: false, canAskAgain: true });
+    await expect(run(false)).resolves.toBe('undetermined');
+    expect(mockRequestPermissions).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
+    expect(usePushState.getState().state).toBe('undetermined');
+  });
+
+  it('asks when the user turns them on while undecided, then registers this phone', async () => {
     mockGetPermissions.mockResolvedValue({ granted: false, canAskAgain: true });
     mockRequestPermissions.mockResolvedValue({ granted: true, canAskAgain: true });
     await expect(run()).resolves.toBe('enabled');

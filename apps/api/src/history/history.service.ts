@@ -1,17 +1,18 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { verifyHistoryEnvelope } from '@bargu/crypto';
 import {
+  HISTORY_CONSENT_VERSION,
   HISTORY_KEEP_MS,
   HISTORY_SLOT_MS,
   type HistoryEnvelope,
   historyEnvelopeSchema,
   type HistoryRecord,
 } from '@bargu/schemas';
-import { and, asc, eq, gte, lt } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull, lt } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
-import { circleMembers, circles, historyChunks } from '../db/schema.js';
+import { circleMembers, circles, consents, historyChunks } from '../db/schema.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
@@ -62,6 +63,20 @@ export class HistoryService {
       throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
     }
     const others = await this.database.asUser(auth.userId, async (tx) => {
+      // Location history rests on explicit consent (KVKK, docs/ADR/0022): not on the phone's word.
+      const [consent] = await tx
+        .select({ version: consents.version })
+        .from(consents)
+        .where(
+          and(
+            eq(consents.userId, auth.userId),
+            eq(consents.purpose, 'history'),
+            isNull(consents.withdrawnAt),
+          ),
+        );
+      if (consent === undefined || consent.version < HISTORY_CONSENT_VERSION) {
+        throw new ApiError(HttpStatus.FORBIDDEN, 'CONSENT_REQUIRED');
+      }
       const members = await this.activeMembers(tx, circleId);
       const epoch = members.find((member) => member.userId === auth.userId)?.epoch;
       if (epoch === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');

@@ -31,16 +31,32 @@ export const WEB_CODE_TTL_SECONDS = 10 * 60;
 export const WEB_SESSION_TTL_SECONDS = 10 * 60;
 /** A challenge dies after this many wrong codes. */
 export const WEB_MAX_ATTEMPTS = 3;
+/**
+ * Budgets per address AND network (the client's IPv4 or IPv6 /64, as a keyed pseudonym), so that
+ * someone who knows only the address cannot use up its owner's codes or tries from elsewhere (a
+ * thief blocking the owner, QA 3b N1); per address alone only far higher ceilings, against mail
+ * bombing and guessing from many networks. At most 150 wrong codes a day out of 10^8: a 1.5·10^-6
+ * chance a day. The login code's budgets are not touched (docs/ADR/0021).
+ */
 export const WEB_LIMITS = {
-  /** Codes sent to one address: no mail bombing through this page. */
-  requestsPerHour: 3,
-  requestsPerDay: 5,
-  /**
-   * Wrong codes per address a day. With 8-digit codes (10^8) that is a 5·10^-8 chance a day for
-   * someone guessing; the login code's budgets are not touched (docs/ADR/0021).
-   */
-  failuresPerDay: 5,
+  requestsPerNetworkHour: 3,
+  requestsPerNetworkDay: 10,
+  requestsPerAddressDay: 50,
+  failuresPerNetworkDay: 10,
+  failuresPerAddressDay: 150,
 } as const;
+
+// Reserves one failure slot in each budget before the code is compared (see otp.service), so
+// concurrent guesses can never exceed them; a correct code gives its slots back.
+const RESERVE = `
+local counts = {}
+for i, key in ipairs(KEYS) do
+  local count = redis.call('INCR', key)
+  if count == 1 then redis.call('EXPIRE', key, ARGV[i]) end
+  counts[i] = count
+end
+return counts
+`;
 
 // Counts the attempt and returns the challenge in one atomic step (see otp.service).
 const ATTEMPT = `
@@ -78,9 +94,11 @@ export class WebAccountService {
     await this.clients.enforce('webCode', ip);
     const lookup = emailLookupKey(this.keys.emailLookupKey, input.email);
     const address = hex(lookup);
+    const network = this.clients.clientId(ip);
     for (const [key, limit, window] of [
-      [`web-req-h:${address}`, WEB_LIMITS.requestsPerHour, HOUR],
-      [`web-req-d:${address}`, WEB_LIMITS.requestsPerDay, DAY],
+      [`web-req-nh:${address}:${network}`, WEB_LIMITS.requestsPerNetworkHour, HOUR],
+      [`web-req-nd:${address}:${network}`, WEB_LIMITS.requestsPerNetworkDay, DAY],
+      [`web-req-a:${address}`, WEB_LIMITS.requestsPerAddressDay, DAY],
     ] as const) {
       const result = await this.limiter.hit(key, limit, window);
       if (!result.allowed) {
@@ -97,15 +115,15 @@ export class WebAccountService {
       .expire(key, WEB_CODE_TTL_SECONDS)
       .exec();
     if (userId !== null) {
-      try {
-        await this.email.enqueueWebCode({ to: input.email, locale: input.locale, challengeId });
-      } catch (error) {
-        await this.redis.del(key);
-        this.logger.error(
-          `Could not queue the email: ${error instanceof Error ? error.name : 'unknown'}`,
-        );
-        throw new ApiError(HttpStatus.SERVICE_UNAVAILABLE, 'UNAVAILABLE');
-      }
+      // Not waited for: an account's answer takes as long as a stranger's (QA 3b N3). Should it
+      // fail, no email comes and asking again sends a new code.
+      void this.email
+        .enqueueWebCode({ to: input.email, locale: input.locale, challengeId })
+        .catch((error: unknown) => {
+          this.logger.error(
+            `Could not queue the email: ${error instanceof Error ? error.name : 'unknown'}`,
+          );
+        });
     }
     return { challengeId, expiresIn: WEB_CODE_TTL_SECONDS };
   }
@@ -121,11 +139,18 @@ export class WebAccountService {
       await this.redis.del(key);
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'OTP_LOCKED');
     }
-    // One failure slot is taken before comparing; a correct code gives it back.
-    const budget = `rl:web-fail:${address}`;
-    const failures = await this.redis.incr(budget);
-    if (failures === 1) await this.redis.expire(budget, DAY);
-    if (failures > WEB_LIMITS.failuresPerDay) {
+    const budgets = [
+      `rl:web-fail-n:${address}:${this.clients.clientId(ip)}`,
+      `rl:web-fail-a:${address}`,
+    ];
+    const [perNetwork = 0, perAddress = 0] = (await this.redis.eval(RESERVE, {
+      keys: budgets,
+      arguments: [String(DAY), String(DAY)],
+    })) as number[];
+    if (
+      perNetwork > WEB_LIMITS.failuresPerNetworkDay ||
+      perAddress > WEB_LIMITS.failuresPerAddressDay
+    ) {
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'OTP_LOCKED');
     }
     const correct =
@@ -140,7 +165,7 @@ export class WebAccountService {
     if ((await this.redis.del(key)) !== 1) {
       throw new ApiError(HttpStatus.BAD_REQUEST, 'OTP_EXPIRED');
     }
-    await this.redis.decr(budget);
+    await Promise.all(budgets.map((budget) => this.redis.decr(budget)));
 
     const token = generateToken();
     await this.redis.set(`web-session:${hex(hashToken(token))}`, userId, {
@@ -163,15 +188,26 @@ export class WebAccountService {
   }
 
   /**
+   * Uses up the page's session for its one action and says whose account it is (the account
+   * module deletes it with this, docs/ADR/0022).
+   */
+  async takeSession(token: string, ip: string, action: 'webRevoke' | 'webDelete'): Promise<string> {
+    await this.clients.enforce(action, ip);
+    const userId = await this.redis.getDel(`web-session:${hex(hashToken(token))}`);
+    if (userId === null || userId === '') {
+      throw new ApiError(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED');
+    }
+    return userId;
+  }
+
+  /**
    * "Telefonumu hesaptan çıkar": the phone signed in now is revoked like a stolen one. Its session
    * and refresh tokens end, it gets no more notifications, every circle moves to a new epoch and
    * its dot leaves the maps; it wipes itself the next time it reaches the server. The session of
    * the page is used up.
    */
   async revokeDevice(input: WebRevoke, ip: string): Promise<{ revoked: boolean }> {
-    await this.clients.enforce('webRevoke', ip);
-    const userId = await this.redis.getDel(`web-session:${hex(hashToken(input.token))}`);
-    if (userId === null) throw new ApiError(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED');
+    const userId = await this.takeSession(input.token, ip, 'webRevoke');
     const deviceId = await this.database.asUser(userId, async (tx) => {
       const [active] = await tx
         .select({ id: devices.id })

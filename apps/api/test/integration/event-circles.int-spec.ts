@@ -29,7 +29,8 @@ import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
 import { QUEUES } from '../../src/jobs/queues.js';
 import { JOB_QUEUE } from '../../src/jobs/tokens.js';
 import { createTestApp, type TestApp, testEnv } from './support/app.js';
-import { as, type Person, person } from './support/people.js';
+import { dumpEverything } from './support/dump.js';
+import { as, consentToHistory, type Person, person } from './support/people.js';
 
 /** A throwaway RSA key in PEM (WebCrypto): notices get queued, nothing is sent to Google. */
 async function testPrivateKeyPem(): Promise<string> {
@@ -275,13 +276,13 @@ describe('event circles', () => {
   it('leave nothing of themselves on the server once they end (BARGU_PLAN Faz 8 DoD)', async () => {
     const { circle, qr } = await eventWithEverything();
     // Before: the circle is all over the place.
-    expect(await everything()).toContain(circle.id);
+    expect(await dumpEverything(test)).toContain(circle.id);
 
     // The event ends (as if its time had come), the worker sweeps.
     await endOnTime(circle.id);
     expect(await test.app.get(EventExpiry).sweep()).toBeGreaterThanOrEqual(1);
 
-    const after = await everything();
+    const after = await dumpEverything(test);
     expect(after).not.toContain(circle.id);
     // The phones were told to reload their circles (an event that names no circle).
     expect(after).toContain('circles.reload');
@@ -312,7 +313,7 @@ describe('event circles', () => {
 
     await endOnTime(circle.id);
     await test.app.get(EventExpiry).sweep();
-    expect(await everything()).not.toContain(circle.id);
+    expect(await dumpEverything(test)).not.toContain(circle.id);
   });
 
   it('leave nothing either when the clean-up is cut short: the next sweep finishes it', async () => {
@@ -325,9 +326,9 @@ describe('event circles', () => {
     await expect(expiry.sweep()).rejects.toThrow('redis hiccup');
     del.mockRestore();
     // What is left waits for the next round, which finishes it.
-    expect(await everything()).toContain(circle.id);
+    expect(await dumpEverything(test)).toContain(circle.id);
     await expiry.sweep();
-    const after = await everything();
+    const after = await dumpEverything(test);
     expect(after).not.toContain(circle.id);
     expect(after).toContain('circles.reload');
   });
@@ -341,7 +342,7 @@ describe('event circles', () => {
     expect((await as(test, owner, 'POST', `/v1/circles/${event.id}/end`)).statusCode).toBe(204);
     del.mockRestore();
     await test.app.get(EventExpiry).sweep();
-    expect(await everything()).not.toContain(event.id);
+    expect(await dumpEverything(test)).not.toContain(event.id);
   });
 });
 
@@ -431,6 +432,7 @@ async function eventWithEverything(): Promise<{ circle: Circle; qr: Invite }> {
   });
   expect(meeting.statusCode).toBe(200);
   const slot = historySlot(now) - HISTORY_SLOT_MS;
+  await consentToHistory(test, owner);
   const piece = await as(test, owner, 'PUT', `/v1/circles/${circle.id}/history/${String(slot)}`, {
     envelope: ownerPhone.trail(slot),
   });
@@ -448,38 +450,4 @@ async function endOnTime(circleId: string): Promise<void> {
     `UPDATE app.circles SET expires_at = now() - interval '1 second' WHERE id = $1`,
     [circleId],
   );
-}
-
-/** Every table of the app and the job queue, every Redis key and value, as one text. */
-async function everything(): Promise<string> {
-  const parts: string[] = [];
-  const { rows: tables } = await test.admin.query<{ name: string }>(
-    `SELECT format('%I.%I', schemaname, tablename) AS name FROM pg_tables
-      WHERE schemaname IN ('app', 'pgboss')`,
-  );
-  for (const { name } of tables) {
-    const { rows } = await test.admin.query<{ dump: string | null }>(
-      `SELECT json_agg(t)::text AS dump FROM ${name} t`,
-    );
-    parts.push(rows[0]?.dump ?? '');
-  }
-  const redis = (await import('redis')).createClient({ url: test.env.REDIS_URL });
-  await redis.connect();
-  try {
-    for await (const keys of redis.scanIterator({ COUNT: 500 })) {
-      for (const key of keys) {
-        parts.push(key);
-        const type = await redis.type(key);
-        if (type === 'string') parts.push((await redis.get(key)) ?? '');
-        if (type === 'hash') parts.push(JSON.stringify(await redis.hGetAll(key)));
-        if (type === 'stream') parts.push(JSON.stringify(await redis.xRange(key, '-', '+')));
-        if (type === 'list') parts.push(JSON.stringify(await redis.lRange(key, 0, -1)));
-        if (type === 'set') parts.push(JSON.stringify(await redis.sMembers(key)));
-        if (type === 'zset') parts.push(JSON.stringify(await redis.zRange(key, 0, -1)));
-      }
-    }
-  } finally {
-    await redis.close();
-  }
-  return parts.join('\n');
 }

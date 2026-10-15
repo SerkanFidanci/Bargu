@@ -1,19 +1,17 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
 import i18n from '@/i18n';
 
 import { useCircles } from '../circles/queries';
 import { liveRequest, useConnection } from '../live/live-session';
-import { usePushState } from '../notifications/push';
 import { useMyFix } from './engine';
 import { locationEngine, restoreLocations, useLiveUntil } from './location-session';
 import { useSharing } from './sharing';
 import {
   checkLocationPermission,
   lastKnownFix,
-  requestLocationPermission,
   startTracking,
   stopTracking,
   useLocationPermission,
@@ -61,20 +59,18 @@ function useNextExpiry(): number {
 }
 
 /**
- * The signed-in app's side of the location engine: asks for the location permission once (after
- * the notification question, so the two system dialogs never overlap), keeps the location
+ * The signed-in app's side of the location engine (the permission is asked from the disclosure
+ * card on the map, LocationBanner, never by itself: Google Play K10), keeps the location
  * service running while any circle gets the location (GPS only when one gets it exactly), and adds
  * 1-second updates while someone watches and the app is open.
  */
 export function useLocationSession(ready: boolean): void {
   const active = useAppActive();
   const permission = useLocationPermission((state) => state.state);
-  const push = usePushState((state) => state.state);
   const sharing = useSharing();
   const circles = useCircles().data;
   const liveUntil = useLiveUntil((state) => state.until);
   const expiry = useNextExpiry();
-  const asked = useRef(false);
 
   useEffect(() => {
     if (ready) restoreLocations();
@@ -84,12 +80,6 @@ export function useLocationSession(ready: boolean): void {
   useEffect(() => {
     if (ready && active) void checkLocationPermission();
   }, [ready, active]);
-
-  useEffect(() => {
-    if (!ready || asked.current || permission !== 'undetermined' || push === 'unknown') return;
-    asked.current = true;
-    void requestLocationPermission();
-  }, [ready, permission, push]);
 
   // Where the map should look before the first fix (nothing is sent from this).
   useEffect(() => {

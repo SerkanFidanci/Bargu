@@ -24,7 +24,7 @@ import { HistorySweeper } from '../../src/history/history-sweeper.js';
 import { DatabaseService } from '../../src/infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
 import { createTestApp, type TestApp } from './support/app.js';
-import { as, circleWith, type Person, person } from './support/people.js';
+import { as, circleWith, type Person, person, consentToHistory } from './support/people.js';
 
 let test: TestApp;
 
@@ -65,8 +65,15 @@ const trailAt = (from: number): TrailPayload => ({
   ts: from + HISTORY_SLOT_MS,
 });
 
-const put = (who: Person, circleId: string, slot: number, envelope: MessageEnvelope) =>
-  as(test, who, 'PUT', `/v1/circles/${circleId}/history/${String(slot)}`, { envelope });
+/** Saves a piece as the app does: with the consent it asks for first (docs/ADR/0022). */
+const consented = new Set<string>();
+const put = async (who: Person, circleId: string, slot: number, envelope: MessageEnvelope) => {
+  if (!consented.has(who.userId)) {
+    await consentToHistory(test, who);
+    consented.add(who.userId);
+  }
+  return as(test, who, 'PUT', `/v1/circles/${circleId}/history/${String(slot)}`, { envelope });
+};
 
 const list = async (
   who: Person,

@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   pgSchema,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -34,6 +35,7 @@ export const revocationReason = app.enum('revocation_reason', [
   'logout',
   'remote',
   'refresh_reuse',
+  'account_deleted',
 ]);
 
 export const users = app.table('users', {
@@ -202,6 +204,19 @@ export const circleDocs = app.table('circle_docs', {
   version: integer('version').notNull().default(1),
   updatedAt: timestamptz('updated_at').notNull().defaultNow(),
 });
+
+/** The notice read and explicit consent, per purpose (docs/ADR/0022). */
+export const consents = app.table(
+  'consents',
+  {
+    userId: uuid('user_id').notNull(),
+    purpose: text('purpose', { enum: ['notice', 'history'] }).notNull(),
+    version: integer('version').notNull(),
+    givenAt: timestamptz('given_at').notNull().defaultNow(),
+    withdrawnAt: timestamptz('withdrawn_at'),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.purpose] })],
+);
 
 export const historyChunks = app.table('history_chunks', {
   circleId: uuid('circle_id').notNull(),

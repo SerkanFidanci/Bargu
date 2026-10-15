@@ -233,7 +233,7 @@ export class CirclesService implements OnModuleInit {
     return circle;
   }
 
-  async decline(auth: AuthContext, circleId: string): Promise<void> {
+  async decline(auth: Pick<AuthContext, 'userId'>, circleId: string): Promise<void> {
     const remaining = await this.database.asUser(auth.userId, async (tx) => {
       await this.lock(tx, circleId);
       const before = await this.mustRead(tx, circleId, auth.userId);
@@ -254,7 +254,7 @@ export class CirclesService implements OnModuleInit {
    * Leaves a circle (for a pair: ends the friendship, for both). An owner leaving a group hands
    * ownership on first (see handOver), so a group is never left without one.
    */
-  async leave(auth: AuthContext, circleId: string): Promise<void> {
+  async leave(auth: Pick<AuthContext, 'userId'>, circleId: string): Promise<void> {
     const { remaining, pair, withdrawn } = await this.database.asUser(auth.userId, async (tx) => {
       await this.lock(tx, circleId);
       const before = await this.mustRead(tx, circleId, auth.userId);

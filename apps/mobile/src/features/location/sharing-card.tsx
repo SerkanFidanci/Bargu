@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Eye, History } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -16,6 +17,7 @@ import { Toggle } from '@/ui/toggle';
 
 import { useNow } from './clock';
 import { setHistory, updateSharing } from './location-session';
+import { ensureHistoryConsent } from '../account/privacy-gate';
 import {
   type CircleSharing,
   circleSharing,
@@ -143,6 +145,7 @@ function HistoryControl({
   on: boolean;
 }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const me = useAuth((state) => state.userId);
   const circle = useCircle(circleId);
   const viewers =
@@ -157,6 +160,18 @@ function HistoryControl({
         });
 
   const toggle = (value: boolean) => {
+    if (value) {
+      // Explicit consent first (KVKK, docs/ADR/0022); the consent screen turns it on itself.
+      void ensureHistoryConsent(queryClient, circleId).then(
+        (given) => {
+          if (given) void setHistory(circleId, true);
+        },
+        () => {
+          toast.error(t('consent.offline'));
+        },
+      );
+      return;
+    }
     void setHistory(circleId, value).then((result) => {
       if (result === 'off') toast.success(t('location.sharing.historyOff'));
       if (result === 'later') toast.info(t('location.sharing.historyOffLater'));

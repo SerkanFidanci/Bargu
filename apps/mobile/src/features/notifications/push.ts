@@ -11,7 +11,8 @@ export { SOCIAL_CHANNEL };
  * system settings can change it now); unavailable: this build cannot receive them (no push
  * service configured) or the registration failed; unknown: not checked yet.
  */
-export type PushState = 'unknown' | 'enabled' | 'denied' | 'unavailable';
+/** `undetermined`: not asked yet (it is asked in context, docs/ADR/0022). */
+export type PushState = 'unknown' | 'undetermined' | 'enabled' | 'denied' | 'unavailable';
 
 export const usePushState = create<{ state: PushState }>(() => ({ state: 'unknown' }));
 
@@ -34,12 +35,14 @@ export interface PushRegistration {
   placesChannelName: string;
   meetingsChannelName: string;
   privacyChannelName: string;
+  /** Show the system question now (the user tapped "Bildirimleri aç"); else only check. */
+  ask: boolean;
 }
 
 /**
- * Asks for permission (the system shows its dialog only while the user has not decided) and
- * registers this phone for notifications. On Android 13+ the dialog appears only once a channel
- * exists, so the channel comes first.
+ * Registers this phone for notifications when allowed; asks for the permission only with `ask`
+ * (the system shows its dialog only while the user has not decided). On Android 13+ the dialog
+ * appears only once a channel exists, so the channels come first.
  */
 export async function enablePush({
   register,
@@ -47,6 +50,7 @@ export async function enablePush({
   placesChannelName,
   meetingsChannelName,
   privacyChannelName,
+  ask,
 }: PushRegistration): Promise<PushState> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(SOCIAL_CHANNEL, {
@@ -68,6 +72,7 @@ export async function enablePush({
   }
   let permission = await Notifications.getPermissionsAsync();
   if (!permission.granted && permission.canAskAgain) {
+    if (!ask) return set('undetermined');
     permission = await Notifications.requestPermissionsAsync();
   }
   if (!permission.granted) return set('denied');

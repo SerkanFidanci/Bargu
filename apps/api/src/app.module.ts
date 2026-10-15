@@ -1,5 +1,6 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
+import { AccountModule } from './account/account.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { KeysModule } from './auth/keys.module.js';
 import { ConfigModule } from './config/config.module.js';
@@ -43,6 +44,7 @@ export class AppModule {
         PlacesModule,
         DocsModule,
         HistoryModule,
+        AccountModule,
       ],
     };
   }

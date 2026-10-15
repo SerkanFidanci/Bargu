@@ -167,7 +167,10 @@
       "historyOff": "Kapalı",
       "historyOn": "{{count}} çemberde açık",
       "security": "Güvenlik",
-      "securityDetail": "Uygulama kilidi, kaybolan telefon, olaylar"
+      "securityDetail": "Uygulama kilidi, kaybolan telefon, olaylar",
+      "privacy": "Gizlilik ve hesap",
+      "privacyDetail": "Aydınlatma, rıza, verilerin, hesabı silme",
+      "notifications_undetermined": "Kapalı · açmak için dokun"
     }
   },
   "ui": {
@@ -465,7 +468,13 @@
     },
     "meetingsChannel": "Buluşmalar",
     "late": "{{name}} yaklaşık {{minutes}} dk gecikecek",
-    "privacyChannel": "Gizlilik hatırlatmaları"
+    "privacyChannel": "Gizlilik hatırlatmaları",
+    "prompt": {
+      "title": "Bildirimleri aç",
+      "body": "Arkadaşın bir yere vardığında, seni dürttüğünde ya da çemberine yeni biri katıldığında haber al. Bildirimlerin içeriği şifreli gelir.",
+      "allow": "Bildirimleri aç",
+      "later": "Şimdi değil"
+    }
   },
   "location": {
     "service": {
@@ -473,11 +482,12 @@
       "body": "Çemberlerin seni haritada görüyor. Durdurmak için hayalet moduna geç."
     },
     "permission": {
-      "title": "Konum izni gerekiyor",
-      "body": "Arkadaşların seni haritada görebilsin. Konumun telefonunda şifrelenir; sunucumuz bile göremez.",
+      "title": "Konumunu çemberlerinle paylaş",
+      "body": "Bargu, seçtiğin kişiler seni haritada görebilsin diye konumunu kullanır. Paylaşım açıkken, uygulama kapalı ya da ekran kilitliyken de sürer; bu sırada bildirim çubuğunda \"Konumun paylaşılıyor\" bildirimi durur. Konumun telefonunda şifrelenir; Bargu sunucusu bile göremez. Hayalet modu ya da çemberi kapatarak her an durdurabilirsin. Konumun reklam ya da başka amaçla kullanılmaz.",
       "blockedBody": "Konum izni kapalı. Ayarlardan \"Uygulamayı kullanırken\" iznini verirsen paylaşım başlar.",
-      "allow": "İzin ver",
-      "settings": "Ayarları aç"
+      "allow": "Devam et",
+      "settings": "Ayarları aç",
+      "later": "Şimdi değil"
     },
     "sharing": {
       "title": "Konumun",
@@ -775,5 +785,66 @@
     "deleteHistory": "Geçmişimi de sil",
     "deleteHistoryTitle": "Konum geçmişin silinsin mi?",
     "deleteHistoryBody": "Bütün çemberlerde konum geçmişi kapanır ve sunucudaki kopyası silinir. Bu geri alınamaz."
+  },
+  "notice": {
+    "title": "Gizlilik ve aydınlatma",
+    "lead": "Bargu'yu kullanmadan önce verilerinin nasıl işlendiğini kısaca oku.",
+    "whatTitle": "Ne işliyoruz?",
+    "what": "E-posta adresin (giriş için, özet olarak), kullanıcı adın ve avatarın, konumun, isteğe bağlı olarak profil fotoğrafın ve konum geçmişin, cihaz anahtarların ve güvenlik olayların.",
+    "whyTitle": "Neden?",
+    "why": "Senin istediğin hizmeti, yani seçtiğin kişilerle konum paylaşımını sunmak için (sözleşmenin ifası). Konum geçmişi isteğe bağlıdır ve ayrıca açık rızanı ister.",
+    "encryptedTitle": "Sunucu konumunu göremez",
+    "encrypted": "Konumun, yerlerin, fotoğrafın ve geçmişin telefonunda şifrelenir. Reklam yok, verini satmayız.",
+    "sharedTitle": "Kimlere gider?",
+    "shared": "Yalnızca seçtiğin çemberlere. Hizmet sağlayıcılarımız (sunucu, bildirim, e-posta) şifreli içeriği okuyamaz.",
+    "rightsTitle": "Hakların",
+    "rights": "Verilerini indirebilir, hesabını uygulamadan ya da web sayfasından silebilir, bilgi isteyebilirsin (KVKK m.11).",
+    "full": "Metnin tamamı",
+    "read": "Okudum, anladım"
+  },
+  "consent": {
+    "title": "Konum geçmişi için açık rıza",
+    "review": "Bir çemberde konum geçmişin açık. Yeni kurallar gereği bunun için ayrı bir açık rıza istiyoruz; vermezsen geçmiş kapanır ve silinir.",
+    "whatTitle": "Ne olacak?",
+    "what": "Geçmişi açtığın çemberlerde, konumunu tam paylaştığın sürece telefonun çeyrek saatlik izler yazar ve şifreli olarak gönderir.",
+    "whoTitle": "Kimler görür?",
+    "who": "Yalnızca o çemberin üyeleri, çembere katıldıkları andan sonrasını görür. Sunucumuz izleri açamaz.",
+    "howLongTitle": "Ne kadar kalır?",
+    "howLong": "En çok 14 gün; sonra kendiliğinden silinir.",
+    "withdrawTitle": "Nasıl geri alırım?",
+    "withdraw": "İstediğin an: çemberde geçmişi kapat ya da Ben → Gizlilik ve hesap → Rızamı geri çek. Geri çekince sunucudaki kopya da silinir.",
+    "statement": "Konum geçmişimin bu açıklamaya göre işlenmesine açık rıza veriyorum. Rıza vermek isteğe bağlıdır; vermesem de Bargu'nun geri kalanını kullanabilirim.",
+    "give": "Açık rıza veriyorum",
+    "decline": "Vazgeç",
+    "declineReview": "Rıza vermiyorum, geçmişi kapat",
+    "given": "Rızan kaydedildi",
+    "declinedOff": "Konum geçmişin kapatıldı ve silindi",
+    "offline": "Bağlantı yok; rıza durumu öğrenilemedi. Biraz sonra yeniden dene."
+  },
+  "privacy": {
+    "title": "Gizlilik ve hesap",
+    "noticeTitle": "Gizlilik politikası ve aydınlatma metni",
+    "noticeBody": "Verilerinin nasıl işlendiği, kimlere gittiği ve hakların.",
+    "noticeRead": "{{date}} tarihinde okudun.",
+    "policy": "Metni aç",
+    "consentTitle": "Konum geçmişi rızası",
+    "consentGiven": "{{date}} tarihinde açık rıza verdin.",
+    "consentNone": "Konum geçmişi için rıza vermedin. Bir çemberde geçmişi açtığında sorulur.",
+    "withdraw": "Rızamı geri çek",
+    "withdrawTitle": "Rızan geri çekilsin mi?",
+    "withdrawBody": "Bütün çemberlerde konum geçmişi kapanır ve sunucudaki kopyası silinir.",
+    "withdrawn": "Rızan geri çekildi; geçmiş kapatıldı ve silindi",
+    "dataTitle": "Verilerin",
+    "exportBody": "Hesabının, cihazlarının, çemberlerinin, güvenlik olaylarının ve bu telefonda açılabilen verilerinin (kendi konum geçmişin, yerler, etkinlik planları) bir kopyasını JSON dosyası olarak seçtiğin klasöre kaydeder. Dosyada konum geçmişin de olur; güvenli bir yere kaydet.",
+    "export": "Verilerimi indir",
+    "exported": "Dosya kaydedildi",
+    "deleteTitle": "Hesabımı sil",
+    "deleteHint": "Hesabın hemen kullanılamaz olur, çemberlerinden çıkarsın, bu telefon kapanır; hesabın ve verilerin birkaç dakika içinde, en geç 7 günde kalıcı olarak silinir. Geri alınamaz.",
+    "deleteBody": "Çemberlerinden çıkarsın; yönettiğin bir grupta yöneticilik en eski üyeye geçer, arkadaşlıkların biter. Çemberlere eklediğin yerler çemberde kalır; istersen önce onları sil. İstersen önce verilerini indir.",
+    "deleteContinue": "Devam et",
+    "deleteSureTitle": "Emin misin?",
+    "deleteSureBody": "Hesabın ve bütün verilerin kalıcı olarak silinecek. Bu geri alınamaz.",
+    "delete": "Hesabımı sil",
+    "deleted": "Hesabın silindi"
   }
 }

@@ -78,10 +78,14 @@ buluşmanın bir arkadaşla kolayca başlatılamadığını söyledi; kişi kart
   - Kod girişteki 4 haneli koddan ayrıdır: `bargu/v1/web-code` etiketiyle türetilir
     (PROTOCOL.md), yalnızca bu sayfada geçer ve sayfanın sekme için ürettiği rastgele değere
     (binding) bağlıdır.
-  - Kendi sınırları vardır:
-    - adres başına saatte 3, günde 5 kod (e-posta bombalamaya karşı);
-    - kod başına 3 deneme, adres başına günde 5 yanlış kod;
-    - ağ başına saatte 10 kod isteği, 30 doğrulama ve 10 iptal.
+  - Kendi sınırları vardır. Bütçeler adres ve ağ (IPv4 ya da IPv6 /64, takma adla) başına
+    tutulur; yalnızca adresi bilen biri, sahibin kendi ağından girmesini engelleyemez (QA 3b N1):
+    - kod istekleri: adres+ağ başına saatte 3, günde 10; adres başına (bütün ağlar) günde 50;
+    - kod başına 3 deneme; yanlış kod adres+ağ başına günde 10, adres başına (bütün ağlar) günde 150.
+      Bu tavanla tahmin şansı günde 1,5·10⁻⁶;
+    - ağ başına saatte 10 kod isteği, 30 doğrulama, 10 iptal ve 10 silme.
+    - E-posta kuyruğa beklenmeden yazılır; hesabı olan ve olmayan adres aynı sürede cevap alır
+      (QA 3b N3).
 
     Girişin hakları tüketilmez; hesap sayfasında yanlış kod denemek girişi kilitlemez. Olmayan bir
     hesaba e-posta gitmez, ama cevaplar (kod isteme ve kod denetleme) hesap olsun olmasın aynıdır.

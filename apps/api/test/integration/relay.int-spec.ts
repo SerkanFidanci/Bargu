@@ -27,7 +27,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { EVENTS_PATH } from '../../src/events/events.gateway.js';
 import { createTestApp, type TestApp, testEnv } from './support/app.js';
-import { as, circleWith, type Person, person } from './support/people.js';
+import { as, circleWith, type Person, person, consentToHistory } from './support/people.js';
 
 // Somewhere in Istanbul: the test proves these numbers never reach the server in any form.
 const LAT = 41.008_237;
@@ -181,6 +181,7 @@ describe('location relay', () => {
         ts: Date.now(),
       },
     }).envelope;
+    await consentToHistory(test, ayse);
     const piece = await as(test, ayse, 'PUT', `/v1/circles/${circle.id}/history/${String(slot)}`, {
       envelope: trail,
     });

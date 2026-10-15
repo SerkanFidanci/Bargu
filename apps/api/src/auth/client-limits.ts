@@ -20,6 +20,7 @@ export const CLIENT_LIMITS = {
   webCode: 10,
   webVerify: 30,
   webRevoke: 10,
+  webDelete: 10,
 } as const;
 
 /**

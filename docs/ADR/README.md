@@ -27,6 +27,7 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0019](0019-location-history.md)                     | Çember geçmişi: uçtan uca şifreli, kapalı başlar, 14 gün                                      | Kabul edildi                  |
 | [0020](0020-circle-admins-and-planning-authority.md) | Çember yöneticileri ve planlama yetkisi                                                       | Kabul edildi                  |
 | [0021](0021-safety-features.md)                      | Güvenlik özellikleri: hatırlatma, yeni izleyici, tümünü durdur, kilit, olaylar, uzaktan iptal | Kabul edildi                  |
+| [0022](0022-account-deletion-export-consent.md)      | Hesap silme, veri dışa aktarma, KVKK aydınlatma ve rıza, yayın sayfaları                      | Kabul edildi                  |
 
 ## Şablon
 

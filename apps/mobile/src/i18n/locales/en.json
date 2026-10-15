@@ -167,7 +167,10 @@
       "historyOff": "Off",
       "historyOn": "On in {{count}} circles",
       "security": "Security",
-      "securityDetail": "App lock, lost phone, events"
+      "securityDetail": "App lock, lost phone, events",
+      "privacy": "Privacy and account",
+      "privacyDetail": "Notice, consent, your data, deleting the account",
+      "notifications_undetermined": "Off · tap to turn on"
     }
   },
   "ui": {
@@ -465,7 +468,13 @@
     },
     "meetingsChannel": "Meetings",
     "late": "{{name}} will be about {{minutes}} min late",
-    "privacyChannel": "Privacy reminders"
+    "privacyChannel": "Privacy reminders",
+    "prompt": {
+      "title": "Turn on notifications",
+      "body": "Hear when a friend arrives somewhere, pokes you, or someone new joins your circle. Notifications arrive encrypted.",
+      "allow": "Turn on notifications",
+      "later": "Not now"
+    }
   },
   "location": {
     "service": {
@@ -473,11 +482,12 @@
       "body": "Your circles see you on the map. Turn on ghost mode to stop."
     },
     "permission": {
-      "title": "Location permission needed",
-      "body": "So your friends can see you on the map. Your location is encrypted on your phone; not even our server can see it.",
+      "title": "Share your location with your circles",
+      "body": "Bargu uses your location so the people you choose can see you on the map. While sharing is on, it continues when the app is closed or the screen is locked, and a \"Sharing your location\" notification stays in your notification bar. Your location is encrypted on your phone; not even Bargu's server can see it. You can stop at any time with ghost mode or by turning a circle off. Your location is never used for ads or anything else.",
       "blockedBody": "Location is turned off for Bargu. Allow it \"while using the app\" in Settings to start sharing.",
-      "allow": "Allow",
-      "settings": "Open Settings"
+      "allow": "Continue",
+      "settings": "Open Settings",
+      "later": "Not now"
     },
     "sharing": {
       "title": "Your location",
@@ -775,5 +785,66 @@
     "deleteHistory": "Delete my history too",
     "deleteHistoryTitle": "Delete your location history?",
     "deleteHistoryBody": "Location history turns off in every circle and the copy on the server is deleted. This cannot be undone."
+  },
+  "notice": {
+    "title": "Privacy notice",
+    "lead": "Before using Bargu, read briefly how your data is processed.",
+    "whatTitle": "What we process",
+    "what": "Your email (to sign in, as a hash), your username and avatar, your location, optionally your profile photo and location history, your device keys and security events.",
+    "whyTitle": "Why",
+    "why": "To provide the service you ask for: sharing your location with the people you choose (performance of the contract). Location history is optional and asks for your explicit consent separately.",
+    "encryptedTitle": "The server cannot see your location",
+    "encrypted": "Your location, places, photo and history are encrypted on your phone. No ads; we do not sell your data.",
+    "sharedTitle": "Who receives it",
+    "shared": "Only the circles you choose. Our providers (hosting, notifications, email) cannot read the encrypted content.",
+    "rightsTitle": "Your rights",
+    "rights": "Download your data, delete your account in the app or on the web page, and ask for information (KVKK Art. 11).",
+    "full": "Full text",
+    "read": "I have read and understood"
+  },
+  "consent": {
+    "title": "Explicit consent to location history",
+    "review": "Location history is on in one of your circles. Under new rules we ask for separate explicit consent; without it, history is turned off and deleted.",
+    "whatTitle": "What happens",
+    "what": "In circles you turn it on for, while you share your exact location, your phone writes quarter-hour trails and sends them encrypted.",
+    "whoTitle": "Who sees it",
+    "who": "Only that circle's members, from when they joined. Our server cannot open the trails.",
+    "howLongTitle": "How long it stays",
+    "howLong": "At most 14 days; then it is deleted by itself.",
+    "withdrawTitle": "How to take it back",
+    "withdraw": "Any time: turn history off in the circle, or Me → Privacy and account → Withdraw consent. Withdrawing deletes the copy on the server too.",
+    "statement": "I give my explicit consent to my location history being processed as described. Giving it is optional; I can use the rest of Bargu without it.",
+    "give": "I give my explicit consent",
+    "decline": "Not now",
+    "declineReview": "I do not consent; turn history off",
+    "given": "Your consent was recorded",
+    "declinedOff": "Your location history was turned off and deleted",
+    "offline": "No connection; could not check your consent. Try again in a moment."
+  },
+  "privacy": {
+    "title": "Privacy and account",
+    "noticeTitle": "Privacy policy and notice",
+    "noticeBody": "How your data is processed, who receives it, and your rights.",
+    "noticeRead": "You read it on {{date}}.",
+    "policy": "Open the text",
+    "consentTitle": "Consent to location history",
+    "consentGiven": "You gave explicit consent on {{date}}.",
+    "consentNone": "You have not consented to location history. It is asked when you turn history on in a circle.",
+    "withdraw": "Withdraw consent",
+    "withdrawTitle": "Withdraw your consent?",
+    "withdrawBody": "Location history turns off in every circle and the copy on the server is deleted.",
+    "withdrawn": "Consent withdrawn; history turned off and deleted",
+    "dataTitle": "Your data",
+    "exportBody": "Saves a copy of your account, devices, circles, security events and the data this phone can open (your own location history, places, event plans) as a JSON file in a folder you pick. The file includes your location history; keep it somewhere safe.",
+    "export": "Download my data",
+    "exported": "File saved",
+    "deleteTitle": "Delete my account",
+    "deleteHint": "Your account becomes unusable at once, you leave your circles and this phone is signed out; your account and data are deleted for good within minutes, at most 7 days. This cannot be undone.",
+    "deleteBody": "You leave your circles; in a group you run, the longest-standing member becomes admin, and your friendships end. Places you added to circles stay there; delete them first if you like. You may want to download your data first.",
+    "deleteContinue": "Continue",
+    "deleteSureTitle": "Are you sure?",
+    "deleteSureBody": "Your account and all your data will be deleted for good. This cannot be undone.",
+    "delete": "Delete my account",
+    "deleted": "Your account was deleted"
   }
 }

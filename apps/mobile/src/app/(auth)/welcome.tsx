@@ -46,7 +46,7 @@ export default function WelcomeScreen() {
 
   const next = () => {
     if (last) {
-      router.push('/email');
+      router.push('/notice');
       return;
     }
     scroller.current?.scrollTo({ x: (page + 1) * width, animated: true });
@@ -61,7 +61,7 @@ export default function WelcomeScreen() {
           variant="ghost"
           fill={false}
           onPress={() => {
-            router.push('/email');
+            router.push('/notice');
           }}
         />
       </View>

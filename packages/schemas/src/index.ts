@@ -228,3 +228,15 @@ export {
   type WebSession,
   webSessionSchema,
 } from './web.js';
+export {
+  type AccountExport,
+  accountExportSchema,
+  HISTORY_CONSENT_VERSION,
+  type HistoryConsent,
+  historyConsentSchema,
+  type NoticeRead,
+  noticeReadSchema,
+  PRIVACY_NOTICE_VERSION,
+  type PrivacyState,
+  privacyStateSchema,
+} from './account.js';

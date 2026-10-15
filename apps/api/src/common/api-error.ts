@@ -38,6 +38,8 @@ export type ApiErrorCode =
   | 'INVITE_USED'
   /** Whoever created a circle stays its admin (docs/ADR/0020). */
   | 'CREATOR_ADMIN'
+  /** Location history needs the user's explicit consent first (docs/ADR/0022). */
+  | 'CONSENT_REQUIRED'
   | 'CIRCLE_FULL'
   | 'EPOCH_STALE'
   | 'KEYS_INVALID'

@@ -3,6 +3,7 @@ import type { Circle, WebChallenge, WebSession } from '@bargu/schemas';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { AuthKeys } from '../../src/auth/auth-keys.js';
+import { ClientLimits } from '../../src/auth/client-limits.js';
 import { WEB_LIMITS } from '../../src/auth/web-account.service.js';
 import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
 import { EmailJobs } from '../../src/jobs/email-jobs.js';
@@ -21,11 +22,15 @@ afterAll(async () => {
 /** What the page keeps for its tab: a random 32-byte value. */
 const newBinding = () => toBase64url(globalThis.crypto.getRandomValues(new Uint8Array(32)));
 
-const askCode = (email: string, binding: string) =>
-  call(test.app, { url: '/v1/web/code', body: { email, locale: 'tr', binding } });
+/** The owner's network and someone else's (budgets are per address and network). */
+const HOME = '198.51.100.7';
+const ELSEWHERE = '203.0.113.9';
 
-const verify = (challengeId: string, code: string, binding: string) =>
-  call(test.app, { url: '/v1/web/verify', body: { challengeId, code, binding } });
+const askCode = (email: string, binding: string, ip = HOME) =>
+  call(test.app, { url: '/v1/web/code', body: { email, locale: 'tr', binding }, ip });
+
+const verify = (challengeId: string, code: string, binding: string, ip = HOME) =>
+  call(test.app, { url: '/v1/web/verify', body: { challengeId, code, binding }, ip });
 
 const revoke = (token: string) => call(test.app, { url: '/v1/web/revoke-device', body: { token } });
 
@@ -118,21 +123,40 @@ describe('the account web page (docs/ADR/0021)', () => {
     expect((await verify(challengeId, codeFor(challengeId), binding)).json()).toMatchObject({
       code: 'OTP_LOCKED',
     });
-    // A few wrong codes a day per address, whatever the challenge.
+    // A few wrong codes a day per address and network, whatever the challenge; someone else
+    // using them up from their network does not lock the owner out (QA 3b N1).
     const address = Buffer.from(
       emailLookupKey(test.app.get(AuthKeys).emailLookupKey, someone.email),
     ).toString('hex');
-    await test.app
-      .get<RedisClient>(REDIS)
-      .set(`rl:web-fail:${address}`, String(WEB_LIMITS.failuresPerDay), { EX: 3600 });
-    const next = (await askCode(someone.email, binding)).json<WebChallenge>();
+    const redis = test.app.get<RedisClient>(REDIS);
+    const elsewhere = test.app.get(ClientLimits).clientId(ELSEWHERE);
+    await redis.set(
+      `rl:web-fail-n:${address}:${elsewhere}`,
+      String(WEB_LIMITS.failuresPerNetworkDay),
+      { EX: 3600 },
+    );
+    const theirs = (await askCode(someone.email, binding, ELSEWHERE)).json<WebChallenge>();
     expect(
-      (await verify(next.challengeId, codeFor(next.challengeId), binding)).json(),
+      (await verify(theirs.challengeId, codeFor(theirs.challengeId), binding, ELSEWHERE)).json(),
     ).toMatchObject({ code: 'OTP_LOCKED' });
-    // A few codes an hour per address (this is the fourth).
-    expect((await askCode(someone.email, binding)).statusCode).toBe(202);
+    const owners = newBinding();
+    const mine = (await askCode(someone.email, owners)).json<WebChallenge>();
+    expect((await verify(mine.challengeId, codeFor(mine.challengeId), owners)).statusCode).toBe(
+      200,
+    );
+    // From everywhere together, a far higher ceiling.
+    await redis.set(`rl:web-fail-a:${address}`, String(WEB_LIMITS.failuresPerAddressDay), {
+      EX: 3600,
+    });
+    const next = (await askCode(someone.email, owners)).json<WebChallenge>();
+    expect(
+      (await verify(next.challengeId, codeFor(next.challengeId), owners)).json(),
+    ).toMatchObject({ code: 'OTP_LOCKED' });
+    // A few codes an hour per address and network: the fourth from home is refused, while the
+    // same address can still be asked for from another network.
     const limited = await askCode(someone.email, binding);
     expect(limited.statusCode).toBe(429);
+    expect((await askCode(someone.email, binding, '192.0.2.44')).statusCode).toBe(202);
     // The login code still works for this address.
     expect((await login(test, someone.email)).session.userId).toBe(someone.userId);
   });

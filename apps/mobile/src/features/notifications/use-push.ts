@@ -7,7 +7,7 @@ import i18n, { resolveLanguage } from '@/i18n';
 
 import { api } from '../auth/auth-store';
 import { registerPushTask } from './background-push';
-import { circleOfResponse, enablePush, routeOfResponse } from './push';
+import { circleOfResponse, enablePush, type PushState, routeOfResponse } from './push';
 
 /** The server sends this phone its notices in this language, to this token (apps/api push). */
 async function register(token: string): Promise<void> {
@@ -31,21 +31,32 @@ function open(response: Notifications.NotificationResponse): void {
   if (circleId !== null) router.push({ pathname: '/circle/[id]', params: { id: circleId } });
 }
 
+/** Registration as this app does it; `ask` shows the system question (docs/ADR/0022). */
+function enable(ask: boolean): Promise<PushState> {
+  return enablePush({
+    register,
+    channelName: i18n.t('notifications.channel'),
+    placesChannelName: i18n.t('notifications.placesChannel'),
+    meetingsChannelName: i18n.t('notifications.meetingsChannel'),
+    privacyChannelName: i18n.t('notifications.privacyChannel'),
+    ask,
+  });
+}
+
+/** "Bildirimleri aç": the system question, in context (Google Play K11). */
+export function askForPush(): Promise<PushState> {
+  return enable(true);
+}
+
 /**
- * System notifications for the signed-in app: asks for permission right away (once), keeps the
- * server's token current, opens the circle a tapped notification is about, and clears the tray
+ * System notifications for the signed-in app: registers this phone when they are allowed (asked
+ * in context, not at sign-in: NotificationCard), keeps the server's token current, opens the circle a tapped notification is about, and clears the tray
  * when the app comes to the front (the in-app notices take over).
  */
 export function usePushNotifications(ready: boolean): void {
   useEffect(() => {
     if (!ready) return;
-    void enablePush({
-      register,
-      channelName: i18n.t('notifications.channel'),
-      placesChannelName: i18n.t('notifications.placesChannel'),
-      meetingsChannelName: i18n.t('notifications.meetingsChannel'),
-      privacyChannelName: i18n.t('notifications.privacyChannel'),
-    });
+    void enable(false);
     // Notifications arrive sealed and data-only (docs/ADR/0016): this task opens and shows them.
     if (Platform.OS === 'android') void registerPushTask().catch(() => undefined);
     const tokens = Notifications.addPushTokenListener((token) => {

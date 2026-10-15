@@ -22,6 +22,7 @@ import { useWatchCircles } from '@/features/location/use-location';
 import { memberName } from '@/features/circles/names';
 import { PeopleLayer } from '@/features/map/people-layer';
 import { SharingReminderCard } from '@/features/location/sharing-reminder-card';
+import { NotificationCard } from '@/features/notifications/notification-card';
 import { PlacesLayer } from '@/features/places/places-layer';
 import { usePlaces } from '@/features/places/places';
 import { useDocs } from '@/features/plan/docs';
@@ -128,6 +129,7 @@ export default function HomeScreen() {
         />
         {weather === null ? null : <WeatherChip here={weather} />}
         <LocationBanner />
+        <NotificationCard />
         <NewPhoneCard onChoose={() => circles.current?.present()} />
         <SharingReminderCard />
         {DEV_TOOLS_ENABLED ? <SwarmPanel /> : null}
