@@ -72,12 +72,13 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 - QA 20 (QA 19 düzeltmeleri, dilim 2a): orta ya da yüksek bulgu yok. P1b ve T-1 düzeltildi.
   A-1 (aşağıda) ve test botunun kodunun depoya alınması sonraya.
 
-### Test sonuçları (son çalıştırma, `8de3a8b`)
+### Test sonuçları (son çalıştırma, `dfd18e3`)
 
 - Birim: mobil 406 (buluşma ekranı, haritadaki noktalar, kaba konumda "geldi" yok, bildirim metni).
 - API entegrasyon: 30 dosya, 224 test (buluşma: başlatma, tek buluşma, yetki, yabancı erişemez,
   bitiş saati, eski uygulamaya gitmez, işçinin silmesi, bildirim bir kez).
-- `scripts/ci-linux.sh`: her commit için push'tan önce 16/16.
+- `scripts/ci-linux.sh`: her commit için push'tan önce 16/16. Buluşma ekranı testi Windows'ta geçip
+  Linux'ta açılamıyordu (güvenli depo yerel modülü); push'tan önce yakalandı (`dfd18e3`).
 - Staging'de geri alınan bir işlem içinde P1b denendi: bayrak açıkken test planı yazılır ve
   sayılır, kapalıyken sayılmaz ve yazılamaz, 100 yıllık plan reddedilir.
 
