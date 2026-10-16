@@ -68,8 +68,11 @@ export interface TogetherPerson {
  * çıkacak"); the last one's badge sits on the frame's corner, as on a sticker of its own.
  */
 const FRAME_SLOT = STICKER + GLYPH / 2 + space.xs;
-/** More than two: room on the frame's right for the count, clear of the last avatar's badge. */
-const COUNT_ROOM = GLYPH / 2 + space.lg + space.xxs;
+/**
+ * More than two: room on the frame's right for the count, a clear gap from the last avatar and its
+ * badge (proje sahibi 2026-10-16: "3 bir şeyin üzerine binmesin").
+ */
+const COUNT_ROOM = GLYPH / 2 + space.lg + space.sm;
 
 /** The avatars' part of the frame, edge to edge. */
 const avatarsWidth = (count: number) => (count - 1) * FRAME_SLOT + STICKER;
