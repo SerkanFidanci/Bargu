@@ -66,10 +66,12 @@ yeni tablo `app.entitlements`:
   - Çember duraklayınca sunucudaki son konumlar silinir; kimse donmuş bir nokta görmez.
 - Hiçbir şey silinmez: üyeler, anahtarlar, yerler, buluşma ve oylama belgeleri, geçmiş parçaları
   durur. Biri abone olunca çember yenileme gerektirmeden açılır.
-- Duraklamış çemberde de çalışanlar: güvenlik özellikleri (Güvendeyim, eve vardım bildirimleri,
-  hayalet, tümünü durdur, kilit), dürt, durum, yerler, buluşma ve oylama. Ücretin karşılığı
-  çemberin asıl değeri olan canlı konumdur. Öbürleri çemberin yaşamasını ve birinin abone olmasını
-  kolaylaştırır.
+- **Yerlere varış ve ayrılış bildirimleri** de durur, çünkü canlı konuma bağlıdırlar: telefon
+  duraklamış çemberin yerlerine varışı göndermez, sunucu da reddeder (PM kararı, 2026-10-16).
+- Duraklamış çemberde de çalışanlar: dürt, durum, yerlerin kendisi (tanımlar), buluşma ve oylama;
+  güvenlik özellikleri (Güvendeyim ve elle "eve vardım" mesajı, hayalet, tümünü durdur, kilit).
+  Ücretin karşılığı çemberin asıl değeri olan canlı konumdur. Çemberin geri kalanı canlı kalır ki
+  biri abone olsun (PM kararı, 2026-10-16).
 - Çember ekranında ve haritada kart: "Bu çember duraklatıldı. Açık tutmak için birinizin Bargu+'ya
   geçmesi yeter." Yanında "Bargu+'ya bak" düğmesi.
 - **Ek süre:** Ödeme alınamayınca hak `grace` olur ve 7 gün sürer; mağaza başka bir süre bildirirse
@@ -110,6 +112,8 @@ yeni tablo `app.entitlements`:
     - `fail`: ek süreye geçirir.
     - `recover`: ek süreden çıkarır.
     - `refund`: iade eder, hemen biter.
+    - `endTrial`: çağıranın denemesini şimdi bitirir ("deneme bitti" durumu böyle denenir; yalnızca
+      test bayrağı açıkken, ADR'nin geri kalanı gibi).
 - **Uygulama:**
   - Ödeme ekranı gerçek akışla aynıdır.
   - Preview derlemesinde "Satın al" test ucunu çağırır; ekranda "TEST — gerçek ödeme yok" bandı
@@ -151,8 +155,8 @@ yeni tablo `app.entitlements`:
 
 - **Sunucunun yeni öğrendikleri:** Kimde Bargu+ ya da deneme var, hangi süsler alınmış, hangi
   çember açık. Kart bilgisini mağaza tutar, Bargu hiç görmez.
-- **Kabul edilen sızıntı (THREAT_MODEL'e eklenecek):** Çember üyeleri, çember açıksa en az birinin
-  ödediğini bilir. İki kişilik bir çemberde, ödemeyen kişi ödeyenin öteki olduğunu anlar.
+- **Kabul edilen sızıntı (PM kararı, THREAT_MODEL'de):** Çember üyeleri, çember açıksa en az
+  birinin ödediğini bilir. İki kişilik bir çemberde, ödemeyen kişi ödeyenin öteki olduğunu anlar.
 - **Migration 0028:**
   - `app.entitlements` ve sıralı türleri, satır güvenliği (yalnızca kendi satırları);
   - `app.circle_is_open`;
