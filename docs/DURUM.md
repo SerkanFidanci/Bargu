@@ -127,7 +127,7 @@ APK (`b85ac9d`): <https://api.46-62-162-70.sslip.io/apk/bargu-b85ac9d-42157e9a2e
    kur".
 4. Deneme bitince ikili çember duraklar, biri Bargu+ alınca anında açılır.
 
-Buluşma (bu dilimin APK'sı, link PM'e iletilir):
+Buluşma, APK (`e77be02`): <https://api.46-62-162-70.sslip.io/apk/bargu-e77be02-524fa0c7e6a22f37.apk>
 
 5. `+` > "Buluşma başlat" > bir çember > yer ve saat > başlat. Diğer telefonda tek bildirim
    ("… buluşma başlattı: 17:30 · Ev"); uygulama açıksa kısa bir uyarı.
