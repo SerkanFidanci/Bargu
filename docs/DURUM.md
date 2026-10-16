@@ -17,6 +17,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                      |
 | Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)            |
 | Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)         |
+| Faz 9B — Para modeli & Bargu+    | 🟡 Sürüyor: dilim 1–2c bitti, 3a sunucuda; 3b askıda (sahip: "dur")   |
 
 ## Ortamlar
 
@@ -31,6 +32,97 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Linux CI (yerel)        | `scripts/ci-linux.sh [commit]`: CI'ın format, typecheck, lint, test ve build işini temiz bir kopyada Docker'da (Ubuntu) çalıştırır. Test değiştiren her commit'ten önce; Windows'ta geçip Linux'ta kırılanları yakalar                                                                                 |
 | Uygulama kimliği        | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                                                                                                                                                          |
 | Harita dosyaları        | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                                                                                                                                                  |
+
+## Faz 9B — Para Modeli & Bargu+ (sürüyor, 2026-10-16)
+
+Kararlar: [ADR 0024](ADR/0024-entitlements-and-test-billing.md) (hesap bazlı hak, çemberin
+ödeyeni, deneme, duraklama, sahte ödeme, 15–17 satın alma, en eski desteklenen uygulama),
+[ADR 0025](ADR/0025-cosmetic-pass-and-look.md) (süs geçiş belgesi ve görünüm mesajı), ADR 0011'e
+ek (hız ve durma süresi etiketi). Proje sahibi 2026-10-16'da durum analizi için durdurdu: dilim 3b
+ve sonrası onay bekliyor.
+
+### Önce: CI 13 saat kırıktı (düzeltildi)
+
+- 5c'den (`cfe3c3b`, 15 Ekim 21:35) 16 Ekim 10:19'a kadar her push'ta CI kırmızıydı; staging bu
+  yüzden `4437080`'de kaldı. "staging'e kendiliğinden gider" demiştim, yanlıştı.
+- Sebep: `guardian-tools.test.tsx` Linux'ta açılamıyordu (expo-router → iOS'a özel yerel görünüm);
+  Windows'ta geçiyordu. Düzeltme `bcf285d`.
+- Önlemler (`ad0d1bc`, `b7bac16`): `scripts/ci-linux.sh` CI'ı Docker'da Ubuntu üzerinde
+  çalıştırır (ana klasörden ve worktree'den); staging imajı commit etiketini taşır;
+  `publish-apk.sh` staging APK'nın sunucu kodunu çalıştırmıyorsa uyarır. Her push'tan sonra CI
+  sonucu beklenir, imaj kontrol edilmeden "staging'de" denmez.
+
+### Yapılanlar
+
+| Dilim     | Commit                          | Ne                                                                                                                                                                                                                              |
+| --------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1         | `c04c446`, `b4fb39a`            | Hak tablosu, 21 günlük deneme, duraklayan çember, test satın alma uçları (yalnızca `BILLING_TEST=on` olan yerde)                                                                                                                |
+| QA 19     | `e95152b`                       | Hak tablosuna yalnızca işlevlerle yazılır (P1), işçi işlevleri oturuma bir şey vermez (P2), iptal ya da yenileme başkasına söylenmez (P3), istemci seviyesi kapısı (P4), silip yeniden kaydolma denemesi kabul edilen risk (P5) |
+| 2a        | `8aa73f8`                       | Bargu+ ekranı (TEST bandı, yıllık önde, tek dokunuşla iptal), deneme hatırlatması, duraklamış çember uygulamada, "Yeni sürüm gerekiyor" ekranı                                                                                  |
+| 2b        | `40fe657`                       | Haritada hız ("40 km/sa") ve durma süresi ("2 sa") satırı; "Hızımı göster" ayarı (15–17'de kapalı başlar)                                                                                                                       |
+| QA 20 P1b | `714b71b`                       | Test hakları veritabanında da yalnızca test kurulumunda sayılır ve yazılır (migration 0030); test planı en çok bir yıl                                                                                                          |
+| 2c        | `f7b73de`, `2571e4f`, `b85ac9d` | 15–17 satın alma ebeveyn onayıyla (migration 0031); istemci seviyesi 2 (satın alma isteği eski uygulamalara gönderilmez); profil içeriği esnek okunur (yeni alanlar eski uygulamayı bozmaz)                                     |
+| 3a        | `450e155`                       | Sunucu imzalı süs geçiş belgesi (`GET /v1/me/cosmetics/pass`) ve şifreli `look` mesajı; staging imza anahtarı `stg-1`. Uygulama tarafı (3b) yok: süs henüz görünmez                                                             |
+
+### QA turları
+
+- QA 19 (dilim 1): P1–P5 düzeltildi ya da karara bağlandı.
+- QA 20 (QA 19 düzeltmeleri, dilim 2a): orta ya da yüksek bulgu yok. P1b ve T-1 düzeltildi.
+  A-1 (aşağıda) ve test botunun kodunun depoya alınması sonraya.
+
+### Test sonuçları (son çalıştırma, `450e155`)
+
+- Birim: schemas 93, crypto 171 + 1 (kapsam %100), API 93, mobil 398.
+- API entegrasyon: 30 dosya, 220 test (tek süreç).
+- `scripts/ci-linux.sh`: her commit için push'tan önce 16/16.
+- Staging'de geri alınan bir işlem içinde P1b denendi: bayrak açıkken test planı yazılır ve
+  sayılır, kapalıyken sayılmaz ve yazılamaz, 100 yıllık plan reddedilir.
+
+### Staging
+
+- `APP_ENV=staging`, `BILLING_TEST=on` (API, işçi ve migrate), `MIN_CLIENT_LEVEL` verilmedi (0),
+  `ENTITLEMENT_SIGNING_KEY` ve `ENTITLEMENT_SIGNING_KID=stg-1` yalnızca sunucudaki `.env`'de.
+- Sunucudaki `compose.yml` yedekleriyle güncellendi (deploy onu kopyalamaz).
+- Test botu v10: istemci seviyesi 2 gönderir.
+
+### Kalan açıklar
+
+1. `MIN_CLIENT_LEVEL` hâlâ 0. Bütün telefonlar 2c APK'sına geçince doğrudan 2 yapılacak, en geç
+   1 Kasım (denemeler bitmeden). Açmadan önce PM'e sorulur. Eski APK'lar 426'yı tanımaz, yalnızca
+   genel hata gösterir.
+2. Gerçek mağaza yok: fiyatlar tahmin, satın alma yalnızca test. Silip yeniden kaydolan yeni deneme
+   alır (kabul; Faz 10'da mağazanın kendi denemesine taşınır).
+3. A-1: çember duraklayınca yazılmış ama gönderilmemiş yerel geçmiş parçaları ilk sonraki konuma
+   kadar telefonda durur (sunucuya gitmez).
+4. "Hızımı göster" kapalıyken yön ve durma süresi gitmeye devam eder (PM kabul etti; ayar yalnızca
+   hızı kapsar).
+5. Süs: 3b yapılmadan hiçbir süs görünmez; staging'de paket test için satın alınabilir.
+   Kabul edilen risk: iadeden sonra değiştirilmiş bir uygulama en çok 30 gün eski belgeyle süs
+   gösterebilir.
+6. Test botunun kodu depoda değil (yalnızca sunucuda ve oturum notlarında).
+7. `event-cleanups` entegrasyon testi makine çok yüklüyken bir kez kırıldı (QA 20), tekrar
+   edilemedi.
+8. Profil ve `look` içerikleri esnek okunur; diğer içerik türleri hâlâ katı (yeni alan eklenirse
+   önce okumayı esnetmek gerekir).
+
+### Telefonda denenecekler (proje sahibi, 2c APK'sı)
+
+APK (`b85ac9d`): <https://api.46-62-162-70.sslip.io/apk/bargu-b85ac9d-42157e9a2ed4e21d.apk>
+
+1. Ben > Bargu+: TEST bandı, yıllık önde; satın alma ödeme istemeden çalışır, "yenilenir" yazar;
+   iptal tek dokunuşla "… tarihinde biter" yapar.
+2. Haritada hareket eden arkadaşın altında hız, duranın altında süre; Gizlilik > "Hızımı göster"
+   kapatılınca arkadaşın telefonunda hız ve hareket simgesi kalkar.
+3. 15–17 hesap ve bağlı ebeveyn: çocuk "Ebeveynime sor"a basar, ebeveyne bildirim gelir, ebeveyn
+   ekranında "Bargu+ yıllık almak istiyor (₺799,99 / yıl)" çıkar; evet ile çocukta Bargu+ açılır,
+   hayır ile "onay bekleniyor" yazısı kalkar. Bağlı ebeveyn yoksa "önce bir ebeveyninle bağlantı
+   kur".
+4. Deneme bitince ikili çember duraklar, biri Bargu+ alınca anında açılır.
+
+### Senden gerekenler
+
+- 2c APK'sını bütün telefonlara (kendi, şirket telefonu, Seko) kur; bitince söyle ki kapı (seviye 2) açılabilsin.
+- Dilim 3b ve sonrası için karar (durum analizinden sonra).
 
 ## Faz 9 — Güvenlik Özellikleri & Uyum (2026-10-16)
 
