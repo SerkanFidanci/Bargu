@@ -26,9 +26,13 @@ export const BILLING_TEST_LIMIT = 60;
 type Row = typeof entitlements.$inferSelect;
 const PLUS = new Set(['trial', 'plus_month', 'plus_year']);
 
-/** Whether a row gives Bargu+ at `now` (the same rule as app.plus_active, migrations/0028). */
-export function plusLive(row: Row, now: number): boolean {
+/**
+ * Whether a row gives Bargu+ at `now` (the same rule as app.plus_active, migrations/0030): a test
+ * row only where test purchases are on.
+ */
+export function plusLive(row: Row, now: number, testCounts: boolean): boolean {
   if (!PLUS.has(row.product)) return false;
+  if (row.source === 'test' && !testCounts) return false;
   if (row.state === 'grace') return (row.graceUntil?.getTime() ?? 0) > now;
   if (row.state === 'active' || row.state === 'canceled') {
     return (row.expiresAt?.getTime() ?? 0) > now;
@@ -69,11 +73,13 @@ export class BillingService {
   ) {}
 
   async plan(auth: AuthContext): Promise<Plan> {
-    const rows = await this.rows(auth.userId);
+    const testing = billingTestOn(this.env);
+    // Without test purchases (production) a test row is nothing, as in the database (QA 20 P1b).
+    const rows = (await this.rows(auth.userId)).filter((row) => testing || row.source !== 'test');
     const now = Date.now();
     // A paid plan before the trial; the one running longest first.
     const current = rows
-      .filter((row) => plusLive(row, now))
+      .filter((row) => plusLive(row, now, testing))
       .sort(
         (a, b) =>
           Number(b.product !== 'trial') - Number(a.product !== 'trial') ||
@@ -92,7 +98,7 @@ export class BillingService {
       cosmetics: rows
         .filter((row) => row.product.startsWith('cosmetic:') && row.state === 'active')
         .map((row) => row.product.slice('cosmetic:'.length)),
-      testBilling: billingTestOn(this.env),
+      testBilling: testing,
     };
   }
 
@@ -136,7 +142,9 @@ export class BillingService {
         return false;
       }
       const product = input.product as PlusProduct;
-      const live = mine.filter((row) => row.product !== 'trial' && plusLive(row, now.getTime()));
+      const live = mine.filter(
+        (row) => row.product !== 'trial' && plusLive(row, now.getTime(), true),
+      );
       if (live.some((row) => row.source !== 'test')) {
         throw new ApiError(HttpStatus.CONFLICT, 'ALREADY_SUBSCRIBED');
       }
@@ -182,7 +190,6 @@ export class BillingService {
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
       if (target === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
       const period = PERIOD_MS[target.product as PlusProduct];
-      const from = Math.max(target.expiresAt?.getTime() ?? 0, now.getTime());
       const kept: TestChange = {
         state: target.state,
         expiresAt: target.expiresAt,
@@ -193,7 +200,9 @@ export class BillingService {
         input.action === 'renew'
           ? {
               state: 'active',
-              expiresAt: new Date(from + period),
+              // As a store renews at the end of the period, with now as that end: one period
+              // from now, never two (a test plan ends within a year, migration 0030).
+              expiresAt: new Date(now.getTime() + period),
               graceUntil: null,
               autoRenew: true,
             }

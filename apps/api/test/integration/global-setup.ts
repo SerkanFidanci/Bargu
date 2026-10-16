@@ -42,7 +42,14 @@ export default async function setup(project: TestProject): Promise<() => Promise
 
   const migrationsDir = fileURLToPath(new URL('../../migrations', import.meta.url));
   const databaseAdminUrl = urlFor(ADMIN_URL, database);
-  await migrate({ adminUrl: databaseAdminUrl, appPassword: APP_PASSWORD, migrationsDir });
+  // Test purchases on, as on staging (billing.int-spec turns them off inside a rolled-back test).
+  const run = {
+    adminUrl: databaseAdminUrl,
+    appPassword: APP_PASSWORD,
+    migrationsDir,
+    billingTest: true,
+  };
+  await migrate(run);
 
   // Every migration run re-asserts the runtime role's attributes (a drifted role could bypass RLS).
   // Checked here, before any test starts: it briefly changes a role shared by the whole cluster,
@@ -51,7 +58,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
   await roleCheck.connect();
   try {
     await roleCheck.query(`ALTER ROLE ${roleCheck.escapeIdentifier(APP_ROLE)} BYPASSRLS`);
-    await migrate({ adminUrl: databaseAdminUrl, appPassword: APP_PASSWORD, migrationsDir });
+    await migrate(run);
     const { rows } = await roleCheck.query<{ bypass: boolean }>(
       'SELECT rolbypassrls AS bypass FROM pg_roles WHERE rolname = $1',
       [APP_ROLE],

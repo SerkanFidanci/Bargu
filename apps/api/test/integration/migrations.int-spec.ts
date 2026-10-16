@@ -11,6 +11,8 @@ const options = () => ({
   adminUrl: inject('databaseAdminUrl'),
   appPassword: 'integration-tests-app-role-password',
   migrationsDir: inject('migrationsDir'),
+  // The shared test database keeps test purchases on (global-setup).
+  billingTest: true,
 });
 
 beforeAll(() => {

@@ -115,7 +115,8 @@ yeni tablo `app.entitlements`:
     30 gün, `plus_year` 365 gün sürer; süs kalıcıdır. 15–17 için yalnızca onaylanmış bir istekle.
   - `POST /v1/billing/test/simulate` `{ action }`: yalnızca çağıranın kendi `test` hakkına
     uygulanır, `play` ve `appstore` haklarına asla.
-    - `renew`: bir dönem uzatır.
+    - `renew`: mağaza gibi dönem sonunda yeniler; taklitte "şimdi" dönemin sonu sayılır, yeni
+      dönem şimdiden başlar (bitiş en çok bir dönem ileride, hiçbir zaman iki dönem).
     - `cancel`: yenilemeyi kapatır, süre bitene kadar sürer.
     - `expire`: şimdi bitirir.
     - `fail`: ek süreye geçirir.
@@ -123,6 +124,20 @@ yeni tablo `app.entitlements`:
     - `refund`: iade eder, hemen biter.
     - `endTrial`: çağıranın denemesini şimdi bitirir ("deneme bitti" durumu böyle denenir; yalnızca
       test bayrağı açıkken, ADR'nin geri kalanı gibi).
+- **Veritabanı da bilir (QA 20 P1b, migration 0030):** API'nin bayrağı uçları kapatır, ama
+  uygulama rolüyle SQL erişimi olan biri (SQL enjeksiyonu varsayımı) test işlevini doğrudan
+  çağırıp kendine uzun bir Bargu+ yazabiliyordu.
+  - Migration adımı her dağıtımda bayrağı `app.settings` tablosuna yazar: yalnızca `APP_ENV`
+    üretim değilse ve `BILLING_TEST=on` ise `on`. Satır yoksa kapalı sayılır. Uygulama rolü bu
+    tabloyu ne okuyabilir ne yazabilir; bayrağı yalnızca migration adımı (sahip rolü) değiştirir.
+    Bu yüzden bayrak, uygulama rolünün açabileceği bir oturum ayarı (GUC) olarak tutulmadı.
+  - Bayrak kapalıyken (üretim) `plus_active` ve onu kullanan çember açıklığı `test` kaynaklı
+    satırı saymaz; test işlevleri hiçbir şey yazmaz ve değiştirmez. API'nin plan cevabı da aynı
+    kurala uyar.
+  - Bir test planının bitişi en çok "şimdi + 1 yıl + 1 gün"dür; süsün bitişi yoktur. Bir günlük
+    pay, API ile veritabanının saatleri arasındaki küçük fark için. Bu pay olmadan tam 365 günlük
+    gerçek bir yıllık plan saat farkı yüzünden reddedildi. Erken yenileme bu yüzden dönem sonuna
+    taşındı (yukarıda `renew`) ve bitişi iki yıla itmez.
 - **Uygulama:**
   - Ödeme ekranı gerçek akışla aynıdır.
   - Preview derlemesinde "Satın al" test ucunu çağırır; ekranda "TEST — gerçek ödeme yok" bandı

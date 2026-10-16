@@ -274,6 +274,62 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
     told.mockRestore();
   });
 
+  it('counts no test plan and writes none where test purchases are off (QA 20 P1b)', async () => {
+    const [mert, nur] = [await person(test), await person(test)];
+    const circle = await circleWith(test, mert, nur);
+    await buy(mert, 'plus_year');
+    await simulate(mert, 'endTrial');
+    await simulate(nur, 'endTrial');
+    // Production, as the migrator writes it there; only inside this transaction (other test files
+    // share the database and keep test purchases on).
+    const admin = await test.admin.connect();
+    try {
+      await admin.query('BEGIN');
+      await admin.query(`UPDATE app.settings SET value = 'off' WHERE key = 'billing_test'`);
+      const plus = await admin.query<{ on: boolean }>('SELECT app.plus_active($1) AS on', [
+        mert.userId,
+      ]);
+      expect(plus.rows[0]?.on).toBe(false);
+      const open = await admin.query<{ open: boolean }>(
+        'SELECT open FROM app.circles_openness_of($1) WHERE circle_id = $2',
+        [mert.userId, circle.id],
+      );
+      expect(open.rows[0]?.open).toBe(false);
+      // As the app role for Mert, the way an SQL injection would: no test plan can be written.
+      await admin.query('SET LOCAL ROLE bargu_app');
+      await admin.query(`SELECT set_config('app.user_id', $1, true)`, [mert.userId]);
+      await expect(
+        admin.query(
+          `SELECT app.add_test_entitlement('plus_month', now() + interval '1 day', true)`,
+        ),
+      ).rejects.toThrow(/not allowed/);
+    } finally {
+      await admin.query('ROLLBACK');
+      admin.release();
+    }
+    // Where test purchases are on (staging), the same plan counts again.
+    expect((await planOf(mert)).plan).toBe('plus');
+  });
+
+  it('ends a test plan within a year, an early renewal as at the period end (QA 20 P1b)', async () => {
+    const oya = await person(test);
+    const database = test.app.get(DatabaseService);
+    // The app role's own call: a hundred years is refused, as is a plan with no end.
+    for (const end of [sql`now() + interval '100 years'`, sql`NULL`]) {
+      await expect(
+        database.asUser(oya.userId, (tx) =>
+          tx.execute(sql`SELECT app.add_test_entitlement('plus_year', ${end}, true)`),
+        ),
+      ).rejects.toThrow();
+    }
+    await buy(oya, 'plus_year');
+    expect((await simulate(oya, 'renew')).statusCode).toBe(200);
+    // One period from now, as if now were the end of the old one: never two years ahead.
+    const { expiresAt } = await planOf(oya);
+    expect(expiresAt).toBeGreaterThan(Date.now() + 364 * DAY);
+    expect(expiresAt).toBeLessThanOrEqual(Date.now() + 365 * DAY);
+  });
+
   it("asks a parent's yes before a 15-17 account buys anything", async () => {
     const teen = await person(test, 'Deniz', '15-17');
     expect((await planOf(teen)).plan).toBe('trial');

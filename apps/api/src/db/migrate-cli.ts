@@ -4,12 +4,16 @@ import { fileURLToPath } from 'node:url';
 
 import { z } from 'zod';
 
+import { billingTestOn } from '../config/env.js';
 import { migrate } from './migrate.js';
 
 const env = z
   .object({
     DATABASE_ADMIN_URL: z.url({ protocol: /^postgres(ql)?$/ }),
     DB_APP_PASSWORD: z.string().min(16),
+    // Test purchases in the database too (docs/ADR/0024 §6): the same rule as the API's.
+    APP_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+    BILLING_TEST: z.enum(['on', 'off']).optional(),
   })
   .safeParse(process.env);
 
@@ -25,6 +29,7 @@ try {
     adminUrl: env.data.DATABASE_ADMIN_URL,
     appPassword: env.data.DB_APP_PASSWORD,
     migrationsDir: fileURLToPath(new URL('../../migrations', import.meta.url)),
+    billingTest: billingTestOn(env.data),
     log: (message) => process.stdout.write(`${message}\n`),
   });
 } catch (error: unknown) {

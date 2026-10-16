@@ -18,6 +18,12 @@ export interface MigrateOptions {
   /** Password set for the runtime role (DATABASE_URL of the API and worker). */
   appPassword: string;
   migrationsDir: string;
+  /**
+   * Test purchases count and may be written (docs/ADR/0024 §6): true only where APP_ENV is not
+   * production and BILLING_TEST=on. Written on every run (app.settings), so a changed flag holds
+   * from the next deploy. Required: a run that forgot it must not turn a test database's off.
+   */
+  billingTest: boolean;
   log?: (message: string) => void;
 }
 
@@ -41,7 +47,9 @@ export async function migrate(options: MigrateOptions): Promise<string[]> {
     await bootstrapRoles(client, options.adminUrl, options.appPassword);
     const applied = await applyMigrations(client, options.migrationsDir, log);
     await installJobs(client);
+    await writeSettings(client, options.billingTest);
     log(applied.length > 0 ? `applied: ${applied.join(', ')}` : 'schema up to date');
+    log(`test purchases: ${options.billingTest ? 'on' : 'off'}`);
     return applied;
   } finally {
     await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]).catch(() => undefined);
@@ -152,6 +160,20 @@ async function applyMigrations(
     applied.push(name);
   }
   return applied;
+}
+
+/** The deployment's settings the database itself follows (migration 0030), as the owner role. */
+async function writeSettings(client: Client, billingTest: boolean): Promise<void> {
+  await client.query(`SET ROLE ${client.escapeIdentifier(OWNER_ROLE)}`);
+  try {
+    await client.query(
+      `INSERT INTO app.settings (key, value) VALUES ('billing_test', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+      [billingTest ? 'on' : 'off'],
+    );
+  } finally {
+    await client.query('RESET ROLE');
+  }
 }
 
 /** pg-boss tables and queues, owned by the owner role; the app role gets data access only. */

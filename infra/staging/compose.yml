@@ -66,6 +66,10 @@ services:
     environment:
       DATABASE_ADMIN_URL: postgres://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:?}
       DB_APP_PASSWORD: ${DB_APP_PASSWORD:?}
+      # Written into the database on every run (app.settings, docs/ADR/0024 §6): test purchases
+      # count there only where these say so, as for the API.
+      APP_ENV: staging
+      BILLING_TEST: ${BILLING_TEST:-off}
     healthcheck:
       disable: true
     mem_limit: 256m
