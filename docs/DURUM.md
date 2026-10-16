@@ -17,7 +17,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                      |
 | Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)            |
 | Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)         |
-| Faz 9B — Para modeli & Bargu+    | 🟡 Sürüyor: dilim 1–2c bitti, 3a sunucuda; 3b askıda (sahip: "dur")   |
+| Faz 9B — Para modeli & Bargu+    | 🟡 Sürüyor: dilim 1–2c, 3a ve buluşma bitti; 3b askıda                |
 
 ## Ortamlar
 
@@ -37,9 +37,10 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 Kararlar: [ADR 0024](ADR/0024-entitlements-and-test-billing.md) (hesap bazlı hak, çemberin
 ödeyeni, deneme, duraklama, sahte ödeme, 15–17 satın alma, en eski desteklenen uygulama),
-[ADR 0025](ADR/0025-cosmetic-pass-and-look.md) (süs geçiş belgesi ve görünüm mesajı), ADR 0011'e
-ek (hız ve durma süresi etiketi). Proje sahibi 2026-10-16'da durum analizi için durdurdu: dilim 3b
-ve sonrası onay bekliyor.
+[ADR 0025](ADR/0025-cosmetic-pass-and-look.md) (süs geçiş belgesi ve görünüm mesajı),
+[ADR 0026](ADR/0026-meetings-in-any-circle.md) (her çemberde buluşma), ADR 0011'e ek (hız ve
+durma süresi etiketi). Proje sahibi 2026-10-16'da durum analizi için durdurdu; ardından buluşma
+dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 
 ### Önce: CI 13 saat kırıktı (düzeltildi)
 
@@ -54,15 +55,16 @@ ve sonrası onay bekliyor.
 
 ### Yapılanlar
 
-| Dilim     | Commit                          | Ne                                                                                                                                                                                                                              |
-| --------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1         | `c04c446`, `b4fb39a`            | Hak tablosu, 21 günlük deneme, duraklayan çember, test satın alma uçları (yalnızca `BILLING_TEST=on` olan yerde)                                                                                                                |
-| QA 19     | `e95152b`                       | Hak tablosuna yalnızca işlevlerle yazılır (P1), işçi işlevleri oturuma bir şey vermez (P2), iptal ya da yenileme başkasına söylenmez (P3), istemci seviyesi kapısı (P4), silip yeniden kaydolma denemesi kabul edilen risk (P5) |
-| 2a        | `8aa73f8`                       | Bargu+ ekranı (TEST bandı, yıllık önde, tek dokunuşla iptal), deneme hatırlatması, duraklamış çember uygulamada, "Yeni sürüm gerekiyor" ekranı                                                                                  |
-| 2b        | `40fe657`                       | Haritada hız ("40 km/sa") ve durma süresi ("2 sa") satırı; "Hızımı göster" ayarı (15–17'de kapalı başlar)                                                                                                                       |
-| QA 20 P1b | `714b71b`                       | Test hakları veritabanında da yalnızca test kurulumunda sayılır ve yazılır (migration 0030); test planı en çok bir yıl                                                                                                          |
-| 2c        | `f7b73de`, `2571e4f`, `b85ac9d` | 15–17 satın alma ebeveyn onayıyla (migration 0031); istemci seviyesi 2 (satın alma isteği eski uygulamalara gönderilmez); profil içeriği esnek okunur (yeni alanlar eski uygulamayı bozmaz)                                     |
-| 3a        | `450e155`                       | Sunucu imzalı süs geçiş belgesi (`GET /v1/me/cosmetics/pass`) ve şifreli `look` mesajı; staging imza anahtarı `stg-1`. Uygulama tarafı (3b) yok: süs henüz görünmez                                                             |
+| Dilim     | Commit                          | Ne                                                                                                                                                                                                                                                                                                                                          |
+| --------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1         | `c04c446`, `b4fb39a`            | Hak tablosu, 21 günlük deneme, duraklayan çember, test satın alma uçları (yalnızca `BILLING_TEST=on` olan yerde)                                                                                                                                                                                                                            |
+| QA 19     | `e95152b`                       | Hak tablosuna yalnızca işlevlerle yazılır (P1), işçi işlevleri oturuma bir şey vermez (P2), iptal ya da yenileme başkasına söylenmez (P3), istemci seviyesi kapısı (P4), silip yeniden kaydolma denemesi kabul edilen risk (P5)                                                                                                             |
+| 2a        | `8aa73f8`                       | Bargu+ ekranı (TEST bandı, yıllık önde, tek dokunuşla iptal), deneme hatırlatması, duraklamış çember uygulamada, "Yeni sürüm gerekiyor" ekranı                                                                                                                                                                                              |
+| 2b        | `40fe657`                       | Haritada hız ("40 km/sa") ve durma süresi ("2 sa") satırı; "Hızımı göster" ayarı (15–17'de kapalı başlar)                                                                                                                                                                                                                                   |
+| QA 20 P1b | `714b71b`                       | Test hakları veritabanında da yalnızca test kurulumunda sayılır ve yazılır (migration 0030); test planı en çok bir yıl                                                                                                                                                                                                                      |
+| 2c        | `f7b73de`, `2571e4f`, `b85ac9d` | 15–17 satın alma ebeveyn onayıyla (migration 0031); istemci seviyesi 2 (satın alma isteği eski uygulamalara gönderilmez); profil içeriği esnek okunur (yeni alanlar eski uygulamayı bozmaz)                                                                                                                                                 |
+| 3a        | `450e155`                       | Sunucu imzalı süs geçiş belgesi (`GET /v1/me/cosmetics/pass`) ve şifreli `look` mesajı; staging imza anahtarı `stg-1`. Uygulama tarafı (3b) yok: süs henüz görünmez                                                                                                                                                                         |
+| Buluşma   | `230cf81`, `8de3a8b`            | Proje sahibinin isteği: her çemberde tek buluşma (migration 0032), herkes başlatır, başlatan ve yöneticiler değiştirir ve bitirir, saatinden 3 saat sonra kendiliğinden silinir. Haritada kayıtlı yer gibi değil (mercan, kesikli kenar, bayrak), dokununca kendi ekranı; "Geldim", yol tarifi, başlayınca tek bildirim. İstemci seviyesi 3 |
 
 ### QA turları
 
@@ -70,10 +72,11 @@ ve sonrası onay bekliyor.
 - QA 20 (QA 19 düzeltmeleri, dilim 2a): orta ya da yüksek bulgu yok. P1b ve T-1 düzeltildi.
   A-1 (aşağıda) ve test botunun kodunun depoya alınması sonraya.
 
-### Test sonuçları (son çalıştırma, `450e155`)
+### Test sonuçları (son çalıştırma, `8de3a8b`)
 
-- Birim: schemas 93, crypto 171 + 1 (kapsam %100), API 93, mobil 398.
-- API entegrasyon: 30 dosya, 220 test (tek süreç).
+- Birim: mobil 406 (buluşma ekranı, haritadaki noktalar, kaba konumda "geldi" yok, bildirim metni).
+- API entegrasyon: 30 dosya, 224 test (buluşma: başlatma, tek buluşma, yetki, yabancı erişemez,
+  bitiş saati, eski uygulamaya gitmez, işçinin silmesi, bildirim bir kez).
 - `scripts/ci-linux.sh`: her commit için push'tan önce 16/16.
 - Staging'de geri alınan bir işlem içinde P1b denendi: bayrak açıkken test planı yazılır ve
   sayılır, kapalıyken sayılmaz ve yazılamaz, 100 yıllık plan reddedilir.
@@ -83,13 +86,13 @@ ve sonrası onay bekliyor.
 - `APP_ENV=staging`, `BILLING_TEST=on` (API, işçi ve migrate), `MIN_CLIENT_LEVEL` verilmedi (0),
   `ENTITLEMENT_SIGNING_KEY` ve `ENTITLEMENT_SIGNING_KID=stg-1` yalnızca sunucudaki `.env`'de.
 - Sunucudaki `compose.yml` yedekleriyle güncellendi (deploy onu kopyalamaz).
-- Test botu v10: istemci seviyesi 2 gönderir.
+- Test botu v11: istemci seviyesi 3 gönderir.
 
 ### Kalan açıklar
 
-1. `MIN_CLIENT_LEVEL` hâlâ 0. Bütün telefonlar 2c APK'sına geçince doğrudan 2 yapılacak, en geç
-   1 Kasım (denemeler bitmeden). Açmadan önce PM'e sorulur. Eski APK'lar 426'yı tanımaz, yalnızca
-   genel hata gösterir.
+1. `MIN_CLIENT_LEVEL` hâlâ 0. 2'yi atlayıp bütün telefonlar buluşma APK'sına geçince doğrudan 3
+   yapılacak, en geç 1 Kasım (denemeler bitmeden). Açmadan önce PM'e sorulur. Eski APK'lar 426'yı
+   tanımaz, yalnızca genel hata gösterir.
 2. Gerçek mağaza yok: fiyatlar tahmin, satın alma yalnızca test. Silip yeniden kaydolan yeni deneme
    alır (kabul; Faz 10'da mağazanın kendi denemesine taşınır).
 3. A-1: çember duraklayınca yazılmış ama gönderilmemiş yerel geçmiş parçaları ilk sonraki konuma
@@ -102,8 +105,11 @@ ve sonrası onay bekliyor.
 6. Test botunun kodu depoda değil (yalnızca sunucuda ve oturum notlarında).
 7. `event-cleanups` entegrasyon testi makine çok yüklüyken bir kez kırıldı (QA 20), tekrar
    edilemedi.
-8. Profil ve `look` içerikleri esnek okunur; diğer içerik türleri hâlâ katı (yeni alan eklenirse
-   önce okumayı esnetmek gerekir).
+8. Profil, `look` ve plan içerikleri esnek okunur; diğer içerik türleri hâlâ katı (yeni alan
+   eklenirse önce okumayı esnetmek gerekir).
+9. Buluşma: sunucu bir çemberde buluşma olduğunu, başlatanı ve bitiş saatini (saat + 3 sa) bilir;
+   yer ve saat şifreli. iOS bildirim eklentisinin yeni `meeting` türü yalnızca CI'daki macOS
+   işinde derlenir (yerelde denenemedi).
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -119,9 +125,22 @@ APK (`b85ac9d`): <https://api.46-62-162-70.sslip.io/apk/bargu-b85ac9d-42157e9a2e
    kur".
 4. Deneme bitince ikili çember duraklar, biri Bargu+ alınca anında açılır.
 
+Buluşma (bu dilimin APK'sı, link PM'e iletilir):
+
+5. `+` > "Buluşma başlat" > bir çember > yer ve saat > başlat. Diğer telefonda tek bildirim
+   ("… buluşma başlattı: 17:30 · Ev"); uygulama açıksa kısa bir uyarı.
+6. Haritada buluşma kayıtlı yerden farklı görünür (mercan, kesikli kenar, bayrak, saat); dokununca
+   buluşma ekranı açılır. Evde buluşulsa da ev o sırada buluşma gibi çizilir.
+7. Buluşma ekranında "Yol tarifi" yalnızca dokununca harita uygulamasını açar; "Geldim" diğer
+   telefonda "geldi" yapar. Mahalle ya da şehir hassasiyetinde paylaşan "yolda" ya da "geldi"
+   görünmez.
+8. Başlatmayan ve yönetici olmayan üye buluşmayı değiştiremez ve bitiremez; ikinci buluşma
+   başlatılamaz ("Bu çemberde zaten bir buluşma var"). "Buluşmayı bitir" ile haritadan hemen kalkar.
+
 ### Senden gerekenler
 
-- 2c APK'sını bütün telefonlara (kendi, şirket telefonu, Seko) kur; bitince söyle ki kapı (seviye 2) açılabilsin.
+- Buluşma APK'sını bütün telefonlara (kendi, şirket telefonu, Seko) kur; bitince söyle ki kapı
+  (doğrudan seviye 3) açılabilsin.
 - Dilim 3b ve sonrası için karar (durum analizinden sonra).
 
 ## Faz 9 — Güvenlik Özellikleri & Uyum (2026-10-16)
