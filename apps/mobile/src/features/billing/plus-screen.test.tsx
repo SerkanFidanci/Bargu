@@ -2,6 +2,7 @@ import type { Plan } from '@bargu/schemas';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { ApiError } from '@/features/auth/api-client';
 import i18n from '@/i18n';
 
 jest.mock('@/config/env', () => ({
@@ -114,10 +115,32 @@ describe('Bargu+ (docs/ADR/0024 §9)', () => {
     expect(screen.queryByTestId('plus-buy')).toBeNull();
   });
 
-  it('asks a 15-17 account for a parent instead of a button', async () => {
+  it('lets a 15-17 account ask a parent instead of buying (docs/ADR/0024 §5)', async () => {
     mockBand = '15-17';
+    mockPurchase.mockRejectedValueOnce(new ApiError(403, 'GUARDIAN_APPROVAL'));
+    await show();
+    expect(screen.queryByTestId('plus-buy')).toBeNull();
+    await fireEvent.press(await screen.findByTestId('plus-ask'));
+    await waitFor(() => {
+      expect(mockPurchase).toHaveBeenCalledWith('plus_year');
+    });
+  });
+
+  it('shows a 15-17 account the plan waiting for a parent, and lets them ask for the other', async () => {
+    mockBand = '15-17';
+    mockPlan = { ...trial(true), pendingPurchase: 'plus_year' };
+    await show();
+    expect(await screen.findByText('Ebeveyninin onayı bekleniyor: Bargu+ yıllık.')).toBeTruthy();
+    expect(screen.queryByTestId('plus-ask')).toBeNull();
+    await fireEvent.press(screen.getByTestId('plus-plus_month'));
+    expect(await screen.findByText('Bunun yerine aylık iste')).toBeTruthy();
+  });
+
+  it('tells 15-17 that buying is not here yet where the server has no test billing', async () => {
+    mockBand = '15-17';
+    mockPlan = trial(false);
     await show();
     expect(await screen.findByText(/ebeveyn onayı gerekiyor/)).toBeTruthy();
-    expect(screen.queryByTestId('plus-buy')).toBeNull();
+    expect(screen.queryByTestId('plus-ask')).toBeNull();
   });
 });

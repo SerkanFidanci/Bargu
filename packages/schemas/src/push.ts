@@ -23,6 +23,8 @@ export const PUSH_NOTICES = [
   'guardianSettings',
   // Someone new in a circle of the child (PM decision on QA 5c F-2); names the link.
   'guardianNewMember',
+  // The child asks for Bargu+ (docs/ADR/0024 §5); names the link.
+  'guardianPurchase',
 ] as const;
 export type PushNotice = (typeof PUSH_NOTICES)[number];
 

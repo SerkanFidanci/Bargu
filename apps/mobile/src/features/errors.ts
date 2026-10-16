@@ -24,6 +24,9 @@ export function errorMessage(error: unknown, t: TFunction): string {
       // docs/ADR/0023 §5
       case 'GUARDIAN_APPROVAL':
         return t('errors.guardianApproval');
+      // docs/ADR/0024 §5
+      case 'GUARDIAN_LINK_REQUIRED':
+        return t('errors.guardianLinkRequired');
       case 'APPROVAL_PENDING':
         return t('errors.approvalPending');
       case 'REQUEST_FAILED':

@@ -25,3 +25,4 @@
 "notice.guardianSettings" = "Your parent changed your settings";
 "notice.guardianNewMember" = "Someone new joined one of your child's circles";
 "notice.guardianNewMemberIn" = "%@: someone new joined one of their circles";
+"notice.guardianPurchase" = "Your child wants Bargu+; it waits for your yes";

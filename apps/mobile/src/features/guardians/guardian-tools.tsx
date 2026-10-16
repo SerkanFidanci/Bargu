@@ -17,6 +17,7 @@ import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 import { Toggle } from '@/ui/toggle';
 
+import { PLUS_PRICES, priceText } from '../billing/plan-model';
 import { errorMessage, isApiError } from '../errors';
 import { guardiansApi, guardiansKey, guardianViewKey } from './guardians-api';
 import { localDay } from './screen-time';
@@ -114,6 +115,16 @@ export function GuardianTools({ view }: { view: GuardianView }) {
           by: request.by ?? someone,
           name: request.name ?? '',
         });
+      case 'purchase': {
+        // docs/ADR/0024 §5: the plan and its price, as on the child's Bargu+ screen.
+        const yearly = request.product === 'plus_year';
+        return t('guardians.tools.askPurchase', {
+          plan: yearly ? t('plus.yearly') : t('plus.monthly'),
+          price:
+            priceText(PLUS_PRICES[yearly ? 'plus_year' : 'plus_month'], i18n.language) +
+            (yearly ? t('plus.perYear') : t('plus.perMonth')),
+        });
+      }
       case 'gone':
         return t('guardians.tools.askGone');
     }

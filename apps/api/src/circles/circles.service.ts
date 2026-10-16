@@ -531,11 +531,15 @@ export class CirclesService implements OnModuleInit {
    * A request just stored for a parent's yes: the child and the parents hear it, the parents once
    * per request (asking again tells nobody again) and within their hourly allowance.
    */
-  async tellAsked(childId: string, rows: readonly { guardian_id: string; fresh: boolean }[]) {
+  async tellAsked(
+    childId: string,
+    rows: readonly { guardian_id: string; fresh: boolean }[],
+    notice: 'guardianApproval' | 'guardianPurchase' = 'guardianApproval',
+  ) {
     const fresh = rows.filter((row) => row.fresh).map((row) => row.guardian_id);
     if (fresh.length === 0) return;
     await this.events.publish([childId, ...fresh], { type: 'guardians.changed' });
-    await this.notifier.notifyGuardians(fresh, 'guardianApproval', childId);
+    await this.notifier.notifyGuardians(fresh, notice, childId);
   }
 
   /** A 15-17 child invites someone by username: that waits for a parent's yes too (QA 5c F-2). */

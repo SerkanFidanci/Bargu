@@ -25,3 +25,4 @@
 "notice.guardianSettings" = "Ebeveynin ayarlarını değiştirdi";
 "notice.guardianNewMember" = "Çocuğunun bir çemberine yeni biri katıldı";
 "notice.guardianNewMemberIn" = "%@: bir çemberine yeni biri katıldı";
+"notice.guardianPurchase" = "Çocuğun Bargu+ almak istiyor; onayını bekliyor";

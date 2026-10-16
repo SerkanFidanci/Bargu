@@ -22,7 +22,8 @@
     "approvalPending": "Joining with this invite needs an approval. Once given, it shows in your list.",
     "circlePaused": "This circle is paused: one of you getting Bargu+ keeps it open.",
     "alreadySubscribed": "You already have a subscription.",
-    "upgradeRequired": "Please update Bargu."
+    "upgradeRequired": "Please update Bargu.",
+    "guardianLinkRequired": "To buy, first link with a parent. Bargu+ opens once they say yes."
   },
   "intro": {
     "skip": "Skip",
@@ -528,7 +529,8 @@
       "guardianDeclined": "Your parent said no",
       "guardianSettings": "Your parent changed your settings",
       "guardianNewMember": "Someone new joined one of your child’s circles",
-      "guardianNewMemberIn": "{{name}}: someone new joined one of their circles"
+      "guardianNewMemberIn": "{{name}}: someone new joined one of their circles",
+      "guardianPurchase": "Your child wants Bargu+; it waits for your yes"
     },
     "mute": {
       "title": "Notifications from {{name}}",
@@ -1051,7 +1053,8 @@
       "someone": "someone without a name",
       "askBefriends": "{{by}} wants to be your child’s friend with their friend code",
       "askJoins": "{{by}} wants to join {{name}} with your child’s code",
-      "askInvites": "Your child wants to invite {{by}} into {{name}}"
+      "askInvites": "Your child wants to invite {{by}} into {{name}}",
+      "askPurchase": "Wants Bargu+ {{plan}} ({{price}})"
     },
     "unnamed": "Someone without a name",
     "newMember": "{{name}} (new)"
@@ -1084,7 +1087,6 @@
     "cancel": "Cancel subscription",
     "cancelled": "Cancelled: Bargu+ stays on until the period ends.",
     "soon": "Buying is coming soon: the store is not connected yet.",
-    "teen": "Buying needs a parent’s yes. This is coming here soon.",
     "givesTitle": "With Bargu+",
     "gives": {
       "circles": "Every circle you made or are in stays open for everyone",
@@ -1101,7 +1103,12 @@
     "reminder": {
       "title": "Your Bargu+ trial ends in 3 days",
       "body": "Get Bargu+ if you want your circles to stay open. It does not turn into a paid plan by itself."
-    }
+    },
+    "ask": "Ask my parent · {{price}}{{per}}",
+    "asked": "You asked your parent. Once they say yes, Bargu+ opens and you'll hear about it.",
+    "pending": "Waiting for your parent: Bargu+ {{plan}}.",
+    "askOther": "Ask for {{plan}} instead",
+    "teenSoon": "Buying needs a parent's yes. The store isn't connected yet; it's coming soon."
   },
   "upgrade": {
     "title": "A new version is needed",

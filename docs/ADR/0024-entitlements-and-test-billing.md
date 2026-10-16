@@ -99,6 +99,28 @@ yeni tablo `app.entitlements`:
   Onaydan sonra satın alma yapılır: testte hak verilir, gerçek mağazada çocuğun telefonu mağaza
   akışını açar. Bağlı ebeveyn yoksa: "Satın almak için ebeveyninle bağlantı kur."
 - Deneme 15–17 için de geçerlidir; ücretsizdir.
+- **Uygulama (dilim 2c, migration 0031):**
+  - Çocuğun "Ebeveynime sor" düğmesi satın alma ucunu çağırır. Sunucu isteği saklar, ebeveynlere
+    bir kez haber verir (yeni bildirim türü `guardianPurchase`: "Çocuğun Bargu+ almak istiyor") ve
+    diğer onay akışları gibi `403 GUARDIAN_APPROVAL` döner.
+  - Bağlı ebeveyn yoksa istek saklanmaz, `403 GUARDIAN_LINK_REQUIRED` döner.
+  - İstek her zaman sorulur; "yeni kişiler için onay" ayarı kişilerle ilgilidir, satın almayı
+    kapatmaz.
+  - Çocuk başına bekleyen tek satın alma vardır. Öbür planı istemek isteği değiştirir ve ebeveyne
+    yeniden haber verir; aynısını istemek kimseye yeniden haber vermez. İstekler diğerleri gibi
+    7 günde düşer.
+  - Çocuğun plan cevabında `pendingPurchase` bekleyen planı söyler. Ekran onu `plan.changed`
+    olayıyla günceller (yoklama yok).
+  - Ebeveyn ortak görünümde planı ve fiyatı görür. Evet: hak çocuk adına verilir (testte kaynak
+    `test`), çemberleri açılırsa haber alır. Hayır: istek düşer, çocuğun ekranı bunu duyar.
+  - Çocuğun zaten mağazadan bir planı varsa sorulmaz (`409 ALREADY_SUBSCRIBED`).
+  - Test satın alma kapalıysa (üretim) satın alma ucu da yoktur (404). Gerçek mağaza gelince
+    onaydan sonra çocuğun telefonu mağaza akışını açar (Faz 10).
+  - Süs paketleri 15–17 için dilim 3'e kadar `GUARDIAN_APPROVAL` ile reddedilir, istek açılmaz.
+  - **Eski uygulamalarla uyum:** Bu sürümden önceki uygulamalar ebeveyn görünümündeki istek
+    listesini katı okur; yeni `purchase` türü, 2b ya da daha eski bir uygulamadaki ebeveyn
+    ekranını açılmaz yapar. Bu sürümden itibaren liste esnek okunur: tanınmayan türdeki istek
+    atlanır, görünümün geri kalanı bozulmaz. Kapalı testte herkes güncelleyerek çözülür.
 
 ### 6. Sahte ödeme (test satın alma)
 
@@ -205,8 +227,7 @@ yeni tablo `app.entitlements`:
   - `app.plus_active`, `app.circle_is_open`; işçi için `app.plans_ended_between` ve
     `app.circles_openness_of` (yalnızca evet/hayır, kimin ödediği değil);
   - yeni hesaba açılışta, var olan hesaplara migration anında 21 günlük deneme (tetikleyici).
-  - `guardian_requests` için `purchase` türü ödeme ekranıyla birlikte dilim 2'de gelir; o zamana
-    kadar 15–17 test satın alması `GUARDIAN_APPROVAL` ile reddedilir.
+  - `guardian_requests` için `purchase` türü dilim 2c'de geldi (migration 0031, §5).
 - **Eski uygulamalarla uyum (dilim 1):**
   - Telefon çember cevaplarını artık esnek okur; yeni bir alan atlanır, okuma bozulmaz.
   - Sunucu `paused` alanını yalnızca çember duraklamışken gönderir. Herkes migration anında

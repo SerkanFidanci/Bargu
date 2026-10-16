@@ -9,7 +9,7 @@ import { ageKey, fetchAge, isMinor } from '@/features/account/age-api';
 import { billingApi } from '@/features/billing/billing-api';
 import { planKey, usePlan } from '@/features/billing/plan';
 import { daysLeft, PLUS_PRICES, priceText, yearlySaving } from '@/features/billing/plan-model';
-import { errorMessage } from '@/features/errors';
+import { errorMessage, isApiError } from '@/features/errors';
 import { useNow } from '@/features/location/clock';
 import { radius, space, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
@@ -59,6 +59,20 @@ export default function PlusScreen() {
       toast.error(errorMessage(error, t));
     },
   });
+  // 15-17 (docs/ADR/0024 §5): the purchase is asked of a parent; the server says it waits (403
+  // GUARDIAN_APPROVAL) and the plan's `pendingPurchase` follows through plan.changed.
+  const ask = useMutation({
+    mutationFn: (product: PlusProduct) => billingApi.testPurchase(product),
+    onSuccess: settled,
+    onError: (error) => {
+      if (isApiError(error, 'GUARDIAN_APPROVAL')) {
+        feedback('success');
+        toast.success(t('plus.asked'));
+        return;
+      }
+      toast.error(errorMessage(error, t));
+    },
+  });
   const cancel = useMutation({
     mutationFn: () => billingApi.simulate('cancel'),
     onSuccess: (next) => {
@@ -95,6 +109,13 @@ export default function PlusScreen() {
     return { tone: 'muted' as const, text: t('plus.free') };
   })();
   const subscribed = current?.plan === 'plus';
+  const pending = current?.pendingPurchase ?? null;
+  const planName = (product: PlusProduct) =>
+    product === 'plus_year' ? t('plus.yearly') : t('plus.monthly');
+  const priceOf = (product: PlusProduct) => ({
+    price: priceText(PLUS_PRICES[product], i18n.language),
+    per: product === 'plus_year' ? t('plus.perYear') : t('plus.perMonth'),
+  });
   const testing = current?.testBilling === true;
   const cancellable = subscribed && current.autoRenew && current.source === 'test';
 
@@ -136,17 +157,41 @@ export default function PlusScreen() {
     );
   };
 
-  const footer = subscribed ? undefined : teen ? (
+  const teenFooter = !testing ? (
     <Text variant="footnote" color="textMuted" align="center">
-      {t('plus.teen')}
+      {t('plus.teenSoon')}
     </Text>
+  ) : (
+    <View style={styles.footer}>
+      {pending === null ? null : (
+        <Text variant="footnote" color="textMuted" align="center" testID="plus-pending">
+          {t('plus.pending', { plan: planName(pending) })}
+        </Text>
+      )}
+      {pending === choice ? null : (
+        <Button
+          testID="plus-ask"
+          label={
+            pending === null
+              ? t('plus.ask', priceOf(choice))
+              : t('plus.askOther', { plan: planName(choice) })
+          }
+          icon={Sparkles}
+          variant={pending === null ? 'primary' : 'secondary'}
+          loading={ask.isPending}
+          onPress={() => {
+            ask.mutate(choice);
+          }}
+        />
+      )}
+    </View>
+  );
+  const footer = subscribed ? undefined : teen ? (
+    teenFooter
   ) : testing ? (
     <Button
       testID="plus-buy"
-      label={t('plus.buy', {
-        price: priceText(PLUS_PRICES[choice], i18n.language),
-        per: choice === 'plus_year' ? t('plus.perYear') : t('plus.perMonth'),
-      })}
+      label={t('plus.buy', priceOf(choice))}
       icon={Sparkles}
       loading={buy.isPending}
       onPress={() => {
@@ -257,6 +302,7 @@ const styles = StyleSheet.create({
   point: { flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' },
   pointText: { flex: 1 },
   offers: { gap: space.sm },
+  footer: { gap: space.sm },
   offer: { gap: space.xs, padding: space.lg, borderRadius: radius.lg, borderWidth: space.xxs },
   offerHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 });

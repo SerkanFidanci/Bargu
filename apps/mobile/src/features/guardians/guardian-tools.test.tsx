@@ -26,6 +26,7 @@ import { GuardianTools } from './guardian-tools';
 
 const LINK = '0190f7a4-5b6c-7d8e-9f01-23456789abcd';
 const REQUEST = '0190f7a4-5b6c-7d8e-9f01-23456789abce';
+const PURCHASE = '0190f7a4-5b6c-7d8e-9f01-23456789abcf';
 const view = (role: 'child' | 'guardian'): GuardianView => ({
   link: {
     id: LINK,
@@ -44,6 +45,15 @@ const view = (role: 'child' | 'guardian'): GuardianView => ({
   usage: [{ day: '2026-10-15', minutes: 42 }],
   requests: [
     { id: REQUEST, kind: 'group', name: 'Kulüp', memberCount: 4, by: 'Fikret', createdAt: 4 },
+    {
+      id: PURCHASE,
+      kind: 'purchase',
+      name: null,
+      memberCount: null,
+      by: null,
+      product: 'plus_year',
+      createdAt: 5,
+    },
   ],
 });
 
@@ -75,6 +85,8 @@ describe('guardian tools on the shared view (docs/ADR/0023 §5)', () => {
     await show('guardian');
     expect(screen.getByText('Grup: Kulüp (4 kişi), davet eden Fikret')).toBeTruthy();
     expect(screen.getByText('42 dk')).toBeTruthy();
+    // The child asks for Bargu+ (docs/ADR/0024 §5): the plan and its price.
+    expect(screen.getByText(/^Bargu\+ yıllık almak istiyor \(.*799,99.*yıl\)$/)).toBeTruthy();
     await fireEvent.press(screen.getByTestId(`guardian-approve-${REQUEST}`));
     await waitFor(() => {
       expect(mockAnswer).toHaveBeenCalledWith(LINK, REQUEST, true);
@@ -84,7 +96,7 @@ describe('guardian tools on the shared view (docs/ADR/0023 §5)', () => {
   it("show the child the same, without the parent's buttons", async () => {
     await show('child');
     expect(screen.getByText('Grup: Kulüp (4 kişi), davet eden Fikret')).toBeTruthy();
-    expect(screen.getByText('Ebeveyninin onayını bekliyor.')).toBeTruthy();
+    expect(screen.getAllByText('Ebeveyninin onayını bekliyor.')).toHaveLength(2);
     expect(screen.queryByTestId(`guardian-approve-${REQUEST}`)).toBeNull();
     expect(screen.queryByTestId('guardian-approve-new')).toBeNull();
     expect(screen.getByText('Günlük süre sınırı: 60 dk')).toBeTruthy();

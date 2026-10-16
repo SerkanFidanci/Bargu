@@ -54,6 +54,11 @@ export class PlanEvents {
     await this.events.publish([userId], { type: 'plan.changed' });
   }
 
+  /** Only the account hears that its plan changed (a parent answered its purchase request). */
+  async own(userId: string): Promise<void> {
+    await this.events.publish([userId], { type: 'plan.changed' });
+  }
+
   /** Outside any session (the function answers none, migration 0029). */
   private async rows(userId: string): Promise<OpennessRow[]> {
     const result = await this.database.db.execute<OpennessRow>(

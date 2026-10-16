@@ -4,7 +4,9 @@ import { eq, sql } from 'drizzle-orm';
 
 import { HOUR } from '../auth/client-limits.js';
 import type { AuthContext } from '../auth/request-context.js';
+import { CirclesService } from '../circles/circles.service.js';
 import { ApiError } from '../common/api-error.js';
+import { guardianRequestsFull } from '../common/guardian-requests.js';
 import { ENV } from '../config/config.module.js';
 import { billingTestOn, type Env } from '../config/env.js';
 import { entitlements, users } from '../db/schema.js';
@@ -69,6 +71,7 @@ export class BillingService {
     private readonly database: DatabaseService,
     private readonly limiter: RateLimiter,
     private readonly planEvents: PlanEvents,
+    private readonly circles: CirclesService,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -86,6 +89,13 @@ export class BillingService {
           (ms(b.expiresAt) ?? 0) - (ms(a.expiresAt) ?? 0),
       )[0];
     const trial = rows.find((row) => row.product === 'trial');
+    // 15-17: the plan asked of a parent, until they answer (docs/ADR/0024 §5).
+    const pending = await this.database.asUser(auth.userId, (tx) =>
+      tx.execute<{ product: PlusProduct }>(
+        sql`SELECT product FROM app.guardian_requests
+             WHERE child_id = ${auth.userId} AND kind = 'purchase'`,
+      ),
+    );
     return {
       plan: current === undefined ? 'free' : current.product === 'trial' ? 'trial' : 'plus',
       product:
@@ -99,6 +109,7 @@ export class BillingService {
         .filter((row) => row.product.startsWith('cosmetic:') && row.state === 'active')
         .map((row) => row.product.slice('cosmetic:'.length)),
       testBilling: testing,
+      pendingPurchase: pending.rows[0]?.product ?? null,
     };
   }
 
@@ -122,26 +133,87 @@ export class BillingService {
 
   async testPurchase(auth: AuthContext, input: TestPurchase): Promise<Plan> {
     await this.guard(auth);
+    // 15-17: a purchase waits for a parent's yes (docs/ADR/0023, 0024 §5); a pack is not asked yet.
+    if (await this.isMinor(auth.userId)) {
+      if (input.product.startsWith('cosmetic:')) {
+        throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
+      }
+      await this.askParents(auth.userId, input.product as PlusProduct);
+    }
+    await this.buy(auth.userId, input.product);
+    return this.plan(auth);
+  }
+
+  /**
+   * A parent said yes to their 15-17 child's purchase (guardians.service): bought as the child,
+   * where test purchases are on. A real store will open its own flow on the child's phone then.
+   */
+  async buyApproved(childId: string, product: PlusProduct): Promise<void> {
+    if (!billingTestOn(this.env)) throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
+    await this.buy(childId, product);
+  }
+
+  /** A parent said no: the child's Bargu+ screen hears that the request is gone. */
+  async purchaseDeclined(childId: string): Promise<void> {
+    await this.planEvents.own(childId);
+  }
+
+  private async isMinor(userId: string): Promise<boolean> {
+    const [me] = await this.database.asUser(userId, (tx) =>
+      tx.select({ band: users.ageBand }).from(users).where(eq(users.id, userId)),
+    );
+    return me?.band === '15-17';
+  }
+
+  /**
+   * The child's parents are asked (one waiting purchase per child; asking for the other plan
+   * changes it) and hear it once; the child gets 403 GUARDIAN_APPROVAL, as for every request that
+   * waits for a parent. With no parent linked nobody could say yes: 403 GUARDIAN_LINK_REQUIRED.
+   */
+  private async askParents(childId: string, product: PlusProduct): Promise<never> {
+    const mine = await this.rows(childId);
+    const now = Date.now();
+    if (
+      mine.some(
+        (row) => row.source !== 'test' && row.product !== 'trial' && plusLive(row, now, true),
+      )
+    ) {
+      throw new ApiError(HttpStatus.CONFLICT, 'ALREADY_SUBSCRIBED');
+    }
+    const asked = await this.database
+      .asUser(childId, (tx) =>
+        tx.execute<{ guardian_id: string; fresh: boolean }>(
+          sql`SELECT * FROM app.ask_guardians_for_purchase(${product})`,
+        ),
+      )
+      .catch((error: unknown) => {
+        throw guardianRequestsFull(error);
+      });
+    if (asked.rows.length === 0) {
+      throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_LINK_REQUIRED');
+    }
+    await this.circles.tellAsked(childId, asked.rows, 'guardianPurchase');
+    // The child's Bargu+ screen shows the request waiting (on every phone of theirs).
+    if (asked.rows.some((row) => row.fresh)) await this.planEvents.own(childId);
+    throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
+  }
+
+  /** A test purchase for the account, its circles told if one opens. */
+  private async buy(userId: string, item: TestPurchase['product']): Promise<void> {
     const now = new Date();
-    const before = await this.planEvents.openness(auth.userId);
-    const changedPlus = await this.database.asUser(auth.userId, async (tx) => {
-      // 15-17: a purchase needs a parent's yes (docs/ADR/0023, 0024 §5), not given here yet.
-      const [me] = await tx
-        .select({ band: users.ageBand })
-        .from(users)
-        .where(eq(users.id, auth.userId));
-      if (me?.band === '15-17') throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
-      const mine = await tx.select().from(entitlements).where(eq(entitlements.userId, auth.userId));
+    const before = await this.planEvents.openness(userId);
+    const changedPlus = await this.database.asUser(userId, async (tx) => {
+      const mine = await tx.select().from(entitlements).where(eq(entitlements.userId, userId));
       // Written only through migration 0029's functions: source 'test', the caller's own rows.
       const add = (product: string, expiresAt: Date | null, autoRenew: boolean) =>
         tx.execute(sql`SELECT app.add_test_entitlement(${product}, ${expiresAt}, ${autoRenew})`);
-      if (input.product.startsWith('cosmetic:')) {
-        if (!mine.some((row) => row.product === input.product && row.state === 'active')) {
-          await add(input.product, null, false);
+      if (item.startsWith('cosmetic:')) {
+        if (!mine.some((row) => row.product === item && row.state === 'active')) {
+          await add(item, null, false);
         }
         return false;
       }
-      const product = input.product as PlusProduct;
+      const product = item as PlusProduct;
       const live = mine.filter(
         (row) => row.product !== 'trial' && plusLive(row, now.getTime(), true),
       );
@@ -160,8 +232,7 @@ export class BillingService {
       await add(product, new Date(now.getTime() + PERIOD_MS[product]), true);
       return true;
     });
-    if (changedPlus) await this.planEvents.changed(auth.userId, before);
-    return this.plan(auth);
+    if (changedPlus) await this.planEvents.changed(userId, before);
   }
 
   async simulate(auth: AuthContext, input: TestSimulate): Promise<Plan> {

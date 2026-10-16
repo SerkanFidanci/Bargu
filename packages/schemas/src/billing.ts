@@ -31,6 +31,8 @@ export const planSchema = z.object({
   cosmetics: z.array(z.string()),
   /** Test purchases work on this server (staging, never production). */
   testBilling: z.boolean(),
+  /** 15-17: the plan asked of a parent, waiting for their yes (docs/ADR/0024 §5). */
+  pendingPurchase: z.enum(PLUS_PRODUCTS).nullable().optional(),
 });
 export type Plan = z.infer<typeof planSchema>;
 

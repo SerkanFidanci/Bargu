@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { ageBandSchema } from './auth.js';
+import { PLUS_PRODUCTS } from './billing.js';
 import { CIRCLE_KINDS, inviteTokenSchema, publicProfileSchema } from './circles.js';
 
 /**
@@ -68,29 +69,41 @@ export const guardianSettingsSchema = z
   .strict();
 export type GuardianSettings = z.infer<typeof guardianSettingsSchema>;
 
-/** Something new the child asked for, waiting for a parent's yes. */
-export const guardianRequestSchema = z
-  .object({
-    id: z.uuid(),
-    /**
-     * The child asks: friend (to befriend `name`), group / event (to join `name`, made by `by`).
-     * Someone comes to the child (QA 5c F-2): befriends (`by` used the child's friend code), joins
-     * (`by` used the child's code for `name`), invites (the child invites `by` into `name`).
-     * gone: the code stopped working meanwhile (a yes would do nothing).
-     */
-    kind: z.enum(['friend', 'group', 'event', 'befriends', 'joins', 'invites', 'gone']),
-    /**
-     * The group's or event's name, or the friend's display name. Never a username: a parent cannot
-     * look anyone up (the owner's decision on QA 5b G-1).
-     */
-    name: z.string().nullable(),
-    memberCount: z.number().int().nullable(),
-    /** Who made the code (display name), when it was a code. */
-    by: z.string().nullable(),
-    createdAt: z.number().int(),
-  })
-  .strict();
+/**
+ * Something new the child asked for, waiting for a parent's yes. Read leniently (a field a newer
+ * server adds is dropped), and a list of them skips a kind this app does not know yet.
+ */
+export const guardianRequestSchema = z.object({
+  id: z.uuid(),
+  /**
+   * The child asks: friend (to befriend `name`), group / event (to join `name`, made by `by`),
+   * purchase (Bargu+, `product`; docs/ADR/0024 §5). Someone comes to the child (QA 5c F-2):
+   * befriends (`by` used the child's friend code), joins (`by` used the child's code for
+   * `name`), invites (the child invites `by` into `name`). gone: the code stopped working
+   * meanwhile (a yes would do nothing).
+   */
+  kind: z.enum(['friend', 'group', 'event', 'befriends', 'joins', 'invites', 'purchase', 'gone']),
+  /**
+   * The group's or event's name, or the friend's display name. Never a username: a parent cannot
+   * look anyone up (the owner's decision on QA 5b G-1).
+   */
+  name: z.string().nullable(),
+  memberCount: z.number().int().nullable(),
+  /** Who made the code (display name), when it was a code. */
+  by: z.string().nullable(),
+  /** The plan asked for, for a purchase only. */
+  product: z.enum(PLUS_PRODUCTS).optional(),
+  createdAt: z.number().int(),
+});
 export type GuardianRequest = z.infer<typeof guardianRequestSchema>;
+
+/** The requests this app can read: one of a newer kind is left out, not the whole view. */
+const readableRequests = z.array(z.unknown()).transform((items) =>
+  items.flatMap((item) => {
+    const parsed = guardianRequestSchema.safeParse(item);
+    return parsed.success ? [parsed.data] : [];
+  }),
+);
 
 /** The child's own rules as the phone applies them (docs/ADR/0023 §5). */
 export const guardianRulesSchema = z
@@ -146,7 +159,7 @@ export const guardianViewSchema = z
     }),
     /** Minutes the app was open, the last 7 days, oldest first. */
     usage: z.array(usageReportSchema),
-    requests: z.array(guardianRequestSchema),
+    requests: readableRequests,
   })
   .strict();
 export type GuardianView = z.infer<typeof guardianViewSchema>;

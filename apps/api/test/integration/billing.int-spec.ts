@@ -9,6 +9,9 @@ import {
 } from '@bargu/crypto';
 import {
   type Circle,
+  type GuardianCode,
+  type GuardianLink,
+  type GuardianView,
   historySlot,
   HISTORY_SLOT_MS,
   type MessageEnvelope,
@@ -21,6 +24,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PlanEvents } from '../../src/billing/plan-events.js';
 import { PLANS_SWEPT_KEY, PlanSweeper } from '../../src/billing/plan-sweeper.js';
 import { EventsService } from '../../src/events/events.service.js';
+import { Notifier } from '../../src/push/notifier.js';
 import { entitlements } from '../../src/db/schema.js';
 import { DatabaseService } from '../../src/infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
@@ -330,11 +334,66 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
     expect(expiresAt).toBeLessThanOrEqual(Date.now() + 365 * DAY);
   });
 
-  it("asks a parent's yes before a 15-17 account buys anything", async () => {
+  it("buys for 15-17 only with a parent's yes, asked from the purchase (ADR 0024 §5)", async () => {
     const teen = await person(test, 'Deniz', '15-17');
     expect((await planOf(teen)).plan).toBe('trial');
+    // No parent linked: nobody could say yes, and nothing is kept.
+    expect((await buy(teen, 'plus_month')).json()).toMatchObject({
+      code: 'GUARDIAN_LINK_REQUIRED',
+    });
+    const parent = await person(test, 'Ayşe');
+    const code = (await as(test, teen, 'POST', '/v1/guardians/code')).json<GuardianCode>();
+    const link = (
+      await as(test, parent, 'POST', '/v1/guardians/accept', { token: code.token })
+    ).json<GuardianLink>();
+    await as(test, teen, 'POST', `/v1/guardians/${link.id}/confirm`);
+    const view = async () =>
+      (await as(test, parent, 'GET', `/v1/guardians/${link.id}`)).json<GuardianView>();
+    const answer = (requestId: string, yes: boolean) =>
+      as(
+        test,
+        parent,
+        'POST',
+        `/v1/guardians/${link.id}/requests/${requestId}/${yes ? 'approve' : 'decline'}`,
+      );
+    const notified = vi.spyOn(test.app.get(Notifier), 'notifyGuardians');
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+
     expect((await buy(teen, 'plus_month')).json()).toMatchObject({ code: 'GUARDIAN_APPROVAL' });
-    expect((await planOf(teen)).product).toBe('trial');
+    // The other plan changes the request (told again); the same again tells nobody again.
+    expect((await buy(teen, 'plus_year')).json()).toMatchObject({ code: 'GUARDIAN_APPROVAL' });
+    expect((await buy(teen, 'plus_year')).statusCode).toBe(403);
+    expect(notified).toHaveBeenCalledTimes(2);
+    expect(notified).toHaveBeenCalledWith([parent.userId], 'guardianPurchase', teen.userId);
+    expect(await planOf(teen)).toMatchObject({ product: 'trial', pendingPurchase: 'plus_year' });
+    const [asked] = (await view()).requests;
+    expect(asked).toMatchObject({ kind: 'purchase', product: 'plus_year', name: null, by: null });
+    if (asked === undefined) throw new Error('no request');
+
+    // A no drops it, and the child's Bargu+ screen hears it.
+    told.mockClear();
+    expect((await answer(asked.id, false)).json()).toEqual({ done: false });
+    expect(told).toHaveBeenCalledWith([teen.userId], { type: 'plan.changed' });
+    expect((await planOf(teen)).pendingPurchase).toBeNull();
+
+    // Asked again, a yes buys it as the child.
+    await buy(teen, 'plus_month');
+    const [again] = (await view()).requests;
+    if (again === undefined) throw new Error('no request');
+    expect((await answer(again.id, true)).json()).toEqual({ done: true });
+    expect(await planOf(teen)).toMatchObject({
+      plan: 'plus',
+      product: 'plus_month',
+      source: 'test',
+      pendingPurchase: null,
+    });
+    expect((await view()).requests).toEqual([]);
+    // A pack waits for slice 3: refused, not asked.
+    expect((await buy(teen, 'cosmetic:winter')).json()).toMatchObject({
+      code: 'GUARDIAN_APPROVAL',
+    });
+    notified.mockRestore();
+    told.mockRestore();
   });
 
   it('tells the circles when plans run out with time, once (the worker)', async () => {

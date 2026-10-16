@@ -18,6 +18,7 @@ import {
 import { eq, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
+import { BillingService } from '../billing/billing.service.js';
 import { CirclesService } from '../circles/circles.service.js';
 import { InvitesService } from '../circles/invites.service.js';
 import { ApiError } from '../common/api-error.js';
@@ -54,16 +55,17 @@ interface LinkRow extends Record<string, unknown> {
   other_avatar_emoji: string | null;
 }
 
-/** Row of app.guardian_requests_of() (migrations/0023). */
+/** Row of app.guardian_requests_of() (migrations/0031). */
 interface RequestRow extends Record<string, unknown> {
   id: string;
-  kind: 'invite' | 'friend' | 'admit' | 'member';
+  kind: 'invite' | 'friend' | 'admit' | 'member' | 'purchase';
   circle_kind: 'pair' | 'friends' | 'family' | 'event' | null;
   circle_name: string | null;
   member_count: number | null;
   code_works: boolean;
   inviter_display_name: string | null;
   other_display_name: string | null;
+  product: 'plus_month' | 'plus_year' | null;
   created_at: string;
 }
 
@@ -76,6 +78,10 @@ function request(row: RequestRow): GuardianRequest {
   };
   const circle = row.circle_kind === null || row.circle_kind === 'pair' ? null : row.circle_kind;
   switch (row.kind) {
+    case 'purchase':
+      return row.product === null
+        ? { ...base, kind: 'gone', name: null, by: null }
+        : { ...base, kind: 'purchase', name: null, by: null, product: row.product };
     case 'friend':
       return { ...base, kind: 'friend', name: row.other_display_name, by: null };
     case 'member':
@@ -177,6 +183,7 @@ export class GuardiansService {
     private readonly events: EventsService,
     private readonly notifier: Notifier,
     private readonly limiter: RateLimiter,
+    private readonly billing: BillingService,
   ) {}
 
   /** "Ebeveyn ekle": a fresh code, valid 10 minutes; an earlier open one stops working. */
@@ -382,11 +389,12 @@ export class GuardiansService {
       }
       const result = await tx.execute<{
         child_id: string;
-        kind: 'invite' | 'friend' | 'admit' | 'member';
+        kind: 'invite' | 'friend' | 'admit' | 'member' | 'purchase';
         token_hash: Buffer | null;
         username: string | null;
         newcomer_id: string | null;
         circle_id: string | null;
+        product: 'plus_month' | 'plus_year' | null;
       }>(sql`SELECT * FROM app.take_guardian_request(${requestId})`);
       const [row] = result.rows;
       if (row?.child_id !== found.row.child_id) {
@@ -406,6 +414,8 @@ export class GuardiansService {
         done = error instanceof ApiError && error.code === 'APPROVAL_PENDING';
       }
     }
+    // A purchase said no to (or that could not be made): the child's Bargu+ screen hears it too.
+    if (taken.kind === 'purchase' && !done) await this.billing.purchaseDeclined(childId);
     await this.changed([childId, ...(await this.parentsOf(childId))]);
     await this.notifier.notify([childId], done ? 'guardianApproved' : 'guardianDeclined', linkId);
     if (yes && !done) throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
@@ -415,11 +425,12 @@ export class GuardiansService {
   /** Does what a parent said yes to, as whoever asked for it. */
   private async carryOut(taken: {
     child_id: string;
-    kind: 'invite' | 'friend' | 'admit' | 'member';
+    kind: 'invite' | 'friend' | 'admit' | 'member' | 'purchase';
     token_hash: Buffer | null;
     username: string | null;
     newcomer_id: string | null;
     circle_id: string | null;
+    product: 'plus_month' | 'plus_year' | null;
   }): Promise<void> {
     const child = { userId: taken.child_id };
     const hash = taken.token_hash === null ? null : new Uint8Array(taken.token_hash);
@@ -432,6 +443,9 @@ export class GuardiansService {
       await this.invites.redeem({ userId: taken.newcomer_id }, hash, { own: true, admit: true });
     } else if (taken.kind === 'member' && taken.circle_id !== null && taken.username !== null) {
       await this.circles.inviteUser(child, taken.circle_id, taken.username, true);
+    } else if (taken.kind === 'purchase' && taken.product !== null) {
+      // Bought as the child (docs/ADR/0024 §5); their circles hear it if one opens.
+      await this.billing.buyApproved(child.userId, taken.product);
     } else {
       throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
     }

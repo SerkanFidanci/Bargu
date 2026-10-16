@@ -1,15 +1,16 @@
 import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module.js';
+import { CirclesModule } from '../circles/circles.module.js';
 import { PlanController, TestBillingController } from './billing.controller.js';
 import { BillingService } from './billing.service.js';
 import { PlanEvents } from './plan-events.js';
 
 /** Bargu+, the trial and test purchases (docs/ADR/0024). */
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, CirclesModule],
   controllers: [PlanController, TestBillingController],
   providers: [BillingService, PlanEvents],
-  exports: [PlanEvents],
+  exports: [BillingService, PlanEvents],
 })
 export class BillingModule {}

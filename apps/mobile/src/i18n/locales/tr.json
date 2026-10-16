@@ -22,7 +22,8 @@
     "approvalPending": "Bu davetle katılmak için bir onay gerekiyor. Onaylanınca listende görünür.",
     "circlePaused": "Bu çember duraklatıldı: açık tutmak için birinizin Bargu+’ya geçmesi yeter.",
     "alreadySubscribed": "Zaten bir aboneliğin var.",
-    "upgradeRequired": "Bargu'yu güncellemen gerekiyor."
+    "upgradeRequired": "Bargu'yu güncellemen gerekiyor.",
+    "guardianLinkRequired": "Satın almak için önce bir ebeveyninle bağlantı kur. Ebeveynin onaylayınca Bargu+ açılır."
   },
   "intro": {
     "skip": "Geç",
@@ -528,7 +529,8 @@
       "guardianDeclined": "Ebeveynin isteğini onaylamadı",
       "guardianSettings": "Ebeveynin ayarlarını değiştirdi",
       "guardianNewMember": "Çocuğunun bir çemberine yeni biri katıldı",
-      "guardianNewMemberIn": "{{name}}: bir çemberine yeni biri katıldı"
+      "guardianNewMemberIn": "{{name}}: bir çemberine yeni biri katıldı",
+      "guardianPurchase": "Çocuğun Bargu+ almak istiyor; onayını bekliyor"
     },
     "mute": {
       "title": "{{name}} için bildirimler",
@@ -1051,7 +1053,8 @@
       "someone": "adı yazılmamış biri",
       "askBefriends": "{{by}}, çocuğunun arkadaş koduyla arkadaşı olmak istiyor",
       "askJoins": "{{by}}, çocuğunun koduyla {{name}} çemberine katılmak istiyor",
-      "askInvites": "Çocuğun {{by}} kişisini {{name}} çemberine davet etmek istiyor"
+      "askInvites": "Çocuğun {{by}} kişisini {{name}} çemberine davet etmek istiyor",
+      "askPurchase": "Bargu+ {{plan}} almak istiyor ({{price}})"
     },
     "unnamed": "Adı yazılmamış biri",
     "newMember": "{{name}} (yeni)"
@@ -1084,7 +1087,6 @@
     "cancel": "Aboneliği iptal et",
     "cancelled": "İptal edildi: süre bitene kadar Bargu+ açık kalır.",
     "soon": "Satın alma yakında: mağaza bağlantısı henüz yok.",
-    "teen": "Satın almak için ebeveyn onayı gerekiyor. Bu yakında burada olacak.",
     "givesTitle": "Bargu+ ile",
     "gives": {
       "circles": "Kurduğun ve içinde olduğun bütün çemberler herkes için açık kalır",
@@ -1101,7 +1103,12 @@
     "reminder": {
       "title": "Bargu+ denemen 3 gün sonra bitiyor",
       "body": "Çemberlerin açık kalsın istersen Bargu+’ya geç. Kendiliğinden ücretliye geçmez."
-    }
+    },
+    "ask": "Ebeveynime sor · {{price}}{{per}}",
+    "asked": "Ebeveynine sordun. Onaylayınca Bargu+ açılır ve haber alırsın.",
+    "pending": "Ebeveyninin onayı bekleniyor: Bargu+ {{plan}}.",
+    "askOther": "Bunun yerine {{plan}} iste",
+    "teenSoon": "Satın almak için ebeveyn onayı gerekiyor. Mağaza bağlantısı henüz yok, yakında burada olacak."
   },
   "upgrade": {
     "title": "Yeni sürüm gerekiyor",
