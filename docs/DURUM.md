@@ -67,6 +67,7 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 | Buluşma    | `230cf81`, `8de3a8b`                                             | Proje sahibinin isteği: her çemberde tek buluşma (migration 0032), herkes başlatır, başlatan ve yöneticiler değiştirir ve bitirir, saatinden 3 saat sonra kendiliğinden silinir. Haritada kayıtlı yer gibi değil (mercan, kesikli kenar, bayrak), dokununca kendi ekranı; "Geldim", yol tarifi, başlayınca tek bildirim. İstemci seviyesi 3                                                                                                   |
 | QA 21      | `557be04`, `ce453a9`, `d93196e`, `5fb98a3`, `f060920`, `ff86173` | Bildirimler cihaz başına bir kez ve yalnızca üyenin kendi cihazına (B-2); "Ebeveynime sor"a aynı anda iki dokunuş 500 değil (B-1, migration 0033); test satın alma veritabanı bayrağına uyar, kapalıysa 404 (B-5, migration 0034); hesabı silinenin belgeleri giderken çember haber alır (B-3, migration 0035); duraklamış çemberde "geç kalıyorum" yok (B-4, uygulama); paketlerin derlemesi eskiyse entegrasyon testleri açık hatayla durur |
 | İkili eşit | `220d2c8`, `fae1d4d`                                             | PM'in kararı: arkadaşlıkta iki kişi de buluşmayı değiştirir ve bitirir (migration 0036; uygulama bir sonraki APK'da)                                                                                                                                                                                                                                                                                                                          |
+| Kısayollar | `c9313c0`                                                        | Sahibin isteği: haritanın sağ kenarında konumuma dön, hayalet modu (tek dokunuşla açılır, kapatırken onay) ve buluşma başlat; üstte en yakın buluşmanın sayaç çipi ("🏠 Ev · 17:30 · 25 dk", saatinde "2/4 geldi · 1 yolda", sayılar ADR 0026 kurallarıyla); herkes tam konumla gelince bir kez konfeti (ADR 0026 §8)                                                                                                                         |
 
 ### QA turları
 
@@ -75,10 +76,12 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
   A-1 (aşağıda) ve test botunun kodunun depoya alınması sonraya.
 - QA 21 (P1b, T-1, 2c, 3a, buluşma): orta ya da yüksek bulgu yok. Düşük B-1…B-5 düzeltildi.
 
-### Test sonuçları (son çalıştırma, `ff86173`)
+### Test sonuçları (son çalıştırma, `c9313c0`)
 
-- Birim: mobil 408 (buluşma ekranı, haritadaki noktalar, kaba konumda "geldi" yok, bildirim metni,
-  duraklamış çemberde "geç kalıyorum" yok, arkadaşlıkta iki kişi de buluşmayı yeniden mühürler).
+- Birim: mobil 419 (buluşma ekranı, haritadaki noktalar, kaba konumda "geldi" yok, bildirim metni,
+  duraklamış çemberde "geç kalıyorum" yok, arkadaşlıkta iki kişi de buluşmayı yeniden mühürler;
+  kısayollar: hayalet tek dokunuşla açılır ve onaysız kapanmaz, çipin sayıları kaba paylaşanı
+  "yolda" saymaz, konfeti yalnızca tam konumla gelince ve bir kez).
 - API entegrasyon: 30 dosya, 229 test (buluşma: başlatma, tek buluşma, yetki, yabancı erişemez,
   bitiş saati, eski uygulamaya gitmez, işçinin silmesi, bildirim bir kez; QA 21: 30 aynı bildirim
   bir olur ve başkasının cihazına gitmez, aynı anda iki "Ebeveynime sor" 500 değil, veritabanı
@@ -118,10 +121,10 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 9. Buluşma: sunucu bir çemberde buluşma olduğunu, başlatanı ve bitiş saatini (saat + 3 sa),
    dolayısıyla buluşmanın saatini dakikasına kadar bilir; yalnızca yer şifreli. Sonraki dilimde
    `endsAt` bir sonraki tam saate yuvarlanacak (PM, ADR 0026 §2).
-10. Bir sonraki APK'yı bekleyenler: duraklamış çemberde "geç kalıyorum" denenmemesi (B-4) ve
-    arkadaşlıkta öbür kişiye "Buluşmayı bitir" düğmesi (sunucu bugünden izin veriyor).
-11. Sıradaki dilim (sahibin isteği, PM onayladı): haritanın sağ kenarında kısayol düğmeleri
-    (konumuma dön, hayalet modu, buluş) ve buluşma sayacı; aynı APK'da 10. madde de.
+10. Sade mod (efekt yoğunluğu ayarı) henüz yok: konfeti ve çipin nefes alması şimdilik yalnızca
+    sistemin "Hareketi azalt" ayarına uyar.
+11. Kısayol sütunu küçük ekranda ve en büyük yazıda telefonda denenmedi (çip yazısı iki satıra
+    kadar kırılır, düğmeler sabit 48 pt).
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -150,9 +153,23 @@ Buluşma, APK (`e77be02`): <https://api.46-62-162-70.sslip.io/apk/bargu-e77be02-
    başlatılamaz ("Bu çemberde zaten bir buluşma var"). "Buluşmayı bitir" ile haritadan hemen kalkar.
    Arkadaşlıkta iki kişi de bitirebilir: sunucu hazır, öbür kişinin düğmesi bir sonraki APK'da.
 
+Kısayollar ve sayaç, QA 21 ve ikili eşitlik, APK (link PM'e iletilir; tek APK, öncekilerin
+yerine):
+
+9. Haritanın sağında üç düğme: hayalet (tek dokunuşla açılır, kapatırken "Konumun yeniden
+   paylaşılacak: N çember" sorar), buluşma başlat; haritayı kaydırınca "Konumuma dön" çıkar. Bir
+   kişinin kartı açılınca düğmeler çekilir.
+10. Bir buluşma başlatınca üstte çip: "🏠 Ev · 17:30"; son bir saatte "· 25 dk", son 10 dakikada
+    renkli; saatinde "1/2 geldi". "Buluşma başlat" düğmesi çip varken kalkar; saatine 15 dakika
+    kala "Geldim" düğmesi çıkar.
+11. Mahalle hassasiyetinde paylaşan arkadaş "yolda" sayılmaz (toplamda kalır). İkiniz de tam
+    konumla geldiğinizde bir kez konfeti.
+12. Arkadaşlıkta (ikili) arkadaş da buluşmayı değiştirir ve "Buluşmayı bitir"i görür. Duraklamış
+    çemberde "geç kalıyorum" gitmez.
+
 ### Senden gerekenler
 
-- Buluşma APK'sını bütün telefonlara (kendi, şirket telefonu, Seko) kur; bitince söyle ki kapı
+- Son APK'yı bütün telefonlara (kendi, şirket telefonu, Seko) kur; bitince söyle ki kapı
   (doğrudan seviye 3) açılabilsin.
 - Dilim 3b ve sonrası için karar (durum analizinden sonra).
 
