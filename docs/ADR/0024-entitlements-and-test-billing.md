@@ -157,11 +157,21 @@ yeni tablo `app.entitlements`:
   çember açık. Kart bilgisini mağaza tutar, Bargu hiç görmez.
 - **Kabul edilen sızıntı (PM kararı, THREAT_MODEL'de):** Çember üyeleri, çember açıksa en az
   birinin ödediğini bilir. İki kişilik bir çemberde, ödemeyen kişi ödeyenin öteki olduğunu anlar.
-- **Migration 0028:**
+- **Migration 0028 (dilim 1):**
   - `app.entitlements` ve sıralı türleri, satır güvenliği (yalnızca kendi satırları);
-  - `app.circle_is_open`;
-  - var olan hesaplara deneme;
-  - `guardian_requests` için `purchase` türü.
+  - `app.plus_active`, `app.circle_is_open`; işçi için `app.plans_ended_between` ve
+    `app.circles_openness_of` (yalnızca evet/hayır, kimin ödediği değil);
+  - yeni hesaba açılışta, var olan hesaplara migration anında 21 günlük deneme (tetikleyici).
+  - `guardian_requests` için `purchase` türü ödeme ekranıyla birlikte dilim 2'de gelir; o zamana
+    kadar 15–17 test satın alması `GUARDIAN_APPROVAL` ile reddedilir.
+- **Eski uygulamalarla uyum (dilim 1):**
+  - Telefon çember cevaplarını artık esnek okur; yeni bir alan atlanır, okuma bozulmaz.
+  - Sunucu `paused` alanını yalnızca çember duraklamışken gönderir. Herkes migration anında
+    deneme aldığı için, eski APK'lar en az 21 gün bu alanı hiç görmez.
+  - Kendi planı için yeni olay `plan.changed`; eski uygulamalar tanımadıkları olayı atlar.
+  - Hak kayıtları veri kopyası için ayrı uçtan gelir (`GET /v1/me/plan/records`), böylece var olan
+    dışa aktarma cevabı değişmez.
+  - Konum aktarımının ret nedenlerine `PAUSED` eklendi.
 - **Duraklamanın yan etkisi:** Duraklama sunucuda da uygulandığı için eski uygulama sürümleri
   duraklamış çembere konum gönderemez; hata kodunu tanımayan eski sürüm yalnızca konumunu iletemez.
 - **Fiyatlar:** Tahmindir, doğrulanmadı. Gerçek ödeme için Play geliştirici hesabı gerekir (proje

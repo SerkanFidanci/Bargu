@@ -105,6 +105,12 @@ export const envSchema = z
      */
     WEB_ORIGIN: webOrigin.optional(),
 
+    /**
+     * Test purchases (docs/ADR/0024 §6): `on` lets accounts buy Bargu+ with no payment. Without
+     * it, on everywhere but production; production refuses `on`.
+     */
+    BILLING_TEST: z.enum(['on', 'off']).optional(),
+
     ANDROID_PACKAGE: androidPackage.default('app.bargu'),
     /** Signing certificates of the Android app (assetlinks.json, Play Integrity check). */
     ANDROID_CERT_SHA256: commaSeparated.pipe(z.array(certFingerprint)),
@@ -221,6 +227,7 @@ export const envSchema = z
       'WEBAUTHN_ORIGINS',
       'must not contain http origins',
     );
+    need(env.BILLING_TEST !== 'on', 'BILLING_TEST', 'must not be on in production');
     need(
       env.WEB_ORIGIN === undefined || env.WEB_ORIGIN.startsWith('https://'),
       'WEB_ORIGIN',
@@ -229,6 +236,12 @@ export const envSchema = z
   });
 
 export type Env = z.infer<typeof envSchema>;
+
+/** Whether test purchases work here: on unless said otherwise, never in production. */
+export function billingTestOn(env: Pick<Env, 'BILLING_TEST' | 'APP_ENV'>): boolean {
+  if (env.APP_ENV === 'production') return false;
+  return env.BILLING_TEST !== 'off';
+}
 
 /** Where links in emails point: the account web page's origin, if one is known. */
 export function webOriginOf(env: Pick<Env, 'WEB_ORIGIN' | 'WEBAUTHN_ORIGINS'>): string | null {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { InvalidEnvError, parseEnv } from './env.js';
+import { billingTestOn, InvalidEnvError, parseEnv } from './env.js';
 
 const key = (fill: string) => fill.repeat(43);
 const base = {
@@ -91,6 +91,7 @@ describe('parseEnv', () => {
       'production with a localhost origin',
       { ...production, WEBAUTHN_ORIGINS: 'http://localhost:8081' },
     ],
+    ['production with test purchases on', { ...production, BILLING_TEST: 'on' }],
     [
       'production with a localhost account page',
       { ...production, WEB_ORIGIN: 'http://localhost:3000' },
@@ -125,5 +126,12 @@ describe('parseEnv', () => {
     }
     expect(message).toContain('DATABASE_URL');
     expect(message).not.toContain('s3cret-pass');
+  });
+
+  it('turns test purchases on everywhere but production, unless said (docs/ADR/0024)', () => {
+    expect(billingTestOn(parseEnv(base))).toBe(true);
+    expect(billingTestOn(parseEnv({ ...base, BILLING_TEST: 'off' }))).toBe(false);
+    expect(billingTestOn(parseEnv(production))).toBe(false);
+    expect(billingTestOn(parseEnv({ ...production, BILLING_TEST: 'off' }))).toBe(false);
   });
 });

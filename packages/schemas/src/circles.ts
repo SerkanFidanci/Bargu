@@ -192,6 +192,8 @@ export const serverEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('circles.reload') }).strict(),
   /** A guardian link of the user changed (docs/ADR/0023 §4): fetch the links again. */
   z.object({ type: z.literal('guardians.changed') }).strict(),
+  /** The user's own plan changed (bought, renewed, ran out; docs/ADR/0024): fetch it again. */
+  z.object({ type: z.literal('plan.changed') }).strict(),
 ]);
 export type ServerEvent = z.infer<typeof serverEventSchema>;
 

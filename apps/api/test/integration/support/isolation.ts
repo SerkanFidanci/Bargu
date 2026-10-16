@@ -12,6 +12,7 @@ export const userOwnedTables = [
   'passkeys',
   'refresh_tokens',
   'security_events',
+  'entitlements',
 ] as const;
 const ownerColumn = (table: string) => (table === 'users' ? 'id' : 'user_id');
 

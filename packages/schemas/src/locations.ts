@@ -17,7 +17,8 @@ export const locationPublishSchema = z
   .strict();
 export type LocationPublish = z.infer<typeof locationPublishSchema>;
 
-export const RELAY_REFUSALS = ['INVALID', 'NOT_MEMBER', 'EPOCH', 'RATE_LIMITED'] as const;
+/** `PAUSED`: nobody keeps the circle open, its live location waits (docs/ADR/0024). */
+export const RELAY_REFUSALS = ['INVALID', 'NOT_MEMBER', 'EPOCH', 'RATE_LIMITED', 'PAUSED'] as const;
 
 /** What the relay did with each envelope (refused ones are not stored or forwarded). */
 export const publishReplySchema = z

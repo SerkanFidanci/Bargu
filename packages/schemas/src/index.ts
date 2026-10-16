@@ -282,3 +282,18 @@ export {
   type UsageReport,
   usageReportSchema,
 } from './guardians.js';
+export {
+  cosmeticProductSchema,
+  ENTITLEMENT_SOURCES,
+  type Plan,
+  type PlanRecords,
+  planRecordsSchema,
+  planSchema,
+  PLUS_PRODUCTS,
+  type PlusProduct,
+  TEST_ACTIONS,
+  type TestPurchase,
+  testPurchaseSchema,
+  type TestSimulate,
+  testSimulateSchema,
+} from './billing.js';

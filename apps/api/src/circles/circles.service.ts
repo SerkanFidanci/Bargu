@@ -720,6 +720,9 @@ export class CirclesService implements OnModuleInit {
     const mine = members.find((member) => member.userId === me);
     if (mine === undefined) return null;
     if (row.kind === 'pair' && members.length < 2) return null;
+    const [openness] = (
+      await tx.execute<{ open: boolean }>(sql`SELECT app.circle_is_open(${circleId}) AS open`)
+    ).rows;
     return {
       id: row.id,
       kind: row.kind,
@@ -732,6 +735,8 @@ export class CirclesService implements OnModuleInit {
       ...(row.expiresAt === null
         ? {}
         : { startedAt: row.createdAt.getTime(), expiresAt: row.expiresAt.getTime() }),
+      // Said only when paused (docs/ADR/0024): apps from before it never see the field while open.
+      ...(openness?.open === false ? { paused: true } : {}),
     };
   }
 }

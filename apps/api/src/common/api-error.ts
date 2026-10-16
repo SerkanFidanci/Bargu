@@ -60,6 +60,10 @@ export type ApiErrorCode =
   /** A parent said yes, but the code or the name no longer works. */
   | 'REQUEST_FAILED'
   | 'CIRCLE_FULL'
+  /** Nobody keeps the circle open: its live location, history and arrivals wait (ADR 0024). */
+  | 'CIRCLE_PAUSED'
+  /** Already on a plan from a store: a test purchase does not replace it (ADR 0024). */
+  | 'ALREADY_SUBSCRIBED'
   | 'EPOCH_STALE'
   | 'KEYS_INVALID'
   | 'UNAVAILABLE'

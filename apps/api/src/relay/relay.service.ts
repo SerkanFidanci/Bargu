@@ -37,7 +37,7 @@ interface Limit {
 }
 
 /** Latest envelope per circle member: `loc:{circleId}` → field userId (one active device each). */
-const locationKey = (circleId: string) => `loc:${circleId}`;
+export const locationKey = (circleId: string) => `loc:${circleId}`;
 /** Latest status per circle member, the same way (its own lifetime per field). */
 const statusKey = (circleId: string) => `status:${circleId}`;
 /** Latest profile message per member (the photo key, docs/ADR/0014). */
@@ -92,6 +92,8 @@ interface Membership {
   epoch: number;
   /** Active members other than the caller. */
   others: string[];
+  /** Someone keeps it open (docs/ADR/0024); paused, its live location and arrivals wait. */
+  open: boolean;
 }
 
 /**
@@ -139,7 +141,10 @@ export class RelayService {
     let accepted = 0;
     for (const envelope of envelopes) {
       const membership = memberships.get(envelope.circleId);
-      const code = await this.check(auth, envelope, membership, `${store}:${auth.deviceId}`, limit);
+      const code =
+        store === 'loc' && membership !== undefined && !membership.open
+          ? 'PAUSED'
+          : await this.check(auth, envelope, membership, `${store}:${auth.deviceId}`, limit);
       if (code !== null) {
         refused.push({ circleId: envelope.circleId, code });
         continue;
@@ -260,7 +265,11 @@ export class RelayService {
     const membership = (await this.memberships(auth.userId, [envelope.circleId])).get(
       envelope.circleId,
     );
-    const code = await this.check(auth, envelope, membership, limitKey, limit);
+    // A place arrival rests on the live location: it waits with it in a paused circle (ADR 0024).
+    const code =
+      event === 'place' && membership !== undefined && !membership.open
+        ? 'PAUSED'
+        : await this.check(auth, envelope, membership, limitKey, limit);
     if (code !== null || membership === undefined) return { refused: code ?? 'NOT_MEMBER' };
     this.events.emitLive(membership.others, event, { envelope });
     // Notifications only for members of this circle whose app is not connected; the worker hands
@@ -276,6 +285,7 @@ export class RelayService {
     // Membership first: a stranger (or a deleted circle) leaves no counter behind (QA Faz 8 D1).
     const membership = (await this.memberships(auth.userId, [circleId])).get(circleId);
     if (membership === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+    if (!membership.open) throw new ApiError(HttpStatus.FORBIDDEN, 'CIRCLE_PAUSED');
     const limit = await this.limiter.hit(
       `watch:${auth.userId}:${circleId}`,
       RELAY_LIMITS.watches.limit,
@@ -370,12 +380,20 @@ export class RelayService {
           ),
         ),
     );
+    const openness = await this.database.asUser(userId, async (tx) => {
+      const found = await tx
+        .select({ id: circles.id, open: sql<boolean>`app.circle_is_open(${circles.id})` })
+        .from(circles)
+        .where(inArray(circles.id, unique));
+      return new Map(found.map((row) => [row.id, row.open]));
+    });
     const result = new Map<string, Membership>();
     for (const circleId of unique) {
       const members = rows.filter((row) => row.circleId === circleId);
       if (!members.some((row) => row.userId === userId)) continue;
       result.set(circleId, {
         epoch: members[0]?.epoch ?? 0,
+        open: openness.get(circleId) ?? false,
         others: members.filter((row) => row.userId !== userId).map((row) => row.userId),
       });
     }

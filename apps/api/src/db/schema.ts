@@ -224,6 +224,37 @@ export const consents = app.table(
   (table) => [primaryKey({ columns: [table.userId, table.purpose] })],
 );
 
+export const entitlementSource = app.enum('entitlement_source', [
+  'bargu',
+  'test',
+  'play',
+  'appstore',
+]);
+export const entitlementState = app.enum('entitlement_state', [
+  'active',
+  'grace',
+  'canceled',
+  'expired',
+  'refunded',
+]);
+
+/** docs/ADR/0024: what an account has bought or been given, per account, with where it came from. */
+export const entitlements = app.table('entitlements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull(),
+  /** `trial`, `plus_month`, `plus_year` or `cosmetic:<pack>`. */
+  product: text('product').notNull(),
+  source: entitlementSource('source').notNull(),
+  state: entitlementState('state').notNull().default('active'),
+  startsAt: timestamptz('starts_at').notNull().defaultNow(),
+  expiresAt: timestamptz('expires_at'),
+  graceUntil: timestamptz('grace_until'),
+  autoRenew: boolean('auto_renew').notNull().default(false),
+  storeRef: bytea('store_ref'),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
+  updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+});
+
 export const historyChunks = app.table('history_chunks', {
   circleId: uuid('circle_id').notNull(),
   userId: uuid('user_id').notNull(),
@@ -247,4 +278,5 @@ export const schema = {
   places,
   circleDocs,
   historyChunks,
+  entitlements,
 };

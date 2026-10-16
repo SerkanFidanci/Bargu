@@ -1,0 +1,294 @@
+import { Writable } from 'node:stream';
+
+import {
+  createSenderState,
+  encryptHistory,
+  encryptMessage,
+  generateSenderKey,
+  type SenderState,
+} from '@bargu/crypto';
+import {
+  type Circle,
+  historySlot,
+  HISTORY_SLOT_MS,
+  type MessageEnvelope,
+  type Plan,
+  type PublishReply,
+} from '@bargu/schemas';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+import { PlanEvents } from '../../src/billing/plan-events.js';
+import { PLANS_SWEPT_KEY, PlanSweeper } from '../../src/billing/plan-sweeper.js';
+import { EventsService } from '../../src/events/events.service.js';
+import { DatabaseService } from '../../src/infra/database/database.service.js';
+import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
+import { createTestApp, type TestApp, testEnv } from './support/app.js';
+import { as, circleWith, consentToHistory, type Person, person } from './support/people.js';
+
+let test: TestApp;
+let logs = '';
+beforeAll(async () => {
+  // Everything the server logs, at the most verbose level, is searched for what must not be there.
+  const logStream = new Writable({
+    write(chunk: Buffer, _encoding, done) {
+      logs += chunk.toString('utf8');
+      done();
+    },
+  });
+  test = await createTestApp({ env: testEnv({ LOG_LEVEL: 'trace' }), logStream });
+});
+afterAll(async () => {
+  await test.close();
+});
+
+const DAY = 24 * 3600_000;
+const planOf = async (who: Person) => (await as(test, who, 'GET', '/v1/me/plan')).json<Plan>();
+const simulate = (who: Person, action: string) =>
+  as(test, who, 'POST', '/v1/billing/test/simulate', { action });
+const buy = (who: Person, product: string) =>
+  as(test, who, 'POST', '/v1/billing/test/purchase', { product });
+const circleAs = async (who: Person, circleId: string) =>
+  (await as(test, who, 'GET', `/v1/circles/${circleId}`)).json<Circle>();
+
+/** A member's phone in a circle: its sender key and sealed messages. */
+function phone(who: Person, circle: Pick<Circle, 'id' | 'epoch'>) {
+  let state: SenderState = createSenderState(
+    generateSenderKey({
+      circleId: circle.id,
+      epoch: circle.epoch,
+      senderDeviceId: who.device.deviceId,
+    }),
+  );
+  return {
+    location(): MessageEnvelope {
+      const { envelope, nextState } = encryptMessage({
+        state,
+        sender: who.device,
+        payload: { kind: 'loc', lat: 41, lng: 29, acc: 8, bat: 50, chg: false, ts: Date.now() },
+      });
+      state = nextState;
+      return envelope;
+    },
+    trail(from: number): MessageEnvelope {
+      const { envelope, nextState } = encryptHistory({
+        state,
+        sender: who.device,
+        payload: { kind: 'trail', from, points: [[0, 4_100_823, 2_897_841, 9]], ts: from },
+      });
+      state = nextState;
+      return envelope;
+    },
+  };
+}
+
+describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
+  it('gives every new account a 21-day trial, shown to that account only', async () => {
+    const before = Date.now();
+    const ayse = await person(test);
+    const plan = await planOf(ayse);
+    expect(plan).toMatchObject({
+      plan: 'trial',
+      product: 'trial',
+      source: 'bargu',
+      graceUntil: null,
+      cosmetics: [],
+      testBilling: true,
+    });
+    expect(plan.trialEndsAt).toBeGreaterThanOrEqual(before + 21 * DAY - 60_000);
+    expect(plan.trialEndsAt).toBeLessThanOrEqual(Date.now() + 21 * DAY + 60_000);
+    // The trial is on the account's own records, nobody else's.
+    const records = (await as(test, ayse, 'GET', '/v1/me/plan/records')).json<{
+      records: { product: string }[];
+    }>();
+    expect(records.records.map((record) => record.product)).toEqual(['trial']);
+  });
+
+  it('pauses a circle nobody keeps open: location, history and arrivals wait, the rest works', async () => {
+    const [ayse, bora] = [await person(test), await person(test)];
+    const circle = await circleWith(test, ayse, bora);
+    expect(circle).not.toHaveProperty('paused');
+    const ayses = phone(ayse, circle);
+    const sent = (
+      await as(test, ayse, 'POST', '/v1/locations', { envelopes: [ayses.location()] })
+    ).json<PublishReply>();
+    expect(sent.accepted).toBe(1);
+    const redis = test.app.get<RedisClient>(REDIS);
+    expect(await redis.exists(`loc:${circle.id}`)).toBe(1);
+
+    // Ayşe's trial ends: Bora's still keeps it open.
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+    expect((await simulate(ayse, 'endTrial')).json<Plan>().plan).toBe('free');
+    expect(await circleAs(ayse, circle.id)).not.toHaveProperty('paused');
+    // Bora's ends too: nobody keeps it open now, and everyone in it hears so.
+    expect((await simulate(bora, 'endTrial')).statusCode).toBe(200);
+    expect((await circleAs(ayse, circle.id)).paused).toBe(true);
+    expect((await circleAs(bora, circle.id)).paused).toBe(true);
+    expect(told).toHaveBeenCalledWith(expect.arrayContaining([ayse.userId, bora.userId]), {
+      type: 'circle.changed',
+      circleId: circle.id,
+      epoch: circle.epoch,
+    });
+    expect(told).toHaveBeenCalledWith([bora.userId], { type: 'plan.changed' });
+    told.mockRestore();
+    // Nobody sees a frozen dot: the last locations went.
+    expect(await redis.exists(`loc:${circle.id}`)).toBe(0);
+
+    // Live location, history and place arrivals wait...
+    const refused = (
+      await as(test, ayse, 'POST', '/v1/locations', { envelopes: [ayses.location()] })
+    ).json<PublishReply>();
+    expect(refused).toEqual({ accepted: 0, refused: [{ circleId: circle.id, code: 'PAUSED' }] });
+    await consentToHistory(test, ayse);
+    const slot = historySlot(Date.now()) - HISTORY_SLOT_MS;
+    const history = await as(
+      test,
+      ayse,
+      'PUT',
+      `/v1/circles/${circle.id}/history/${String(slot)}`,
+      {
+        envelope: ayses.trail(slot),
+      },
+    );
+    expect(history.statusCode).toBe(403);
+    expect(history.json()).toMatchObject({ code: 'CIRCLE_PAUSED' });
+    const arrival = await as(test, ayse, 'POST', '/v1/place-events', {
+      envelope: ayses.location(),
+      pushes: [],
+    });
+    expect(arrival.json()).toEqual({ refused: 'PAUSED' });
+    // ...a poke and a status do not.
+    const poke = await as(test, ayse, 'POST', '/v1/bumps', { envelope: ayses.location() });
+    expect(poke.json()).not.toEqual({ refused: 'PAUSED' });
+    const status = (
+      await as(test, ayse, 'POST', '/v1/statuses', {
+        envelopes: [ayses.location()],
+        ttlSeconds: 3600,
+      })
+    ).json<PublishReply>();
+    expect(status.accepted).toBe(1);
+
+    // Bora buys Bargu+: open again at once, for both.
+    const bought = (await buy(bora, 'plus_month')).json<Plan>();
+    expect(bought).toMatchObject({ plan: 'plus', product: 'plus_month', source: 'test' });
+    expect(bought.autoRenew).toBe(true);
+    expect(await circleAs(ayse, circle.id)).not.toHaveProperty('paused');
+    expect(
+      (
+        await as(test, ayse, 'POST', '/v1/locations', { envelopes: [ayses.location()] })
+      ).json<PublishReply>().accepted,
+    ).toBe(1);
+  });
+
+  it("does what a store would do, to the caller's own test plan only", async () => {
+    const [cem, dila] = [await person(test), await person(test)];
+    const bought = (await buy(cem, 'plus_year')).json<Plan>();
+    expect(bought).toMatchObject({ plan: 'plus', product: 'plus_year', autoRenew: true });
+    expect(bought.expiresAt).toBeGreaterThan(Date.now() + 364 * DAY);
+
+    expect((await simulate(cem, 'cancel')).json<Plan>()).toMatchObject({
+      plan: 'plus',
+      autoRenew: false,
+    });
+    const failed = (await simulate(cem, 'fail')).json<Plan>();
+    expect(failed.plan).toBe('plus');
+    expect(failed.graceUntil).toBeGreaterThan(Date.now() + 6 * DAY);
+    expect((await simulate(cem, 'recover')).json<Plan>().graceUntil).toBeNull();
+    const renewed = (await simulate(cem, 'renew')).json<Plan>();
+    expect(renewed).toMatchObject({ plan: 'plus', autoRenew: true });
+    // Refunded: the trial is what is left.
+    expect((await simulate(cem, 'refund')).json<Plan>().plan).toBe('trial');
+
+    // Dila has no test plan: nothing to act on, and nothing of Cem's changes.
+    expect((await simulate(dila, 'cancel')).statusCode).toBe(404);
+    // A cosmetic pack is kept for good.
+    expect((await buy(dila, 'cosmetic:winter')).json<Plan>().cosmetics).toEqual(['winter']);
+
+    // A plan from a store is never replaced or changed by a test purchase.
+    await test.admin.query(
+      `INSERT INTO app.entitlements (user_id, product, source, expires_at, auto_renew)
+       VALUES ($1, 'plus_month', 'play', now() + interval '30 days', true)`,
+      [dila.userId],
+    );
+    expect((await buy(dila, 'plus_year')).json()).toMatchObject({ code: 'ALREADY_SUBSCRIBED' });
+    expect((await simulate(dila, 'expire')).statusCode).toBe(404);
+    expect((await planOf(dila)).source).toBe('play');
+
+    // Wrong input is refused before anything happens.
+    expect((await buy(dila, 'plus_forever')).statusCode).toBe(400);
+    expect((await simulate(dila, 'free')).statusCode).toBe(400);
+  });
+
+  it("asks a parent's yes before a 15-17 account buys anything", async () => {
+    const teen = await person(test, 'Deniz', '15-17');
+    expect((await planOf(teen)).plan).toBe('trial');
+    expect((await buy(teen, 'plus_month')).json()).toMatchObject({ code: 'GUARDIAN_APPROVAL' });
+    expect((await planOf(teen)).product).toBe('trial');
+  });
+
+  it('tells the circles when plans run out with time, once (the worker)', async () => {
+    const [efe, fatma] = [await person(test), await person(test)];
+    const circle = await circleWith(test, efe, fatma);
+    const redis = test.app.get<RedisClient>(REDIS);
+    const sweeper = new PlanSweeper(test.app.get(DatabaseService), test.app.get(PlanEvents), redis);
+    const until = Date.now();
+    await redis.set(PLANS_SWEPT_KEY, String(until - 60_000));
+    await test.admin.query(
+      `UPDATE app.entitlements SET expires_at = now() - interval '5 seconds'
+        WHERE product = 'trial' AND user_id = ANY($1)`,
+      [[efe.userId, fatma.userId]],
+    );
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+    expect(await sweeper.sweep(until)).toBeGreaterThanOrEqual(2);
+    expect(told).toHaveBeenCalledWith(expect.arrayContaining([efe.userId, fatma.userId]), {
+      type: 'circle.changed',
+      circleId: circle.id,
+      epoch: circle.epoch,
+    });
+    expect((await circleAs(efe, circle.id)).paused).toBe(true);
+    // The next round starts where this one stopped: the same ends are not told again.
+    told.mockClear();
+    await sweeper.sweep(Date.now());
+    expect(told).not.toHaveBeenCalledWith([efe.userId], { type: 'plan.changed' });
+    told.mockRestore();
+  });
+
+  it('keeps no email, token or location in billing records or logs', async () => {
+    const gul = await person(test);
+    await buy(gul, 'plus_month');
+    await simulate(gul, 'fail');
+    const { rows } = await test.admin.query<Record<string, unknown>>(
+      `SELECT * FROM app.entitlements WHERE user_id = $1`,
+      [gul.userId],
+    );
+    const stored = JSON.stringify(rows);
+    for (const secret of [gul.email, gul.session.accessToken, gul.session.refreshToken]) {
+      expect(stored).not.toContain(secret);
+      expect(logs).not.toContain(secret);
+    }
+    expect(logs).toContain('/v1/billing/test/purchase');
+  });
+});
+
+describe('test billing turned off (docs/ADR/0024 §6)', () => {
+  let off: TestApp;
+  beforeAll(async () => {
+    off = await createTestApp({ env: testEnv({ BILLING_TEST: 'off' }) });
+  });
+  afterAll(async () => {
+    await off.close();
+  });
+
+  it('answers 404, as if the routes did not exist, and says so in the plan', async () => {
+    const hakan = await person(off);
+    const purchase = await as(off, hakan, 'POST', '/v1/billing/test/purchase', {
+      product: 'plus_month',
+    });
+    expect(purchase.statusCode).toBe(404);
+    const simulated = await as(off, hakan, 'POST', '/v1/billing/test/simulate', {
+      action: 'endTrial',
+    });
+    expect(simulated.statusCode).toBe(404);
+    const plan = (await as(off, hakan, 'GET', '/v1/me/plan')).json<Plan>();
+    expect(plan).toMatchObject({ plan: 'trial', testBilling: false });
+  });
+});

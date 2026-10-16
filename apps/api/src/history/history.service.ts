@@ -8,7 +8,7 @@ import {
   historyEnvelopeSchema,
   type HistoryRecord,
 } from '@bargu/schemas';
-import { and, asc, eq, gte, isNull, lt } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
@@ -80,6 +80,11 @@ export class HistoryService {
       const members = await this.activeMembers(tx, circleId);
       const epoch = members.find((member) => member.userId === auth.userId)?.epoch;
       if (epoch === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      // Nobody keeps the circle open: its history waits with its live location (ADR 0024).
+      const [openness] = (
+        await tx.execute<{ open: boolean }>(sql`SELECT app.circle_is_open(${circleId}) AS open`)
+      ).rows;
+      if (openness?.open !== true) throw new ApiError(HttpStatus.FORBIDDEN, 'CIRCLE_PAUSED');
       // Sealed in an epoch the trail was recorded in: never one that has not begun.
       if (envelope.epoch > epoch) throw new ApiError(HttpStatus.CONFLICT, 'EPOCH_STALE');
       await tx

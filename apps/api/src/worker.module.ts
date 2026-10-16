@@ -18,6 +18,8 @@ import { HistorySweeper } from './history/history-sweeper.js';
 import { AccountPurge } from './account/account-purge.js';
 import { AccountSweeper } from './account/account-sweeper.js';
 import { GuardianSweeper } from './guardians/guardian-sweeper.js';
+import { PlanEvents } from './billing/plan-events.js';
+import { PlanSweeper } from './billing/plan-sweeper.js';
 
 /** The background worker process: runs jobs and maintains the queues. No HTTP. */
 @Module({})
@@ -45,6 +47,8 @@ export class WorkerModule {
         AccountPurge,
         AccountSweeper,
         GuardianSweeper,
+        PlanEvents,
+        PlanSweeper,
       ],
     };
   }
