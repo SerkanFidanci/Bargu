@@ -16,6 +16,8 @@ import { type Cluster, capsuleOf, clusterPeople } from './cluster';
 import { useMapZoom } from './map-zoom';
 import { activityOf } from './activity';
 import { ClusterBubble, type TogetherPerson } from './cluster-bubble';
+import type { ScreenPoint } from './person-focus';
+import type { GroupMember } from './together-sheet';
 
 /**
  * A location older than this is shown grey with its age. A still phone sends a heartbeat every
@@ -55,14 +57,14 @@ export function PeopleLayer({
   me,
   circles,
   handlersFor,
-  onCluster,
+  onGroup,
 }: {
   me: Me;
   circles: readonly Circle[];
   /** Tap and hold on someone (card, radial menu). */
   handlersFor?: (userId: string) => PersonHandlers;
-  /** A tap on a cluster of people (the map zooms in). */
-  onCluster?: (lat: number, lng: number) => void;
+  /** A tap on a frame of more than two people standing together: everyone there. */
+  onGroup?: (people: GroupMember[], from: ScreenPoint) => void;
 }) {
   const locations = useLocations();
   const pokes = usePokes();
@@ -148,7 +150,7 @@ export function PeopleLayer({
               now={now}
               burst={burst}
               together={together}
-              onMore={onCluster}
+              onGroup={onGroup}
             />
           );
         }
@@ -199,14 +201,14 @@ function TogetherMarker({
   now,
   burst,
   together,
-  onMore,
+  onGroup,
 }: {
   cluster: Cluster<PersonOnMap>;
   meId: string;
   now: number;
   burst: { at: number; colors: readonly [string, string] } | null;
   together: (person: PersonOnMap) => TogetherPerson;
-  onMore: ((lat: number, lng: number) => void) | undefined;
+  onGroup: ((people: GroupMember[], from: ScreenPoint) => void) | undefined;
 }) {
   const newest = Math.max(
     ...cluster.members.map((member) => (member.kind === 'me' ? member.ts : member.entry.loc.ts)),
@@ -218,15 +220,30 @@ function TogetherMarker({
   );
   const capsule = capsuleOf(cluster.members, meId);
   const withMe = capsule.shown.some(({ member }) => member.kind === 'me');
+  // Everyone here for the window: the user first, the others in the cluster's order.
+  const listed: GroupMember[] = [...cluster.members]
+    .sort((a, b) => (a.kind === 'me' ? -1 : b.kind === 'me' ? 1 : 0))
+    .map((member) => {
+      const { marker } = together(member);
+      return {
+        userId: member.id,
+        name: marker.name,
+        avatar: marker.avatar,
+        me: member.kind === 'me',
+        staleMinutes: marker.staleMinutes,
+        activity: marker.activity,
+      };
+    });
   return (
     <GlidingMarker id={cluster.key} fix={fix} receivedAt={now}>
       <ClusterBubble
+        groupKey={cluster.key}
         people={capsule.shown.map(({ member }) => together(member))}
         more={capsule.more}
         offsets={capsule.shown.map(({ index }) => cluster.offsets[index] ?? { x: 0, y: 0 })}
-        everyone={cluster.members.map((member) => together(member).marker.name)}
+        everyone={listed.map((member) => member.name)}
         burst={withMe ? burst : null}
-        onMore={() => onMore?.(cluster.lat, cluster.lng)}
+        onList={(from) => onGroup?.(listed, from)}
       />
     </GlidingMarker>
   );

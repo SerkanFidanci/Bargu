@@ -609,7 +609,7 @@
       "failed": "Could not poke. Check your connection."
     },
     "meet": "You and {{name}} met! 🎉",
-    "cluster": "{{count}} people together: {{names}}. Tap to zoom in.",
+    "cluster": "{{count}} people together: {{names}}. Tap to see who.",
     "meetUp": {
       "title": "Set up a meeting with {{name}}?",
       "body": "A meeting you run is set up and an invitation goes out. Choose the time and place right away. It ends on its own in 3 hours, and everything is deleted then.",
@@ -618,7 +618,13 @@
       "started": "Meeting with {{name}} set up; choose the time and place",
       "failed": "The meeting was not set up; no invitation went out. {{reason}}"
     },
-    "more": "+{{count}}"
+    "together": {
+      "title": "{{count}} people here",
+      "me": "You",
+      "live": "Here now",
+      "stale": "Here {{minutes}} min ago",
+      "staleHours": "Here {{hours}} h ago"
+    }
   },
   "places": {
     "title": "Places",

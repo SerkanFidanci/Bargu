@@ -107,9 +107,7 @@ export default function HomeScreen() {
           me={me.data}
           circles={circleList.data ?? []}
           handlersFor={people.handlersFor}
-          onCluster={(lat, lng) => {
-            map.current?.zoomIn([lng, lat]);
-          }}
+          onGroup={people.openGroup}
         />
         {DEV_TOOLS_ENABLED ? <SwarmLayer /> : null}
       </BarguMap>

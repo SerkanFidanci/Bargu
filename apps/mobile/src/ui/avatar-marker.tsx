@@ -52,6 +52,8 @@ export interface AvatarMarkerProps {
    * stand together: their islands are drawn as one (features/map/cluster-bubble.tsx).
    */
   island?: boolean | undefined;
+  /** Inside a frame shared with others: the frame is the paper, so no edge, shadow or tilt of its own. */
+  framed?: boolean | undefined;
 }
 
 /** What someone seems to be doing (features/map/activity.ts decides). */
@@ -136,6 +138,7 @@ export function AvatarMarker({
   activity = 'still',
   heading,
   island = true,
+  framed = false,
 }: AvatarMarkerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -231,8 +234,13 @@ export function AvatarMarker({
           <Animated.View
             style={[
               styles.sticker,
-              { backgroundColor: stickerPaper, boxShadow: elevation.raised },
-              { transform: [{ rotate: `${String(tilt)}deg` }] },
+              framed
+                ? null
+                : {
+                    backgroundColor: stickerPaper,
+                    boxShadow: elevation.raised,
+                    transform: [{ rotate: `${String(tilt)}deg` }],
+                  },
             ]}
           >
             <Avatar avatar={avatar} name={name} size="md" muted={stale} userId={userId} />

@@ -609,7 +609,7 @@
       "failed": "Dürtülemedi. Bağlantını kontrol et."
     },
     "meet": "{{name}} ile buluştunuz! 🎉",
-    "cluster": "{{count}} kişi bir arada: {{names}}. Yakınlaştırmak için dokun.",
+    "cluster": "{{count}} kişi bir arada: {{names}}. Kimler olduğunu görmek için dokun.",
     "meetUp": {
       "title": "{{name}} ile buluşma kurulsun mu?",
       "body": "Senin yönettiğin bir buluşma kurulur ve davet gider. Saati ve yeri hemen seçersin. 3 saat sonra kendiliğinden biter, bitince her şey silinir.",
@@ -618,7 +618,13 @@
       "started": "{{name}} ile buluşma kuruldu; saat ve yeri seç",
       "failed": "Buluşma kurulamadı, davet gitmedi. {{reason}}"
     },
-    "more": "+{{count}}"
+    "together": {
+      "title": "Burada {{count}} kişi",
+      "me": "Sen",
+      "live": "Şimdi burada",
+      "stale": "{{minutes}} dk önce buradaydı",
+      "staleHours": "{{hours}} sa önce buradaydı"
+    }
   },
   "places": {
     "title": "Yerler",

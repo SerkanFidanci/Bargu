@@ -115,7 +115,11 @@ marka kararı (renk, yazı tipi) ve bazı kütüphane seçimleri burada netleşt
   (çıkartma ve ada, jöle damla, ışık huzmesi) bunu seçti. Ölçüler `stickerFx` (theme/motion.ts).
 - **Birlikte duranlar:** Kullanıcının kendi avatarı da artık yakındakilerle kümelenir; önceden
   kümeye girmediği için bir arkadaşın avatarının üstüne biniyordu. Birbirine değecek kadar yakın
-  olanların adaları sıvı gibi tek adaya akar (Skia "goo"), çıkartmaları yan yana dizilir ve her
-  birine ayrı ayrı dokunulur, basılı tutulur. Sıra sabittir: ötekiler, en sonda kullanıcı. Dörtten
-  fazla kişide kullanıcı her zaman görünür, kalanlar "+N" çıkartmasıdır ve ona dokununca harita
-  yakınlaşır (`capsuleOf`, features/map/cluster.ts). Proje sahibi kapsül görünümünü seçti.
+  olanların adaları sıvı gibi tek adaya akar (Skia "goo"). Avatarlar tek bir ortak çıkartma
+  çerçevesinde toplanır: beyaz bir kapsül, kenarındaki ince halka bir kişinin renginden ötekinin
+  rengine geçer, çerçeve grubun kendine özgü açısıyla hafif eğiktir. Çerçevede en çok iki avatar
+  vardır (proje sahibi: "2'si tek çerçevede toplansın"). Sıra sabittir: ötekiler, en sonda
+  kullanıcı; kullanıcı oradaysa hep görünür (`capsuleOf`, features/map/cluster.ts). İki kişide
+  her avatara ayrı ayrı dokunulur, basılı tutulur. Daha fazla kişide çerçevenin sağ üst köşesinde
+  oradaki toplam kişi sayısı yazar; çerçeveye dokununca oradaki herkes bir pencerede listelenir ve
+  birine dokununca onun kartı açılır (`TogetherSheet`). Önceki "dokununca yakınlaş" kalktı.

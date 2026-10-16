@@ -39,25 +39,22 @@ describe('a capsule of people together', () => {
   const ids = (capsule: ReturnType<typeof capsuleOf<{ id: string }>>) =>
     capsule.shown.map(({ member }) => member.id);
 
-  it('shows everyone side by side, the user last', () => {
-    const capsule = capsuleOf([{ id: 'ayse' }, { id: 'me' }, { id: 'cem' }], 'me');
-    expect(ids(capsule)).toEqual(['ayse', 'cem', 'me']);
+  it('puts two people in one frame, the user last', () => {
+    const capsule = capsuleOf([{ id: 'me' }, { id: 'ayse' }], 'me');
+    expect(ids(capsule)).toEqual(['ayse', 'me']);
     expect(capsule.more).toBe(0);
     // Each keeps its place in the cluster (where it flows in from).
-    expect(capsule.shown.map(({ index }) => index)).toEqual([0, 2, 1]);
+    expect(capsule.shown.map(({ index }) => index)).toEqual([1, 0]);
     expect(capsuleOf([{ id: 'ayse' }, { id: 'cem' }], 'me').more).toBe(0);
   });
 
-  it('counts the rest past the limit, and never hides the user', () => {
-    const many = ['a', 'b', 'c', 'd', 'e', 'me'].map((id) => ({ id }));
-    const capsule = capsuleOf(many, 'me');
-    expect(ids(capsule)).toEqual(['a', 'b', 'me']);
-    expect(capsule.shown.length + 1).toBe(CAPSULE_MAX);
-    expect(capsule.more).toBe(3);
-    const withoutMe = capsuleOf(many.slice(0, 5), 'me');
-    expect(ids(withoutMe)).toEqual(['a', 'b', 'c']);
-    expect(withoutMe.more).toBe(2);
-    // Exactly the limit: all of them, no count.
-    expect(capsuleOf(many.slice(0, CAPSULE_MAX), null).more).toBe(0);
+  it('shows two past that and counts the rest, never hiding the user', () => {
+    const capsule = capsuleOf([{ id: 'ayse' }, { id: 'me' }, { id: 'cem' }], 'me');
+    expect(ids(capsule)).toEqual(['ayse', 'me']);
+    expect(capsule.shown.length).toBe(CAPSULE_MAX);
+    expect(capsule.more).toBe(1);
+    const many = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id }));
+    expect(ids(capsuleOf(many, 'me'))).toEqual(['a', 'b']);
+    expect(capsuleOf(many, 'me').more).toBe(3);
   });
 });

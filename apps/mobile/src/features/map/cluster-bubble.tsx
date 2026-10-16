@@ -1,4 +1,14 @@
-import { Blur, Canvas, ColorMatrix, Group, Oval, Paint } from '@shopify/react-native-skia';
+import {
+  Blur,
+  Canvas,
+  ColorMatrix,
+  Group,
+  LinearGradient,
+  Oval,
+  Paint,
+  RoundedRect,
+  vec,
+} from '@shopify/react-native-skia';
 import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -31,29 +41,30 @@ import { Text } from '@/ui/text';
 import { CLUSTER_PX } from './cluster';
 import { MAP_AVATAR_BOX } from './map-avatar';
 import { MeetBurst } from './meet-burst';
+import type { ScreenPoint } from './person-focus';
 import { type PersonHandlers, PersonGestures } from './person-gestures';
 
-/** One sticker to the next, side by side. */
-const SLOT = STICKER + stickerFx.together.gap;
 const ISLAND = stickerFx.island;
+/** The frame's ring in the people's colours (px). */
+const RING = space.xxs + 1;
 /** "Goo": blur the islands, then cut the blurred alpha sharply so touching shapes become one. */
 const GOO_BLUR = space.md;
 const GOO_MATRIX = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 24, -9];
 
-/** Someone in a group standing together: their sticker as on their own, and what goes with it. */
+/** Someone in a group standing together: their avatar as on their own, and what goes with it. */
 export interface TogetherPerson {
   id: string;
-  marker: Omit<AvatarMarkerProps, 'island'>;
+  marker: Omit<AvatarMarkerProps, 'island' | 'framed'>;
   handlers?: PersonHandlers | undefined;
   pokedAt?: number | undefined;
-  /** Drawn above their sticker (a status bubble). */
+  /** Drawn above their avatar (a status bubble). */
   above?: ReactNode;
 }
 
-/** Where each slot sits from the centre, left to right. */
-const slotX = (index: number, count: number) => (index - (count - 1) / 2) * SLOT;
+/** Where each avatar sits in the frame, from the centre, left to right. */
+const slotX = (index: number, count: number) => (index - (count - 1) / 2) * STICKER;
 
-/** One island flowing from where its person was to under their sticker, growing as it goes. */
+/** One island flowing from where its person was to under their place, growing as it goes. */
 function Island({
   from,
   to,
@@ -80,19 +91,22 @@ function Island({
   return <Oval x={x} y={y} width={width} height={height} color={color} />;
 }
 
-/** One sticker sliding from where its person was into its place in the row; jumps when poked. */
+/** One avatar sliding from where its person was into its place in the frame; jumps when poked. */
 function Slot({
   person,
+  index,
   from,
   to,
   merge,
-  center,
+  tappable,
 }: {
   person: TogetherPerson;
+  index: number;
   from: { x: number; y: number };
   to: number;
   merge: SharedValue<number>;
-  center: { x: number; y: number };
+  /** Their own tap and hold; off when a tap on the frame lists everyone instead. */
+  tappable: boolean;
 }) {
   const lift = useSharedValue(0);
   useEffect(() => {
@@ -105,10 +119,10 @@ function Slot({
       { translateY: from.y * (1 - merge.get()) + lift.get() },
     ],
   }));
-  const sticker = <AvatarMarker {...person.marker} island={false} />;
+  const avatar = <AvatarMarker {...person.marker} island={false} framed />;
   return (
     <Animated.View
-      style={[styles.slot, { left: center.x + to - SLOT / 2, top: center.y - PIN_HEIGHT }, sliding]}
+      style={[styles.slot, { left: index * STICKER }, sliding]}
       pointerEvents="box-none"
     >
       {person.above === undefined ? null : (
@@ -116,11 +130,11 @@ function Slot({
           {person.above}
         </View>
       )}
-      {person.handlers === undefined ? (
-        sticker
+      {!tappable || person.handlers === undefined ? (
+        avatar
       ) : (
         <PersonGestures handlers={person.handlers}>
-          <View collapsable={false}>{sticker}</View>
+          <View collapsable={false}>{avatar}</View>
         </PersonGestures>
       )}
     </Animated.View>
@@ -128,30 +142,36 @@ function Slot({
 }
 
 /**
- * People standing together (proje sahibi 2026-10-16: avatars sat on top of one another, the
- * user's own included): their islands flow into one like liquid (Skia "goo" on the UI thread,
- * BARGU_PLAN §4.3) and their stickers line up side by side above it, each still a person to tap
- * or hold. Past a few people the rest are a "+N" sticker that zooms in.
+ * People standing together (proje sahibi 2026-10-16: "2'si tek çerçevede toplansın, 2'den fazla
+ * varsa sağ üstte yazsın, tıklayınca oradaki kişiler bir pencerede gözüksün"): two avatars flow
+ * into one shared sticker frame, its ring running from one person's colour to the other's, above
+ * one island where their islands met like liquid (Skia "goo" on the UI thread, BARGU_PLAN §4.3).
+ * Two people: each avatar is still theirs to tap or hold. More: the frame says how many in its
+ * upper right corner, and a tap lists everyone there.
  */
 export function ClusterBubble({
+  groupKey,
   people,
   more,
   offsets,
   everyone,
   burst,
-  onMore,
+  onList,
 }: {
+  /** The same while the same people stand together (its tilt). */
+  groupKey: string;
   /** Who shows, in order (cluster.ts capsuleOf). */
   people: readonly TogetherPerson[];
   /** How many more there are than shown. */
   more: number;
   /** Where each one shown was on screen relative to the centre (px). */
   offsets: readonly { x: number; y: number }[];
-  /** Everyone's names, for the "+N" sticker's label. */
+  /** Everyone's names, for the frame's label. */
   everyone: readonly string[];
   /** A meeting to celebrate here (the user is one of them). */
   burst?: { at: number; colors: readonly [string, string] } | null | undefined;
-  onMore: () => void;
+  /** More than two: a tap on the frame, to list everyone here. */
+  onList: (point: ScreenPoint) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -162,18 +182,77 @@ export function ClusterBubble({
     merge.set(withSpring(1, spring.gentle));
   }, [merge]);
 
-  const count = people.length + (more > 0 ? 1 : 0);
-  const width = count * SLOT + CLUSTER_PX * 2;
+  const count = people.length;
+  const frameWidth = count * STICKER;
+  const width = frameWidth + CLUSTER_PX * 2;
   const center = { x: width / 2, y: MAP_AVATAR_BOX / 2 };
-  const fromOf = (index: number) => {
-    const offset = offsets[index] ?? { x: 0, y: 0 };
-    return { x: offset.x, y: offset.y };
-  };
+  const fromOf = (index: number) => offsets[index] ?? { x: 0, y: 0 };
   const tintOf = (person: TogetherPerson) =>
     person.marker.staleMinutes !== undefined
       ? colors.textMuted
       : (avatarPalette[person.marker.avatar?.color ?? 0] ?? colors.primary);
-  const extra = useAnimatedStyle(() => ({ opacity: merge.get() }));
+  const tints = people.map(tintOf);
+  const ring = tints.length > 1 ? tints : [...tints, ...tints];
+  const listed = more > 0;
+  const appear = useAnimatedStyle(() => ({ opacity: merge.get() }));
+
+  const row = (
+    <>
+      <Animated.View
+        style={[
+          styles.frame,
+          { backgroundColor: stickerPaper, boxShadow: elevation.raised },
+          appear,
+        ]}
+        pointerEvents="none"
+      >
+        <Canvas style={StyleSheet.absoluteFill}>
+          <RoundedRect
+            x={RING / 2}
+            y={RING / 2}
+            width={frameWidth - RING}
+            height={STICKER - RING}
+            r={(STICKER - RING) / 2}
+            style="stroke"
+            strokeWidth={RING}
+          >
+            <LinearGradient start={vec(0, 0)} end={vec(frameWidth, 0)} colors={ring} />
+          </RoundedRect>
+        </Canvas>
+      </Animated.View>
+      {people.map((person, index) => (
+        <Slot
+          key={person.id}
+          person={person}
+          index={index}
+          from={fromOf(index)}
+          to={slotX(index, count)}
+          merge={merge}
+          tappable={!listed}
+        />
+      ))}
+      {listed ? (
+        <Animated.View
+          style={[
+            styles.count,
+            { backgroundColor: colors.primary, borderColor: stickerPaper },
+            appear,
+          ]}
+          pointerEvents="none"
+        >
+          <Text variant="caption" allowFontScaling={false} style={{ color: colors.onPrimary }}>
+            {String(everyone.length)}
+          </Text>
+        </Animated.View>
+      ) : null}
+    </>
+  );
+  const placed = {
+    left: center.x - frameWidth / 2,
+    top: center.y - PIN_HEIGHT,
+    width: frameWidth,
+    transform: [{ rotate: `${String(stickerTilt(groupKey) / 2)}deg` }],
+  };
 
   return (
     <View style={[styles.box, { width }]} pointerEvents="box-none">
@@ -197,15 +276,6 @@ export function ClusterBubble({
                 center={center}
               />
             ))}
-            {more > 0 ? (
-              <Island
-                from={{ x: slotX(count - 1, count), y: 0 }}
-                to={slotX(count - 1, count)}
-                merge={merge}
-                color={colors.textMuted}
-                center={center}
-              />
-            ) : null}
           </Group>
         </Group>
         <Oval
@@ -219,56 +289,46 @@ export function ClusterBubble({
       {burst === null || burst === undefined ? null : (
         <MeetBurst key={burst.at} at={burst.at} colors={burst.colors} />
       )}
-      {people.map((person, index) => (
-        <Slot
-          key={person.id}
-          person={person}
-          from={fromOf(index)}
-          to={slotX(index, count)}
-          merge={merge}
-          center={center}
-        />
-      ))}
-      {more > 0 ? (
-        <Animated.View
-          style={[
-            styles.slot,
-            { left: center.x + slotX(count - 1, count) - SLOT / 2, top: center.y - PIN_HEIGHT },
-            extra,
-          ]}
+      {listed ? (
+        <Pressable
+          onPress={(event) => {
+            onList({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('map.cluster', {
+            count: everyone.length,
+            names: everyone.join(', '),
+          })}
+          style={[styles.row, placed]}
         >
-          <Pressable
-            onPress={onMore}
-            accessibilityRole="button"
-            accessibilityLabel={t('map.cluster', {
-              count: everyone.length,
-              names: everyone.join(', '),
-            })}
-            style={[
-              styles.more,
-              { backgroundColor: stickerPaper, boxShadow: elevation.raised },
-              { transform: [{ rotate: `${String(stickerTilt('more'))}deg` }] },
-            ]}
-          >
-            <Text variant="headline" allowFontScaling={false} style={{ color: colors.primary }}>
-              {t('map.more', { count: more })}
-            </Text>
-          </Pressable>
-        </Animated.View>
-      ) : null}
+          {row}
+        </Pressable>
+      ) : (
+        <View style={[styles.row, placed]} pointerEvents="box-none">
+          {row}
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   box: { height: MAP_AVATAR_BOX },
-  slot: { position: 'absolute', width: SLOT, alignItems: 'center' },
-  // Whatever sits above a sticker ends where it begins.
+  row: { position: 'absolute', height: STICKER },
+  frame: { ...StyleSheet.absoluteFill, borderRadius: radius.pill, overflow: 'hidden' },
+  slot: { position: 'absolute', top: 0, width: STICKER, alignItems: 'center' },
+  // Whatever sits above an avatar ends where it begins.
   above: { position: 'absolute', bottom: PIN_HEIGHT + space.xs, alignItems: 'center' },
-  more: {
-    width: STICKER,
-    height: STICKER,
+  // How many stand here, on the frame's upper right corner.
+  count: {
+    position: 'absolute',
+    top: -space.sm,
+    right: -space.sm,
+    minWidth: space.xl,
+    height: space.xl,
+    paddingHorizontal: space.xs,
     borderRadius: radius.pill,
+    borderWidth: space.xxs,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -28,10 +28,12 @@ import {
   openMenu,
   PERSON_ACTIONS,
   type PersonAction,
+  type ScreenPoint,
   usePersonFocus,
 } from './person-focus';
 import type { PersonHandlers } from './person-gestures';
 import { RadialMenu } from './radial-menu';
+import { type GroupMember, TogetherSheet } from './together-sheet';
 
 /**
  * Everything that happens when the user touches a person on the map: the card on a tap, the
@@ -50,6 +52,8 @@ export function usePeopleUi(
   const focused = useRef<string | null>(null);
   const muteSheet = useRef<SheetRef>(null);
   const [muting, setMuting] = useState<{ userId: string; name: string } | null>(null);
+  const groupSheet = useRef<SheetRef>(null);
+  const [group, setGroup] = useState<{ people: GroupMember[]; from: ScreenPoint } | null>(null);
 
   const sendPoke = useCallback(
     async (person: PersonView) => {
@@ -159,6 +163,14 @@ export function usePeopleUi(
     [act, topInset],
   );
 
+  /** More than two standing together: everyone there in a window; a pick opens their card. */
+  const openGroup = useCallback((people: GroupMember[], from: ScreenPoint) => {
+    closeMenu();
+    closeCard();
+    setGroup({ people, from });
+    groupSheet.current?.present();
+  }, []);
+
   const person = selected === null ? null : personView(selected.userId, circles, locations);
 
   /** Once the card's height is known: bring the person into view above it, then name the place. */
@@ -201,6 +213,16 @@ export function usePeopleUi(
       )}
       <RadialMenu onPick={act} />
       <MuteSheet ref={muteSheet} person={muting} />
+      <TogetherSheet
+        ref={groupSheet}
+        people={group?.people ?? []}
+        onPick={(userId) => {
+          groupSheet.current?.dismiss();
+          focused.current = null;
+          setPlace(null);
+          openCard(userId, group?.from ?? { x: 0, y: 0 });
+        }}
+      />
     </>
   );
 
@@ -209,5 +231,5 @@ export function usePeopleUi(
     closeCard();
   };
 
-  return { handlersFor, overlay, onMapPress };
+  return { handlersFor, openGroup, overlay, onMapPress };
 }

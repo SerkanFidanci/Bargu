@@ -38,16 +38,12 @@ export interface BarguMapProps {
 export interface BarguMapHandle {
   /** Moves the camera to a point, keeping it clear of the `bottom` px a card covers. */
   focusOn(at: LngLat, bottom: number): void;
-  /** Zooms in on a point (a cluster of people, so they separate). */
-  zoomIn(at: LngLat): void;
   /** Shows an area whole (a day of someone's history), clear of the `bottom` px a panel covers. */
   fitTo(bounds: LngLatBounds, bottom: number): void;
   /** The place name around a point, read from the labels the map shows (place-name.ts). */
   placeName(at: LngLat, language: string): Promise<string | null>;
 }
 
-/** How much a tap on a cluster zooms in (each step doubles the scale). */
-const ZOOM_STEP = 2;
 const MAX_ZOOM = 18;
 
 /** How far around a point (px) the map's labels are searched for its place name. */
@@ -81,13 +77,6 @@ export function BarguMap({
         const padding = { ...insets, bottom: Math.max(insets.bottom ?? 0, bottom) };
         if (reduced) camera.current?.jumpTo({ center: at, padding });
         else camera.current?.easeTo({ center: at, padding, duration: duration.slow });
-      },
-      zoomIn(at) {
-        void map.current?.getZoom().then((zoom) => {
-          const target = Math.min(zoom + ZOOM_STEP, MAX_ZOOM);
-          if (reduced) camera.current?.jumpTo({ center: at, zoom: target });
-          else camera.current?.easeTo({ center: at, zoom: target, duration: duration.slow });
-        });
       },
       fitTo(bounds, bottom) {
         const margin = 48;
