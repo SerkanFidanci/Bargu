@@ -55,6 +55,9 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:staging
             ${{ env.IMAGE }}:${{ github.sha }}
+          # The commit inside the image: scripts/publish-apk.sh checks staging has an APK's commit.
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
           provenance: mode=max
           sbom: true
           cache-from: type=gha
