@@ -405,6 +405,35 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
     told.mockRestore();
   });
 
+  it('takes two "ask my parent" taps at once as one request, never a 500 (QA 21 B-1)', async () => {
+    const teen = await person(test, 'Ege', '15-17');
+    const parent = await person(test, 'Filiz');
+    const code = (await as(test, teen, 'POST', '/v1/guardians/code')).json<GuardianCode>();
+    const link = (
+      await as(test, parent, 'POST', '/v1/guardians/accept', { token: code.token })
+    ).json<GuardianLink>();
+    await as(test, teen, 'POST', `/v1/guardians/${link.id}/confirm`);
+    const notified = vi.spyOn(test.app.get(Notifier), 'notifyGuardians');
+    for (let round = 0; round < 5; round += 1) {
+      notified.mockClear();
+      const replies = await Promise.all([buy(teen, 'plus_month'), buy(teen, 'plus_month')]);
+      for (const reply of replies) {
+        expect(reply.json()).toMatchObject({ code: 'GUARDIAN_APPROVAL' });
+      }
+      // One request, its parent told once.
+      const { requests } = (
+        await as(test, parent, 'GET', `/v1/guardians/${link.id}`)
+      ).json<GuardianView>();
+      expect(requests).toHaveLength(1);
+      expect(notified).toHaveBeenCalledTimes(1);
+      // A no drops it: the next round asks anew.
+      const [asked] = requests;
+      if (asked === undefined) throw new Error('no request');
+      await as(test, parent, 'POST', `/v1/guardians/${link.id}/requests/${asked.id}/decline`);
+    }
+    notified.mockRestore();
+  });
+
   it('tells the circles when plans run out with time, once (the worker)', async () => {
     const [efe, fatma] = [await person(test), await person(test)];
     const circle = await circleWith(test, efe, fatma);
