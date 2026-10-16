@@ -2,7 +2,8 @@ import { randomUuid, voteId } from '@bargu/crypto';
 import type { Circle, DocRecord, MessageEnvelope, PollPayload, VotePayload } from '@bargu/schemas';
 
 import { circleOf, exchangeKeys, type Person, somebody } from '../location/test-support';
-import { createDocs, type DocRefusal, docKey, type DocsApi, useDocs } from './docs';
+import { createDocs, type DocExtra, type DocRefusal, docKey, type DocsApi, useDocs } from './docs';
+import { type Doc, MEETING } from './plan-model';
 
 class Refused extends Error {
   constructor(readonly code: Exclude<DocRefusal, null>) {
@@ -13,10 +14,13 @@ class Refused extends Error {
 /** The server as phones see it: compare-and-set, current epoch, others' votes untouchable. */
 function fakeServer(epochOf: (circleId: string) => number) {
   const rows = new Map<string, DocRecord>();
+  /** What each save sent along (a meeting outside an event: its end, its notices). */
+  const extras = new Map<string, DocExtra>();
   const api: DocsApi = {
     list: (circleId) =>
       Promise.resolve([...rows.values()].filter((row) => row.circleId === circleId)),
-    put: (circleId, docId, envelope: MessageEnvelope, version, kind) => {
+    put: (circleId, docId, envelope: MessageEnvelope, version, kind, _pollId, extra = {}) => {
+      extras.set(docId, extra);
       const shared = kind !== 'vote';
       if (envelope.epoch !== epochOf(circleId)) return Promise.reject(new Refused('EPOCH_STALE'));
       const row = rows.get(docId);
@@ -34,10 +38,16 @@ function fakeServer(epochOf: (circleId: string) => number) {
       return Promise.resolve();
     },
   };
-  return { api, rows };
+  return { api, rows, extras };
 }
 
-function docsOf(person: Person, circles: () => Circle[], api: DocsApi, now = 1_000) {
+function docsOf(
+  person: Person,
+  circles: () => Circle[],
+  api: DocsApi,
+  now = 1_000,
+  onMeetingStarted?: (circle: Circle, doc: Doc) => void,
+) {
   return createDocs({
     api,
     keys: () => person.keys,
@@ -47,6 +57,7 @@ function docsOf(person: Person, circles: () => Circle[], api: DocsApi, now = 1_0
     store: () => person.store,
     refusal: (error) => (error instanceof Refused ? error.code : null),
     refreshCircle: () => Promise.resolve(null),
+    ...(onMeetingStarted === undefined ? {} : { onMeetingStarted }),
     now: () => now,
   });
 }
@@ -220,23 +231,74 @@ describe('event documents on the phone', () => {
     ]);
   });
 
-  it('exist only for events this phone is active in', async () => {
+  it('hold a meeting in any circle, with its end; polls only in events (docs/ADR/0026)', async () => {
     const [ayse, bora] = [somebody(), somebody()];
     const group = circleOf([ayse, bora]);
     const circle = event([ayse, bora]);
     exchangeKeys(circle, [ayse, bora]);
-    const server = fakeServer(() => circle.epoch);
+    exchangeKeys(group, [ayse, bora]);
+    const server = fakeServer((id) => (id === group.id ? group.epoch : circle.epoch));
     const ayses = docsOf(ayse, () => [group, circle], server.api);
-    expect(
-      await ayses.save(group.id, { kind: 'plan', id: group.id, meetAt: 2 * HOUR, ts: 0 }),
-    ).toBe('failed');
+    // Outside an event: no meeting without its time (it goes 3 hours after), and no polls.
+    expect(await ayses.save(group.id, { kind: 'plan', id: group.id, ts: 0 })).toBe('failed');
+    expect(await ayses.save(group.id, pollFor(randomUuid(), ayse.userId))).toBe('forbidden');
+    const meeting = {
+      kind: 'plan',
+      id: group.id,
+      meetAt: 2 * HOUR,
+      by: ayse.userId,
+      ts: 0,
+    } as const;
+    expect(await ayses.save(group.id, meeting, { pushes: [] })).toBe('saved');
+    expect(server.extras.get(group.id)).toEqual({ endsAt: 2 * HOUR + MEETING.keptMs, pushes: [] });
+    // A change says its end again; notices go only when it starts.
+    await ayses.save(group.id, { ...meeting, meetAt: 3 * HOUR }, { pushes: [] });
+    expect(server.extras.get(group.id)).toEqual({ endsAt: 3 * HOUR + MEETING.keptMs });
+    // An event's meeting says no end: it goes with the event.
     await ayses.save(circle.id, { kind: 'plan', id: circle.id, meetAt: 2 * HOUR, ts: 0 });
-    expect(Object.keys(useDocs.getState())).toHaveLength(1);
+    expect(server.extras.get(circle.id)).toEqual({});
+    expect(Object.keys(useDocs.getState())).toHaveLength(2);
 
-    // The event ends (gone from the circles): its documents go from the phone too.
+    // The event ends (gone from the circles): its documents go from the phone; the group's stay.
     const after = docsOf(ayse, () => [group], server.api);
     after.prune();
-    expect(useDocs.getState()).toEqual({});
-    expect(ayse.store.get('docs:v1')).toBe('[]');
+    expect(Object.keys(useDocs.getState())).toEqual([docKey(group.id, group.id)]);
+  });
+
+  it('tell when someone else starts a meeting, and let its starter seal it again', async () => {
+    const [ayse, bora] = [somebody(), somebody()];
+    const group = circleOf([ayse, bora]);
+    exchangeKeys(group, [ayse, bora]);
+    let epoch = group.epoch;
+    const server = fakeServer(() => epoch);
+    const started = jest.fn<undefined, [Circle, Doc]>();
+    const ayses = docsOf(ayse, () => [group], server.api, 1_000, started);
+    // A first look in this run: nothing there is "just started".
+    await ayses.sync();
+    const boras = docsOf(bora, () => [group], server.api);
+    await boras.save(group.id, {
+      kind: 'plan',
+      id: group.id,
+      meetAt: 2 * HOUR,
+      by: bora.userId,
+      ts: 0,
+    });
+    // One store per phone in the app; here both share it: back to Ayşe's view before her sync.
+    useDocs.setState({}, true);
+    await ayses.sync();
+    expect(started).toHaveBeenCalledTimes(1);
+    expect(started.mock.calls[0]?.[1]).toMatchObject({ payload: { by: bora.userId } });
+    await ayses.sync();
+    expect(started).toHaveBeenCalledTimes(1);
+
+    // A new epoch: Bora, its starter (no admin), seals it again, and says its end.
+    const next = { ...group, epoch: 2 };
+    epoch = 2;
+    exchangeKeys(next, [ayse, bora]);
+    const borasNext = docsOf(bora, () => [next], server.api);
+    const stale = await borasNext.sync();
+    expect(stale).toHaveLength(1);
+    expect(await borasNext.reseal(stale)).toBe(1);
+    expect(server.extras.get(group.id)).toEqual({ endsAt: 2 * HOUR + MEETING.keptMs });
   });
 });

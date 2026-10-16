@@ -13,18 +13,19 @@ const NAME_ZOOM = 14;
 
 /**
  * The places of the user's circles on the map: a soft circle and the place's icon and name.
- * `untagged` places keep their circle only: something else marks them (an event's meeting point).
+ * `except` places are not drawn here at all: they are meetings, drawn their own way
+ * (meeting-points-layer.tsx, docs/ADR/0026 §3), never like a saved place.
  */
 export function PlacesLayer({
   only,
-  untagged,
+  except,
 }: {
   only?: (place: Place) => boolean;
-  untagged?: ReadonlySet<string>;
+  except?: ReadonlySet<string>;
 }) {
   const { colors } = useTheme();
   const zoom = useMapZoom((state) => state.zoom);
-  const all = Object.values(usePlaces());
+  const all = Object.values(usePlaces()).filter((place) => except?.has(place.id) !== true);
   const shown = only === undefined ? all : all.filter(only);
   if (shown.length === 0) return null;
   const shapes = {
@@ -50,26 +51,24 @@ export function PlacesLayer({
           paint={{ 'line-color': colors.primary, 'line-width': 1.5, 'line-opacity': 0.5 }}
         />
       </GeoJSONSource>
-      {shown
-        .filter((place) => untagged?.has(place.id) !== true)
-        .map((place) => (
-          <Marker key={place.id} id={`place-${place.id}`} lngLat={[place.lng, place.lat]}>
-            <View
-              pointerEvents="none"
-              style={[styles.tag, { backgroundColor: colors.surfaceRaised }]}
-              accessibilityLabel={place.name}
-            >
-              <Text variant="caption" allowFontScaling={false}>
-                {place.emoji}
+      {shown.map((place) => (
+        <Marker key={place.id} id={`place-${place.id}`} lngLat={[place.lng, place.lat]}>
+          <View
+            pointerEvents="none"
+            style={[styles.tag, { backgroundColor: colors.surfaceRaised }]}
+            accessibilityLabel={place.name}
+          >
+            <Text variant="caption" allowFontScaling={false}>
+              {place.emoji}
+            </Text>
+            {zoom >= NAME_ZOOM ? (
+              <Text variant="caption" numberOfLines={1} style={styles.name}>
+                {place.name}
               </Text>
-              {zoom >= NAME_ZOOM ? (
-                <Text variant="caption" numberOfLines={1} style={styles.name}>
-                  {place.name}
-                </Text>
-              ) : null}
-            </View>
-          </Marker>
-        ))}
+            ) : null}
+          </View>
+        </Marker>
+      ))}
     </>
   );
 }

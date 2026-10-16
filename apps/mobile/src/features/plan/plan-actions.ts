@@ -1,11 +1,16 @@
 import { randomUuid, voteId } from '@bargu/crypto';
-import type { PlanPayload, PollPayload, VotePayload } from '@bargu/schemas';
+import type { Circle, PlanPayload, PollPayload, VotePayload } from '@bargu/schemas';
 
 import i18n from '@/i18n';
 import { toast } from '@/ui/toast';
 
+import { useAuth } from '../auth/auth-store';
+import { loadContacts } from '../notifications/push-contacts';
+import { usePlaces } from '../places/places';
+import { vault } from '../storage/vault';
 import { docKey, type DocSaveResult, useDocs } from './docs';
 import { docs } from './docs-session';
+import { meetingStartPushes } from './meeting';
 import { type Doc, tally, withChoice } from './plan-model';
 
 /** Tells how a save went; true when it went through. */
@@ -31,6 +36,47 @@ export function votesOf(all: Readonly<Record<string, Doc>>, circleId: string): D
       ? [{ ...doc, payload: doc.payload }]
       : [],
   );
+}
+
+/**
+ * Who runs a circle's meeting (sets its time and place, ends it): an event's admins
+ * (docs/ADR/0020); outside an event also whoever started it (docs/ADR/0026). The server holds the
+ * same rule.
+ */
+export function mayRunMeeting(circle: Pick<Circle, 'id' | 'kind' | 'myRole'>, me: string): boolean {
+  if (circle.myRole === 'owner') return true;
+  return circle.kind !== 'event' && planOf(circle.id).by === me;
+}
+
+/**
+ * Starts a meeting in a circle that is no event (docs/ADR/0026): any member, with its place and
+ * time. The others' phones hear it live; those not connected get one notification.
+ */
+export async function startMeeting(
+  circle: Pick<Circle, 'id'>,
+  meeting: { placeId: string; meetAt: number },
+): Promise<boolean> {
+  const { userId: me, device } = useAuth.getState();
+  const place = usePlaces.getState()[meeting.placeId];
+  if (me === null || device === null || place === undefined) return told('failed');
+  const pushes = meetingStartPushes({
+    circleId: circle.id,
+    place,
+    meetAt: meeting.meetAt,
+    device,
+    recipients: loadContacts(vault()).recipients[circle.id] ?? [],
+    now: Date.now(),
+  });
+  const plan: PlanPayload = { kind: 'plan', id: circle.id, ...meeting, by: me, ts: 0 };
+  return told(await docs.save(circle.id, plan, { pushes }), i18n.t('meeting.started'));
+}
+
+/** Ends a circle's meeting at once ("Bitir", its starter or an admin); everyone's goes too. */
+export async function endMeeting(circleId: string): Promise<boolean> {
+  const ended = await docs.remove(circleId, circleId);
+  if (ended) toast.success(i18n.t('meeting.ended'));
+  else toast.error(i18n.t('plan.failed'));
+  return ended;
 }
 
 /** Sets the meeting's time or place; the others' phones hear `docs.changed`. */

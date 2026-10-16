@@ -1,21 +1,57 @@
 import { type Circle, docPutReplySchema, docsSchema } from '@bargu/schemas';
 
+import i18n from '@/i18n';
+import { toast } from '@/ui/toast';
+
 import { api, onSignedOut, useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
 import { useCircleKeys } from '../circles/circle-sync';
 import { isApiError } from '../errors';
 import { circleSync, keys, onOnline, onServerEvents } from '../live/live-session';
 import { queryClient } from '../query-client';
+import { memberName } from '../circles/names';
+import { usePlaces } from '../places/places';
 import { isVaultOpen, vault } from '../storage/vault';
 import { createDocs, type DocsApi } from './docs';
+import type { Doc } from './plan-model';
+
+/**
+ * Someone started a meeting in a circle that is no event (docs/ADR/0026 §6), seen live: a line in
+ * the app (their notification goes only to phones whose app is not connected).
+ */
+function meetingStarted(circle: Circle, doc: Doc): void {
+  const plan = doc.payload;
+  if (plan.kind !== 'plan' || plan.meetAt === undefined || plan.placeId === undefined) return;
+  const by = circle.members.find((member) => member.userId === plan.by);
+  const place = usePlaces.getState()[plan.placeId];
+  if (by === undefined || place === undefined) return;
+  const time = new Date(plan.meetAt).toLocaleTimeString(i18n.language, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  toast.info(
+    i18n.t('notifications.meeting', {
+      name: memberName(by),
+      time,
+      place: `${place.emoji} ${place.name}`,
+    }),
+  );
+}
 
 const docsApi: DocsApi = {
   list: async (circleId) => docsSchema.parse(await api.authed(`/v1/circles/${circleId}/docs`)).docs,
-  put: async (circleId, docId, envelope, version, kind, pollId) =>
+  put: async (circleId, docId, envelope, version, kind, pollId, extra = {}) =>
     docPutReplySchema.parse(
       await api.authed(`/v1/circles/${circleId}/docs/${docId}`, {
         method: 'PUT',
-        body: { envelope, version, kind, pollId },
+        body: {
+          envelope,
+          version,
+          kind,
+          pollId,
+          ...(extra.endsAt === undefined ? {} : { endsAt: extra.endsAt }),
+          ...(extra.pushes === undefined ? {} : { pushes: extra.pushes }),
+        },
       }),
     ).version,
   remove: async (circleId, docId) => {
@@ -40,8 +76,10 @@ export const docs = createDocs({
     if (isApiError(error, 'EPOCH_STALE')) return 'EPOCH_STALE';
     if (isApiError(error, 'DOCS_FULL')) return 'DOCS_FULL';
     if (isApiError(error, 'FORBIDDEN')) return 'FORBIDDEN';
+    if (isApiError(error, 'MEETING_EXISTS')) return 'MEETING_EXISTS';
     return null;
   },
+  onMeetingStarted: meetingStarted,
   refreshCircle: async (circleId) => {
     await circleSync.refresh(circleId);
     return cachedCircles().find((circle) => circle.id === circleId) ?? null;
@@ -103,8 +141,9 @@ queryClient.getQueryCache().subscribe((event) => {
   if (event.query.queryHash !== CIRCLES_HASH || event.type !== 'updated') return;
   if (!isVaultOpen()) return;
   docs.prune();
-  const events = cachedCircles().filter((circle) => circle.kind === 'event');
-  const next = new Map(events.map((circle) => [circle.id, circle.epoch]));
+  // Every circle can hold a meeting (docs/ADR/0026), events their polls too.
+  const withDocs = cachedCircles().filter((circle) => circle.myStatus === 'active');
+  const next = new Map(withDocs.map((circle) => [circle.id, circle.epoch]));
   const moved = [...next].some(([id, epoch]) => epochs.get(id) !== epoch);
   epochs = next;
   if (moved) void syncDocs();
@@ -116,7 +155,7 @@ useCircleKeys.subscribe(() => {
   if (keysTimer !== null) return;
   keysTimer = setTimeout(() => {
     keysTimer = null;
-    if (cachedCircles().some((circle) => circle.kind === 'event')) void syncDocs();
+    if (cachedCircles().some((circle) => circle.myStatus === 'active')) void syncDocs();
   }, 2_000);
 });
 

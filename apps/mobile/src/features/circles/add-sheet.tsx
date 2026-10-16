@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { type LucideIcon, QrCode, ScanLine, Search, Share2 } from 'lucide-react-native';
+import { Flag, type LucideIcon, QrCode, ScanLine, Search, Share2 } from 'lucide-react-native';
 import { forwardRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Share, StyleSheet, View } from 'react-native';
@@ -29,7 +29,7 @@ export const AddSheet = forwardRef<SheetRef, AddSheetProps>(function AddSheet(
 ) {
   const { t } = useTranslation();
   const [sharing, setSharing] = useState(false);
-  const go = (path: '/add/username' | '/add/qr' | '/add/scan') => {
+  const go = (path: '/add/username' | '/add/qr' | '/add/scan' | '/meeting/new') => {
     onClose();
     router.push(path);
   };
@@ -74,6 +74,15 @@ export const AddSheet = forwardRef<SheetRef, AddSheetProps>(function AddSheet(
       title: t('sheets.add.shareLink'),
       subtitle: t('add.shareLinkHint'),
       onPress: () => void shareLink(),
+    },
+    // A meeting in one of the circles (the project owner's request, docs/ADR/0026).
+    {
+      icon: Flag,
+      title: t('meeting.start'),
+      subtitle: t('meeting.startFromPlus'),
+      onPress: () => {
+        go('/meeting/new');
+      },
     },
   ];
   return (

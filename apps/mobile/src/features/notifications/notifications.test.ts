@@ -63,6 +63,17 @@ describe('notification texts', () => {
     expect(pushText(body, me.device.deviceId, contacts)).toBeNull();
   });
 
+  it('word a meeting started in the circle: who, when and where (docs/ADR/0026 §6)', () => {
+    const meetAt = new Date(2026, 9, 16, 17, 30).getTime();
+    const shown = pushText(
+      { kind: 'meeting', circleId: circle.id, name: 'Ev', emoji: '🏠', meetAt, ts: 1 },
+      ada.device.deviceId,
+      contacts,
+    );
+    expect(shown).toMatchObject({ channel: 'meetings', fromUserId: ada.userId });
+    expect(shown?.body).toMatch(/^Test buluşma başlattı: 17[:.]30 · 🏠 Ev$/);
+  });
+
   it("word the server's notices themselves, with the circle's name when known", () => {
     expect(
       pushText(

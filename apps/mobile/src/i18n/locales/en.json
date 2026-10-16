@@ -547,7 +547,8 @@
       "allow": "Turn on notifications",
       "later": "Not now"
     },
-    "accountChannel": "Account and Bargu+"
+    "accountChannel": "Account and Bargu+",
+    "meeting": "{{name}} started a meeting: {{time}} · {{place}}"
   },
   "location": {
     "service": {
@@ -794,7 +795,8 @@
     "lateSent": "They know",
     "leaveIn": "Leave within {{minutes}} min to make the meeting",
     "adminChooses": "An admin will choose",
-    "meetingPoint": "{{event}} meeting point: {{place}}, {{time}}"
+    "meetingPoint": "{{event}} meeting point: {{place}}, {{time}}",
+    "exists": "This circle already has a meeting; you can see it."
   },
   "history": {
     "title": "History",
@@ -1114,5 +1116,37 @@
     "title": "A new version is needed",
     "body": "This version of Bargu is no longer supported. Until you update, your location isn't shared and you can't see your people's new locations. Your data is safe; once the new version is installed, everything picks up where it left off.",
     "where": "You'll find the new version at the download link you were sent, or in the app store."
+  },
+  "meeting": {
+    "title": "Meeting",
+    "start": "Start a meeting",
+    "startTitle": "Start a meeting",
+    "startBody": "Everyone in the circle sees it, no invitation needed. Whoever starts it and the circle's admins can change or end it.",
+    "startHint": "The meeting ends on its own 3 hours after its time.",
+    "startFromPlus": "Pick a place and a time with one of your circles",
+    "started": "The meeting started; the circle has been told.",
+    "startedBy": "Started by {{name}}",
+    "startedByYou": "You started this meeting.",
+    "starterChooses": "Whoever started the meeting or the circle's admin chooses.",
+    "noPlaces": "This circle has no saved place yet; add a new one.",
+    "chooseCircle": "In which circle?",
+    "noCircles": "No circle to meet with",
+    "noCirclesBody": "Add a friend or make a circle first.",
+    "hasOne": "Has a meeting",
+    "openHint": "Who's coming, directions",
+    "end": "End the meeting",
+    "endTitle": "End the meeting?",
+    "endBody": "The meeting ends for everyone right away.",
+    "ended": "The meeting ended.",
+    "here": "I'm here",
+    "hereSent": "The circle has been told you are here.",
+    "directions": "Directions",
+    "directionsHint": "Your phone's maps app opens; the meeting place's location goes to it.",
+    "openEvent": "Open the event",
+    "gone": "No such meeting",
+    "goneBody": "It may have ended, or you are no longer in this circle.",
+    "voting": "voted on",
+    "option": "option",
+    "optionLabel": "{{title}}: option {{place}}"
   }
 }

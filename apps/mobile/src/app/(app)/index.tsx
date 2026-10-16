@@ -66,11 +66,20 @@ export default function HomeScreen() {
   const map = useRef<BarguMapHandle>(null);
   const people = usePeopleUi(map, circleList.data ?? [], insets.top);
   const weather = useWeatherHere();
-  // Events' meeting points: their own flag, tappable (the project owner's request, Faz 9).
+  // Meetings: their own look and screen, never a saved place's (the project owner's request,
+  // docs/ADR/0026). An event's places are its meeting's, so none of them is drawn as a place.
   const docs = useDocs();
   const places = usePlaces();
-  const points = meetingPoints(circleList.data ?? [], docs, places, now);
-  const meetingPlaces = new Set(points.map((point) => point.place.id));
+  const points = meetingPoints(circleList.data ?? [], docs, places, now, myUserId);
+  const eventIds = new Set(
+    (circleList.data ?? []).filter((circle) => circle.kind === 'event').map((circle) => circle.id),
+  );
+  const meetingPlaces = new Set([
+    ...points.map((point) => point.place.id),
+    ...Object.values(places)
+      .filter((place) => eventIds.has(place.circleId))
+      .map((place) => place.id),
+  ]);
   // While the map is on screen, the circles' phones send live updates.
   useWatchCircles();
   const seers = seersOf(circleList.data ?? [], sharing, myUserId, now).map((member) => ({
@@ -101,7 +110,7 @@ export default function HomeScreen() {
         }}
         focus={myFix === null ? null : [myFix.lng, myFix.lat]}
       >
-        <PlacesLayer untagged={meetingPlaces} />
+        <PlacesLayer except={meetingPlaces} />
         <MeetingPointsLayer points={points} now={now} />
         <PeopleLayer
           me={me.data}

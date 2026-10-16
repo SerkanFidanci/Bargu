@@ -7,6 +7,7 @@ import {
 } from '@bargu/crypto';
 import {
   type Circle,
+  type DevicePushes,
   type DocPayload,
   docPayloadSchema,
   type DocRecord,
@@ -18,9 +19,9 @@ import { create } from 'zustand';
 
 import type { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
-import type { Doc } from './plan-model';
+import { type Doc, meetingEnd } from './plan-model';
 
-/** Every event's documents this phone could open, keyed by `docKey` (screens read this). */
+/** Every circle's documents this phone could open, keyed by `docKey` (screens read this). */
 export const useDocs = create<Record<string, Doc>>(() => ({}));
 
 export const docKey = (circleId: string, id: string) => `${circleId}:${id}`;
@@ -41,6 +42,12 @@ const docSchema = z
   .strict();
 const tombsSchema = z.record(z.string(), z.number());
 
+/** What a meeting outside an event sends along (docs/ADR/0026): its end, notices when it starts. */
+export interface DocExtra {
+  endsAt?: number | undefined;
+  pushes?: DevicePushes | undefined;
+}
+
 export interface DocsApi {
   list: (circleId: string) => Promise<DocRecord[]>;
   /** Resolves with the new version; rejects with the API error on refusal. */
@@ -52,13 +59,15 @@ export interface DocsApi {
     kind: DocPayload['kind'],
     /** A vote's poll (the server files it there); null for anything else. */
     pollId: string | null,
+    extra?: DocExtra,
   ) => Promise<number>;
   remove: (circleId: string, docId: string) => Promise<void>;
 }
 
 /** Why the server refused a save, from the API error (null: some other failure). */
-export type DocRefusal = 'VERSION_CONFLICT' | 'EPOCH_STALE' | 'DOCS_FULL' | 'FORBIDDEN' | null;
-export type DocSaveResult = 'saved' | 'conflict' | 'full' | 'forbidden' | 'failed';
+export type DocRefusal =
+  'VERSION_CONFLICT' | 'EPOCH_STALE' | 'DOCS_FULL' | 'FORBIDDEN' | 'MEETING_EXISTS' | null;
+export type DocSaveResult = 'saved' | 'conflict' | 'full' | 'forbidden' | 'exists' | 'failed';
 
 export interface DocsDeps {
   api: DocsApi;
@@ -70,6 +79,8 @@ export interface DocsDeps {
   refusal: (error: unknown) => DocRefusal;
   /** The circle changed epoch (or membership) since it was cached: fetch it again. */
   refreshCircle: (circleId: string) => Promise<Circle | null>;
+  /** Someone else just started a meeting outside an event (docs/ADR/0026 §6): say so in the app. */
+  onMeetingStarted?: (circle: Circle, doc: Doc) => void;
   now?: () => number;
 }
 
@@ -95,11 +106,30 @@ function fits(payload: DocPayload, record: DocRecord, authorId: string): boolean
 const pollOf = (payload: DocPayload): string | null =>
   payload.kind === 'vote' ? payload.pollId : null;
 
-const activeEvents = (circles: readonly Circle[]) =>
-  circles.filter((circle) => circle.kind === 'event' && circle.myStatus === 'active');
+/** Circles with documents: events (meeting, polls, votes), and any other's meeting (ADR 0026). */
+const activeCircles = (circles: readonly Circle[]) =>
+  circles.filter((circle) => circle.myStatus === 'active');
 
 /**
- * The documents of event circles (docs/ADR/0018): the meeting, polls and votes. Like places
+ * Who may seal a shared document again under a newer epoch: an event's admins (docs/ADR/0020);
+ * outside an event also the meeting's starter (docs/ADR/0026). One's own (a vote) its author.
+ */
+function mayReseal(circle: Circle, doc: Doc, me: string | null): boolean {
+  if (!doc.shared) return doc.authorId === me;
+  if (circle.myRole === 'owner') return true;
+  return circle.kind !== 'event' && doc.payload.kind === 'plan' && doc.payload.by === me;
+}
+
+/** What a save sends along: outside an event the meeting says its end (docs/ADR/0026 §2). */
+function extraOf(circle: Circle, payload: DocPayload): DocExtra | null {
+  if (circle.kind === 'event') return {};
+  const endsAt = payload.kind === 'plan' ? meetingEnd(payload) : null;
+  return endsAt === null ? null : { endsAt };
+}
+
+/**
+ * The documents of circles (docs/ADR/0018, 0026): an event's meeting, polls and votes, any other
+ * circle's meeting. Like places
  * (places.ts): each is stored on the server as the encrypted document of the member who last saved
  * it, opened here with that member's sender key, kept in plaintext only in the vault, sealed again
  * under a newer epoch by an admin when shared (by its author when not), never taken back to an
@@ -108,6 +138,8 @@ const activeEvents = (circles: readonly Circle[]) =>
 export function createDocs(deps: DocsDeps) {
   const now = deps.now ?? Date.now;
   let restored = false;
+  /** Circles fetched at least once in this run (a meeting seen then was not just started). */
+  const synced = new Set<string>();
 
   function restore(): void {
     if (restored) return;
@@ -193,6 +225,9 @@ export function createDocs(deps: DocsDeps) {
     circle: Circle,
     records: readonly DocRecord[],
   ): { stale: StaleDoc[]; orphans: string[] } {
+    // A first look after a start says nothing new: what was there is not "just started".
+    const restoredBefore = synced.has(circle.id);
+    synced.add(circle.id);
     restore();
     const me = deps.userId();
     const current = useDocs.getState();
@@ -221,10 +256,17 @@ export function createDocs(deps: DocsDeps) {
         held !== undefined && held.payload.ts > opened.payload.ts
           ? { ...held, version: record.version }
           : opened;
-      const mine = opened.authorId === me;
-      // Shared ones (the meeting, polls) only an admin may save again (docs/ADR/0020).
-      const mayReseal = record.shared ? circle.myRole === 'owner' : mine;
-      if (record.envelope.epoch < circle.epoch && mayReseal) {
+      // Someone else's meeting just started in a circle that is no event: the app says so.
+      if (
+        held === undefined &&
+        restoredBefore &&
+        circle.kind !== 'event' &&
+        opened.payload.kind === 'plan' &&
+        opened.payload.by !== me
+      ) {
+        deps.onMeetingStarted?.(circle, opened);
+      }
+      if (record.envelope.epoch < circle.epoch && mayReseal(circle, opened, me)) {
         stale.push({ circleId: circle.id, id: record.id, version: record.version });
       }
     }
@@ -254,7 +296,7 @@ export function createDocs(deps: DocsDeps) {
      * gone.
      */
     async sync(circleId?: string): Promise<StaleDoc[]> {
-      const events = activeEvents(deps.circles()).filter(
+      const events = activeCircles(deps.circles()).filter(
         (circle) => circleId === undefined || circle.id === circleId,
       );
       const stale: StaleDoc[] = [];
@@ -277,6 +319,8 @@ export function createDocs(deps: DocsDeps) {
         const circle = deps.circles().find((candidate) => candidate.id === record.circleId);
         const doc = useDocs.getState()[docKey(record.circleId, record.id)];
         if (circle === undefined || doc === undefined) continue;
+        const extra = extraOf(circle, doc.payload);
+        if (extra === null) continue;
         try {
           const version = await deps.api.put(
             circle.id,
@@ -285,6 +329,7 @@ export function createDocs(deps: DocsDeps) {
             record.version,
             doc.payload.kind,
             pollOf(doc.payload),
+            extra,
           );
           useDocs.setState({ [docKey(circle.id, record.id)]: { ...doc, version } });
           saved += 1;
@@ -297,19 +342,28 @@ export function createDocs(deps: DocsDeps) {
     },
 
     /**
-     * Saves a document of an event (sealed on this phone, then sent): its `ts` only moves forward,
-     * whatever the clocks say. Votes are this member's own; the meeting and polls are shared.
+     * Saves a document (sealed on this phone, then sent): its `ts` only moves forward, whatever
+     * the clocks say. Votes are this member's own; the meeting and polls are shared. Outside an
+     * event only the meeting, with its end; `pushes` tell the others when it starts.
      */
-    async save(circleId: string, draft: DocPayload, retried = false): Promise<DocSaveResult> {
+    async save(
+      circleId: string,
+      draft: DocPayload,
+      options: { pushes?: DevicePushes; retried?: boolean } = {},
+    ): Promise<DocSaveResult> {
       restore();
       const device = deps.device();
       const me = deps.userId();
-      const circle = activeEvents(deps.circles()).find((candidate) => candidate.id === circleId);
+      const circle = activeCircles(deps.circles()).find((candidate) => candidate.id === circleId);
       if (device === null || me === null || circle === undefined) return 'failed';
       const key = docKey(circleId, draft.id);
       const held = useDocs.getState()[key];
       const payload: DocPayload = { ...draft, ts: Math.max(now(), (held?.payload.ts ?? 0) + 1) };
       const shared = payload.kind !== 'vote';
+      if (circle.kind !== 'event' && payload.kind !== 'plan') return 'forbidden';
+      const extra = extraOf(circle, payload);
+      if (extra === null) return 'failed';
+      if (held === undefined && options.pushes !== undefined) extra.pushes = options.pushes;
       try {
         const version = await deps.api.put(
           circleId,
@@ -318,6 +372,7 @@ export function createDocs(deps: DocsDeps) {
           held?.version ?? null,
           payload.kind,
           pollOf(payload),
+          extra,
         );
         replace({
           ...useDocs.getState(),
@@ -328,13 +383,14 @@ export function createDocs(deps: DocsDeps) {
         const refusal = deps.refusal(error);
         if (refusal === 'DOCS_FULL') return 'full';
         if (refusal === 'FORBIDDEN') return 'forbidden';
-        if (refusal === 'VERSION_CONFLICT') {
+        if (refusal === 'VERSION_CONFLICT' || refusal === 'MEETING_EXISTS') {
+          // Someone was faster (or started theirs first): this phone shows what is there.
           await syncCircle(circle).catch(() => undefined);
-          return 'conflict';
+          return refusal === 'MEETING_EXISTS' ? 'exists' : 'conflict';
         }
-        if (refusal === 'EPOCH_STALE' && !retried) {
+        if (refusal === 'EPOCH_STALE' && options.retried !== true) {
           await deps.refreshCircle(circleId);
-          return this.save(circleId, draft, true);
+          return this.save(circleId, draft, { ...options, retried: true });
         }
         return 'failed';
       }
@@ -354,10 +410,10 @@ export function createDocs(deps: DocsDeps) {
       return true;
     },
 
-    /** Documents of events this phone is no longer in (left, removed, ended) go. */
+    /** Documents of circles this phone is no longer in (left, removed, ended) go. */
     prune(): void {
       restore();
-      const active = new Set(activeEvents(deps.circles()).map((circle) => circle.id));
+      const active = new Set(activeCircles(deps.circles()).map((circle) => circle.id));
       const current = useDocs.getState();
       const kept = Object.fromEntries(
         Object.entries(current).filter(([, doc]) => active.has(doc.circleId)),
@@ -367,6 +423,7 @@ export function createDocs(deps: DocsDeps) {
 
     reset(): void {
       restored = false;
+      synced.clear();
       useDocs.setState({}, true);
     },
   };

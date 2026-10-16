@@ -108,6 +108,25 @@ export function pushText(
       fromUserId: sender.userId,
     };
   }
+  if (body.kind === 'meeting') {
+    // A member started a meeting in the circle (docs/ADR/0026 §6): who, when and where.
+    const circle = contacts.circles[body.circleId]?.name;
+    const time = new Date(body.meetAt).toLocaleTimeString(i18n.language, {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return {
+      title: circle ?? 'Bargu',
+      body: i18n.t('notifications.meeting', {
+        name: sender.name,
+        time,
+        place: `${body.emoji} ${body.name}`,
+      }),
+      circleId: body.circleId,
+      channel: MEETINGS_CHANNEL,
+      fromUserId: sender.userId,
+    };
+  }
   return {
     title: `${body.emoji} ${body.name}`,
     body: i18n.t(body.event === 'enter' ? 'notifications.arrived' : 'notifications.left', {

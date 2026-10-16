@@ -71,7 +71,8 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
       loadMutes(store),
       body.kind === 'place'
         ? { kind: 'place', placeId: body.placeId }
-        : { kind: body.kind === 'late' ? 'late' : 'bump' },
+        : // A meeting's notices are muted with its "will be late" ones.
+          { kind: body.kind === 'late' || body.kind === 'meeting' ? 'late' : 'bump' },
       shown.fromUserId,
     )
   ) {

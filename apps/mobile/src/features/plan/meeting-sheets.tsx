@@ -37,16 +37,23 @@ export function useEventPlaces(circleId: string): Place[] {
     .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
 }
 
-/** The meeting times this event allows: a quarter of an hour from now to its end. */
-export function timeRange(circle: Circle, now: number): { min: number; max: number } | null {
-  const times = meetingTimes(now, circle.expiresAt ?? now);
+/**
+ * The meeting times a circle allows: a quarter of an hour from now to an event's end, or up to a
+ * week ahead outside an event (docs/ADR/0026).
+ */
+export function timeRange(
+  circle: Pick<Circle, 'kind' | 'expiresAt'>,
+  now: number,
+): { min: number; max: number } | null {
+  const end = circle.kind === 'event' ? (circle.expiresAt ?? now) : now + MEETING.aheadMs;
+  const times = meetingTimes(now, end);
   const min = times[0];
   const max = times.at(-1);
   return min === undefined || max === undefined ? null : { min, max };
 }
 
 /** A time picked in quarter hours: an hour or a quarter earlier or later, within the event. */
-function TimeStepper({
+export function TimeStepper({
   value,
   onChange,
   min,

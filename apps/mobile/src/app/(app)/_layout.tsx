@@ -48,6 +48,8 @@ export default function AppLayout() {
       <Stack.Screen name="i/[token]" options={{ presentation: 'modal' }} />
       <Stack.Screen name="g/[token]" options={{ presentation: 'modal' }} />
       <Stack.Screen name="place/[circleId]" />
+      <Stack.Screen name="meeting/new" />
+      <Stack.Screen name="meeting/[circleId]" />
       <Stack.Screen name="history/viewers" />
       <Stack.Screen name="history/[userId]" />
       <Stack.Screen name="security" />

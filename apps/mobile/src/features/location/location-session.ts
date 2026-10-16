@@ -59,7 +59,7 @@ import { places } from '../places/places-session';
 import { createPresence, placeEvent } from '../places/presence';
 import { useDocs } from '../plan/docs';
 import { docs } from '../plan/docs-session';
-import { createMeetings, lateEvent, useLates } from '../plan/meeting';
+import { arrivedEvent, createMeetings, lateEvent, useArrived, useLates } from '../plan/meeting';
 import { cancelAllReminders, cancelReminder, remindToLeave } from '../plan/reminders';
 import {
   shareHistoryWithExtension,
@@ -250,6 +250,28 @@ async function sendLate(
     recipients: loadContacts(vault()).recipients[circle.id] ?? [],
     now: Date.now(),
   });
+  const reply = bumpReplySchema.parse(
+    await api.authed('/v1/place-events', { method: 'POST', body: request }),
+  );
+  if ('refused' in reply) {
+    if (reply.refused === 'EPOCH' || reply.refused === 'NOT_MEMBER') {
+      void circleSync.refresh(circle.id).catch(() => undefined);
+    }
+    throw new Error(reply.refused);
+  }
+}
+
+/**
+ * "Geldim" (docs/ADR/0026 §5): the circle's members who are online see it on the meeting's board;
+ * nobody is notified. Throws when it did not get through.
+ */
+export async function sayArrived(
+  circle: Pick<Circle, 'id' | 'epoch'>,
+  meetAt: number,
+): Promise<void> {
+  const device = useAuth.getState().device;
+  if (device === null) throw new Error('signed out');
+  const request = arrivedEvent({ circle, meetAt, keys: keys(), device, now: Date.now() });
   const reply = bumpReplySchema.parse(
     await api.authed('/v1/place-events', { method: 'POST', body: request }),
   );
@@ -637,6 +659,11 @@ const receiver = createReceiver({
       ?.members.find((candidate) => candidate.userId === userId);
     if (member === undefined || isMuted(loadMuteSettings(), { kind: 'late' }, userId)) return;
     toast.info(i18n.t('notifications.late', { name: memberName(member), minutes: late.minutes }));
+  },
+  // Someone says they are at the meeting: on the board (no line, no notification).
+  onArrived: (circleId, userId, arrived) => {
+    if (Date.now() - arrived.ts > PLACE_EVENT_FRESH_MS) return;
+    useArrived.setState({ [`${circleId}:${userId}`]: arrived });
   },
   onBump: (circleId, userId, ts) => {
     const name = receivePoke(circleId, userId, ts);

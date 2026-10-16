@@ -39,6 +39,7 @@ import { useNow } from '@/features/location/clock';
 import { SharingCard } from '@/features/location/sharing-card';
 import { PlacesCard } from '@/features/places/places-card';
 import { MeetingCard } from '@/features/plan/meeting-card';
+import { MeetingRow } from '@/features/plan/meeting-row';
 import { isValidDisplayName } from '@/features/profile/profile-form';
 import { radius, space, touchTarget, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
@@ -287,6 +288,12 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
       {active && circle.kind === 'event' ? (
         <Appear index={2}>
           <MeetingCard circle={circle} />
+        </Appear>
+      ) : null}
+
+      {active && circle.kind !== 'event' ? (
+        <Appear index={2}>
+          <MeetingRow circle={circle} />
         </Appear>
       ) : null}
 

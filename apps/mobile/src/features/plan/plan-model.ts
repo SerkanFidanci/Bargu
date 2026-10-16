@@ -45,7 +45,24 @@ export const MEETING = {
   nearM: 300,
   /** The time steps the meeting time is picked in. */
   stepMs: 15 * 60_000,
+  /**
+   * A meeting outside an event goes this long after its time (docs/ADR/0026 §2): the server
+   * deletes it then; "Bitir" ends it at once.
+   */
+  keptMs: 3 * 3600_000,
+  /** Outside an event a meeting is set at most this far ahead (the server allows a day more). */
+  aheadMs: 7 * 24 * 3600_000,
+  /**
+   * "There" from a location only when it is this exact (metres, docs/ADR/0026 §5): a coarse one is
+   * a cell's centre, which may fall inside the place, and must never tell an arrival.
+   */
+  arrivalAccuracyM: 100,
 } as const;
+
+/** When a meeting outside an event goes: its time plus MEETING.keptMs; null without a time. */
+export function meetingEnd(plan: Pick<PlanPayload, 'meetAt'>): number | null {
+  return plan.meetAt === undefined ? null : plan.meetAt + MEETING.keptMs;
+}
 
 /**
  * A rough door-to-door estimate without any routing service (nothing about the trip leaves the
@@ -263,13 +280,20 @@ export function arrivals(input: {
   locations: Readonly<Record<string, LocPayload | undefined>>;
   /** Minutes late as people said themselves ("Geç kalacağım"), for this meeting. */
   told?: Readonly<Record<string, number | undefined>>;
+  /** Who said "Geldim" themselves, for this meeting (docs/ADR/0026 §5). */
+  arrived?: ReadonlySet<string>;
   now: number;
 }): Arrival[] {
   const { meetAt, place, now } = input;
   const rows = input.members.map((userId): Arrival => {
     const loc = input.locations[userId];
     const fresh = loc !== undefined && now - loc.ts <= ARRIVAL_FRESH_MS ? loc : undefined;
-    if (fresh !== undefined && distanceM(fresh, place) <= place.radius) {
+    // Only an exact location tells an arrival (a coarse one is a cell's centre), or their word.
+    const exact = fresh !== undefined && fresh.acc <= MEETING.arrivalAccuracyM ? fresh : undefined;
+    if (
+      (exact !== undefined && distanceM(exact, place) <= place.radius) ||
+      input.arrived?.has(userId) === true
+    ) {
       return { userId, state: 'there' };
     }
     // Their own word counts when it says later than their phone's estimate.

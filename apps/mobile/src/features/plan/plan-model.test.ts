@@ -275,6 +275,26 @@ describe('who is there when', () => {
       { userId: ids.ayse, state: 'coming', at: meetAt + 20 * MIN, late: 20 },
     ]);
   });
+
+  it('never tells an arrival from a coarse location, only from an exact one or their word (ADR 0026 §5)', () => {
+    const rows = arrivals({
+      meetAt,
+      place,
+      members: [ids.ayse, ids.bora, ids.can],
+      locations: {
+        // Neighbourhood precision: a cell's centre right inside the place, ~708 m accuracy.
+        [ids.ayse]: loc(north(20), { acc: 708 }),
+        [ids.bora]: loc(north(20), { acc: MEETING.arrivalAccuracyM }),
+      },
+      arrived: new Set([ids.can]),
+      now,
+    });
+    expect(rows).toEqual([
+      { userId: ids.bora, state: 'there' },
+      { userId: ids.can, state: 'there' },
+      { userId: ids.ayse, state: 'unknown' },
+    ]);
+  });
 });
 
 describe('meeting times', () => {

@@ -1,5 +1,5 @@
 import { type DeviceKeys, encryptMessage } from '@bargu/crypto';
-import type { Circle, LocPayload, PlaceEventRequest, PushBody } from '@bargu/schemas';
+import type { Circle, DevicePushes, LocPayload, PlaceEventRequest, PushBody } from '@bargu/schemas';
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -69,6 +69,52 @@ export function lateEvent(input: {
   const body: PushBody = { kind: 'late', circleId: circle.id, minutes, ts: now };
   return { envelope, pushes: sealPushes(input.recipients, device, body) };
 }
+
+/**
+ * "Geldim" (docs/ADR/0026 §5): the message for the members who are online; no notifications.
+ * A coarse location never tells an arrival, so the person may say it.
+ */
+export function arrivedEvent(input: {
+  circle: Pick<Circle, 'id' | 'epoch'>;
+  meetAt: number;
+  keys: KeyStore;
+  device: DeviceKeys;
+  now: number;
+}): PlaceEventRequest {
+  const { circle, meetAt, keys, device, now } = input;
+  const envelope = encryptMessage({
+    state: { senderKey: keys.ownKey(circle), nextSeq: keys.reserveSeq(circle) },
+    sender: device,
+    payload: { kind: 'arrived', meetAt, ts: now },
+  }).envelope;
+  return { envelope, pushes: [] };
+}
+
+/**
+ * "X started a meeting: 17:30 · Ev" (docs/ADR/0026 §6), sealed for each trusted member's device;
+ * the server hands them only to the members whose app is not connected.
+ */
+export function meetingStartPushes(input: {
+  circleId: string;
+  place: Pick<Place, 'name' | 'emoji'>;
+  meetAt: number;
+  device: DeviceKeys;
+  recipients: PushContacts['recipients'][string];
+  now: number;
+}): DevicePushes {
+  const body: PushBody = {
+    kind: 'meeting',
+    circleId: input.circleId,
+    name: input.place.name,
+    emoji: input.place.emoji,
+    meetAt: input.meetAt,
+    ts: input.now,
+  };
+  return sealPushes(input.recipients, input.device, body);
+}
+
+/** Who said "Geldim", per `${circleId}:${userId}` (memory only: the board shows it). */
+export const useArrived = create<Record<string, { meetAt: number; ts: number }>>(() => ({}));
 
 /** Lateness others told, per `${circleId}:${userId}` (memory only: the board shows it). */
 export const useLates = create<Record<string, { meetAt: number; minutes: number; ts: number }>>(
@@ -191,10 +237,13 @@ export function createMeetings(deps: MeetingDeps) {
   function meetings(): Meeting[] {
     const docs = deps.docs();
     const places = deps.places();
-    return deps
-      .circles()
-      .filter((circle) => circle.kind === 'event' && circle.myStatus === 'active')
-      .flatMap((circle) => meetingOf(circle.id, docs, places) ?? []);
+    return (
+      deps
+        .circles()
+        // Every circle's meeting (docs/ADR/0026), an event's as before.
+        .filter((circle) => circle.myStatus === 'active')
+        .flatMap((circle) => meetingOf(circle.id, docs, places) ?? [])
+    );
   }
 
   /** How this phone got closer to the meeting place lately (for this time and place only). */

@@ -547,7 +547,8 @@
       "allow": "Bildirimleri aç",
       "later": "Şimdi değil"
     },
-    "accountChannel": "Hesap ve Bargu+"
+    "accountChannel": "Hesap ve Bargu+",
+    "meeting": "{{name}} buluşma başlattı: {{time}} · {{place}}"
   },
   "location": {
     "service": {
@@ -794,7 +795,8 @@
     "lateSent": "Haber verildi",
     "leaveIn": "Buluşmaya yetişmek için {{minutes}} dk içinde çıkmalısın",
     "adminChooses": "Yönetici belirleyecek",
-    "meetingPoint": "{{event}} buluşma noktası: {{place}}, {{time}}"
+    "meetingPoint": "{{event}} buluşma noktası: {{place}}, {{time}}",
+    "exists": "Bu çemberde zaten bir buluşma var; onu görüyorsun."
   },
   "history": {
     "title": "Geçmiş",
@@ -1114,5 +1116,37 @@
     "title": "Yeni sürüm gerekiyor",
     "body": "Bu Bargu sürümü artık desteklenmiyor. Güncelleyene kadar konumun paylaşılmıyor ve yakınlarının yeni konumlarını göremiyorsun. Verilerin güvende; yeni sürümü yükleyince her şey kaldığı yerden devam eder.",
     "where": "Yeni sürüm, sana gönderilen indirme bağlantısında ya da uygulama mağazasında."
+  },
+  "meeting": {
+    "title": "Buluşma",
+    "start": "Buluşma başlat",
+    "startTitle": "Buluşma başlat",
+    "startBody": "Çemberdeki herkes görür, davet gerekmez. Başlatan ve çemberin yöneticileri değiştirip bitirebilir.",
+    "startHint": "Buluşma, saatinden 3 saat sonra kendiliğinden biter.",
+    "startFromPlus": "Bir çemberinle yer ve saat belirle",
+    "started": "Buluşma başladı; çemberdekilere haber verildi.",
+    "startedBy": "{{name}} başlattı",
+    "startedByYou": "Buluşmayı sen başlattın.",
+    "starterChooses": "Buluşmayı başlatan ya da çemberin yöneticisi seçer.",
+    "noPlaces": "Bu çemberin henüz kayıtlı bir yeri yok; yeni bir yer ekle.",
+    "chooseCircle": "Hangi çemberde?",
+    "noCircles": "Buluşma kurulacak çember yok",
+    "noCirclesBody": "Önce bir arkadaş ekle ya da bir çember kur.",
+    "hasOne": "Bir buluşma var",
+    "openHint": "Kim geliyor, yol tarifi",
+    "end": "Buluşmayı bitir",
+    "endTitle": "Buluşma bitsin mi?",
+    "endBody": "Buluşma herkes için hemen biter.",
+    "ended": "Buluşma bitti.",
+    "here": "Geldim",
+    "hereSent": "Geldiğin çemberdekilere söylendi.",
+    "directions": "Yol tarifi",
+    "directionsHint": "Telefonunun harita uygulaması açılır; buluşma yerinin konumu oraya gider.",
+    "openEvent": "Etkinliği aç",
+    "gone": "Bu buluşma yok",
+    "goneBody": "Bitmiş olabilir, ya da artık bu çemberde değilsin.",
+    "voting": "oylanıyor",
+    "option": "aday",
+    "optionLabel": "{{title}}: aday yer {{place}}"
   }
 }

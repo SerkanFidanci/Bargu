@@ -1,5 +1,15 @@
 import type { Circle, LocPayload, PollPayload } from '@bargu/schemas';
-import { Check, Circle as Dot, Clock, Hourglass, MapPin, Trash2, Vote } from 'lucide-react-native';
+import {
+  Check,
+  Circle as Dot,
+  CircleCheck,
+  Clock,
+  Hourglass,
+  MapPin,
+  Square,
+  Trash2,
+  Vote,
+} from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
@@ -21,14 +31,22 @@ import { endClock } from '../circles/event-ui';
 import { memberName } from '../circles/names';
 import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
-import { meetings } from '../location/location-session';
+import { meetings, sayArrived } from '../location/location-session';
 import { useLocations } from '../location/receive';
 import type { Place } from '../places/place-model';
 import { usePlaces } from '../places/places';
 import { docKey, useDocs } from './docs';
-import { type Meeting, meetingOf, useLates, useMeetingChoices } from './meeting';
+import { type Meeting, meetingOf, useArrived, useLates, useMeetingChoices } from './meeting';
 import { PlaceIcon, PlaceSheet, PollSheet, TimeSheet, timeRange } from './meeting-sheets';
-import { closePoll, removePoll, setMeeting, vote, votesOf } from './plan-actions';
+import {
+  closePoll,
+  endMeeting,
+  mayRunMeeting,
+  removePoll,
+  setMeeting,
+  vote,
+  votesOf,
+} from './plan-actions';
 import {
   type Arrival,
   arrivals,
@@ -40,9 +58,9 @@ import {
 } from './plan-model';
 
 /**
- * An event's meeting on its screen (docs/ADR/0018): when and where, polls on either, who gets
+ * A circle's meeting (docs/ADR/0018, 0026): when and where, polls on either (events only), who gets
  * there when as the time comes, and this phone's own way there (how it travels, a reminder to
- * leave, "I'll be late"). Everything here is end-to-end encrypted for the event's members.
+ * leave, "I'll be late", "I'm here"). Everything here is end-to-end encrypted for the members.
  */
 export function MeetingCard({ circle }: { circle: Circle }) {
   const { t, i18n } = useTranslation();
@@ -55,6 +73,7 @@ export function MeetingCard({ circle }: { circle: Circle }) {
   const pollSheet = useRef<SheetRef>(null);
   const [draft, setDraft] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [ending, setEnding] = useState(false);
   if (me === null) return null;
 
   const plan = docs[docKey(circle.id, circle.id)]?.payload;
@@ -68,9 +87,30 @@ export function MeetingCard({ circle }: { circle: Circle }) {
     )
     .sort((a, b) => a.payload.ts - b.payload.ts);
   const range = timeRange(circle, now);
-  // The meeting and polls are the admins' (docs/ADR/0020); everyone votes and tells when late.
-  const admin = circle.myRole === 'owner';
-  const unset = admin ? undefined : t('plan.adminChooses');
+  const event = circle.kind === 'event';
+  // An event's meeting and polls are its admins' (docs/ADR/0020); outside an event the meeting is
+  // its starter's too (docs/ADR/0026). Everyone votes and tells when late.
+  const admin = mayRunMeeting(circle, me);
+  const unset = admin ? undefined : t(event ? 'plan.adminChooses' : 'meeting.starterChooses');
+  const starter =
+    !event && plan?.kind === 'plan'
+      ? circle.members.find((member) => member.userId === plan.by)
+      : undefined;
+  const end = () => {
+    Alert.alert(t('meeting.endTitle'), t('meeting.endBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('meeting.end'),
+        style: 'destructive',
+        onPress: () => {
+          setEnding(true);
+          void endMeeting(circle.id).finally(() => {
+            setEnding(false);
+          });
+        },
+      },
+    ]);
+  };
 
   const openTime = () => {
     setDraft(
@@ -112,10 +152,18 @@ export function MeetingCard({ circle }: { circle: Circle }) {
         onPress={admin ? () => placeSheet.current?.present() : undefined}
       />
 
+      {starter === undefined ? null : (
+        <Text variant="footnote" color="textMuted" testID="meeting-starter">
+          {starter.userId === me
+            ? t('meeting.startedByYou')
+            : t('meeting.startedBy', { name: memberName(starter) })}
+        </Text>
+      )}
+
       {polls.map((poll) => (
         <PollCard key={poll.payload.id} circle={circle} poll={poll.payload} me={me} />
       ))}
-      {admin ? (
+      {admin && event ? (
         <Button
           testID="poll-start"
           label={t('plan.pollStart')}
@@ -129,7 +177,17 @@ export function MeetingCard({ circle }: { circle: Circle }) {
         <ArrivalsBoard circle={circle} meeting={meeting} me={me} now={now} />
       ) : null}
       {meeting !== null && now <= meeting.meetAt + MEETING.etaUntilMs ? (
-        <MyWay circleId={circle.id} />
+        <MyWay circle={circle} meetAt={meeting.meetAt} />
+      ) : null}
+      {admin && !event && plan?.kind === 'plan' ? (
+        <Button
+          testID="meeting-end"
+          label={t('meeting.end')}
+          icon={Square}
+          variant="secondary"
+          loading={ending}
+          onPress={end}
+        />
       ) : null}
 
       <TimeSheet
@@ -320,14 +378,18 @@ function ArrivalsBoard({
   const { colors } = useTheme();
   const locations = useLocations();
   const lates = useLates();
+  const said = useArrived();
   const myFix = useMyFix((state) => state.fix);
   const active = circle.members.filter((member) => member.status === 'active');
   const located: Record<string, LocPayload | undefined> = {};
   const told: Record<string, number | undefined> = {};
+  const arrived = new Set<string>();
   for (const member of active) {
     located[member.userId] = locations[`${circle.id}:${member.userId}`]?.loc;
     const late = lates[`${circle.id}:${member.userId}`];
     if (late?.meetAt === meeting.meetAt) told[member.userId] = late.minutes;
+    if (said[`${circle.id}:${member.userId}`]?.meetAt === meeting.meetAt)
+      arrived.add(member.userId);
   }
   if (myFix !== null) {
     const eta = meetings.eta(circle.id, myFix, now);
@@ -348,6 +410,7 @@ function ArrivalsBoard({
     members: active.map((member) => member.userId),
     locations: located,
     told,
+    arrived,
     now,
   });
   const text = (row: Arrival): string => {
@@ -398,9 +461,22 @@ function ArrivalsBoard({
 const LATE_STEPS = ['10', '20', '30', '45'] as const;
 type ModeChoice = TravelMode | 'auto';
 
-/** This phone's way to the meeting: how it travels, a reminder to leave, "I'll be late". */
-function MyWay({ circleId }: { circleId: string }) {
+/** This phone's way to the meeting: how it travels, a reminder to leave, "I'll be late", "I'm here". */
+function MyWay({ circle, meetAt }: { circle: Circle; meetAt: number }) {
   const { t } = useTranslation();
+  const circleId = circle.id;
+  const [here, setHere] = useState(false);
+  const sayHere = async () => {
+    setHere(true);
+    try {
+      await sayArrived(circle, meetAt);
+      toast.success(t('meeting.hereSent'));
+    } catch {
+      toast.error(t('plan.failed'));
+    } finally {
+      setHere(false);
+    }
+  };
   meetings.choices();
   const choice = useMeetingChoices((state) => state[circleId]);
   const [lateOpen, setLateOpen] = useState(false);
@@ -476,6 +552,16 @@ function MyWay({ circleId }: { circleId: string }) {
           }}
         />
       )}
+      <Button
+        testID="meeting-here"
+        label={t('meeting.here')}
+        icon={CircleCheck}
+        variant="secondary"
+        loading={here}
+        onPress={() => {
+          void sayHere();
+        }}
+      />
     </View>
   );
 }
