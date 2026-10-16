@@ -108,8 +108,9 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
    edilemedi.
 8. Profil, `look` ve plan içerikleri esnek okunur; diğer içerik türleri hâlâ katı (yeni alan
    eklenirse önce okumayı esnetmek gerekir).
-9. Buluşma: sunucu bir çemberde buluşma olduğunu, başlatanı ve bitiş saatini (saat + 3 sa) bilir;
-   yer ve saat şifreli. iOS bildirim eklentisinin yeni `meeting` türü yalnızca CI'daki macOS
+9. Buluşma: sunucu bir çemberde buluşma olduğunu, başlatanı ve bitiş saatini (saat + 3 sa),
+   dolayısıyla buluşmanın saatini dakikasına kadar bilir; yalnızca yer şifreli. Sonraki dilimde
+   `endsAt` bir sonraki tam saate yuvarlanacak (PM, ADR 0026 §2). iOS bildirim eklentisinin yeni `meeting` türü yalnızca CI'daki macOS
    işinde derlenir (yerelde denenemedi).
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)

@@ -42,8 +42,12 @@ Dokununca çember sayfası açılıyor.
 - Buluşma, saatinden 3 saat sonra silinir; "Bitir"e basılınca hemen silinir.
 - Sunucu silmek için bitiş anını bilmek zorundadır: telefon belgeyle birlikte düz bir `endsAt`
   gönderir (buluşma saati + 3 saat). Sunucu böylece bir çemberde buluşma olduğunu, kimin
-  başlattığını ve kabaca ne zaman olduğunu bilir; yeri ve tam saati bilmez. Etkinliklerin bitişini
-  zaten bildiği gibi.
+  başlattığını ve **buluşmanın saatini** bilir (`endsAt` − 3 saat, dakikasına kadar); yeri bilmez.
+  Etkinliklerin bitişini zaten bildiği gibi.
+- **Sonra (PM, 2026-10-16):** `endsAt` bir sonraki tam saate yukarı yuvarlanır; sunucu saati
+  yalnızca bir saatlik aralıkla öğrenir. Bedeli: buluşma sunucuda en çok bir saat daha geç silinir
+  (telefon yine saat + 3 saatte haritadan kaldırır). Sunucu yuvarlanmamış değeri reddetmez; eski
+  ve yeni uygulama birlikte çalışır.
 - İşçi her dakika süresi dolan buluşmaları siler. Her değişiklik ve silme üyelere canlı olayla
   (`docs.changed`) gider; yoklama yoktur.
 
@@ -96,7 +100,8 @@ Dokununca çember sayfası açılıyor.
 ## Sonuçlar
 
 - Sunucu yeni olarak şunu bilir: etkinlik dışı bir çemberde buluşma olduğu, kimin başlattığı,
-  ne zaman biteceği (dolayısıyla kabaca saati). Yeri ve tam saati bilmez.
+  ne zaman biteceği, dolayısıyla buluşmanın saati (yuvarlama gelene kadar dakikasına kadar). Yeri
+  bilmez.
 - "Yol tarifi" buluşma yerinin koordinatını kullanıcının seçtiği harita uygulamasına verir; bu,
   kullanıcının dokunmasıyla olur.
 - Kaba konum paylaşan kişi buluşmada "bilinmiyor" görünür; geldiğini kendisi söyleyebilir.
