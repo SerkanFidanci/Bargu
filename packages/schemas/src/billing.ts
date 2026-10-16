@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { COSMETIC_PRODUCTS } from './cosmetics.js';
+
 /**
  * Bargu+ and what an account has (docs/ADR/0024): per account, with where it came from. Only the
  * account itself ever sees its plan; others see only whether a circle is open.
@@ -9,7 +11,8 @@ export const ENTITLEMENT_SOURCES = ['bargu', 'test', 'play', 'appstore'] as cons
 export type PlusProduct = (typeof PLUS_PRODUCTS)[number];
 
 /** A cosmetic pack's product id (`cosmetic:<pack>`). */
-export const cosmeticProductSchema = z.string().regex(/^cosmetic:[a-z0-9_]{1,40}$/);
+/** A pack that exists (docs/ADR/0025 §4): an unknown one cannot be bought, nor signed. */
+export const cosmeticProductSchema = z.enum(COSMETIC_PRODUCTS);
 
 /**
  * The account's plan now. `trial` and `plus` keep the circles it is in open; `free` does not.

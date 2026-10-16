@@ -178,7 +178,8 @@ yeni tablo `app.entitlements`:
   - Sahibinin telefonu bu belgeyi şifreli profiline koyar (ADR 0014).
   - Gören telefon, uygulamada gömülü sunucu açık anahtarıyla doğrular.
   - Değiştirilmiş uygulama bedava süs gösteremez.
-  - İmza ve doğrulama `packages/crypto`'da. Ayrıntılar süs diliminde bu ADR'ye eklenecek.
+  - İmza ve doğrulama `packages/crypto`'da. Ayrıntılar, anahtarlar ve görünüm mesajı:
+    [ADR 0025](0025-cosmetic-pass-and-look.md).
 - Süs yalnızca görünüştür. Hiçbir işlev ya da güvenlik özelliği süsün arkasında değildir.
   Rastgele kutu yoktur.
 

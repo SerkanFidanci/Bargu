@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
+  type CosmeticPassReply,
   type Plan,
   type PlanRecords,
   type TestPurchase,
@@ -26,6 +27,17 @@ export class PlanController {
   @Get('records')
   records(@CurrentAuth() auth: AuthContext): Promise<PlanRecords> {
     return this.billing.records(auth);
+  }
+}
+
+/** The caller's own cosmetic pass (docs/ADR/0025): their packs, signed by the server. */
+@Controller('v1/me/cosmetics')
+export class CosmeticsController {
+  constructor(private readonly billing: BillingService) {}
+
+  @Get('pass')
+  pass(@CurrentAuth() auth: AuthContext): Promise<CosmeticPassReply> {
+    return this.billing.cosmeticPass(auth);
   }
 }
 

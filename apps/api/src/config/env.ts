@@ -117,6 +117,22 @@ export const envSchema = z
      * send no level.
      */
     MIN_CLIENT_LEVEL: z.coerce.number().int().min(0).max(9999).default(0),
+    /**
+     * Signs the cosmetic pass (docs/ADR/0025 §2): an Ed25519 seed, its id the apps know it by.
+     * Staging and production each have their own; without one there is no pass and no cosmetic
+     * shows. Both or neither; empty is unset (compose passes `${VAR:-}`).
+     */
+    ENTITLEMENT_SIGNING_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      secretKey.optional(),
+    ),
+    ENTITLEMENT_SIGNING_KID: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z
+        .string()
+        .regex(/^[a-z0-9-]{1,16}$/)
+        .optional(),
+    ),
 
     ANDROID_PACKAGE: androidPackage.default('app.bargu'),
     /** Signing certificates of the Android app (assetlinks.json, Play Integrity check). */
@@ -206,6 +222,16 @@ export const envSchema = z
           message: 'must be a base64 Firebase service account key with a project_id',
         });
       }
+    }
+    if (
+      (env.ENTITLEMENT_SIGNING_KEY === undefined) !==
+      (env.ENTITLEMENT_SIGNING_KID === undefined)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ENTITLEMENT_SIGNING_KID'],
+        message: 'goes with ENTITLEMENT_SIGNING_KEY: both or neither',
+      });
     }
     // A production build without an explicit APP_ENV would silently get development shortcuts.
     if (

@@ -163,19 +163,22 @@ dolgu → JSON → şema. Tekrar penceresi yalnızca başarılı çözmeden sonr
 
 ## 6. İçerik (payload)
 
-Zod ayrık birleşimi (`kind`), bilinmeyen alan reddedilir ([`packages/schemas`](../packages/schemas)):
+Zod ayrık birleşimi (`kind`), bilinmeyen alan reddedilir ([`packages/schemas`](../packages/schemas));
+`profile` ve `look` bilinmeyen alanı atar (ADR 0024 §10), bilinmeyen tür `MALFORMED` olur ve
+alıcı yok sayar:
 
-| `kind`        | Alanlar                                                                    |
-| ------------- | -------------------------------------------------------------------------- |
-| `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, since?, eta?, ts` (ADR 0018) |
-| `bump`        | `ts`                                                                       |
-| `place_enter` | `placeId, ts`                                                              |
-| `place_exit`  | `placeId, ts`                                                              |
-| `share_stop`  | `ts`                                                                       |
-| `status`      | `emoji? (≤16), text? (≤80), expiresAt, ts`                                 |
-| `profile`     | `photo` (`{ id, key }` ya da `null`), `ts` (ADR 0014)                      |
-| `place`       | `id, name (≤40), emoji (≤16), lat, lng, radius (50–1000 m), ts` (ADR 0015) |
-| `late`        | `meetAt, minutes (1–600), ts`: buluşmaya gecikme (ADR 0018)                |
+| `kind`        | Alanlar                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------ |
+| `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, since?, eta?, ts` (ADR 0018)                 |
+| `bump`        | `ts`                                                                                       |
+| `place_enter` | `placeId, ts`                                                                              |
+| `place_exit`  | `placeId, ts`                                                                              |
+| `share_stop`  | `ts`                                                                                       |
+| `status`      | `emoji? (≤16), text? (≤80), expiresAt, ts`                                                 |
+| `profile`     | `photo` (`{ id, key }` ya da `null`), `ts` (ADR 0014)                                      |
+| `place`       | `id, name (≤40), emoji (≤16), lat, lng, radius (50–1000 m), ts` (ADR 0015)                 |
+| `late`        | `meetAt, minutes (1–600), ts`: buluşmaya gecikme (ADR 0018)                                |
+| `look`        | `island, edge` (kimlik ya da `null`), `pass` (geçiş belgesi ya da `null`), `ts` (ADR 0025) |
 
 **Saklanan mesaj (yer).** Bir çemberin yeri, son kaydeden üyenin gönderen anahtarıyla şifrelenmiş
 `place` mesajı olarak sunucuda kalır. Üyeler onu yeni mesajlardan çok sonra tekrar açtığı için
@@ -295,16 +298,17 @@ formatının sürümü değildir; sunucu eski uygulamayı `426 UPGRADE_REQUIRED`
 Mesaj formatının parçası değildir; aynı kütüphaneler ve etiket kuralıyla `packages/crypto/src/auth.ts`
 ve `at-rest.ts`'te tanımlıdır. Kararlar: [ADR 0005](ADR/0005-auth-and-devices.md).
 
-| Etiket                | Kullanım                                             |
-| --------------------- | ---------------------------------------------------- |
-| `bargu/v1/req-sig`    | Cihaz imzalı API isteği                              |
-| `bargu/v1/otp`        | Giriş kodunun türetilmesi                            |
-| `bargu/v1/web-code`   | Hesap web sayfası kodunun türetilmesi                |
-| `bargu/v1/web-unlock` | Hesap sayfası "tarayıcıyı tanıt" bağlantısının sırrı |
-| `bargu/v1/email`      | E-posta adresinin anahtarlı özeti                    |
-| `bargu/v1/token`      | Refresh token özeti                                  |
-| `bargu/v1/at-rest`    | Sunucuda saklanan hassas verinin şifrelenmesi        |
-| `bargu/v1/pseudonym`  | Hız sınırı anahtarları için anahtarlı takma ad       |
+| Etiket                   | Kullanım                                             |
+| ------------------------ | ---------------------------------------------------- |
+| `bargu/v1/req-sig`       | Cihaz imzalı API isteği                              |
+| `bargu/v1/otp`           | Giriş kodunun türetilmesi                            |
+| `bargu/v1/web-code`      | Hesap web sayfası kodunun türetilmesi                |
+| `bargu/v1/web-unlock`    | Hesap sayfası "tarayıcıyı tanıt" bağlantısının sırrı |
+| `bargu/v1/cosmetic-pass` | Sunucunun süs geçiş belgesi imzası (ADR 0025)        |
+| `bargu/v1/email`         | E-posta adresinin anahtarlı özeti                    |
+| `bargu/v1/token`         | Refresh token özeti                                  |
+| `bargu/v1/at-rest`       | Sunucuda saklanan hassas verinin şifrelenmesi        |
+| `bargu/v1/pseudonym`     | Hız sınırı anahtarları için anahtarlı takma ad       |
 
 **İstek imzası** (başlıklar `x-bargu-sig`, `x-bargu-ts`, `x-bargu-nonce`):
 

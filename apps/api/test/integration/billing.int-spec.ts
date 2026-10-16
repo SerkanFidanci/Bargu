@@ -211,7 +211,7 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
     // Dila has no test plan: nothing to act on, and nothing of Cem's changes.
     expect((await simulate(dila, 'cancel')).statusCode).toBe(404);
     // A cosmetic pack is kept for good.
-    expect((await buy(dila, 'cosmetic:winter')).json<Plan>().cosmetics).toEqual(['winter']);
+    expect((await buy(dila, 'cosmetic:islands')).json<Plan>().cosmetics).toEqual(['islands']);
 
     // A plan from a store is never replaced or changed by a test purchase.
     await test.admin.query(
@@ -398,7 +398,7 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
     });
     expect((await view()).requests).toEqual([]);
     // A pack waits for slice 3: refused, not asked.
-    expect((await buy(teen, 'cosmetic:winter')).json()).toMatchObject({
+    expect((await buy(teen, 'cosmetic:islands')).json()).toMatchObject({
       code: 'GUARDIAN_APPROVAL',
     });
     notified.mockRestore();

@@ -13,6 +13,7 @@ export {
   pollPayloadSchema,
   votePayloadSchema,
   latePayloadSchema,
+  lookPayloadSchema,
   MAX_POLL_OPTIONS,
   PLACE_NAME_MAX,
   PLACE_RADIUS_M,
@@ -304,3 +305,16 @@ export {
   CLIENT_LEVEL_QUERY,
   clientLevelOf,
 } from './client.js';
+export {
+  COSMETIC_PACKS,
+  COSMETIC_PASS_MAX_PACKS,
+  COSMETIC_PRODUCTS,
+  COSMETIC_PASS_TTL_MS,
+  type CosmeticPack,
+  type CosmeticPass,
+  cosmeticPassReplySchema,
+  type CosmeticPassReply,
+  cosmeticPassSchema,
+  type EdgeStyle,
+  type IslandPattern,
+} from './cosmetics.js';

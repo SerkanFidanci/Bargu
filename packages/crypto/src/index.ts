@@ -95,3 +95,9 @@ export {
   type NativeInstallResult,
 } from './native.js';
 export type { NativeCurvePrimitives } from './primitives.js';
+export {
+  cosmeticPublicKey,
+  issueCosmeticPass,
+  parseCosmeticKeys,
+  verifyCosmeticPass,
+} from './cosmetics.js';

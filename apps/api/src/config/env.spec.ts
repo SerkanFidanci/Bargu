@@ -92,6 +92,13 @@ describe('parseEnv', () => {
       { ...production, WEBAUTHN_ORIGINS: 'http://localhost:8081' },
     ],
     ['production with test purchases on', { ...production, BILLING_TEST: 'on' }],
+    // docs/ADR/0025: a signing key without its id (or the reverse) would sign passes no app knows.
+    ['a signing key without its id', { ...base, ENTITLEMENT_SIGNING_KEY: 'q'.repeat(43) }],
+    ['a signing key id without the key', { ...base, ENTITLEMENT_SIGNING_KID: 'stg-1' }],
+    [
+      'a signing key that is not 32 bytes',
+      { ...base, ENTITLEMENT_SIGNING_KEY: 'short', ENTITLEMENT_SIGNING_KID: 'stg-1' },
+    ],
     [
       'production with a localhost account page',
       { ...production, WEB_ORIGIN: 'http://localhost:3000' },

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { cosmeticIdSchema, cosmeticPassSchema } from './cosmetics.js';
+
 /** Unix epoch milliseconds. */
 export const timestamp = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 
@@ -210,6 +212,20 @@ export const latePayloadSchema = z
   .strict();
 
 /** Everything a sender can put inside an encrypted message envelope (BARGU_PLAN §3.1). */
+/**
+ * The sender's look (docs/ADR/0025 §3): the island pattern and the sticker edge they chose, and the
+ * server's pass that says they own them; null for the plain look. Sent where the profile goes;
+ * each viewer checks the pass and shows the plain look when it does not hold. Read leniently, and
+ * a look this app does not know is shown plain.
+ */
+export const lookPayloadSchema = z.object({
+  kind: z.literal('look'),
+  island: cosmeticIdSchema.nullable(),
+  edge: cosmeticIdSchema.nullable(),
+  pass: cosmeticPassSchema.nullable(),
+  ts: timestamp,
+});
+
 export const payloadSchema = z.discriminatedUnion('kind', [
   locPayloadSchema,
   bumpPayloadSchema,
@@ -220,6 +236,7 @@ export const payloadSchema = z.discriminatedUnion('kind', [
   profilePayloadSchema,
   placePayloadSchema,
   latePayloadSchema,
+  lookPayloadSchema,
 ]);
 
 /**

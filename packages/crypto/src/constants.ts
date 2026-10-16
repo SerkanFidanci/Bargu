@@ -55,6 +55,8 @@ export const LABELS = {
   historyKey: 'bargu/v1/hist-key',
   historyKdf: 'bargu/v1/hist',
   historySignature: 'bargu/v1/hist-sig',
+  // The server's signed word on an account's cosmetic packs (docs/ADR/0025).
+  cosmeticPass: 'bargu/v1/cosmetic-pass',
 } as const;
 
 export type Label = (typeof LABELS)[keyof typeof LABELS];

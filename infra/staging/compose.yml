@@ -55,6 +55,9 @@ x-app-env: &app-env
   BILLING_TEST: ${BILLING_TEST:-off}
   # The oldest app served (QA 19 P4): 0 serves all; raise it in .env to make old APKs update.
   MIN_CLIENT_LEVEL: ${MIN_CLIENT_LEVEL:-0}
+  # Signs cosmetic passes (docs/ADR/0025): staging's own key, generated on the server into .env.
+  ENTITLEMENT_SIGNING_KEY: ${ENTITLEMENT_SIGNING_KEY:-}
+  ENTITLEMENT_SIGNING_KID: ${ENTITLEMENT_SIGNING_KID:-}
 
 services:
   migrate:

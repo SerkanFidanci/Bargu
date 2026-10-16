@@ -22,7 +22,8 @@
     "voteId": "bargu/v1/vote-id",
     "historyKey": "bargu/v1/hist-key",
     "historyKdf": "bargu/v1/hist",
-    "historySignature": "bargu/v1/hist-sig"
+    "historySignature": "bargu/v1/hist-sig",
+    "cosmeticPass": "bargu/v1/cosmetic-pass"
   },
   "safetyNumberIterations": 5200,
   "devices": {

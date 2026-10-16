@@ -1,5 +1,16 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import type { Plan, PlanRecords, PlusProduct, TestPurchase, TestSimulate } from '@bargu/schemas';
+import { issueCosmeticPass } from '@bargu/crypto';
+import {
+  COSMETIC_PACKS,
+  COSMETIC_PASS_MAX_PACKS,
+  COSMETIC_PASS_TTL_MS,
+  type CosmeticPassReply,
+  type Plan,
+  type PlanRecords,
+  type PlusProduct,
+  type TestPurchase,
+  type TestSimulate,
+} from '@bargu/schemas';
 import { eq, sql } from 'drizzle-orm';
 
 import { HOUR } from '../auth/client-limits.js';
@@ -24,6 +35,8 @@ const PERIOD_MS: Record<PlusProduct, number> = {
 export const GRACE_MS = 7 * DAY_MS;
 /** Test purchases and simulations per account and hour. */
 export const BILLING_TEST_LIMIT = 60;
+/** Cosmetic passes per account and hour: one is enough for 15 days (docs/ADR/0025). */
+export const COSMETIC_PASS_LIMIT = 30;
 
 type Row = typeof entitlements.$inferSelect;
 const PLUS = new Set(['trial', 'plus_month', 'plus_year']);
@@ -110,6 +123,47 @@ export class BillingService {
         .map((row) => row.product.slice('cosmetic:'.length)),
       testBilling: testing,
       pendingPurchase: pending.rows[0]?.product ?? null,
+    };
+  }
+
+  /**
+   * The caller's own cosmetic pass (docs/ADR/0025 §1): the packs they have, signed, for 30 days;
+   * null without any. A test pack counts only where test purchases are on (as for Bargu+, P1b).
+   * No signing key on this server: no passes (404).
+   */
+  async cosmeticPass(auth: AuthContext): Promise<CosmeticPassReply> {
+    const secretKey = this.env.ENTITLEMENT_SIGNING_KEY;
+    const kid = this.env.ENTITLEMENT_SIGNING_KID;
+    if (secretKey === undefined || kid === undefined) {
+      throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+    }
+    const limit = await this.limiter.hit(`cosmetic-pass:${auth.userId}`, COSMETIC_PASS_LIMIT, HOUR);
+    if (!limit.allowed) {
+      throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', limit.retryAfter);
+    }
+    const testing = billingTestOn(this.env);
+    const known: ReadonlySet<string> = new Set(Object.keys(COSMETIC_PACKS));
+    const packs = (await this.rows(auth.userId))
+      .filter(
+        (row) =>
+          row.product.startsWith('cosmetic:') &&
+          row.state === 'active' &&
+          (testing || row.source !== 'test'),
+      )
+      .map((row) => row.product.slice('cosmetic:'.length))
+      .filter((pack) => known.has(pack))
+      .slice(0, COSMETIC_PASS_MAX_PACKS);
+    if (packs.length === 0) return { pass: null };
+    const now = Date.now();
+    return {
+      pass: issueCosmeticPass({
+        secretKey,
+        kid,
+        userId: auth.userId,
+        packs,
+        issuedAt: now,
+        expiresAt: now + COSMETIC_PASS_TTL_MS,
+      }),
     };
   }
 

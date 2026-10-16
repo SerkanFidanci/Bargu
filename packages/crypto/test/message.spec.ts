@@ -160,6 +160,22 @@ describe('encryptMessage / decryptMessage', () => {
         ],
         ts: maxTs,
       },
+      // The largest look (docs/ADR/0025): every id at its longest, as many packs as a pass names.
+      {
+        kind: 'look',
+        island: 'z'.repeat(16),
+        edge: 'z'.repeat(16),
+        pass: {
+          v: 1,
+          kid: 'k'.repeat(16),
+          userId: ids.aliceUser,
+          packs: ['a', 'b', 'c', 'd', 'e', 'f'].map((letter) => letter.repeat(16)),
+          issuedAt: maxTs,
+          expiresAt: maxTs,
+          sig: 'A'.repeat(86),
+        },
+        ts: maxTs,
+      },
     ];
     for (const payload of payloads) {
       const { envelope } = encryptMessage({
