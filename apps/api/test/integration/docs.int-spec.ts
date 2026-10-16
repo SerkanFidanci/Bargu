@@ -597,6 +597,27 @@ describe('a meeting in any circle (docs/ADR/0026)', () => {
     expect(await list(gul, friends.id)).toEqual([]);
   });
 
+  it("goes with its starter's account, and the circle hears it (QA 21 B-3)", async () => {
+    const [ayse, bora, can] = await Promise.all([person(test), person(test), person(test)]);
+    const family = await circleWith(test, ayse, bora, can);
+    await startOrChange(bora, family, phone(bora, family).seal(inCircle(family.id, bora)), null);
+    expect(await list(can, family.id)).toHaveLength(1);
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+    expect((await as(test, bora, 'POST', '/v1/me/delete', { confirm: true })).statusCode).toBe(204);
+    // Bora's documents went with the account (the purge, here right away): the others hear it.
+    expect(told).toHaveBeenCalledWith([ayse.userId, can.userId].sort(), {
+      type: 'docs.changed',
+      circleId: family.id,
+    });
+    told.mockRestore();
+    expect(await list(can, family.id)).toEqual([]);
+    // Nothing for an account that is not being deleted.
+    const { rows } = await test.admin.query('SELECT * FROM app.doc_circles_of_deleted($1)', [
+      ayse.userId,
+    ]);
+    expect(rows).toEqual([]);
+  });
+
   it("hands the starter's sealed notices to the others' phones, once, when it starts", async () => {
     const [hale, ilker] = await Promise.all([person(test), person(test)]);
     const pair = await circleWith(test, hale, ilker);

@@ -48,6 +48,11 @@ Dokununca çember sayfası açılıyor.
   yalnızca bir saatlik aralıkla öğrenir. Bedeli: buluşma sunucuda en çok bir saat daha geç silinir
   (telefon yine saat + 3 saatte haritadan kaldırır). Sunucu yuvarlanmamış değeri reddetmez; eski
   ve yeni uygulama birlikte çalışır.
+- **Başlatan hesabını silerse (QA 21 B-3):** yazdığı belgeler hesabıyla gider; başlattığı buluşma
+  da, etkinlikteki oylamaları ve oyları da. Hesabı temizleyen adım (hemen ya da işçide) bu
+  belgelerin çemberlerindeki üyelere canlı olay (`docs.changed`) gönderir; telefonlar buluşmayı
+  hemen kaldırır. Başlatan yalnızca çemberden ayrılırsa buluşma kalır; onu yöneticiler değiştirir
+  ve bitirir.
 - İşçi her dakika süresi dolan buluşmaları siler. Her değişiklik ve silme üyelere canlı olayla
   (`docs.changed`) gider; yoklama yoktur.
 
