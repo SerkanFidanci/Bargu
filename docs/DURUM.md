@@ -16,7 +16,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                       |
 | Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                      |
 | Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)            |
-| Faz 9 — Güvenlik & Uyum          | ⏳ Onay bekliyor (telefon denemesi bekliyor; iPhone denenmedi)        |
+| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)         |
 
 ## Ortamlar
 
@@ -31,7 +31,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Uygulama kimliği        | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                                                         |
 | Harita dosyaları        | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                                                 |
 
-## Faz 9 — Güvenlik Özellikleri & Uyum (2026-10-16) — onay bekliyor
+## Faz 9 — Güvenlik Özellikleri & Uyum (2026-10-16)
 
 Kararlar: [ADR 0020](ADR/0020-circle-admins-and-planning-authority.md) (çember yöneticileri ve
 planlama yetkisi), [ADR 0021](ADR/0021-safety-features.md) (güvenlik özellikleri, uzaktan iptal),
@@ -41,6 +41,13 @@ Faz altı dilimde yapıldı; her dilimden sonra test oturumu ayrı bir QA turu y
 Android sürümü: yerel derleme `2d4178b`,
 <https://api.46-62-162-70.sslip.io/apk/bargu-2d4178b-38982e0c43341dac.apk>. Sonraki tek sunucu
 düzeltmesi (K2b-1) uygulamayı değiştirmez, staging'e kendiliğinden gider.
+
+Proje sahibi fazı 2026-10-16'da onayladı ("Faz 9'u onaylıyorum; Faz 9B önerilen sırayla başlasın").
+Rapordan sonra eklenenler: telefon denemesinden çıkan anahtar değişikliği düzeltmesi (`966b89b`,
+`0211532`: kabul edilen anahtar bütün ortak çemberlere gider, güvenlik numarası taze anahtarla
+hesaplanır ve tutmazsa nedenini söyler); proje sahibinin isteğiyle haritada çıkartma ve ada,
+birlikte duranlar için ortak çerçeve (`5f1b18b`, `37a9e20`, `cd6e219`, `81a811a`). Son Android
+sürümü `81a811a`.
 
 ### Bitiş şartları (DoD)
 
