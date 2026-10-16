@@ -76,25 +76,25 @@ const photoKeySchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 
 /**
  * The sender's profile photo key (docs/ADR/0014): with it members open the encrypted photo the
- * server keeps under its `photo.id`. Null: no photo (the emoji avatar shows).
+ * server keeps under its `photo.id`. Null: no photo (the emoji avatar shows). Not strict, unlike the
+ * other payloads (ADR 0024 §10): a field a newer phone adds is dropped, so older apps keep reading
+ * the profile and its photo instead of refusing the whole message.
  */
-export const profilePayloadSchema = z
-  .object({
-    kind: z.literal('profile'),
-    photo: z.object({ id: z.uuid(), key: photoKeySchema }).strict().nullable(),
-    /**
-     * Photo keys of members whose phone changed (reinstall, new phone), handed back so their new
-     * phone can open its own photo again; it checks the key against the photo the server holds.
-     * At most two per message (the padded size); more go with the next one.
-     */
-    returns: z
-      .array(z.object({ userId: z.uuid(), id: z.uuid(), key: photoKeySchema }).strict())
-      .min(1)
-      .max(2)
-      .optional(),
-    ts: timestamp,
-  })
-  .strict();
+export const profilePayloadSchema = z.object({
+  kind: z.literal('profile'),
+  photo: z.object({ id: z.uuid(), key: photoKeySchema }).strict().nullable(),
+  /**
+   * Photo keys of members whose phone changed (reinstall, new phone), handed back so their new
+   * phone can open its own photo again; it checks the key against the photo the server holds.
+   * At most two per message (the padded size); more go with the next one.
+   */
+  returns: z
+    .array(z.object({ userId: z.uuid(), id: z.uuid(), key: photoKeySchema }).strict())
+    .min(1)
+    .max(2)
+    .optional(),
+  ts: timestamp,
+});
 
 /** A place's circle on the map: from a house to a campus (the app offers 100 / 250 / 500 m). */
 export const PLACE_RADIUS_M = { min: 50, max: 1_000 } as const;

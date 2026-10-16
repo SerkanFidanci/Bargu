@@ -394,3 +394,21 @@ describe('a malicious sender with a valid key', () => {
     expect(codeOf(() => decrypt(forge(padded)))).toBe(code);
   });
 });
+
+describe('a newer phone (forward compatibility, ADR 0024 §10)', () => {
+  const forge = (payload: unknown) =>
+    encryptPaddedWith(
+      { state: createSenderState(senderKey), sender: alice },
+      fixedPad(utf8Encode(JSON.stringify(payload))),
+      new Uint8Array(16),
+    ).envelope;
+
+  it('reads its profile, dropping a field this version does not know', () => {
+    const profile = { kind: 'profile', photo: null, ts: 1 };
+    expect(decrypt(forge({ ...profile, look: { island: 'stripes' } }))).toEqual(profile);
+  });
+
+  it('refuses a kind this version does not know (the receiver ignores it)', () => {
+    expect(codeOf(() => decrypt(forge({ kind: 'look', ts: 1 })))).toBe('MALFORMED');
+  });
+});
