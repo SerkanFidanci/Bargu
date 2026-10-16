@@ -55,28 +55,35 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 
 ### Yapılanlar
 
-| Dilim     | Commit                          | Ne                                                                                                                                                                                                                                                                                                                                          |
-| --------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1         | `c04c446`, `b4fb39a`            | Hak tablosu, 21 günlük deneme, duraklayan çember, test satın alma uçları (yalnızca `BILLING_TEST=on` olan yerde)                                                                                                                                                                                                                            |
-| QA 19     | `e95152b`                       | Hak tablosuna yalnızca işlevlerle yazılır (P1), işçi işlevleri oturuma bir şey vermez (P2), iptal ya da yenileme başkasına söylenmez (P3), istemci seviyesi kapısı (P4), silip yeniden kaydolma denemesi kabul edilen risk (P5)                                                                                                             |
-| 2a        | `8aa73f8`                       | Bargu+ ekranı (TEST bandı, yıllık önde, tek dokunuşla iptal), deneme hatırlatması, duraklamış çember uygulamada, "Yeni sürüm gerekiyor" ekranı                                                                                                                                                                                              |
-| 2b        | `40fe657`                       | Haritada hız ("40 km/sa") ve durma süresi ("2 sa") satırı; "Hızımı göster" ayarı (15–17'de kapalı başlar)                                                                                                                                                                                                                                   |
-| QA 20 P1b | `714b71b`                       | Test hakları veritabanında da yalnızca test kurulumunda sayılır ve yazılır (migration 0030); test planı en çok bir yıl                                                                                                                                                                                                                      |
-| 2c        | `f7b73de`, `2571e4f`, `b85ac9d` | 15–17 satın alma ebeveyn onayıyla (migration 0031); istemci seviyesi 2 (satın alma isteği eski uygulamalara gönderilmez); profil içeriği esnek okunur (yeni alanlar eski uygulamayı bozmaz)                                                                                                                                                 |
-| 3a        | `450e155`                       | Sunucu imzalı süs geçiş belgesi (`GET /v1/me/cosmetics/pass`) ve şifreli `look` mesajı; staging imza anahtarı `stg-1`. Uygulama tarafı (3b) yok: süs henüz görünmez                                                                                                                                                                         |
-| Buluşma   | `230cf81`, `8de3a8b`            | Proje sahibinin isteği: her çemberde tek buluşma (migration 0032), herkes başlatır, başlatan ve yöneticiler değiştirir ve bitirir, saatinden 3 saat sonra kendiliğinden silinir. Haritada kayıtlı yer gibi değil (mercan, kesikli kenar, bayrak), dokununca kendi ekranı; "Geldim", yol tarifi, başlayınca tek bildirim. İstemci seviyesi 3 |
+| Dilim      | Commit                                                           | Ne                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1          | `c04c446`, `b4fb39a`                                             | Hak tablosu, 21 günlük deneme, duraklayan çember, test satın alma uçları (yalnızca `BILLING_TEST=on` olan yerde)                                                                                                                                                                                                                                                                                                                              |
+| QA 19      | `e95152b`                                                        | Hak tablosuna yalnızca işlevlerle yazılır (P1), işçi işlevleri oturuma bir şey vermez (P2), iptal ya da yenileme başkasına söylenmez (P3), istemci seviyesi kapısı (P4), silip yeniden kaydolma denemesi kabul edilen risk (P5)                                                                                                                                                                                                               |
+| 2a         | `8aa73f8`                                                        | Bargu+ ekranı (TEST bandı, yıllık önde, tek dokunuşla iptal), deneme hatırlatması, duraklamış çember uygulamada, "Yeni sürüm gerekiyor" ekranı                                                                                                                                                                                                                                                                                                |
+| 2b         | `40fe657`                                                        | Haritada hız ("40 km/sa") ve durma süresi ("2 sa") satırı; "Hızımı göster" ayarı (15–17'de kapalı başlar)                                                                                                                                                                                                                                                                                                                                     |
+| QA 20 P1b  | `714b71b`                                                        | Test hakları veritabanında da yalnızca test kurulumunda sayılır ve yazılır (migration 0030); test planı en çok bir yıl                                                                                                                                                                                                                                                                                                                        |
+| 2c         | `f7b73de`, `2571e4f`, `b85ac9d`                                  | 15–17 satın alma ebeveyn onayıyla (migration 0031); istemci seviyesi 2 (satın alma isteği eski uygulamalara gönderilmez); profil içeriği esnek okunur (yeni alanlar eski uygulamayı bozmaz)                                                                                                                                                                                                                                                   |
+| 3a         | `450e155`                                                        | Sunucu imzalı süs geçiş belgesi (`GET /v1/me/cosmetics/pass`) ve şifreli `look` mesajı; staging imza anahtarı `stg-1`. Uygulama tarafı (3b) yok: süs henüz görünmez                                                                                                                                                                                                                                                                           |
+| Buluşma    | `230cf81`, `8de3a8b`                                             | Proje sahibinin isteği: her çemberde tek buluşma (migration 0032), herkes başlatır, başlatan ve yöneticiler değiştirir ve bitirir, saatinden 3 saat sonra kendiliğinden silinir. Haritada kayıtlı yer gibi değil (mercan, kesikli kenar, bayrak), dokununca kendi ekranı; "Geldim", yol tarifi, başlayınca tek bildirim. İstemci seviyesi 3                                                                                                   |
+| QA 21      | `557be04`, `ce453a9`, `d93196e`, `5fb98a3`, `f060920`, `ff86173` | Bildirimler cihaz başına bir kez ve yalnızca üyenin kendi cihazına (B-2); "Ebeveynime sor"a aynı anda iki dokunuş 500 değil (B-1, migration 0033); test satın alma veritabanı bayrağına uyar, kapalıysa 404 (B-5, migration 0034); hesabı silinenin belgeleri giderken çember haber alır (B-3, migration 0035); duraklamış çemberde "geç kalıyorum" yok (B-4, uygulama); paketlerin derlemesi eskiyse entegrasyon testleri açık hatayla durur |
+| İkili eşit | `220d2c8`, `fae1d4d`                                             | PM'in kararı: arkadaşlıkta iki kişi de buluşmayı değiştirir ve bitirir (migration 0036; uygulama bir sonraki APK'da)                                                                                                                                                                                                                                                                                                                          |
 
 ### QA turları
 
 - QA 19 (dilim 1): P1–P5 düzeltildi ya da karara bağlandı.
 - QA 20 (QA 19 düzeltmeleri, dilim 2a): orta ya da yüksek bulgu yok. P1b ve T-1 düzeltildi.
   A-1 (aşağıda) ve test botunun kodunun depoya alınması sonraya.
+- QA 21 (P1b, T-1, 2c, 3a, buluşma): orta ya da yüksek bulgu yok. Düşük B-1…B-5 düzeltildi.
 
-### Test sonuçları (son çalıştırma, `dfd18e3`)
+### Test sonuçları (son çalıştırma, `ff86173`)
 
-- Birim: mobil 406 (buluşma ekranı, haritadaki noktalar, kaba konumda "geldi" yok, bildirim metni).
-- API entegrasyon: 30 dosya, 224 test (buluşma: başlatma, tek buluşma, yetki, yabancı erişemez,
-  bitiş saati, eski uygulamaya gitmez, işçinin silmesi, bildirim bir kez).
+- Birim: mobil 408 (buluşma ekranı, haritadaki noktalar, kaba konumda "geldi" yok, bildirim metni,
+  duraklamış çemberde "geç kalıyorum" yok, arkadaşlıkta iki kişi de buluşmayı yeniden mühürler).
+- API entegrasyon: 30 dosya, 229 test (buluşma: başlatma, tek buluşma, yetki, yabancı erişemez,
+  bitiş saati, eski uygulamaya gitmez, işçinin silmesi, bildirim bir kez; QA 21: 30 aynı bildirim
+  bir olur ve başkasının cihazına gitmez, aynı anda iki "Ebeveynime sor" 500 değil, veritabanı
+  bayrağı kapalıyken 404, hesabı silinenin buluşması çembere haber verilerek gider, arkadaşlıkta
+  iki kişi de bitirir).
 - `scripts/ci-linux.sh`: her commit için push'tan önce 16/16. Buluşma ekranı testi Windows'ta geçip
   Linux'ta açılamıyordu (güvenli depo yerel modülü); push'tan önce yakalandı (`dfd18e3`).
 - Staging'de geri alınan bir işlem içinde P1b denendi: bayrak açıkken test planı yazılır ve
@@ -110,8 +117,11 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
    eklenirse önce okumayı esnetmek gerekir).
 9. Buluşma: sunucu bir çemberde buluşma olduğunu, başlatanı ve bitiş saatini (saat + 3 sa),
    dolayısıyla buluşmanın saatini dakikasına kadar bilir; yalnızca yer şifreli. Sonraki dilimde
-   `endsAt` bir sonraki tam saate yuvarlanacak (PM, ADR 0026 §2). iOS bildirim eklentisinin yeni `meeting` türü yalnızca CI'daki macOS
-   işinde derlenir (yerelde denenemedi).
+   `endsAt` bir sonraki tam saate yuvarlanacak (PM, ADR 0026 §2).
+10. Bir sonraki APK'yı bekleyenler: duraklamış çemberde "geç kalıyorum" denenmemesi (B-4) ve
+    arkadaşlıkta öbür kişiye "Buluşmayı bitir" düğmesi (sunucu bugünden izin veriyor).
+11. Sıradaki dilim (sahibin isteği, PM onayladı): haritanın sağ kenarında kısayol düğmeleri
+    (konumuma dön, hayalet modu, buluş) ve buluşma sayacı; aynı APK'da 10. madde de.
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -136,8 +146,9 @@ Buluşma, APK (`e77be02`): <https://api.46-62-162-70.sslip.io/apk/bargu-e77be02-
 7. Buluşma ekranında "Yol tarifi" yalnızca dokununca harita uygulamasını açar; "Geldim" diğer
    telefonda "geldi" yapar. Mahalle ya da şehir hassasiyetinde paylaşan "yolda" ya da "geldi"
    görünmez.
-8. Başlatmayan ve yönetici olmayan üye buluşmayı değiştiremez ve bitiremez; ikinci buluşma
+8. Grupta başlatmayan ve yönetici olmayan üye buluşmayı değiştiremez ve bitiremez; ikinci buluşma
    başlatılamaz ("Bu çemberde zaten bir buluşma var"). "Buluşmayı bitir" ile haritadan hemen kalkar.
+   Arkadaşlıkta iki kişi de bitirebilir: sunucu hazır, öbür kişinin düğmesi bir sonraki APK'da.
 
 ### Senden gerekenler
 
