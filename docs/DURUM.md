@@ -153,8 +153,8 @@ Buluşma, APK (`e77be02`): <https://api.46-62-162-70.sslip.io/apk/bargu-e77be02-
    başlatılamaz ("Bu çemberde zaten bir buluşma var"). "Buluşmayı bitir" ile haritadan hemen kalkar.
    Arkadaşlıkta iki kişi de bitirebilir: sunucu hazır, öbür kişinin düğmesi bir sonraki APK'da.
 
-Kısayollar ve sayaç, QA 21 ve ikili eşitlik, APK (link PM'e iletilir; tek APK, öncekilerin
-yerine):
+Kısayollar ve sayaç, QA 21 ve ikili eşitlik, APK (`c3a9729`, öncekilerin yerine):
+<https://api.46-62-162-70.sslip.io/apk/bargu-c3a9729-703c4b1241e99fb2.apk>
 
 9. Haritanın sağında üç düğme: hayalet (tek dokunuşla açılır, kapatırken "Konumun yeniden
    paylaşılacak: N çember" sorar), buluşma başlat; haritayı kaydırınca "Konumuma dön" çıkar. Bir
