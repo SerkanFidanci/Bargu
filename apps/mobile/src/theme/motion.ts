@@ -144,6 +144,27 @@ export const activityFx = {
   settled: { rippleMs: 3_200, scale: 1.9, opacity: 0.35 },
 } as const;
 
+/**
+ * People on the map as stickers stuck above their spot (proje sahibi 2026-10-16: "sıradan bir şey
+ * yapma"): a thick white die-cut edge, each person tilted their own way, and under them a small
+ * island in their colour on the exact position. Together, their islands flow into one and the
+ * stickers line up side by side (features/map/cluster-bubble.tsx).
+ */
+export const stickerFx = {
+  /** The white edge around the avatar (px). */
+  edge: 5,
+  /** Each person's own tilt (degrees, either way), from their id: never upright. */
+  tilt: { min: 3, max: 8 },
+  /** From the sticker's lower edge to the island's centre, the exact position (px). */
+  rise: 7,
+  /** The island: an ellipse in their colour, with a solid core on the exact point (px). */
+  island: { width: 30, height: 10, core: 7, opacity: 0.32 },
+  /** While live and still the sticker floats up this far (px), its island shrinking this share. */
+  float: { lift: 2.5, shrink: 0.12 },
+  /** Side by side when together: the gap between stickers (px), and how wide each island grows. */
+  together: { gap: 6, islandGrow: 2.1, islandTall: 1.3 },
+} as const;
+
 /** Sequencing of several elements: how they enter one after another and how they react. */
 export const choreography = {
   /** Delay between consecutive elements entering (titles, fields, rows). */

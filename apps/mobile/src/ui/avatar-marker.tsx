@@ -13,11 +13,23 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { activityFx, ambient, avatarSize, elevation, radius, space, useTheme } from '@/theme';
+import {
+  activityFx,
+  ambient,
+  avatarPalette,
+  avatarSize,
+  elevation,
+  radius,
+  space,
+  stickerFx,
+  stickerPaper,
+  useTheme,
+} from '@/theme';
 
 import { Avatar } from './avatar';
 import { ActivityGlyph, GLYPH } from './activity-glyph';
 import { gaitPose, leanSideOf } from './gait';
+import { stickerTilt } from './sticker';
 import { Text } from './text';
 
 export interface AvatarMarkerProps {
@@ -35,6 +47,11 @@ export interface AvatarMarkerProps {
   activity?: MarkerActivity | undefined;
   /** Degrees from north while moving: they lean that way and the badge faces it. */
   heading?: number | null | undefined;
+  /**
+   * The island in their colour under the sticker, on the exact position. Off when several people
+   * stand together: their islands are drawn as one (features/map/cluster-bubble.tsx).
+   */
+  island?: boolean | undefined;
 }
 
 /** What someone seems to be doing (features/map/activity.ts decides). */
@@ -73,10 +90,11 @@ function periodOf(activity: MarkerActivity): number | null {
   }
 }
 
-const TAIL = space.sm;
-const BUBBLE = avatarSize.md + space.xxs * 2;
-/** From the top of the bubble to the tip of the pin (the person's position). */
-export const PIN_HEIGHT = BUBBLE + TAIL - 1;
+/** The sticker: the avatar with its white die-cut edge. */
+export const STICKER = avatarSize.md + stickerFx.edge * 2;
+/** From the top of the sticker to the centre of its island: the person's exact position. */
+export const PIN_HEIGHT = STICKER + stickerFx.rise;
+const ISLAND = stickerFx.island;
 const BADGE = space.lg;
 
 function useLoop(active: boolean, duration: number) {
@@ -99,10 +117,14 @@ function useLoop(active: boolean, duration: number) {
 }
 
 /**
- * A person on the map: avatar on a small pin, gently "breathing" while their location is live, or
- * moving the way they move, with a small drawing of what they are doing (activity-glyph.tsx)
- * (BARGU_PLAN §4.3). Ambient states without text: a bolt while charging, a pulsing red ring when
- * the battery is low, grey with the age when the location is old. Reduce Motion stops the loops.
+ * A person on the map (proje sahibi 2026-10-16: "sıradan bir şey yapma"): their avatar as a white
+ * die-cut sticker, tilted their own way, floating just above a small island in their colour that
+ * sits on the exact position. While the location is live and they stand still the sticker floats
+ * gently up and down and its island shrinks under it; moving, it moves the way they move, with a
+ * small drawing of what they are doing (activity-glyph.tsx) (BARGU_PLAN §4.3). Ambient states
+ * without text: a bolt while charging, a pulsing red ring when the battery is low, grey with the
+ * age when the location is old, a slow ripple from the island once settled somewhere. Reduce
+ * Motion stops the loops.
  */
 export function AvatarMarker({
   name,
@@ -113,18 +135,22 @@ export function AvatarMarker({
   userId,
   activity = 'still',
   heading,
+  island = true,
 }: AvatarMarkerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const stale = staleMinutes !== undefined;
+  const tint = stale ? colors.textMuted : (avatarPalette[avatar?.color ?? 0] ?? colors.primary);
+  const tilt = stickerTilt(userId ?? name);
   const doing: MarkerActivity = stale ? 'still' : activity;
   const moving = doing !== 'still' && doing !== 'settled';
   const breath = useLoop(!stale && !moving, ambient.breathe.duration);
   const cycle = useCycle(periodOf(doing));
   const pulse = useLoop(lowBattery && !charging && !stale, ambient.pulse.duration);
 
-  const breathing = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + breath.get() * (ambient.breathe.scale - 1) }],
+  // Live and still: the sticker floats a little above its island, which shrinks under it.
+  const floating = useAnimatedStyle(() => ({
+    transform: [{ translateY: -breath.get() * stickerFx.float.lift }],
   }));
   const leanSide = leanSideOf(heading);
   // Walking and running: a real gait (gait.ts); a bike sways; a car hums.
@@ -152,20 +178,19 @@ export function AvatarMarker({
       ],
     };
   });
-  // The shadow on the ground under a walking or running pin: smaller and lighter in the air.
-  const shadow = useAnimatedStyle(() => {
-    if (doing !== 'walking' && doing !== 'running') return { opacity: 0 };
-    const { lift } = gaitPose(
-      cycle.get(),
-      doing === 'walking' ? activityFx.walk : activityFx.run,
-      0,
-    );
+  // The island under a sticker in the air (a step, a float) is smaller and lighter.
+  const ground = useAnimatedStyle(() => {
+    const lift =
+      doing === 'walking' || doing === 'running'
+        ? gaitPose(cycle.get(), doing === 'walking' ? activityFx.walk : activityFx.run, 0).lift
+        : 0;
+    const shrink = lift * activityFx.shadow.shrink + breath.get() * stickerFx.float.shrink;
     return {
-      opacity: activityFx.shadow.opacity * (1 - lift * 0.5),
-      transform: [{ scaleX: 1 - lift * activityFx.shadow.shrink }],
+      opacity: ISLAND.opacity * (1 - lift * 0.5),
+      transform: [{ scaleX: 1 - shrink }, { scaleY: 1 - shrink }],
     };
   });
-  // Settled in one place: a slow ripple spreading from the pin.
+  // Settled in one place: a slow ripple spreading from the island.
   const ripple = useAnimatedStyle(() => ({
     opacity: doing === 'settled' ? activityFx.settled.opacity * (1 - cycle.get()) : 0,
     transform: [{ scale: 1 + cycle.get() * (activityFx.settled.scale - 1) }],
@@ -194,47 +219,48 @@ export function AvatarMarker({
 
   return (
     <View accessible accessibilityLabel={label} style={styles.container}>
-      <View style={styles.shadowSlot} pointerEvents="none">
-        <Animated.View style={[styles.shadow, { backgroundColor: colors.scrim }, shadow]} />
-      </View>
+      {island ? (
+        <View style={styles.islandSlot} pointerEvents="none">
+          <Animated.View style={[styles.ripple, { borderColor: tint }, ripple]} />
+          <Animated.View style={[styles.island, { backgroundColor: tint }, ground]} />
+          <View style={[styles.core, { backgroundColor: tint }]} />
+        </View>
+      ) : null}
       <Animated.View style={[styles.pin, motion]}>
-        <Animated.View
-          style={[styles.ripple, { borderColor: colors.primary }, ripple]}
-          pointerEvents="none"
-        />
-        <Animated.View
-          style={[
-            styles.bubble,
-            { backgroundColor: colors.surfaceRaised, boxShadow: elevation.floating },
-            breathing,
-          ]}
-        >
-          <Avatar avatar={avatar} name={name} size="md" muted={stale} userId={userId} />
-          {doing === 'still' ? null : (
-            <View
-              style={[
-                styles.activity,
-                { backgroundColor: colors.surfaceRaised, boxShadow: elevation.raised },
-              ]}
-            >
-              <ActivityGlyph activity={doing} phase={cycle} facing={facing} />
-            </View>
-          )}
-          {lowBattery && !charging && !stale ? (
-            <Animated.View style={[styles.ring, { borderColor: colors.danger }, pulsing]} />
-          ) : null}
-          {charging && !stale ? (
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: colors.success, borderColor: colors.surfaceRaised },
-              ]}
-            >
-              <Zap color={colors.onSuccess} fill={colors.onSuccess} size={10} strokeWidth={2} />
-            </View>
-          ) : null}
+        <Animated.View style={floating}>
+          <Animated.View
+            style={[
+              styles.sticker,
+              { backgroundColor: stickerPaper, boxShadow: elevation.raised },
+              { transform: [{ rotate: `${String(tilt)}deg` }] },
+            ]}
+          >
+            <Avatar avatar={avatar} name={name} size="md" muted={stale} userId={userId} />
+            {doing === 'still' ? null : (
+              <View
+                style={[
+                  styles.activity,
+                  { backgroundColor: colors.surfaceRaised, boxShadow: elevation.raised },
+                ]}
+              >
+                <ActivityGlyph activity={doing} phase={cycle} facing={facing} />
+              </View>
+            )}
+            {lowBattery && !charging && !stale ? (
+              <Animated.View style={[styles.ring, { borderColor: colors.danger }, pulsing]} />
+            ) : null}
+            {charging && !stale ? (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: colors.success, borderColor: stickerPaper },
+                ]}
+              >
+                <Zap color={colors.onSuccess} fill={colors.onSuccess} size={10} strokeWidth={2} />
+              </View>
+            ) : null}
+          </Animated.View>
         </Animated.View>
-        <View style={[styles.tail, { borderTopColor: colors.surfaceRaised }]} />
       </Animated.View>
       {stale ? (
         <View style={[styles.age, { backgroundColor: colors.surfaceRaised }]}>
@@ -250,26 +276,34 @@ export function AvatarMarker({
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center' },
-  // Rotations and squash pivot on the tip: the person stands on their position.
+  // Tall enough for the island under the sticker; the age label hangs below it.
+  container: { alignItems: 'center', minHeight: PIN_HEIGHT + ISLAND.height / 2 },
+  // Rotations and squash pivot on the sticker's lower edge, right above the person's position.
   pin: { alignItems: 'center', transformOrigin: '50% 100%' },
-  shadowSlot: {
+  islandSlot: {
     position: 'absolute',
-    top: PIN_HEIGHT - activityFx.shadow.height / 2,
-    left: 0,
-    right: 0,
+    top: PIN_HEIGHT - ISLAND.height / 2,
+    left: -ISLAND.width,
+    right: -ISLAND.width,
+    height: ISLAND.height,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  shadow: {
-    width: activityFx.shadow.width,
-    height: activityFx.shadow.height,
-    borderRadius: activityFx.shadow.height / 2,
+  island: {
+    position: 'absolute',
+    width: ISLAND.width,
+    height: ISLAND.height,
+    borderRadius: radius.pill,
+  },
+  core: {
+    width: ISLAND.core,
+    height: ISLAND.core / 2,
+    borderRadius: radius.pill,
   },
   ripple: {
     position: 'absolute',
-    top: 0,
-    width: BUBBLE,
-    height: BUBBLE,
+    width: ISLAND.width,
+    height: ISLAND.height,
     borderRadius: radius.pill,
     borderWidth: space.xxs,
   },
@@ -285,13 +319,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  bubble: { padding: space.xxs, borderRadius: radius.pill },
+  sticker: { padding: stickerFx.edge, borderRadius: radius.pill },
   ring: {
     position: 'absolute',
     top: -space.xxs,
     left: -space.xxs,
-    width: BUBBLE + space.xxs * 2,
-    height: BUBBLE + space.xxs * 2,
+    width: STICKER + space.xxs * 2,
+    height: STICKER + space.xxs * 2,
     borderRadius: radius.pill,
     borderWidth: space.xxs,
   },
@@ -306,18 +340,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tail: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: TAIL / 2 + 1,
-    borderRightWidth: TAIL / 2 + 1,
-    borderTopWidth: TAIL,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    marginTop: -1,
-  },
   age: {
-    marginTop: space.xxs,
+    marginTop: stickerFx.rise + ISLAND.height / 2 + space.xxs,
     paddingHorizontal: space.sm,
     borderRadius: radius.pill,
   },

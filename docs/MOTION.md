@@ -27,27 +27,27 @@ Kurallar:
 
 ## Nerede ne hareket ediyor
 
-| Yer               | Hareket                                                                                                  |
-| ----------------- | -------------------------------------------------------------------------------------------------------- |
-| Butonlar          | Basınca küçülür, bırakınca yaylanır; birincil butonda ışık süzülür; yükleniyor işareti zıplayarak gelir  |
-| Form ekranları    | Başlık, metin, alanlar ve buton sırayla aşağıdan kayarak gelir                                           |
-| Tanıtım kartları  | Çizimler animasyonlu; kaydırırken resim ve yazı farklı hızda kayar (paralaks), uzaklaşınca solar         |
-| Kod girişi        | Her rakamla kutu zıplar; yanlış kodda satır titrer ve hata titreşimi                                     |
-| Kullanıcı adı     | Kontrol sırasında dönen işaret, sonra zıplayan ✓ / ✕                                                     |
-| Avatar seçimi     | Seçilen renk/emoji büyür, önizleme işaretçisi her değişiklikte zıplar                                    |
-| Harita ekranı     | Üst balon yukarıdan, alt menü aşağıdan gelir; + düğmesi panel açıkken ×'e döner; avatar "nefes alır"     |
-| Paneller          | Yay ile açılır; satırlar sırayla gelir                                                                   |
-| Bildirimler       | Üstten yaylanarak iner, yukarı çıkarak kaybolur                                                          |
-| Boş durum         | Simge zıplayarak gelir ve hafifçe süzülür                                                                |
-| Kayıt bitişi      | Harita açılırken kısa bir konfeti (dokunmayı engellemez)                                                 |
-| Arkadaşlık        | İstek kabul edilince, QR okutulunca ve güvenlik numarası eşleşince konfeti + başarı titreşimi            |
-| QR kod            | Kart zıplayarak gelir, arkasında hale yavaşça büyüyüp söner                                              |
-| QR tarayıcı       | Köşeli çerçevede çizgi yukarı aşağı tarar; yanlış kodda hata titreşimi ve kısa uyarı                     |
-| Güvenlik numarası | 12 hane grubu sırayla zıplayarak belirir; hesaplanırken iskelet nabız atar                               |
-| Arkadaş seçimi    | Seçilen kişinin işareti zıplayarak dolar; seçim titreşimi                                                |
-| Bildirim          | Başkalarının yaptığı (davet, katılım) üstten kayar; davet gelince güçlü titreşim, yeni arkadaşta konfeti |
-| İstek rozeti      | Alt menüde Çemberler üstündeki sayı her yeni istekte zıplar                                              |
-| Durum rozetleri   | "Şifreli", "Bekliyor", "Doğrulandı" rozetleri değişince zıplar                                           |
+| Yer               | Hareket                                                                                                                                                                                                        |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Butonlar          | Basınca küçülür, bırakınca yaylanır; birincil butonda ışık süzülür; yükleniyor işareti zıplayarak gelir                                                                                                        |
+| Form ekranları    | Başlık, metin, alanlar ve buton sırayla aşağıdan kayarak gelir                                                                                                                                                 |
+| Tanıtım kartları  | Çizimler animasyonlu; kaydırırken resim ve yazı farklı hızda kayar (paralaks), uzaklaşınca solar                                                                                                               |
+| Kod girişi        | Her rakamla kutu zıplar; yanlış kodda satır titrer ve hata titreşimi                                                                                                                                           |
+| Kullanıcı adı     | Kontrol sırasında dönen işaret, sonra zıplayan ✓ / ✕                                                                                                                                                           |
+| Avatar seçimi     | Seçilen renk/emoji büyür, önizleme işaretçisi her değişiklikte zıplar                                                                                                                                          |
+| Harita ekranı     | Üst balon yukarıdan, alt menü aşağıdan gelir; + düğmesi panel açıkken ×'e döner; kişiler çıkartma: dururken hafifçe kalkıp iner, ada altında küçülür; yan yana gelenlerin adaları tek adaya akar (`stickerFx`) |
+| Paneller          | Yay ile açılır; satırlar sırayla gelir                                                                                                                                                                         |
+| Bildirimler       | Üstten yaylanarak iner, yukarı çıkarak kaybolur                                                                                                                                                                |
+| Boş durum         | Simge zıplayarak gelir ve hafifçe süzülür                                                                                                                                                                      |
+| Kayıt bitişi      | Harita açılırken kısa bir konfeti (dokunmayı engellemez)                                                                                                                                                       |
+| Arkadaşlık        | İstek kabul edilince, QR okutulunca ve güvenlik numarası eşleşince konfeti + başarı titreşimi                                                                                                                  |
+| QR kod            | Kart zıplayarak gelir, arkasında hale yavaşça büyüyüp söner                                                                                                                                                    |
+| QR tarayıcı       | Köşeli çerçevede çizgi yukarı aşağı tarar; yanlış kodda hata titreşimi ve kısa uyarı                                                                                                                           |
+| Güvenlik numarası | 12 hane grubu sırayla zıplayarak belirir; hesaplanırken iskelet nabız atar                                                                                                                                     |
+| Arkadaş seçimi    | Seçilen kişinin işareti zıplayarak dolar; seçim titreşimi                                                                                                                                                      |
+| Bildirim          | Başkalarının yaptığı (davet, katılım) üstten kayar; davet gelince güçlü titreşim, yeni arkadaşta konfeti                                                                                                       |
+| İstek rozeti      | Alt menüde Çemberler üstündeki sayı her yeni istekte zıplar                                                                                                                                                    |
+| Durum rozetleri   | "Şifreli", "Bekliyor", "Doğrulandı" rozetleri değişince zıplar                                                                                                                                                 |
 
 Gösterişli harita animasyonları (hız izi, sıvı gibi birleşen avatarlar, radyal menü, dürtme, buluşma
 efekti) plana göre Faz 6'da.

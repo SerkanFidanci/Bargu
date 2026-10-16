@@ -616,7 +616,8 @@
       "name": "{{name}} ile buluşma",
       "started": "{{name}} ile buluşma kuruldu; saat ve yeri seç",
       "failed": "Buluşma kurulamadı, davet gitmedi. {{reason}}"
-    }
+    },
+    "more": "+{{count}}"
   },
   "places": {
     "title": "Yerler",

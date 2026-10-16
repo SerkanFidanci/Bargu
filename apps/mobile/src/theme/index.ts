@@ -2,7 +2,7 @@ import { useColorScheme } from 'react-native';
 
 import { type ColorTokens, darkColors, lightColors } from './colors';
 
-export { avatarPalette, avatarText, type ColorTokens, qrColors } from './colors';
+export { avatarPalette, avatarText, type ColorTokens, qrColors, stickerPaper } from './colors';
 export { avatarSize, elevation, radius, space, touchTarget } from './layout';
 export {
   activityFx,
@@ -15,6 +15,7 @@ export {
   orbit,
   press,
   spring,
+  stickerFx,
   timing,
   typingDebounceMs,
   weatherFx,

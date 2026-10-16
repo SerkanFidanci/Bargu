@@ -616,7 +616,8 @@
       "name": "Meeting with {{name}}",
       "started": "Meeting with {{name}} set up; choose the time and place",
       "failed": "The meeting was not set up; no invitation went out. {{reason}}"
-    }
+    },
+    "more": "+{{count}}"
   },
   "places": {
     "title": "Places",

@@ -101,3 +101,21 @@ marka kararı (renk, yazı tipi) ve bazı kütüphane seçimleri burada netleşt
 - Harita yalnızca Türkiye'yi kapsıyor; yurt dışında harita boş görünür (açık risk, DURUM.md).
 - Faz 3 DoD'deki "iPhone SE" ölçümü, Apple hesabı ve iPhone gelene kadar Android'de küçük ekran ve
   en büyük yazı boyutuyla yapılıyor.
+
+## Ek (2026-10-16, proje sahibinin isteği: haritada kişiler)
+
+- **Çıkartma ve ada:** Haritada kişi artık iğne değil. Avatarı kalın beyaz kenarlı bir çıkartma
+  (kâğıt beyazı, iki temada da) ve her kişi kendine özgü, sabit bir açıyla hafif eğik duruyor;
+  açı kişinin kimliğinden türetilir (`ui/sticker.ts`). Çıkartmanın biraz altında, kişinin renginde
+  küçük bir ada var; adanın ortası tam konum. Konum canlıyken ve kişi dururken çıkartma hafifçe
+  kalkıp iner, ada altında küçülür. Yürürken ve koşarken adım hareketi, bisiklette sallanma,
+  araçta titreşim sürer; bir yerde uzun kalınca adadan yavaş bir halka yayılır. Pil, şarj ve eski
+  konum işaretleri aynen kalır (eski konumda çıkartma ve ada gri, yaş adanın altında). Proje
+  sahibi üç sıradan iğne önerisini istemedi ("sıradan bir şey yapma"); üç yaratıcı yönden
+  (çıkartma ve ada, jöle damla, ışık huzmesi) bunu seçti. Ölçüler `stickerFx` (theme/motion.ts).
+- **Birlikte duranlar:** Kullanıcının kendi avatarı da artık yakındakilerle kümelenir; önceden
+  kümeye girmediği için bir arkadaşın avatarının üstüne biniyordu. Birbirine değecek kadar yakın
+  olanların adaları sıvı gibi tek adaya akar (Skia "goo"), çıkartmaları yan yana dizilir ve her
+  birine ayrı ayrı dokunulur, basılı tutulur. Sıra sabittir: ötekiler, en sonda kullanıcı. Dörtten
+  fazla kişide kullanıcı her zaman görünür, kalanlar "+N" çıkartmasıdır ve ona dokununca harita
+  yakınlaşır (`capsuleOf`, features/map/cluster.ts). Proje sahibi kapsül görünümünü seçti.
