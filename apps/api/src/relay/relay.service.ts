@@ -11,7 +11,7 @@ import { EventsService } from '../events/events.service.js';
 import { DatabaseService } from '../infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
-import { Notifier } from '../push/notifier.js';
+import { currentDevices, Notifier } from '../push/notifier.js';
 
 /** A location is kept 24 hours after it was sent, then it is gone (BARGU_PLAN §1: no history). */
 export const LOCATION_TTL_SECONDS = 24 * 3600;
@@ -291,11 +291,16 @@ export class RelayService {
         : await this.check(auth, envelope, membership, limitKey, limit);
     if (code !== null || membership === undefined) return { refused: code ?? 'NOT_MEMBER' };
     this.events.emitLive(membership.others, event, { envelope });
-    // Notifications only for members of this circle whose app is not connected; the worker hands
-    // each to its device only if that is still the member's current one.
-    const online = await this.events.online(membership.others);
-    const offline = new Set(membership.others.filter((userId) => !online.has(userId)));
-    await this.notifier.forward(pushes.filter((push) => offline.has(push.userId)));
+    // Notifications only for members of this circle whose app is not connected, each to that
+    // member's current device, once (QA 21 B-2).
+    if (pushes.length > 0) {
+      const online = await this.events.online(membership.others);
+      const offline = membership.others.filter((userId) => !online.has(userId));
+      const devices = await this.database.asUser(auth.userId, (tx) =>
+        currentDevices(tx, envelope.circleId, offline),
+      );
+      await this.notifier.forward(pushes, devices);
+    }
     return { ok: true };
   }
 

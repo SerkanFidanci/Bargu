@@ -16,7 +16,7 @@ import { circleDocs, circleMembers, circles } from '../db/schema.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
-import { Notifier } from '../push/notifier.js';
+import { currentDevices, Notifier } from '../push/notifier.js';
 
 /** Saves and deletes per user: voting and planning are taps, re-sealing an event a few dozen. */
 export const DOC_LIMITS = {
@@ -197,7 +197,7 @@ export class DocsService {
       };
     });
     await this.events.publish(others, { type: 'docs.changed', circleId });
-    if (started && pushes !== undefined) await this.tellStarted(auth, others, pushes);
+    if (started && pushes !== undefined) await this.tellStarted(auth, circleId, others, pushes);
     return { version };
   }
 
@@ -232,19 +232,25 @@ export class DocsService {
 
   /**
    * A meeting just started outside an event (docs/ADR/0026 §6): the starter's sealed notices go to
-   * the members whose app is not connected (the others see it come), a few an hour at most.
+   * the members whose app is not connected (the others see it come), each to that member's
+   * current device, once (QA 21 B-2); a few an hour at most.
    */
   private async tellStarted(
     auth: AuthContext,
+    circleId: string,
     others: readonly string[],
     pushes: NonNullable<DocPut['pushes']>,
   ): Promise<void> {
+    if (pushes.length === 0) return;
     const { limit, windowSeconds } = DOC_LIMITS.meetingNotices;
     const hit = await this.limiter.hit(`meeting-notice:${auth.userId}`, limit, windowSeconds);
     if (!hit.allowed) return;
     const online = await this.events.online(others);
-    const offline = new Set(others.filter((userId) => !online.has(userId)));
-    await this.notifier.forward(pushes.filter((push) => offline.has(push.userId)));
+    const offline = others.filter((userId) => !online.has(userId));
+    const devices = await this.database.asUser(auth.userId, (tx) =>
+      currentDevices(tx, circleId, offline),
+    );
+    await this.notifier.forward(pushes, devices);
   }
 
   private async limit(auth: AuthContext): Promise<void> {

@@ -1,10 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type DevicePushes, PUSH_NOTICES, type PushNotice, sealedPushSchema } from '@bargu/schemas';
+import { sql } from 'drizzle-orm';
 import type { PgBoss } from 'pg-boss';
 import { z } from 'zod';
 
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
+import type { Tx } from '../infra/database/database.service.js';
 import { QUEUES } from '../jobs/queues.js';
 import { JOB_QUEUE } from '../jobs/tokens.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
@@ -33,6 +35,27 @@ export const pushJobSchema = z.discriminatedUnion('type', [
     .strict(),
 ]);
 export type PushJob = z.infer<typeof pushJobSchema>;
+
+/**
+ * The device each of these members of a circle is notified on: their current one, as the caller
+ * sees the circle (app.circle_member_cards, in the caller's own session; a stranger sees none).
+ */
+export async function currentDevices(
+  tx: Tx,
+  circleId: string,
+  userIds: Iterable<string>,
+): Promise<Map<string, string>> {
+  const wanted = new Set(userIds);
+  if (wanted.size === 0) return new Map();
+  const { rows } = await tx.execute<{ user_id: string; device_id: string | null }>(
+    sql`SELECT user_id, device_id FROM app.circle_member_cards(${circleId}) WHERE status = 'active'`,
+  );
+  return new Map(
+    rows.flatMap((row) =>
+      wanted.has(row.user_id) && row.device_id !== null ? [[row.user_id, row.device_id]] : [],
+    ),
+  );
+}
 
 /** The same news about the same circle reaches a phone at most once a minute. */
 export const PUSH_THROTTLE_SECONDS = 60;
@@ -87,9 +110,17 @@ export class Notifier {
     }
   }
 
-  /** Sealed notifications a member's phone made for others (already checked to be offline members). */
-  async forward(pushes: DevicePushes): Promise<void> {
+  /**
+   * Sealed notifications a member's phone made for others, checked when they come in (QA 21 B-2):
+   * only for `devices` (the members to tell, each with their current device, see currentDevices),
+   * and one per device however many the phone sent. A notification for any other device (someone
+   * else's, an old phone) is dropped, not queued; the action that brought it still goes through.
+   */
+  async forward(pushes: DevicePushes, devices: ReadonlyMap<string, string>): Promise<void> {
+    const queued = new Set<string>();
     for (const { userId, deviceId, sealed } of pushes) {
+      if (devices.get(userId) !== deviceId || queued.has(`${userId}:${deviceId}`)) continue;
+      queued.add(`${userId}:${deviceId}`);
       await this.queue({ type: 'sealed', userId, deviceId, sealed }, null);
     }
   }

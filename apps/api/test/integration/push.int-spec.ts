@@ -1,5 +1,6 @@
 import {
   createSenderState,
+  encryptDocument,
   encryptMessage,
   generateSenderKey,
   randomUuid,
@@ -246,5 +247,62 @@ describe('sealed notifications from members (pokes, arrivals)', () => {
     });
     expect(outsider.json()).toEqual({ refused: 'NOT_MEMBER' });
     expect(await sealedFor(bora.userId)).toHaveLength(2);
+  });
+
+  it("go once per device, and only to the member's own current device (QA 21 B-2)", async () => {
+    const [can, deniz, mallory] = await Promise.all([person(test), person(test), person(test)]);
+    const circle = await circleWith(test, can, deniz);
+    const toDeniz = {
+      userId: deniz.userId,
+      deviceId: deniz.device.deviceId,
+      sealed: 'A'.repeat(120),
+    };
+    const pushes = [
+      // A phone (a changed app) sends the same notification 30 times: one goes.
+      ...Array.from({ length: 30 }, () => toDeniz),
+      // Deniz's name with someone else's device, or with a device Deniz never had: none goes.
+      { ...toDeniz, deviceId: mallory.device.deviceId, sealed: 'B'.repeat(120) },
+      { ...toDeniz, deviceId: randomUuid(), sealed: 'C'.repeat(120) },
+    ];
+    const arrival = await as(test, can, 'POST', '/v1/place-events', {
+      envelope: envelopeOf(can, circle, {
+        kind: 'place_enter',
+        placeId: randomUuid(),
+        ts: Date.now(),
+      }),
+      pushes,
+    });
+    expect(arrival.json()).toEqual({ ok: true });
+    expect(await sealedFor(deniz.userId)).toEqual([{ type: 'sealed', ...toDeniz }]);
+    expect(await sealedFor(mallory.userId)).toEqual([]);
+
+    // A meeting's start brings its notices the same way (docs/ADR/0026 §6).
+    const key = generateSenderKey({
+      circleId: circle.id,
+      epoch: circle.epoch,
+      senderDeviceId: can.device.deviceId,
+    });
+    const { envelope } = encryptDocument({
+      state: createSenderState(key),
+      sender: can.device,
+      payload: {
+        kind: 'plan',
+        id: circle.id,
+        meetAt: Date.now() + 3_600_000,
+        by: can.userId,
+        ts: Date.now(),
+      },
+    });
+    const started = await as(test, can, 'PUT', `/v1/circles/${circle.id}/docs/${circle.id}`, {
+      envelope,
+      version: null,
+      kind: 'plan',
+      pollId: null,
+      endsAt: Date.now() + 4 * 3_600_000,
+      pushes,
+    });
+    expect(started.statusCode).toBe(200);
+    expect(await sealedFor(deniz.userId)).toHaveLength(2);
+    expect(await sealedFor(mallory.userId)).toEqual([]);
   });
 });

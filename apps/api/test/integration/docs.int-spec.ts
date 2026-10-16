@@ -609,8 +609,11 @@ describe('a meeting in any circle (docs/ADR/0026)', () => {
       endsAt: Date.now() + 4 * HOUR,
       pushes,
     });
-    // Ilker's app is not connected: the notice goes to his phone.
-    expect(forwarded).toHaveBeenCalledWith(pushes);
+    // Ilker's app is not connected: the notice goes to their current phone.
+    expect(forwarded).toHaveBeenCalledWith(
+      pushes,
+      new Map([[ilker.userId, ilker.device.deviceId]]),
+    );
     // A change starts nothing: no notice again.
     forwarded.mockClear();
     await startOrChange(hale, pair, halePhone.seal(inCircle(pair.id, hale)), 1, {
