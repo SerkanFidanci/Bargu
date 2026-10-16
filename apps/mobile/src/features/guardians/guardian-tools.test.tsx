@@ -8,6 +8,9 @@ jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
   DEV_TOOLS_ENABLED: false,
 }));
+// ui/screen imports expo-router, whose native stack needs a native view jest does not have on
+// Linux (CI); the tools never navigate.
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
 const mockAnswer = jest.fn(() => Promise.resolve());
 const mockSettings = jest.fn();
 jest.mock('./guardians-api', () => ({
