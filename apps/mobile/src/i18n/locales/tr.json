@@ -447,7 +447,8 @@
     "otherPair": "Bu kod başka biri için",
     "otherPairBody": "Bu kod {{name}} ile senin aranda değil. {{name}} kendi telefonunda seninle olan ekranı açsın.",
     "offline": "Kontrol edilemedi",
-    "offlineBody": "Anahtarlar sunucudan alınamadı. Bağlantı gelince yeniden tarayın."
+    "offlineBody": "Anahtarlar sunucudan alınamadı. Bağlantı gelince yeniden tarayın; doğrulayana kadar bu kişiyle konum paylaşma.",
+    "noDeviceBody": "{{name}} şu an hiçbir telefonda oturum açmış değil. Yeniden giriş yapınca tekrar tarayın; doğrulayana kadar bu kişiyle konum paylaşma."
   },
   "notices": {
     "friendRequest": "{{name}} seni arkadaş olarak eklemek istiyor",

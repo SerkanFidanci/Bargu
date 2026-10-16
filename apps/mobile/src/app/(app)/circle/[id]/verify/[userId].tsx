@@ -43,7 +43,8 @@ const nextFrame = () =>
   });
 
 /** What a scan came to: a match, a code that is not one, which side differs, or no connection. */
-type ScanResult = 'match' | 'checking' | 'offline' | Exclude<SafetyNumberQrCheck, 'match'>;
+type ScanResult =
+  'match' | 'checking' | 'offline' | 'noDevice' | Exclude<SafetyNumberQrCheck, 'match'>;
 
 /** The words for a scan that did not match. */
 const MISMATCH = {
@@ -52,6 +53,7 @@ const MISMATCH = {
   mineDiffers: { title: 'verify.mismatch', body: 'verify.mineDiffer' },
   bothDiffer: { title: 'verify.otherPair', body: 'verify.otherPairBody' },
   offline: { title: 'verify.offline', body: 'verify.offlineBody' },
+  noDevice: { title: 'verify.offline', body: 'verify.noDeviceBody' },
 } as const;
 
 /**
@@ -127,7 +129,13 @@ export default function VerifyScreen() {
     const fresh =
       cachedCircle(queryClient, id)?.members.find((candidate) => candidate.userId === userId)
         ?.device?.bundle.identityKey ?? identityKey;
-    if (fresh === null) return;
+    // Signed in on no phone right now: nothing to compare with (QA 18: the screen stayed on
+    // "checking" with the scanner paused).
+    if (fresh === null) {
+      feedback('error');
+      setResult('noDevice');
+      return;
+    }
     const check = await checkSafetyNumberQr(
       data,
       mine,

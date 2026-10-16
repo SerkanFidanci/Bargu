@@ -147,4 +147,10 @@ yayından önce kapatıldı ve her biri testle korunuyor:
   - sunucuya ulaşılamadı.
 
   Kodun iki yarısı iki kişinin parmak izidir; hangisinin tuttuğuna bakılır
-  (`checkSafetyNumberQr`, `packages/crypto`).
+  (`checkSafetyNumberQr`, `packages/crypto`). Yarıların sırası önemli değildir. Sunucuya
+  ulaşılamazsa ya da kişinin o an cihazı yoksa ekran "Kontrol edilemedi" der ve doğrulayana kadar
+  konum paylaşmamayı önerir (QA 18). Bir saldırgan ağı keserek "aranızda biri olabilir" uyarısını
+  bu daha yumuşak metne çevirebilir; doğrulama yine de olmaz.
+
+- İlk kez görülen bir üyenin anahtarı ilk görüşte güvenilir sayılır (TOFU, yukarıda) ve anahtar
+  ona kendiliğinden gider; değişen bir anahtar ise kabul edilene ya da doğrulanana kadar bekler.

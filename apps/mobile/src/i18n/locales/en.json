@@ -447,7 +447,8 @@
     "otherPair": "This code is for someone else",
     "otherPairBody": "This code is not between {{name}} and you. {{name}} should open the screen with you on their phone.",
     "offline": "Could not check",
-    "offlineBody": "The keys could not be fetched from the server. Scan again once connected."
+    "offlineBody": "The keys could not be fetched from the server. Scan again once connected; until you have verified, don't share your location with this person.",
+    "noDeviceBody": "{{name}} is not signed in on any phone right now. Scan again once they sign in; until you have verified, don't share your location with this person."
   },
   "notices": {
     "friendRequest": "{{name}} wants to add you as a friend",
