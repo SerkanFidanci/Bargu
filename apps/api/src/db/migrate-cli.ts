@@ -11,8 +11,9 @@ const env = z
   .object({
     DATABASE_ADMIN_URL: z.url({ protocol: /^postgres(ql)?$/ }),
     DB_APP_PASSWORD: z.string().min(16),
-    // Test purchases in the database too (docs/ADR/0024 §6): the same rule as the API's.
-    APP_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+    // Test purchases in the database too (docs/ADR/0024 §6): the same rule as the API's. Always
+    // said (QA 21 B-5): a production deployment that forgot it must not get them as "development".
+    APP_ENV: z.enum(['development', 'test', 'staging', 'production']),
     BILLING_TEST: z.enum(['on', 'off']).optional(),
   })
   .safeParse(process.env);

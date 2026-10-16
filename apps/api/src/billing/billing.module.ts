@@ -9,12 +9,13 @@ import {
 } from './billing.controller.js';
 import { BillingService } from './billing.service.js';
 import { PlanEvents } from './plan-events.js';
+import { TestBilling } from './test-billing.js';
 
 /** Bargu+, the trial and test purchases (docs/ADR/0024). */
 @Module({
   imports: [AuthModule, CirclesModule],
   controllers: [PlanController, CosmeticsController, TestBillingController],
-  providers: [BillingService, PlanEvents],
+  providers: [BillingService, PlanEvents, TestBilling],
   exports: [BillingService, PlanEvents],
 })
 export class BillingModule {}

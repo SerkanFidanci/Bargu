@@ -157,6 +157,12 @@ yeni tablo `app.entitlements`:
   - Bayrak kapalıyken (üretim) `plus_active` ve onu kullanan çember açıklığı `test` kaynaklı
     satırı saymaz; test işlevleri hiçbir şey yazmaz ve değiştirmez. API'nin plan cevabı da aynı
     kurala uyar.
+  - **Tek doğru kaynak veritabanıdır (QA 21 B-5, migration 0034):** API test satın almayı
+    yalnızca kendi bayrağı da veritabanınınki de açıkken açık sayar. API'ninki açık,
+    veritabanınınki kapalıysa kapalıdır: plan test satırını saymaz, satın alma ve taklit 500 yerine
+    404 döner. Uygulama rolü bayrağı yalnızca `app.billing_test_on()` ile okuyabilir; tabloyu
+    okuyamaz, bayrağı yazamaz. Migration adımı `APP_ENV` verilmeden çalışmaz (önceden yoksa
+    `development` sayılıyordu; unutulan bir üretim dağıtımı test satın almayı açabilirdi).
   - Bir test planının bitişi en çok "şimdi + 1 yıl + 1 gün"dür; süsün bitişi yoktur. Bir günlük
     pay, API ile veritabanının saatleri arasındaki küçük fark için. Bu pay olmadan tam 365 günlük
     gerçek bir yıllık plan saat farkı yüzünden reddedildi. Erken yenileme bu yüzden dönem sonuna

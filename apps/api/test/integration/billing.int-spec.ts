@@ -23,6 +23,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { PlanEvents } from '../../src/billing/plan-events.js';
 import { PLANS_SWEPT_KEY, PlanSweeper } from '../../src/billing/plan-sweeper.js';
+import { TestBilling } from '../../src/billing/test-billing.js';
 import { EventsService } from '../../src/events/events.service.js';
 import { Notifier } from '../../src/push/notifier.js';
 import { entitlements } from '../../src/db/schema.js';
@@ -303,6 +304,9 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
       // As the app role for Mert, the way an SQL injection would: no test plan can be written.
       await admin.query('SET LOCAL ROLE bargu_app');
       await admin.query(`SELECT set_config('app.user_id', $1, true)`, [mert.userId]);
+      // The API reads the setting (QA 21 B-5), and only reads it.
+      const read = await admin.query<{ on: boolean }>('SELECT app.billing_test_on() AS on');
+      expect(read.rows[0]?.on).toBe(false);
       await expect(
         admin.query(
           `SELECT app.add_test_entitlement('plus_month', now() + interval '1 day', true)`,
@@ -314,6 +318,23 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
     }
     // Where test purchases are on (staging), the same plan counts again.
     expect((await planOf(mert)).plan).toBe('plus');
+  });
+
+  it("takes test purchases as off when the database's setting is off, whatever the API's says (QA 21 B-5)", async () => {
+    const pinar = await person(test);
+    await buy(pinar, 'plus_month');
+    expect(await planOf(pinar)).toMatchObject({ plan: 'plus', testBilling: true });
+    // The API's flag stays on (this app); the database says off (a drifted deployment).
+    const off = vi.spyOn(test.app.get(TestBilling), 'inDatabase').mockResolvedValue(false);
+    try {
+      // No test row counts, nothing says "test", and the routes are gone (404, never a 500).
+      expect(await planOf(pinar)).toMatchObject({ plan: 'trial', testBilling: false });
+      expect((await buy(pinar, 'plus_year')).statusCode).toBe(404);
+      expect((await simulate(pinar, 'cancel')).statusCode).toBe(404);
+    } finally {
+      off.mockRestore();
+    }
+    expect((await planOf(pinar)).plan).toBe('plus');
   });
 
   it('ends a test plan within a year, an early renewal as at the period end (QA 20 P1b)', async () => {

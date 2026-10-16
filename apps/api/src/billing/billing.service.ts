@@ -19,11 +19,12 @@ import { CirclesService } from '../circles/circles.service.js';
 import { ApiError } from '../common/api-error.js';
 import { guardianRequestsFull } from '../common/guardian-requests.js';
 import { ENV } from '../config/config.module.js';
-import { billingTestOn, type Env } from '../config/env.js';
+import type { Env } from '../config/env.js';
 import { entitlements, users } from '../db/schema.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { PlanEvents } from './plan-events.js';
+import { TestBilling } from './test-billing.js';
 
 const DAY_MS = 24 * 3600_000;
 /** How long one paid period lasts (a test purchase; a store says its own). */
@@ -75,8 +76,8 @@ async function changeTest(tx: Tx, id: string, change: TestChange): Promise<void>
 
 /**
  * The account's plan and its test purchases (docs/ADR/0024). Test purchases and simulations exist
- * only where test billing is on (never in production: there they answer 404) and touch only the
- * caller's own test plan or trial, never a store's.
+ * only where test billing is on, by the database's setting (TestBilling; never in production:
+ * there they answer 404), and touch only the caller's own test plan or trial, never a store's.
  */
 @Injectable()
 export class BillingService {
@@ -85,11 +86,12 @@ export class BillingService {
     private readonly limiter: RateLimiter,
     private readonly planEvents: PlanEvents,
     private readonly circles: CirclesService,
+    private readonly testBilling: TestBilling,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
   async plan(auth: AuthContext): Promise<Plan> {
-    const testing = billingTestOn(this.env);
+    const testing = await this.testBilling.on(auth.userId);
     // Without test purchases (production) a test row is nothing, as in the database (QA 20 P1b).
     const rows = (await this.rows(auth.userId)).filter((row) => testing || row.source !== 'test');
     const now = Date.now();
@@ -141,7 +143,7 @@ export class BillingService {
     if (!limit.allowed) {
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', limit.retryAfter);
     }
-    const testing = billingTestOn(this.env);
+    const testing = await this.testBilling.on(auth.userId);
     const known: ReadonlySet<string> = new Set(Object.keys(COSMETIC_PACKS));
     const packs = (await this.rows(auth.userId))
       .filter(
@@ -203,7 +205,9 @@ export class BillingService {
    * where test purchases are on. A real store will open its own flow on the child's phone then.
    */
   async buyApproved(childId: string, product: PlusProduct): Promise<void> {
-    if (!billingTestOn(this.env)) throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
+    if (!(await this.testBilling.on(childId))) {
+      throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
+    }
     await this.buy(childId, product);
   }
 
@@ -353,7 +357,9 @@ export class BillingService {
 
   /** Test billing off: as if there were no such route. On: a few calls an hour. */
   private async guard(auth: AuthContext): Promise<void> {
-    if (!billingTestOn(this.env)) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+    if (!(await this.testBilling.on(auth.userId))) {
+      throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+    }
     const result = await this.limiter.hit(`billing-test:${auth.userId}`, BILLING_TEST_LIMIT, HOUR);
     if (!result.allowed) {
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', result.retryAfter);
