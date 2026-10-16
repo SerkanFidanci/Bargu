@@ -1,5 +1,10 @@
 import { generateRequestNonce, signRequest, type DeviceKeys } from '@bargu/crypto';
-import { SIGNED_REQUEST_HEADERS, type Session } from '@bargu/schemas';
+import {
+  CLIENT_LEVEL,
+  CLIENT_LEVEL_HEADER,
+  SIGNED_REQUEST_HEADERS,
+  type Session,
+} from '@bargu/schemas';
 
 /** Where the session lives: refresh token in the secure store, access token in memory. */
 export interface SessionStore {
@@ -15,6 +20,8 @@ export interface ApiClientOptions {
   now?: () => number;
   /** How long one attempt may take before it is given up (REQUEST_TIMEOUT_MS). */
   timeoutMs?: number;
+  /** The server no longer serves this app (426 UPGRADE_REQUIRED, QA 19 P4). */
+  onUpgradeRequired?: () => void;
 }
 
 /**
@@ -111,6 +118,8 @@ export function createApiClient(options: ApiClientOptions) {
     const method = request.method ?? 'GET';
     const body = request.body === undefined ? '' : JSON.stringify(request.body);
     const headers: Record<string, string> = {
+      // How new this app is, for the server's minimum (@bargu/schemas CLIENT_LEVEL).
+      [CLIENT_LEVEL_HEADER]: String(CLIENT_LEVEL),
       ...(body === '' ? {} : { 'content-type': 'application/json' }),
       ...(accessToken === undefined ? {} : { authorization: `Bearer ${accessToken}` }),
       ...(UNSIGNED_METHODS.has(method) ? {} : signedHeaders(method, path, body)),
@@ -141,6 +150,7 @@ export function createApiClient(options: ApiClientOptions) {
       clockOffset = serverTime - now();
       return send(path, request, accessToken, true, retriedNetwork);
     }
+    if (code === 'UPGRADE_REQUIRED') options.onUpgradeRequired?.();
     throw new ApiError(response.status, code);
   }
 

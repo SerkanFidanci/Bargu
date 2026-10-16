@@ -15,6 +15,8 @@ import {
   Users,
   WifiOff,
   X,
+  PauseCircle,
+  Sparkles,
 } from 'lucide-react-native';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -253,6 +255,26 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
       ) : active ? (
         <Appear index={1}>
           <EncryptionCard ready={status?.ready ?? false} waitingFor={status?.waitingFor ?? 0} />
+        </Appear>
+      ) : null}
+
+      {active && circle.paused === true ? (
+        <Appear index={1}>
+          <Notice
+            icon={PauseCircle}
+            tone="danger"
+            title={t('circles.detail.pausedTitle')}
+            body={t('circles.detail.pausedBody')}
+          >
+            <Button
+              testID="paused-plus"
+              label={t('circles.detail.pausedPlus')}
+              icon={Sparkles}
+              onPress={() => {
+                router.push('/plus');
+              }}
+            />
+          </Notice>
         </Appear>
       ) : null}
 

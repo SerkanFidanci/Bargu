@@ -21,6 +21,8 @@ export type SendCircle = Pick<Circle, 'id' | 'epoch' | 'myStatus'> & {
   kind?: Circle['kind'] | undefined;
   /** Someone else is active in it (nobody to send to otherwise, e.g. a request not accepted). */
   withOthers: boolean;
+  /** Nobody keeps it open (docs/ADR/0024): nothing is sent to it. */
+  paused?: boolean | undefined;
 };
 
 /** The sending view of a circle for the signed-in user. */
@@ -31,6 +33,7 @@ export function toSendCircle(circle: Circle, me: string | null): SendCircle {
     kind: circle.kind,
     myStatus: circle.myStatus,
     withOthers: circle.members.some((member) => member.userId !== me && member.status === 'active'),
+    ...(circle.paused === true ? { paused: true } : {}),
   };
 }
 
@@ -143,8 +146,14 @@ export function createLocationEngine(deps: EngineDeps) {
         const reply = await deps.publish(envelopes.slice(start, start + MAX_ENVELOPES_PER_PUBLISH));
         for (const refusal of reply.refused) {
           refused.add(refusal.circleId);
-          if (refusal.code === 'EPOCH' || refusal.code === 'NOT_MEMBER')
+          // Paused meanwhile, an epoch on, or no longer in it: the circle is asked for again.
+          if (
+            refusal.code === 'EPOCH' ||
+            refusal.code === 'NOT_MEMBER' ||
+            refusal.code === 'PAUSED'
+          ) {
             outdated.push(refusal.circleId);
+          }
         }
       }
     } catch {

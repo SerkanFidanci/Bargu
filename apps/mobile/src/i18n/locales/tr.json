@@ -19,7 +19,10 @@
     "ageRequired": "Önce yaş grubunu seç. Geri dönüp yeniden dene.",
     "friendInviteOnly": "15–17 yaşında bir etkinliğe yalnızca bir arkadaşının QR koduyla katılabilirsin. Etkinliği düzenleyeni önce arkadaş olarak ekle.",
     "guardianApproval": "Ebeveyninin onayı bekleniyor. Onaylayınca katılırsın ve haber alırsın.",
-    "approvalPending": "Bu davetle katılmak için bir onay gerekiyor. Onaylanınca listende görünür."
+    "approvalPending": "Bu davetle katılmak için bir onay gerekiyor. Onaylanınca listende görünür.",
+    "circlePaused": "Bu çember duraklatıldı: açık tutmak için birinizin Bargu+’ya geçmesi yeter.",
+    "alreadySubscribed": "Zaten bir aboneliğin var.",
+    "upgradeRequired": "Bargu'yu güncellemen gerekiyor."
   },
   "intro": {
     "skip": "Geç",
@@ -176,7 +179,11 @@
       "privacyDetail": "Aydınlatma, rıza, verilerin, hesabı silme",
       "notifications_undetermined": "Kapalı · açmak için dokun",
       "guardians": "Ebeveyn bağlantısı",
-      "guardiansDetail": "Ebeveyn ve çocuk hesapları"
+      "guardiansDetail": "Ebeveyn ve çocuk hesapları",
+      "plus": "Bargu+",
+      "plusFree": "Bedava",
+      "plusTrial": "Deneme · {{days}} gün",
+      "plusOn": "Açık"
     }
   },
   "ui": {
@@ -242,6 +249,24 @@
       "title": "Test: haritada {{count}} sahte kişi (yalnızca bu telefonda)",
       "measure": "Kare hızını ölç (10 sn)",
       "stop": "Kapat"
+    },
+    "billing": {
+      "title": "Ödeme taklidi",
+      "link": "Ödeme taklidi (test)",
+      "now": "Plan: {{plan}} · kaynak: {{source}} · test ödemesi: {{test}}",
+      "done": "Tamam. Plan: {{plan}}",
+      "plan_free": "bedava",
+      "plan_trial": "deneme",
+      "plan_plus": "Bargu+",
+      "buyMonth": "Aylık al",
+      "buyYear": "Yıllık al",
+      "renew": "Yenile",
+      "cancel": "İptal et (süre bitene kadar sürer)",
+      "fail": "Ödeme hatası (ek süre)",
+      "recover": "Ödeme düzeldi",
+      "expire": "Süre dolsun",
+      "refund": "İade",
+      "endTrial": "Deneme bitsin"
     }
   },
   "scan": {
@@ -385,7 +410,10 @@
       "madeAdmin": "{{name}} artık yönetici",
       "unmadeAdmin": "{{name}} artık yönetici değil",
       "offlineTitle": "Bağlantı yok",
-      "offlineBody": "Bu çember şu an açılamadı. Bağlantı gelince kendiliğinden açılır."
+      "offlineBody": "Bu çember şu an açılamadı. Bağlantı gelince kendiliğinden açılır.",
+      "pausedTitle": "Bu çember duraklatıldı",
+      "pausedBody": "Kimse Bargu+ kullanmıyor: canlı konum, geçmiş ve varış bildirimleri bekliyor. Dürt, durum, yerler ve buluşma çalışıyor. Açık tutmak için birinizin Bargu+’ya geçmesi yeter.",
+      "pausedPlus": "Bargu+’ya bak"
     },
     "invite": {
       "title": "Kişi ekle",
@@ -502,7 +530,8 @@
       "body": "Arkadaşın bir yere vardığında, seni dürttüğünde ya da çemberine yeni biri katıldığında haber al. Bildirimlerin içeriği şifreli gelir.",
       "allow": "Bildirimleri aç",
       "later": "Şimdi değil"
-    }
+    },
+    "accountChannel": "Hesap ve Bargu+"
   },
   "location": {
     "service": {
@@ -1016,5 +1045,50 @@
     "sharingGoesOn": "Konum paylaşımın arka planda sürüyor. İstersen paylaşımı durdurabilirsin.",
     "stopSharing": "Paylaşımı durdur",
     "stopped": "Paylaşım durduruldu."
+  },
+  "plus": {
+    "title": "Bargu+",
+    "subtitle": "Ailede bir kişi öder, herkes kullanır",
+    "testBand": "TEST — gerçek ödeme yok",
+    "now": "Şu anki planın",
+    "free": "Bedava: davetle katıldığın, ödeyeni olan çemberlerde her şey açık.",
+    "trial": "Deneme: {{days}} gün kaldı. Bitince kendiliğinden ücretliye geçmez.",
+    "renews": "Bargu+ {{plan}}: {{date}} tarihinde yenilenir.",
+    "endsOn": "Bargu+ {{plan}}: {{date}} tarihinde biter, yenilenmeyecek.",
+    "grace": "Ödeme alınamadı. Bargu+ {{date}} tarihine kadar açık; ödemeyi düzelt.",
+    "monthly": "aylık",
+    "yearly": "yıllık",
+    "perMonth": " / ay",
+    "perYear": " / yıl",
+    "saving": "%{{percent}} daha az",
+    "choose": "Plan seç",
+    "buy": "Bargu+’ya geç · {{price}}{{per}}",
+    "bought": "Bargu+ açık. Çemberlerin herkes için açık kalacak.",
+    "cancel": "Aboneliği iptal et",
+    "cancelled": "İptal edildi: süre bitene kadar Bargu+ açık kalır.",
+    "soon": "Satın alma yakında: mağaza bağlantısı henüz yok.",
+    "teen": "Satın almak için ebeveyn onayı gerekiyor. Bu yakında burada olacak.",
+    "givesTitle": "Bargu+ ile",
+    "gives": {
+      "circles": "Kurduğun ve içinde olduğun bütün çemberler herkes için açık kalır",
+      "history": "Çember geçmişi: son 14 gün",
+      "until": "Özel bitiş saatli paylaşım (\"21:30’a kadar\")",
+      "themes": "Bütün harita temaları ve widget stilleri",
+      "gift": "Her ay bir hediye süs"
+    },
+    "freeTitle": "Herkese hep bedava",
+    "always": {
+      "join": "Davetle katılmak; ödeyeni olan çemberde konum, dürt, durum, yerler, buluşma ve oylama.",
+      "safety": "Güvenlik ve gizlilik: Güvendeyim, hayalet modu, hassasiyet, tümünü durdur, kilit, hesap silme, verilerini indirme."
+    },
+    "reminder": {
+      "title": "Bargu+ denemen 3 gün sonra bitiyor",
+      "body": "Çemberlerin açık kalsın istersen Bargu+’ya geç. Kendiliğinden ücretliye geçmez."
+    }
+  },
+  "upgrade": {
+    "title": "Yeni sürüm gerekiyor",
+    "body": "Bu Bargu sürümü artık desteklenmiyor. Güncelleyene kadar konumun paylaşılmıyor ve yakınlarının yeni konumlarını göremiyorsun. Verilerin güvende; yeni sürümü yükleyince her şey kaldığı yerden devam eder.",
+    "where": "Yeni sürüm, sana gönderilen indirme bağlantısında ya da uygulama mağazasında."
   }
 }

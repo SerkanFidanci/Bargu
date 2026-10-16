@@ -2,7 +2,13 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
-import { MEETINGS_CHANNEL, PLACES_CHANNEL, PRIVACY_CHANNEL, SOCIAL_CHANNEL } from './channels';
+import {
+  MEETINGS_CHANNEL,
+  PLACES_CHANNEL,
+  PRIVACY_CHANNEL,
+  SOCIAL_CHANNEL,
+  ACCOUNT_CHANNEL,
+} from './channels';
 
 export { SOCIAL_CHANNEL };
 
@@ -35,6 +41,7 @@ export interface PushRegistration {
   placesChannelName: string;
   meetingsChannelName: string;
   privacyChannelName: string;
+  accountChannelName: string;
   /** Show the system question now (the user tapped "Bildirimleri aç"); else only check. */
   ask: boolean;
 }
@@ -50,6 +57,7 @@ export async function enablePush({
   placesChannelName,
   meetingsChannelName,
   privacyChannelName,
+  accountChannelName,
   ask,
 }: PushRegistration): Promise<PushState> {
   if (Platform.OS === 'android') {
@@ -67,6 +75,10 @@ export async function enablePush({
     });
     await Notifications.setNotificationChannelAsync(PRIVACY_CHANNEL, {
       name: privacyChannelName,
+      importance: Notifications.AndroidImportance.DEFAULT,
+    });
+    await Notifications.setNotificationChannelAsync(ACCOUNT_CHANNEL, {
+      name: accountChannelName,
       importance: Notifications.AndroidImportance.DEFAULT,
     });
   }
@@ -96,12 +108,13 @@ function set(state: PushState): PushState {
 /** A screen a tapped notification opens instead of a circle (the weekly reminder: who sees you). */
 export function routeOfResponse(
   response: Notifications.NotificationResponse,
-): '/seers' | '/guardians' | null {
+): '/seers' | '/guardians' | '/plus' | null {
   const data: unknown = response.notification.request.content.data;
   if (typeof data !== 'object' || data === null) return null;
   const { route } = data as Record<string, unknown>;
   if (route === 'seers') return '/seers';
   if (route === 'guardians') return '/guardians';
+  if (route === 'plus') return '/plus';
   return null;
 }
 

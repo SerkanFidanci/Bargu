@@ -7,6 +7,8 @@ import { usePrivacyGate } from '@/features/account/privacy-gate';
 import { useAppLock } from '@/features/security/app-lock';
 // Guardian links follow their events (docs/ADR/0023 §4).
 import '@/features/guardians/guardians-session';
+// The plan follows its events; the trial reminder follows the plan (docs/ADR/0024).
+import '@/features/billing/billing-session';
 import { LockScreen, useAppLockWatcher } from '@/features/security/lock-screen';
 import { useTimeUp } from '@/features/guardians/screen-time-session';
 import { TimeUpScreen } from '@/features/guardians/time-up-screen';
@@ -51,6 +53,7 @@ export default function AppLayout() {
       <Stack.Screen name="security" />
       <Stack.Screen name="seers" />
       <Stack.Screen name="privacy" />
+      <Stack.Screen name="plus" />
       <Stack.Screen name="consent" options={{ presentation: 'modal' }} />
       <Stack.Screen name="notice" options={{ presentation: 'modal', gestureEnabled: false }} />
     </Stack>

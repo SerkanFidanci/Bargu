@@ -18,6 +18,7 @@ import { KeyStore } from '../keys/key-store';
 import { queryClient } from '../query-client';
 import { resetAppLock, restoreAppLock } from '../security/app-lock';
 import { destroyVault, openVault, vault } from '../storage/vault';
+import { upgradeRequired } from '../update/upgrade-required';
 
 let keyStore: KeyStore | null = null;
 
@@ -114,6 +115,7 @@ const stream = new EventStream({
   reload: () => circleSync.reload(),
   denied: (code) => {
     if (code === 'DEVICE_REVOKED') void sessionRevoked();
+    if (code === 'UPGRADE_REQUIRED') upgradeRequired();
   },
   online: (online) => {
     setOnline(online);

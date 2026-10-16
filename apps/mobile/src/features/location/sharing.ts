@@ -141,14 +141,18 @@ export function isSharingWith(settings: SharingSettings, circleId: string, now: 
   return sharing.sharing && (sharing.until === null || sharing.until > now);
 }
 
-/** Active circles this phone sends to now (none while a ghost). */
-export function sharedCircles<T extends Pick<Circle, 'id' | 'myStatus'>>(
-  circles: readonly T[],
-  settings: SharingSettings,
-  now: number,
-): T[] {
+/**
+ * Active circles this phone sends to now: none while a ghost, and none that nobody keeps open
+ * (paused, docs/ADR/0024: its live location waits until someone has Bargu+).
+ */
+export function sharedCircles<
+  T extends Pick<Circle, 'id' | 'myStatus'> & { paused?: boolean | undefined },
+>(circles: readonly T[], settings: SharingSettings, now: number): T[] {
   return circles.filter(
-    (circle) => circle.myStatus === 'active' && isSharingWith(settings, circle.id, now),
+    (circle) =>
+      circle.myStatus === 'active' &&
+      circle.paused !== true &&
+      isSharingWith(settings, circle.id, now),
   );
 }
 

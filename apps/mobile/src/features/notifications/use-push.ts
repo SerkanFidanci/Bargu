@@ -39,6 +39,7 @@ function enable(ask: boolean): Promise<PushState> {
     placesChannelName: i18n.t('notifications.placesChannel'),
     meetingsChannelName: i18n.t('notifications.meetingsChannel'),
     privacyChannelName: i18n.t('notifications.privacyChannel'),
+    accountChannelName: i18n.t('notifications.accountChannel'),
     ask,
   });
 }

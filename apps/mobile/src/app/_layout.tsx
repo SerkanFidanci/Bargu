@@ -18,6 +18,8 @@ import { bootstrapAuth, useAuth } from '@/features/auth/auth-store';
 import { loadMapAppearance } from '@/features/map/appearance';
 import { isProfileComplete, useMe } from '@/features/profile/queries';
 import { queryClient } from '@/features/query-client';
+import { useUpgradeRequired } from '@/features/update/upgrade-required';
+import { UpgradeScreen } from '@/features/update/upgrade-screen';
 import { useTheme } from '@/theme';
 import { navigationTheme } from '@/theme/navigation';
 import { ToastHost } from '@/ui/toast';
@@ -59,10 +61,14 @@ function Routes() {
   // A failed first load (offline) shows the connecting screen while the query keeps retrying.
   const connecting = status === 'loading' || (signedIn && !profileKnown);
   const ready = status === 'signedOut' || profileKnown || me.failureCount > 0;
+  // The server no longer serves this app (QA 19 P4): nothing else works until it is updated.
+  const upgrade = useUpgradeRequired((state) => state.required);
 
   useEffect(() => {
-    if (ready) void SplashScreen.hideAsync();
-  }, [ready]);
+    if (ready || upgrade) void SplashScreen.hideAsync();
+  }, [ready, upgrade]);
+
+  if (upgrade) return <UpgradeScreen />;
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
@@ -81,6 +87,7 @@ function Routes() {
       <Stack.Protected guard={DEV_TOOLS_ENABLED}>
         <Stack.Screen name="_dev/crypto" options={{ headerShown: true }} />
         <Stack.Screen name="_dev/ui" options={{ headerShown: true }} />
+        <Stack.Screen name="_dev/billing" options={{ headerShown: true }} />
       </Stack.Protected>
     </Stack>
   );

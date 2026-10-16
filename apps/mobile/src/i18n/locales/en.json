@@ -19,7 +19,10 @@
     "ageRequired": "Choose your age band first. Go back and try again.",
     "friendInviteOnly": "At 15–17 you can join an event only with a friend’s QR code. Add the organiser as a friend first.",
     "guardianApproval": "Waiting for your parent’s yes. You join once they say yes, and you will hear it.",
-    "approvalPending": "Joining with this invite needs an approval. Once given, it shows in your list."
+    "approvalPending": "Joining with this invite needs an approval. Once given, it shows in your list.",
+    "circlePaused": "This circle is paused: one of you getting Bargu+ keeps it open.",
+    "alreadySubscribed": "You already have a subscription.",
+    "upgradeRequired": "Please update Bargu."
   },
   "intro": {
     "skip": "Skip",
@@ -176,7 +179,11 @@
       "privacyDetail": "Notice, consent, your data, deleting the account",
       "notifications_undetermined": "Off · tap to turn on",
       "guardians": "Parent link",
-      "guardiansDetail": "Parent and child accounts"
+      "guardiansDetail": "Parent and child accounts",
+      "plus": "Bargu+",
+      "plusFree": "Free",
+      "plusTrial": "Trial · {{days}} days",
+      "plusOn": "On"
     }
   },
   "ui": {
@@ -242,6 +249,24 @@
       "title": "Test: {{count}} fake people on the map (this phone only)",
       "measure": "Measure frame rate (10 s)",
       "stop": "Close"
+    },
+    "billing": {
+      "title": "Test billing",
+      "link": "Test billing",
+      "now": "Plan: {{plan}} · source: {{source}} · test billing: {{test}}",
+      "done": "Done. Plan: {{plan}}",
+      "plan_free": "free",
+      "plan_trial": "trial",
+      "plan_plus": "Bargu+",
+      "buyMonth": "Buy monthly",
+      "buyYear": "Buy yearly",
+      "renew": "Renew",
+      "cancel": "Cancel (lasts until the period ends)",
+      "fail": "Payment failed (grace days)",
+      "recover": "Payment fixed",
+      "expire": "Run out",
+      "refund": "Refund",
+      "endTrial": "End the trial"
     }
   },
   "scan": {
@@ -385,7 +410,10 @@
       "madeAdmin": "{{name}} is now an admin",
       "unmadeAdmin": "{{name}} is no longer an admin",
       "offlineTitle": "No connection",
-      "offlineBody": "This circle could not be opened right now. It opens on its own once connected."
+      "offlineBody": "This circle could not be opened right now. It opens on its own once connected.",
+      "pausedTitle": "This circle is paused",
+      "pausedBody": "Nobody has Bargu+: live location, history and arrival notices wait. Pokes, status, places and meetings still work. One of you getting Bargu+ keeps it open.",
+      "pausedPlus": "See Bargu+"
     },
     "invite": {
       "title": "Add people",
@@ -502,7 +530,8 @@
       "body": "Hear when a friend arrives somewhere, pokes you, or someone new joins your circle. Notifications arrive encrypted.",
       "allow": "Turn on notifications",
       "later": "Not now"
-    }
+    },
+    "accountChannel": "Account and Bargu+"
   },
   "location": {
     "service": {
@@ -1016,5 +1045,50 @@
     "sharingGoesOn": "Your location keeps being shared in the background. You can stop it if you like.",
     "stopSharing": "Stop sharing",
     "stopped": "Sharing stopped."
+  },
+  "plus": {
+    "title": "Bargu+",
+    "subtitle": "One person in the family pays, everyone uses it",
+    "testBand": "TEST — no real payment",
+    "now": "Your plan now",
+    "free": "Free: everything in circles you joined by invite where someone pays.",
+    "trial": "Trial: {{days}} days left. It does not turn into a paid plan by itself.",
+    "renews": "Bargu+ {{plan}}: renews on {{date}}.",
+    "endsOn": "Bargu+ {{plan}}: ends on {{date}}, it will not renew.",
+    "grace": "The payment did not go through. Bargu+ stays on until {{date}}; fix the payment.",
+    "monthly": "monthly",
+    "yearly": "yearly",
+    "perMonth": " / month",
+    "perYear": " / year",
+    "saving": "{{percent}}% less",
+    "choose": "Choose a plan",
+    "buy": "Get Bargu+ · {{price}}{{per}}",
+    "bought": "Bargu+ is on. Your circles stay open for everyone.",
+    "cancel": "Cancel subscription",
+    "cancelled": "Cancelled: Bargu+ stays on until the period ends.",
+    "soon": "Buying is coming soon: the store is not connected yet.",
+    "teen": "Buying needs a parent’s yes. This is coming here soon.",
+    "givesTitle": "With Bargu+",
+    "gives": {
+      "circles": "Every circle you made or are in stays open for everyone",
+      "history": "Circle history: the last 14 days",
+      "until": "Sharing until a time you pick (\"until 21:30\")",
+      "themes": "All map themes and widget styles",
+      "gift": "A gift cosmetic every month"
+    },
+    "freeTitle": "Always free for everyone",
+    "always": {
+      "join": "Joining by invite; location, pokes, status, places, meetings and polls in a circle where someone pays.",
+      "safety": "Safety and privacy: Güvendeyim, ghost mode, precision, stop all, app lock, deleting your account, downloading your data."
+    },
+    "reminder": {
+      "title": "Your Bargu+ trial ends in 3 days",
+      "body": "Get Bargu+ if you want your circles to stay open. It does not turn into a paid plan by itself."
+    }
+  },
+  "upgrade": {
+    "title": "A new version is needed",
+    "body": "This version of Bargu is no longer supported. Until you update, your location isn't shared and you can't see your people's new locations. Your data is safe; once the new version is installed, everything picks up where it left off.",
+    "where": "You'll find the new version at the download link you were sent, or in the app store."
   }
 }

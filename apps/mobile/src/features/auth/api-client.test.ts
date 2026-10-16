@@ -1,5 +1,5 @@
 import { generateDeviceKeys, randomUuid, verifyRequestSignature } from '@bargu/crypto';
-import type { Session } from '@bargu/schemas';
+import { CLIENT_LEVEL, CLIENT_LEVEL_HEADER, type Session } from '@bargu/schemas';
 
 import { ApiError, createApiClient, type SessionStore } from './api-client';
 
@@ -265,5 +265,32 @@ describe('api client', () => {
     await expect(api.authed('/v1/me/photo', { method: 'PUT', body: {} })).rejects.toThrow(
       'aborted',
     );
+  });
+
+  it('says how new it is, and hears when the server no longer serves it (QA 19 P4)', async () => {
+    const store = memoryStore(session('a'));
+    const onUpgradeRequired = jest.fn();
+    const fetch = jest.fn((_url: string, init: RequestInit) =>
+      Promise.resolve(
+        (init.headers as Record<string, string>)[CLIENT_LEVEL_HEADER] === String(CLIENT_LEVEL)
+          ? json(426, { statusCode: 426, error: 'UPGRADE_REQUIRED', code: 'UPGRADE_REQUIRED' })
+          : json(200, {}),
+      ),
+    );
+    const api = createApiClient({
+      baseUrl: 'https://api.test',
+      device: () => device,
+      session: store,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      onUpgradeRequired,
+    });
+    await expect(api.authed('/v1/me')).rejects.toMatchObject({ code: 'UPGRADE_REQUIRED' });
+    expect(onUpgradeRequired).toHaveBeenCalledTimes(1);
+    // Signed requests and the session itself carry it too.
+    await expect(api.authed('/v1/auth/logout', { method: 'POST', body: {} })).rejects.toThrow(
+      ApiError,
+    );
+    expect(onUpgradeRequired).toHaveBeenCalledTimes(2);
+    expect(store.current).not.toBeNull();
   });
 });

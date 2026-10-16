@@ -1,4 +1,5 @@
 import {
+  type PlanRecords,
   type AccountExport,
   type AgeState,
   type FindableState,
@@ -34,6 +35,7 @@ export function exportFile(
   age: AgeState['age'] = null,
   guardians: readonly GuardianLink[] = [],
   findable: FindableState | null = null,
+  plans: PlanRecords['records'] = [],
 ) {
   return {
     format: 'bargu-export',
@@ -52,6 +54,14 @@ export function exportFile(
       activeAt: link.activeAt === null ? null : new Date(link.activeAt).toISOString(),
       endRequestedAt:
         link.endRequestedAt === null ? null : new Date(link.endRequestedAt).toISOString(),
+    })),
+    // docs/ADR/0024: every plan and pack the account had, with where it came from.
+    plans: plans.map((record) => ({
+      product: record.product,
+      source: record.source,
+      state: record.state,
+      startsAt: new Date(record.startsAt).toISOString(),
+      expiresAt: record.expiresAt === null ? null : new Date(record.expiresAt).toISOString(),
     })),
     devices: server.devices,
     circles: server.circles,

@@ -16,6 +16,7 @@ import { env } from '@/config/env';
 import { resolveLanguage } from '@/i18n';
 
 import { answeredBand } from '../account/age-answer';
+import { upgradeRequired } from '../update/upgrade-required';
 import { createApiClient } from './api-client';
 import { createDeviceKeys, deleteDeviceKeys, loadDeviceKeys } from './device-key-store';
 import { createSecureSessionStore } from './session-store';
@@ -47,6 +48,7 @@ export const api = createApiClient({
   baseUrl: env.apiUrl,
   device: () => useAuth.getState().device,
   session: sessions,
+  onUpgradeRequired: upgradeRequired,
 });
 
 /** Listeners run when the session ends (sign-out, device replaced elsewhere, refresh refused). */

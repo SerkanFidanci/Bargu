@@ -119,6 +119,12 @@ describe('sharing settings', () => {
     expect(sharedCircles([active, invited], DEFAULT_SHARING, NOW)).toEqual([active]);
   });
 
+  it('sends nothing to a circle nobody keeps open (docs/ADR/0024)', () => {
+    const open = { id: randomUuid(), myStatus: 'active' as const };
+    const paused = { id: randomUuid(), myStatus: 'active' as const, paused: true };
+    expect(sharedCircles([open, paused], DEFAULT_SHARING, NOW)).toEqual([open]);
+  });
+
   it('keeps GPS off when no circle gets the exact location', () => {
     const circle = { id: randomUuid(), myStatus: 'active' as const };
     const coarse = settingsWith({ [circle.id]: { sharing: true, precision: 'city', until: null } });
@@ -335,6 +341,20 @@ describe('a location from one phone to another', () => {
     circles = [{ ...circle, members: circle.members.filter((m) => m.userId !== bob.userId) }];
     receiver.prune();
     expect(useLocations.getState()).toEqual({});
+  });
+
+  it('shows nobody in a paused circle, and drops who was there (docs/ADR/0024)', () => {
+    const circle = circleOf([alice, bob]);
+    exchangeKeys(circle, [alice, bob]);
+    let circles = [circle];
+    const receiver = receiverOf(alice, () => circles);
+    const envelope = nth(send([circle]));
+    expect(receiver.receive(envelope)).toBe('shown');
+    circles = [{ ...circle, paused: true }];
+    receiver.prune();
+    expect(useLocations.getState()).toEqual({});
+    // Bob's phone also sends nothing there now.
+    expect(send(circles)).toEqual([]);
   });
 });
 

@@ -7,3 +7,5 @@ export const PLACES_CHANNEL = 'places';
 export const MEETINGS_CHANNEL = 'meetings';
 /** The weekly "who sees you" reminder (BARGU_PLAN Faz 9): not to be muted with the social news. */
 export const PRIVACY_CHANNEL = 'privacy';
+/** The account's plan: the trial about to end (docs/ADR/0024 §4). */
+export const ACCOUNT_CHANNEL = 'account';

@@ -124,6 +124,7 @@ const sendCirclesSchema = z.array(
     kind: z.enum(CIRCLE_KINDS).optional(),
     myStatus: z.enum(MEMBER_STATUSES),
     withOthers: z.boolean(),
+    paused: z.boolean().optional(),
   }),
 );
 
@@ -212,7 +213,10 @@ async function announce(
   const reply = bumpReplySchema.parse(
     await api.authed('/v1/place-events', { method: 'POST', body: request }),
   );
-  if ('refused' in reply && (reply.refused === 'EPOCH' || reply.refused === 'NOT_MEMBER')) {
+  if (
+    'refused' in reply &&
+    (reply.refused === 'EPOCH' || reply.refused === 'NOT_MEMBER' || reply.refused === 'PAUSED')
+  ) {
     void circleSync.refresh(circle.id).catch(() => undefined);
   }
 }
@@ -290,13 +294,18 @@ export const history = createHistory({
     return sendCircles()
       .filter(
         (circle) =>
-          circle.myStatus === 'active' && circle.withOthers && historyOn(settings, circle.id, now),
+          circle.myStatus === 'active' &&
+          circle.withOthers &&
+          circle.paused !== true &&
+          historyOn(settings, circle.id, now),
       )
       .map((circle) => ({ id: circle.id, epoch: circle.epoch }));
   },
   circles: () => cachedCircles() ?? [],
   store: vault,
-  refused: (error) => isApiError(error, 'VALIDATION_FAILED', 'NOT_FOUND', 'EPOCH_STALE'),
+  // Paused (docs/ADR/0024): what waited for it is dropped, as for a ghost.
+  refused: (error) =>
+    isApiError(error, 'VALIDATION_FAILED', 'NOT_FOUND', 'EPOCH_STALE', 'CIRCLE_PAUSED'),
 });
 
 /** The one engine of this run: fed by the location service, open app or locked screen alike. */

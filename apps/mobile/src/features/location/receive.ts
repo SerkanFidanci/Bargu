@@ -61,11 +61,15 @@ export interface ReceiverDeps {
   now?: () => number;
 }
 
-/** A member who may be on this phone's map: active in a circle this phone is active in. */
+/**
+ * A member who may be on this phone's map: active in a circle this phone is active in, one that
+ * somebody keeps open (a paused circle shows nobody, docs/ADR/0024).
+ */
 function isVisible(circles: readonly Circle[], circleId: string, userId: string): boolean {
   const circle = circles.find((candidate) => candidate.id === circleId);
   return (
     circle?.myStatus === 'active' &&
+    circle.paused !== true &&
     circle.members.some((member) => member.userId === userId && member.status === 'active')
   );
 }

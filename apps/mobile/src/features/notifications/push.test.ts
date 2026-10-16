@@ -25,6 +25,7 @@ const run = (ask = true) =>
     placesChannelName: 'Varışlar ve ayrılışlar',
     meetingsChannelName: 'Buluşmalar',
     privacyChannelName: 'Gizlilik hatırlatmaları',
+    accountChannelName: 'Hesap ve Bargu+',
     ask,
   });
 

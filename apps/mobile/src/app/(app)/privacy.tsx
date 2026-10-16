@@ -17,6 +17,7 @@ import {
   setFindable,
   setHistoryConsent,
 } from '@/features/account/account-api';
+import { billingApi } from '@/features/billing/billing-api';
 import { ageKey, fetchAge, isMinor, setAgeBand } from '@/features/account/age-api';
 import { exportFile, exportName, saveExport, trailWindow } from '@/features/account/export';
 import { signOut, useAuth } from '@/features/auth/auth-store';
@@ -132,6 +133,7 @@ export default function PrivacyScreen() {
         (await fetchAge()).age,
         await guardiansApi.list(),
         await fetchFindable(),
+        (await billingApi.records()).records,
       );
       const saved = await saveExport(exportName(now), JSON.stringify(file, null, 2));
       if (saved) toast.success(t('privacy.exported'));

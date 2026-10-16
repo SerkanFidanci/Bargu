@@ -13,6 +13,7 @@ import {
   Smile,
   ShieldCheck,
   Smartphone,
+  Sparkles,
   UserCog,
   Wrench,
 } from 'lucide-react-native';
@@ -21,6 +22,9 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
 
 import { DEV_TOOLS_ENABLED, env } from '@/config/env';
+import { usePlan } from '@/features/billing/plan';
+import { daysLeft } from '@/features/billing/plan-model';
+import { useNow } from '@/features/location/clock';
 import { signOut } from '@/features/auth/auth-store';
 import {
   addPasskey,
@@ -62,6 +66,16 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
     const historyCircles = Object.values(useSharing((state) => state.circles)).filter(
       (sharing) => sharing.history === true,
     ).length;
+    const plan = usePlan().data;
+    const now = useNow();
+    const planDetail =
+      plan === undefined
+        ? undefined
+        : plan.plan === 'plus'
+          ? t('sheets.me.plusOn')
+          : plan.plan === 'trial' && plan.trialEndsAt !== null
+            ? t('sheets.me.plusTrial', { days: daysLeft(plan.trialEndsAt, now) })
+            : t('sheets.me.plusFree');
     const appearance = useMapAppearance((state) => state.mode);
     const setAppearance = useMapAppearance((state) => state.setMode);
     const createPasskey = async () => {
@@ -176,6 +190,15 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
           }))}
         />
         <Row
+          icon={Sparkles}
+          label={t('sheets.me.plus')}
+          detail={planDetail}
+          onPress={() => {
+            onClose();
+            router.push('/plus');
+          }}
+        />
+        <Row
           icon={UserCog}
           label={t('sheets.me.privacy')}
           detail={t('sheets.me.privacyDetail')}
@@ -231,6 +254,14 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
             />
             <Row
               icon={Wrench}
+              label={t('dev.billing.link')}
+              onPress={() => {
+                onClose();
+                router.push('/_dev/billing');
+              }}
+            />
+            <Row
+              icon={Wrench}
               label={t('home.devTools')}
               onPress={() => {
                 onClose();
@@ -268,7 +299,7 @@ function Row({
 }: {
   icon: LucideIcon;
   label: string;
-  detail?: string;
+  detail?: string | undefined;
   onPress?: (() => void) | undefined;
 }) {
   const { colors } = useTheme();

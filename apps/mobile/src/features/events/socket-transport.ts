@@ -1,3 +1,4 @@
+import { CLIENT_LEVEL, CLIENT_LEVEL_QUERY } from '@bargu/schemas';
 import { io } from 'socket.io-client';
 
 import type { TransportFactory } from './event-stream';
@@ -32,6 +33,8 @@ export function socketTransport(
     const socket = io(url, {
       path: EVENTS_PATH,
       transports: ['websocket'],
+      // In the query, not the auth object: older servers refuse unknown auth fields (QA 19 P4).
+      query: { [CLIENT_LEVEL_QUERY]: String(CLIENT_LEVEL) },
       autoConnect: false,
       reconnectionDelay: 1_000,
       reconnectionDelayMax: 10_000,

@@ -28,6 +28,14 @@ export function errorMessage(error: unknown, t: TFunction): string {
         return t('errors.approvalPending');
       case 'REQUEST_FAILED':
         return t('guardians.tools.requestFailed');
+      // docs/ADR/0024
+      case 'CIRCLE_PAUSED':
+        return t('errors.circlePaused');
+      case 'ALREADY_SUBSCRIBED':
+        return t('errors.alreadySubscribed');
+      // QA 19 P4
+      case 'UPGRADE_REQUIRED':
+        return t('errors.upgradeRequired');
       default:
         return t('errors.unknown');
     }
