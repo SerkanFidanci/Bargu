@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   circleCreateSchema,
+  circleSchema,
   inviteCreateSchema,
   inviteTokenSchema,
   keyUploadSchema,
@@ -60,5 +61,23 @@ describe('circle schemas', () => {
     expect(
       serverEventSchema.safeParse({ type: 'circle.gone', circleId: uuid, name: 'Ailem' }).success,
     ).toBe(false);
+  });
+});
+
+describe('circles as the app reads them (ADR 0024)', () => {
+  it('drops a field a newer server adds instead of failing', () => {
+    const circle = {
+      id: '0190f7a4-5b6c-7d8e-9f01-23456789abcd',
+      kind: 'pair',
+      name: null,
+      epoch: 1,
+      epochStartedAt: 0,
+      myRole: 'owner',
+      myStatus: 'active',
+      members: [],
+    };
+    expect(circleSchema.parse({ ...circle, paused: true }).paused).toBe(true);
+    expect(circleSchema.parse({ ...circle, somethingNew: 1 })).not.toHaveProperty('somethingNew');
+    expect(circleSchema.parse(circle).paused).toBeUndefined();
   });
 });

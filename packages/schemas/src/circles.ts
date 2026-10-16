@@ -47,43 +47,48 @@ export const publicProfileSchema = z
   .strict();
 export type PublicProfile = z.infer<typeof publicProfileSchema>;
 
-/** A member as other members see them: profile, and the active device's keys once they joined. */
-export const memberCardSchema = z
-  .object({
-    userId: z.uuid(),
-    role: z.enum(MEMBER_ROLES),
-    status: z.enum(MEMBER_STATUSES),
-    username: z.string().nullable(),
-    displayName: z.string().nullable(),
-    avatar: avatarSchema.nullable(),
-    /** The key bundle exactly as signed by the device (verifyDeviceKeyBundle), and its platform. */
-    device: z
-      .object({ platform: z.enum(PLATFORMS), bundle: deviceKeyBundleSchema })
-      .strict()
-      .nullable(),
-  })
-  .strict();
+/**
+ * A member as other members see them: profile, and the active device's keys once they joined.
+ * Responses are read leniently: a field a newer server adds is dropped, not a failure (old apps
+ * kept working when ADR 0024 added `paused`). Requests stay strict.
+ */
+export const memberCardSchema = z.object({
+  userId: z.uuid(),
+  role: z.enum(MEMBER_ROLES),
+  status: z.enum(MEMBER_STATUSES),
+  username: z.string().nullable(),
+  displayName: z.string().nullable(),
+  avatar: avatarSchema.nullable(),
+  /** The key bundle exactly as signed by the device (verifyDeviceKeyBundle), and its platform. */
+  device: z
+    .object({ platform: z.enum(PLATFORMS), bundle: deviceKeyBundleSchema })
+    .strict()
+    .nullable(),
+});
 export type MemberCard = z.infer<typeof memberCardSchema>;
 
-export const circleSchema = z
-  .object({
-    id: z.uuid(),
-    kind: z.enum(CIRCLE_KINDS),
-    name: z.string().nullable(),
-    /** Current sender-key epoch and when it began (Unix ms); see PROTOCOL §4. */
-    epoch: z.number().int().positive(),
-    epochStartedAt: z.number().int(),
-    myRole: z.enum(MEMBER_ROLES),
-    myStatus: z.enum(MEMBER_STATUSES),
-    members: z.array(memberCardSchema).max(MAX_CIRCLE_MEMBERS),
-    /** Event circles only: when it began and when it ends and is deleted (Unix ms). */
-    startedAt: z.number().int().optional(),
-    expiresAt: z.number().int().optional(),
-  })
-  .strict();
+export const circleSchema = z.object({
+  id: z.uuid(),
+  kind: z.enum(CIRCLE_KINDS),
+  name: z.string().nullable(),
+  /** Current sender-key epoch and when it began (Unix ms); see PROTOCOL §4. */
+  epoch: z.number().int().positive(),
+  epochStartedAt: z.number().int(),
+  myRole: z.enum(MEMBER_ROLES),
+  myStatus: z.enum(MEMBER_STATUSES),
+  members: z.array(memberCardSchema).max(MAX_CIRCLE_MEMBERS),
+  /** Event circles only: when it began and when it ends and is deleted (Unix ms). */
+  startedAt: z.number().int().optional(),
+  expiresAt: z.number().int().optional(),
+  /**
+   * Nobody keeps it open: live location and history wait until someone has Bargu+ (ADR 0024).
+   * Absent from servers before that: open.
+   */
+  paused: z.boolean().optional(),
+});
 export type Circle = z.infer<typeof circleSchema>;
 
-export const circlesSchema = z.object({ circles: z.array(circleSchema) }).strict();
+export const circlesSchema = z.object({ circles: z.array(circleSchema) });
 
 export const usernameBodySchema = z.object({ username: usernameSchema }).strict();
 /** An admin makes a member admin (`owner`) or takes it back (`member`); docs/ADR/0020. */
