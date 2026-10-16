@@ -15,6 +15,7 @@ import {
   sharedCircles,
   type SharingSettings,
   withAllShared,
+  withMinorSharing,
   withNewCirclesOff,
   withNothingShared,
   withoutGoneCircles,
@@ -68,6 +69,14 @@ describe('sharing settings', () => {
     // Done once: what the user chose afterwards is not touched again.
     const chosen = { ...teen, circles: { ...teen.circles, [before]: { ...DEFAULT_OFF } } };
     expect(withNewCirclesOff(chosen, [before, later])).toBe(chosen);
+  });
+
+  it('hides the speed at 15–17 unless the user chose to show it ("Hızımı gösterme")', () => {
+    const teen = withMinorSharing(settingsWith({}), []);
+    expect(teen.speed).toBe('hide');
+    expect(teen.newCircles).toBe('off');
+    const shown = { ...teen, speed: 'show' as const };
+    expect(withMinorSharing(shown, [])).toBe(shown);
   });
 
   it('forgets the choices of circles left behind, so joining again starts with history off (Faz 9 W4)', () => {
@@ -330,6 +339,20 @@ describe('a location from one phone to another', () => {
     // Expired or taken back on the server: gone here too.
     next.receiveSnapshot([]);
     expect(useLocations.getState()).toEqual({});
+  });
+
+  it('keeps the speed on the phone when the user hides it, and sends the rest', () => {
+    const circle = circleOf([alice, bob]);
+    exchangeKeys(circle, [alice, bob]);
+    const receiver = receiverOf(alice, () => [circle]);
+    receiver.receive(nth(send([circle])));
+    expect(useLocations.getState()[`${circle.id}:${bob.userId}`]?.loc.spd).toBe(GALATA.spd);
+    const hidden = { ...DEFAULT_SHARING, speed: 'hide' as const };
+    receiver.receive(nth(send([circle], hidden, moved(GALATA, 50, 1))));
+    const shown = useLocations.getState()[`${circle.id}:${bob.userId}`]?.loc;
+    expect(shown?.spd).toBeUndefined();
+    expect(shown?.hdg).toBe(GALATA.hdg);
+    expect(shown?.lat).not.toBe(GALATA.lat);
   });
 
   it('drops a member who left from the map', () => {

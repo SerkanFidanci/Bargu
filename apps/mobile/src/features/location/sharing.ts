@@ -38,9 +38,20 @@ const sharingSchema = z
      * chooses (15-17, docs/ADR/0023).
      */
     newCircles: z.enum(['share', 'off']).optional(),
+    /**
+     * "Hızımı gösterme" (proje sahibi 2026-10-16, PM): hidden, the speed is dropped before
+     * encryption, so the circles see neither it nor what the user moves by. Unset is shown; 15-17
+     * starts hidden (applyMinorRules).
+     */
+    speed: z.enum(['show', 'hide']).optional(),
   })
   .strict();
 export type SharingSettings = z.infer<typeof sharingSchema>;
+
+/** Whether this phone's speed goes to its circles. */
+export function speedShown(settings: SharingSettings): boolean {
+  return settings.speed !== 'hide';
+}
 
 /** Joining a circle is agreeing to share with it, at full precision, until changed. */
 export const DEFAULT_CIRCLE_SHARING: CircleSharing = {
@@ -86,6 +97,18 @@ export function withNewCirclesOff(
   const circles = { ...settings.circles };
   for (const id of circleIds) circles[id] ??= circleSharing(settings, id);
   return { ...settings, circles, newCircles: 'off' };
+}
+
+/**
+ * Everything 15-17 starts with on this phone (docs/ADR/0023): new circles unshared, and the speed
+ * hidden unless the user already chose ("Hızımı gösterme"). Done once: later choices stay.
+ */
+export function withMinorSharing(
+  settings: SharingSettings,
+  circleIds: readonly string[],
+): SharingSettings {
+  const next = withNewCirclesOff(settings, circleIds);
+  return next.speed === undefined ? { ...next, speed: 'hide' } : next;
 }
 
 /**

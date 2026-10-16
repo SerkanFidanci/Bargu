@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { avatarPalette, space, spring, timing, useTheme } from '@/theme';
-import { AvatarMarker, PIN_HEIGHT } from '@/ui/avatar-marker';
+import { AvatarMarker, type MarkerDetail, PIN_HEIGHT } from '@/ui/avatar-marker';
 
 import type { Activity } from './activity';
 import { Footprints } from './footprints';
@@ -47,6 +47,8 @@ export interface MapAvatarProps {
   userId?: string | undefined;
   /** What they seem to be doing (activity.ts): the pin moves and a badge says it. */
   activity?: Activity | undefined;
+  /** Their speed or how long they have stayed, under the pin (motion-detail.ts). */
+  detail?: MarkerDetail | undefined;
   /** Tap for the card, hold for the radial menu (others' avatars only). */
   handlers?: PersonHandlers | undefined;
   /** When they last poked this phone: the avatar jumps once. */
@@ -75,6 +77,7 @@ export function MapAvatar({
   burst,
   userId,
   activity,
+  detail,
 }: MapAvatarProps) {
   const lift = useSharedValue(0);
   useEffect(() => {
@@ -98,6 +101,7 @@ export function MapAvatar({
       userId={userId}
       activity={activity}
       heading={hdg}
+      detail={detail}
     />
   );
   return (

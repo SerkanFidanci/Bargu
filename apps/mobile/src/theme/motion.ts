@@ -123,6 +123,11 @@ export const activityFx = {
   /** Within this many metres for this long counts as staying in one place. */
   stay: { radiusM: 100, settledMin: 30 },
   /**
+   * The line under someone (proje sahibi 2026-10-16): their speed from this many m/s, rounded to
+   * this many km/h; while still, how long they have stayed, from this many minutes.
+   */
+  label: { minSpeed: 1, kmhStep: 5, minStayMin: 1 },
+  /**
    * A gait: one cycle is two steps (left, right). Each step lifts the pin in a soft arc and lands
    * with a little squash; the weight shifts side to side once per cycle (pivoting on the point
    * where the person is); the body leans towards where they are heading.

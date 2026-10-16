@@ -90,7 +90,7 @@ import {
   useSharing,
   useSharingReview,
   withAllShared,
-  withNewCirclesOff,
+  withMinorSharing,
   withNothingShared,
   withoutGoneCircles,
   type SeenThere,
@@ -542,7 +542,8 @@ export async function forgetAllHistory(): Promise<'off' | 'later'> {
 
 /**
  * The rules of 15-17 on this phone (docs/ADR/0023): no location history (the server already
- * deleted its copy and takes none), and circles joined from now on start unshared.
+ * deleted its copy and takes none), circles joined from now on start unshared, and the speed is
+ * hidden unless the user already chose ("Hızımı gösterme", ADR 0011).
  */
 export async function applyMinorRules(): Promise<void> {
   // The circles already in must be known, or they would count as new and stop being shared.
@@ -553,7 +554,7 @@ export async function applyMinorRules(): Promise<void> {
   const active = circles
     .filter((circle) => circle.myStatus === 'active')
     .map((circle) => circle.id);
-  updateSharing((current) => withNewCirclesOff(current, active));
+  updateSharing((current) => withMinorSharing(current, active));
   const historyLeft = Object.values(loadSharingSettings().circles).some(
     (sharing) => sharing.history === true,
   );

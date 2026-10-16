@@ -202,6 +202,20 @@
         "running": "running",
         "cycling": "cycling",
         "driving": "in a vehicle"
+      },
+      "detail": {
+        "short": {
+          "speed": "{{n}} km/h",
+          "stayMinutes": "{{n}} min",
+          "stayHours": "{{n}} h",
+          "stayDays": "{{n}} d"
+        },
+        "spoken": {
+          "speed": "{{n}} km/h",
+          "stayMinutes": "same place, {{n}} min",
+          "stayHours": "same place, {{n}} h",
+          "stayDays": "same place, days: {{n}}"
+        }
       }
     },
     "sheet": {
@@ -919,7 +933,10 @@
     "findableTitle": "Being found",
     "findable": "People can find me by username",
     "findableHint": "When off, nobody can find or add you by username; only people you give your QR code or invite link to can add you.",
-    "findableLocked": "At 15–17 this stays off."
+    "findableLocked": "At 15–17 this stays off.",
+    "speedTitle": "Movement",
+    "speed": "Show my speed",
+    "speedHint": "When on, your circles see your speed while you move (for example 40 km/h) and how you're getting around. Turn it off and your speed never leaves your phone; how long you've been in one place still shows. Only circles you share your exact location with see it."
   },
   "age": {
     "title": "How old are you?",

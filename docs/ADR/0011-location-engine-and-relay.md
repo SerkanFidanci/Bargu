@@ -72,3 +72,32 @@ sıkı kurallar koyuyor.
   her yeni ölçümde yerine geçer.
 - Arka plandaki telefona canlı mod isteği (sessiz push) Faz 7 bildirim işiyle birlikte
   değerlendirilecek.
+
+## Ek (2026-10-16, Faz 9B dilim 2b): hız ve durma süresi etiketi, "Hızımı gösterme"
+
+Proje sahibi haritada kişinin altında hızını ya da ne kadar süredir durduğunu görmek istedi
+("kaç km hızla gittiğini, duruyorsa kaç saattir durduğunu"). PM onayladı. Protokol ve sunucu
+değişmez; bilgi zaten şifreli konum içeriğindedir.
+
+- **Alan telefon:** Avatarın adasının altında tek bir satır çıkar.
+  - Hareket ediyorsa hız yazar: "40 km/sa". Eşik 1 m/s; değer 5'er km/sa yuvarlanır, bir hız
+    göstergesi gibi okunmasın diye.
+  - Duruyorsa göndericinin "ne zamandır burada" bilgisinden süre yazar: "12 dk", "2 sa", "1 gün".
+    Bu bilgi (`since`) 100 m içinde kalındıkça sürer, en az 1 dakika olmalıdır.
+  - Konum eskiyse bunların yerine yaşı yazar ("12 dk önce"), çünkü eski hız ya da süre artık doğru
+    değildir.
+  - Yan yana duranların ortak çerçevesinde satır çıkmaz (yer yok, üst üste binerdi). Grubun
+    penceresi aynı bilgiyi her kişi için yazar.
+  - Ekran okuyucu satırı açık okur: "saatte 40 km", "2 saattir aynı yerde".
+- **Yalnızca tam konumda:** Kaba konumda hız ve süre şifrelemeden önce zaten atılır
+  (`applyPrecision`), o çemberde satır çıkmaz.
+- **"Hızımı göster" ayarı (Gizlilik ekranı, cihazda, sunucu bilmez):**
+  - Kapalıyken telefon hızı şifrelemeden önce içerikten çıkarır; hız telefondan hiç çıkmaz.
+  - Çemberler bu durumda ne hızı ne de neyle gidildiğini (yürüyüş, araba) görür; hareket simgesi
+    de hızdan çıkarıldığı için kaybolur.
+  - Yön (`hdg`) ve durma süresi gönderilmeye devam eder; yön hız söylemez, durma süresi zaten
+    "bir süredir aynı yerde" simgesi olarak görünüyordu.
+  - Varsayılan: 18+ için açık; 15–17 için kapalı (ADR 0023 kuralları uygulanırken bir kez yazılır,
+    kullanıcı sonra açabilir).
+- **Gizlilik farkı:** Hız önceden yalnızca simge olarak (yürüyor, araçta) görünüyordu; sayı daha
+  açık bir bilgidir. Bu yüzden ayar aynı dilimde geldi (PM kararı) ve yuvarlama yapılır.

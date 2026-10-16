@@ -2,7 +2,7 @@ import { applyPrecision, type DeviceKeys, encryptMessage } from '@bargu/crypto';
 import type { Circle, LocPayload, MessageEnvelope } from '@bargu/schemas';
 
 import type { KeyStore } from '../keys/key-store';
-import { circleSharing, type SharingSettings, sharedCircles } from './sharing';
+import { circleSharing, type SharingSettings, sharedCircles, speedShown } from './sharing';
 
 /** One position from the phone's location service. */
 export interface Fix {
@@ -80,6 +80,13 @@ export function locPayload(fix: Fix, battery: Battery, since?: number): LocPaylo
   return payload;
 }
 
+/** The payload without its speed ("Hızımı gösterme"). */
+function withoutSpeed(payload: LocPayload): LocPayload {
+  const rest = { ...payload };
+  delete rest.spd;
+  return rest;
+}
+
 /**
  * One envelope per circle this phone shares with: the position coarsened to that circle's
  * precision first (on the phone, before encryption), then encrypted and signed with this
@@ -98,12 +105,14 @@ export function buildEnvelopes(input: {
   /** When this phone will be at the circle's meeting (event circles, docs/ADR/0018). */
   eta?: (circleId: string) => LocPayload['eta'];
 }): MessageEnvelope[] {
-  const full = locPayload(input.fix, input.battery, input.since);
+  const located = locPayload(input.fix, input.battery, input.since);
+  // "Hızımı gösterme": the speed never leaves the phone (the rest of the payload goes as usual).
+  const full = speedShown(input.settings) ? located : withoutSpeed(located);
   return sharedCircles(input.circles, input.settings, input.now).map((circle) => {
     const eta = input.eta?.(circle.id);
     // Dropped again below exact precision (applyPrecision).
-    const located = eta === undefined ? full : { ...full, eta };
-    const payload = applyPrecision(located, circleSharing(input.settings, circle.id).precision);
+    const withEta = eta === undefined ? full : { ...full, eta };
+    const payload = applyPrecision(withEta, circleSharing(input.settings, circle.id).precision);
     const senderKey = input.keys.ownKey(circle);
     const nextSeq = input.keys.reserveSeq(circle);
     return encryptMessage({ state: { senderKey, nextSeq }, sender: input.device, payload })

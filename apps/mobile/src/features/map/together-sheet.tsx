@@ -3,6 +3,7 @@ import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Avatar } from '@/ui/avatar';
+import { type MarkerDetail, markerDetailText } from '@/ui/avatar-marker';
 import { ListRow } from '@/ui/list-row';
 import { Sheet, type SheetRef } from '@/ui/sheet';
 
@@ -17,6 +18,8 @@ export interface GroupMember {
   me: boolean;
   staleMinutes?: number | undefined;
   activity?: Activity | undefined;
+  /** Their speed or how long they have stayed (motion-detail.ts). */
+  detail?: MarkerDetail | undefined;
 }
 
 /**
@@ -35,8 +38,11 @@ export const TogetherSheet = forwardRef<
         ? t('map.together.staleHours', { hours: Math.floor(person.staleMinutes / 60) })
         : t('map.together.stale', { minutes: person.staleMinutes });
     }
-    if (person.activity !== undefined && person.activity !== 'still') {
-      return t(`ui.marker.activity.${person.activity}`);
+    const { activity, detail } = person;
+    if (detail?.kind === 'stay') return markerDetailText(detail, t, true);
+    if (activity !== undefined && activity !== 'still') {
+      const doing = t(`ui.marker.activity.${activity}`);
+      return detail === undefined ? doing : `${doing} · ${markerDetailText(detail, t)}`;
     }
     return t('map.together.live');
   };

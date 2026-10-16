@@ -23,8 +23,13 @@ import { exportFile, exportName, saveExport, trailWindow } from '@/features/acco
 import { signOut, useAuth } from '@/features/auth/auth-store';
 import { errorMessage } from '@/features/errors';
 import { guardiansApi } from '@/features/guardians/guardians-api';
-import { applyMinorRules, forgetAllHistory, history } from '@/features/location/location-session';
-import { useSharing } from '@/features/location/sharing';
+import {
+  applyMinorRules,
+  forgetAllHistory,
+  history,
+  updateSharing,
+} from '@/features/location/location-session';
+import { speedShown, useSharing } from '@/features/location/sharing';
 import { usePlaces } from '@/features/places/places';
 import { useDocs } from '@/features/plan/docs';
 import { useMyStatus } from '@/features/social/status';
@@ -58,6 +63,7 @@ export default function PrivacyScreen() {
   };
   const band = age.data?.age?.band ?? null;
   const [busy, setBusy] = useState<'export' | 'withdraw' | 'delete' | 'age' | null>(null);
+  const speed = useSharing(speedShown);
   const consent = privacy.data === undefined ? null : hasHistoryConsent(privacy.data);
   const noticeRead = privacy.data?.notice ?? null;
   const consentGiven = privacy.data?.history ?? null;
@@ -231,6 +237,19 @@ export default function PrivacyScreen() {
           value={findable.data?.findable ?? false}
           disabled={findable.data === undefined || findable.data.locked}
           onChange={changeFindable}
+        />
+      </View>
+
+      <SectionTitle>{t('privacy.speedTitle')}</SectionTitle>
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <Toggle
+          testID="privacy-speed"
+          label={t('privacy.speed')}
+          description={t('privacy.speedHint')}
+          value={speed}
+          onChange={(on) => {
+            updateSharing((current) => ({ ...current, speed: on ? 'show' : 'hide' }));
+          }}
         />
       </View>
 

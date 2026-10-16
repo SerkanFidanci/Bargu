@@ -1,4 +1,5 @@
 import type { Avatar as AvatarData } from '@bargu/schemas';
+import type { TFunction } from 'i18next';
 import { Zap } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -54,10 +55,32 @@ export interface AvatarMarkerProps {
   island?: boolean | undefined;
   /** Inside a frame shared with others: the frame is the paper, so no edge, shadow or tilt of its own. */
   framed?: boolean | undefined;
+  /** Their speed or how long they have stayed, on a line under the island (live locations only). */
+  detail?: MarkerDetail | undefined;
 }
 
 /** What someone seems to be doing (features/map/activity.ts decides). */
 export type MarkerActivity = 'still' | 'settled' | 'walking' | 'running' | 'cycling' | 'driving';
+
+/** The line under someone (features/map/motion-detail.ts decides). */
+export type MarkerDetail =
+  | { kind: 'speed'; kmh: number }
+  | { kind: 'stay'; unit: 'minutes' | 'hours' | 'days'; count: number };
+
+/** The line as written ("42 km/sa", "2 sa") or as read aloud ("saatte 42 km"). */
+export function markerDetailText(detail: MarkerDetail, t: TFunction, spoken = false): string {
+  const key =
+    detail.kind === 'speed'
+      ? 'speed'
+      : detail.unit === 'minutes'
+        ? 'stayMinutes'
+        : detail.unit === 'hours'
+          ? 'stayHours'
+          : 'stayDays';
+  // Not `count`: that would look for plural forms, which the texts avoid (i18n.test.ts).
+  const n = detail.kind === 'speed' ? detail.kmh : detail.count;
+  return t(`ui.marker.detail.${spoken ? 'spoken' : 'short'}.${key}`, { n });
+}
 
 /** The loop that drives an activity's motion: one cycle per period, endlessly. */
 function useCycle(periodMs: number | null) {
@@ -139,6 +162,7 @@ export function AvatarMarker({
   heading,
   island = true,
   framed = false,
+  detail,
 }: AvatarMarkerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -216,7 +240,12 @@ export function AvatarMarker({
       ? t('ui.marker.lowBattery')
       : null;
   const doingLabel = doing === 'still' ? null : t(`ui.marker.activity.${doing}`);
-  const label = [where, doingLabel, battery].filter((part) => part !== null).join(', ');
+  // An old location says its age instead: its speed or stay would no longer be true. In a shared
+  // frame there is no room under each one (the group's window lists it, together-sheet.tsx).
+  const line = stale || framed || detail === undefined ? null : detail;
+  const label = [where, doingLabel, line === null ? null : markerDetailText(line, t, true), battery]
+    .filter((part) => part !== null)
+    .join(', ');
   // Drawn figures face east by default; west-bound people get them mirrored.
   const facing: 1 | -1 = leanSide < -0.2 ? -1 : 1;
 
@@ -278,13 +307,25 @@ export function AvatarMarker({
               : t('ui.marker.ageHours', { hours })}
           </Text>
         </View>
+      ) : line !== null ? (
+        <View
+          testID="marker-detail"
+          style={[
+            styles.age,
+            { backgroundColor: colors.surfaceRaised, boxShadow: elevation.raised },
+          ]}
+        >
+          <Text variant="caption" allowFontScaling={false}>
+            {markerDetailText(line, t)}
+          </Text>
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Tall enough for the island under the sticker; the age label hangs below it.
+  // Tall enough for the island under the sticker; the age (or speed, or stay) hangs below it.
   container: { alignItems: 'center', minHeight: PIN_HEIGHT + ISLAND.height / 2 },
   // Rotations and squash pivot on the sticker's lower edge, right above the person's position.
   pin: { alignItems: 'center', transformOrigin: '50% 100%' },

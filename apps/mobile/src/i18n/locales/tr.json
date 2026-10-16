@@ -202,6 +202,20 @@
         "running": "koşuyor",
         "cycling": "bisiklette",
         "driving": "araçta"
+      },
+      "detail": {
+        "short": {
+          "speed": "{{n}} km/sa",
+          "stayMinutes": "{{n}} dk",
+          "stayHours": "{{n}} sa",
+          "stayDays": "{{n}} gün"
+        },
+        "spoken": {
+          "speed": "saatte {{n}} km",
+          "stayMinutes": "{{n}} dakikadır aynı yerde",
+          "stayHours": "{{n}} saattir aynı yerde",
+          "stayDays": "{{n}} gündür aynı yerde"
+        }
       }
     },
     "sheet": {
@@ -919,7 +933,10 @@
     "findableTitle": "Bulunabilirlik",
     "findable": "Kullanıcı adımla bulunabilirim",
     "findableHint": "Kapalıyken kimse seni kullanıcı adınla bulamaz ya da ekleyemez; seni yalnızca QR kodunu ya da davet linkini verdiğin kişiler ekler.",
-    "findableLocked": "15–17 yaşında bu ayar kapalıdır ve açılamaz."
+    "findableLocked": "15–17 yaşında bu ayar kapalıdır ve açılamaz.",
+    "speedTitle": "Hareket",
+    "speed": "Hızımı göster",
+    "speedHint": "Açıkken çemberlerin, hareket ederken hızını (örneğin 40 km/sa) ve neyle gittiğini görür. Kapatırsan hızın telefonundan hiç çıkmaz; ne kadar süredir aynı yerde olduğun görünmeye devam eder. Yalnızca tam konum paylaştığın çemberler görür."
   },
   "age": {
     "title": "Kaç yaşındasın?",

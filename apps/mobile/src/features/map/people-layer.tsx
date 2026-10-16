@@ -15,6 +15,7 @@ import { useMeetingWatcher } from './use-meetings';
 import { type Cluster, capsuleOf, clusterPeople } from './cluster';
 import { useMapZoom } from './map-zoom';
 import { activityOf } from './activity';
+import { motionDetail } from './motion-detail';
 import { ClusterBubble, type TogetherPerson } from './cluster-bubble';
 import type { ScreenPoint } from './person-focus';
 import type { GroupMember } from './together-sheet';
@@ -125,6 +126,7 @@ export function PeopleLayer({
       marker: {
         userId: entry.userId,
         activity: activityOf(loc.spd, loc.since === undefined ? 0 : loc.ts - loc.since),
+        detail: motionDetail(loc, now),
         name: memberName(card),
         avatar: card.avatar,
         staleMinutes: staleMinutes(loc.ts, now),
@@ -232,6 +234,7 @@ function TogetherMarker({
         me: member.kind === 'me',
         staleMinutes: marker.staleMinutes,
         activity: marker.activity,
+        detail: marker.detail,
       };
     });
   return (
