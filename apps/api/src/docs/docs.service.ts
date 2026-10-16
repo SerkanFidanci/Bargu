@@ -164,9 +164,9 @@ export class DocsService {
           .onConflictDoNothing()
           .returning({ version: circleDocs.version });
       } else {
-        // Outside an event only its starter and the circle's admins change the meeting (and
-        // row-level security); said so, rather than "someone was faster".
-        if (!event && !(await this.mayRun(tx, circleId, auth.userId, me.role))) {
+        // Outside an event only its starter and the circle's admins change the meeting, either
+        // one in a friendship (and row-level security); said so, rather than "someone was faster".
+        if (!event && !(await this.mayRun(tx, circleId, auth.userId, me))) {
           throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
         }
         // Row-level security leaves out others' own documents (votes): those are a conflict too.
@@ -206,8 +206,9 @@ export class DocsService {
     const others = await this.database.asUser(auth.userId, async (tx) => {
       const members = await this.activeMembers(tx, circleId);
       const me = members.find((member) => member.userId === auth.userId);
-      // Outside an event only its starter and the circle's admins end the meeting (and RLS).
-      if (me?.expiresAt === null && !(await this.mayRun(tx, circleId, auth.userId, me.role))) {
+      // Outside an event only its starter and the circle's admins end the meeting, either one in a
+      // friendship (and RLS).
+      if (me?.expiresAt === null && !(await this.mayRun(tx, circleId, auth.userId, me))) {
         throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
       }
       const removed = await tx
@@ -220,9 +221,17 @@ export class DocsService {
     await this.events.publish(others, { type: 'docs.changed', circleId });
   }
 
-  /** Whether the caller runs the circle's meeting outside an event: its starter or an admin. */
-  private async mayRun(tx: Tx, circleId: string, userId: string, role: string): Promise<boolean> {
-    if (role === 'owner') return true;
+  /**
+   * Whether the caller runs the circle's meeting outside an event: its starter or an admin; in a
+   * friendship either one, the two are equal (docs/ADR/0026 §1, the PM).
+   */
+  private async mayRun(
+    tx: Tx,
+    circleId: string,
+    userId: string,
+    me: { role: string; kind: string },
+  ): Promise<boolean> {
+    if (me.role === 'owner' || me.kind === 'pair') return true;
     const [row] = await tx
       .select({ authorId: circleDocs.authorId })
       .from(circleDocs)
@@ -292,6 +301,7 @@ export class DocsService {
       .select({
         userId: circleMembers.userId,
         role: circleMembers.role,
+        kind: circles.kind,
         epoch: circles.epoch,
         expiresAt: circles.expiresAt,
       })

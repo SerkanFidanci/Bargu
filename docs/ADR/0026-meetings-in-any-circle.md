@@ -27,6 +27,10 @@ Dokununca çember sayfası açılıyor.
 - **Yetki (ADR 0020 ile uyumlu, sunucu denetler):**
   - Her etkin üye başlatabilir. Başlatan kişi belgenin yazarıdır.
   - Değiştirme ve bitirme yalnızca başlatan ve çemberin yöneticileri.
+  - **İkili çemberde (arkadaşlık) iki kişi eşittir** (PM'in ürün kararı, 2026-10-16, migration
+    0036): ikisi de buluşmayı değiştirir ve bitirir, kim başlatmış olursa olsun. Önceden
+    arkadaşlığı kuran (çemberin yöneticisi) öbürünün başlattığını bitirebiliyor, öbürü onunkini
+    bitiremiyordu.
   - Çemberde aynı anda tek buluşma: biri varken başkası yenisini başlatamaz (`409 MEETING_EXISTS`),
     var olanı görür.
   - Üye olmayan okuyamaz ve yazamaz.

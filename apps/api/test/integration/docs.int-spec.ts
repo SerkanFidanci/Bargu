@@ -597,6 +597,32 @@ describe('a meeting in any circle (docs/ADR/0026)', () => {
     expect(await list(gul, friends.id)).toEqual([]);
   });
 
+  it("is either friend's to change and end in a friendship, whoever started it (ADR 0026 §1)", async () => {
+    const [ece, fikret, mallory] = await Promise.all([person(test), person(test), person(test)]);
+    const asked = await as(test, ece, 'POST', '/v1/friends', { username: fikret.username });
+    const { id } = asked.json<Circle>();
+    await as(test, fikret, 'POST', `/v1/circles/${id}/accept`);
+    const pair = (await as(test, ece, 'GET', `/v1/circles/${id}`)).json<Circle>();
+    expect(pair.kind).toBe('pair');
+    // Ece made the friendship (its admin) and starts the meeting; Fikret changes and ends it.
+    const started = await startOrChange(ece, pair, phone(ece, pair).seal(inCircle(id, ece)), null);
+    expect(started.json()).toEqual({ version: 1 });
+    const fikretPhone = phone(fikret, pair);
+    const changed = await startOrChange(fikret, pair, fikretPhone.seal(inCircle(id, ece)), 1);
+    expect(changed.json()).toEqual({ version: 2 });
+    expect((await as(test, fikret, 'DELETE', `/v1/circles/${id}/docs/${id}`)).statusCode).toBe(204);
+    // Still the two of them only: someone outside touches nothing.
+    await startOrChange(fikret, pair, fikretPhone.seal(inCircle(id, fikret)), null);
+    const intruder = phone(mallory, pair);
+    expect(
+      (await startOrChange(mallory, pair, intruder.seal(inCircle(id, mallory)), 1)).statusCode,
+    ).toBe(404);
+    expect((await as(test, mallory, 'DELETE', `/v1/circles/${id}/docs/${id}`)).statusCode).toBe(
+      404,
+    );
+    expect(await list(fikret, id)).toHaveLength(1);
+  });
+
   it("goes with its starter's account, and the circle hears it (QA 21 B-3)", async () => {
     const [ayse, bora, can] = await Promise.all([person(test), person(test), person(test)]);
     const family = await circleWith(test, ayse, bora, can);
