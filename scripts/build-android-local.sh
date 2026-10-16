@@ -19,6 +19,9 @@ PNPM='pnpm@12.11.2'
 
 repo="$(git rev-parse --show-toplevel)"
 commit="$(git -C "$repo" rev-parse --short=7 "${1:-HEAD}")"
+# The repository's own git directory, not the checkout: in a git worktree the checkout's .git is a
+# file pointing at a host path the container cannot see (QA 20 T-1). Cloning it gives every commit.
+gitdir="$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)"
 out="$HOME/bargu-builds"
 mkdir -p "$out"
 
@@ -32,7 +35,7 @@ else
 fi
 
 docker run --rm \
-  -v "$(host_path "$repo"):/src:ro" \
+  -v "$(host_path "$gitdir"):/src.git:ro" \
   -v "$(host_path "$HOME/.expo"):/host-expo:ro" \
   -v "$(host_path "$out"):/out" \
   -v bargu-gradle-cache:/root/.gradle \
@@ -44,7 +47,7 @@ docker run --rm \
   "$IMAGE" bash -euo pipefail -c '
     mkdir -p /root/.expo && cp /host-expo/state.json /root/.expo/state.json
     git config --global --add safe.directory "*"
-    git clone -q /src /work && cd /work && git checkout -q "$COMMIT"
+    git clone -q /src.git /work && cd /work && git checkout -q "$COMMIT"
     npm install -g --silent "$PNPM"
     pnpm install --frozen-lockfile
     cd apps/mobile
