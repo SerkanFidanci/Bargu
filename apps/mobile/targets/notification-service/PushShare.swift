@@ -127,6 +127,19 @@ enum PushOpener {
         title: contacts.circles[body.circleId]?.name ?? "Bargu",
         body: String(format: localized("late"), sender.name, minutes),
         circleId: body.circleId, thread: "meetings")
+    case .meeting:
+      // A member started a meeting in the circle (docs/ADR/0026 §6): who, when and where.
+      guard let sender = opened.senderDeviceId.flatMap({ contacts.devices[$0] }),
+        let name = body.name, let emoji = body.emoji, let meetAt = body.meetAt
+      else { return nil }
+      if mutes.people[sender.userId]?.places == true { return .muted }
+      let time = DateFormatter.localizedString(
+        from: Date(timeIntervalSince1970: Double(meetAt) / 1000), dateStyle: .none,
+        timeStyle: .short)
+      return .show(
+        title: contacts.circles[body.circleId]?.name ?? "Bargu",
+        body: String(format: localized("meeting"), sender.name, time, emoji, name),
+        circleId: body.circleId, thread: "meetings")
     case .place:
       guard let sender = opened.senderDeviceId.flatMap({ contacts.devices[$0] }),
         let placeId = body.placeId, let name = body.name, let emoji = body.emoji

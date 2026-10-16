@@ -9,6 +9,7 @@
 "notice.memberJoined" = "Someone joined your circle";
 "notice.memberJoinedIn" = "Someone joined %@";
 "late" = "%1$@ will be about %2$ld min late";
+"meeting" = "%1$@ started a meeting: %2$@ · %3$@ %4$@";
 "notice.memberJoinedHistory" = "Someone joined your circle; they can now see your location history too";
 "notice.memberJoinedHistoryIn" = "Someone joined %@; they can now see your location history too";
 "notice.memberJoinedSees" = "Someone joined your circle; they can now see your location too";

@@ -17,10 +17,15 @@ import {
   MAX_POLLS_PER_MEMBER,
   type MessageEnvelope,
 } from '@bargu/schemas';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { MeetingSweeper } from '../../src/docs/meeting-sweeper.js';
 import { EventsService } from '../../src/events/events.service.js';
+import { DatabaseService } from '../../src/infra/database/database.service.js';
+import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
+import { Notifier } from '../../src/push/notifier.js';
 import { createTestApp, type TestApp } from './support/app.js';
+import { call } from './support/client.js';
 import { as, circleWith, type Person, person } from './support/people.js';
 
 let test: TestApp;
@@ -288,17 +293,21 @@ describe('event documents', () => {
     ).toBe(404);
     expect(await list(bora, event.id)).toHaveLength(1);
 
-    // A group has no documents.
+    // A group holds only its meeting (docs/ADR/0026), which says when it goes: no polls there.
     const group = await circleWith(test, ayse, bora);
-    const refused = await put(
+    const groupPhone = phone(ayse, group);
+    const noEnd = await put(
       ayse,
       group.id,
       group.id,
-      phone(ayse, group).seal(meeting(group.id)),
+      groupPhone.seal(meeting(group.id)),
       null,
       'plan',
     );
-    expect(refused.statusCode).toBe(403);
+    expect(noEnd.statusCode).toBe(400);
+    const poll = randomUuid();
+    const polled = await put(ayse, group.id, poll, groupPhone.seal(pollOn(poll)), null, 'poll');
+    expect(polled.statusCode).toBe(403);
   });
 
   it('refuse documents not signed by the caller, for another circle, or of an old epoch', async () => {
@@ -439,5 +448,176 @@ describe('event documents', () => {
     expect(
       (await put(owner, event.id, more, ownerPhone.seal(pollOn(more)), null, 'poll')).statusCode,
     ).toBe(200);
+  });
+});
+
+/** A meeting outside an event, as the phones save it: with its end, and notices when it starts. */
+const startOrChange = (
+  who: Person,
+  circle: Pick<Circle, 'id'>,
+  envelope: MessageEnvelope,
+  version: number | null,
+  extra: { endsAt?: number; pushes?: unknown[] } = { endsAt: Date.now() + 4 * HOUR },
+) =>
+  as(test, who, 'PUT', `/v1/circles/${circle.id}/docs/${circle.id}`, {
+    envelope,
+    version,
+    kind: 'plan',
+    pollId: null,
+    ...extra,
+  });
+const inCircle = (circleId: string, by: Person): DocPayload => ({
+  kind: 'plan',
+  id: circleId,
+  meetAt: Date.UTC(2026, 9, 18, 16, 30),
+  placeId: '0190f7a4-2222-7222-8222-000000000001',
+  by: by.userId,
+  ts: Date.now(),
+});
+
+describe('a meeting in any circle (docs/ADR/0026)', () => {
+  it('is started by any member, one at a time, run by its starter and the admins only', async () => {
+    const [ayse, bora, can, mallory] = await Promise.all([
+      person(test),
+      person(test),
+      person(test),
+      person(test),
+    ]);
+    // Ayşe made the circle (its admin); Bora and Can are members.
+    const family = await circleWith(test, ayse, bora, can);
+    const boraPhone = phone(bora, family);
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+    const started = await startOrChange(
+      bora,
+      family,
+      boraPhone.seal(inCircle(family.id, bora)),
+      null,
+    );
+    expect(started.json()).toEqual({ version: 1 });
+    expect(told).toHaveBeenCalledWith(expect.arrayContaining([ayse.userId, can.userId]), {
+      type: 'docs.changed',
+      circleId: family.id,
+    });
+    told.mockRestore();
+    // Members read it (ciphertext only); someone outside sees nothing and touches nothing.
+    expect(await list(can, family.id)).toHaveLength(1);
+    expect(JSON.stringify(await list(can, family.id))).not.toContain('2026');
+    expect(await list(mallory, family.id)).toEqual([]);
+    const intruder = phone(mallory, family);
+    expect(
+      (await startOrChange(mallory, family, intruder.seal(inCircle(family.id, mallory)), 1))
+        .statusCode,
+    ).toBe(404);
+    expect(
+      (await as(test, mallory, 'DELETE', `/v1/circles/${family.id}/docs/${family.id}`)).statusCode,
+    ).toBe(404);
+
+    // One at a time: the others see it, and start none.
+    const canPhone = phone(can, family);
+    const second = await startOrChange(can, family, canPhone.seal(inCircle(family.id, can)), null);
+    expect(second.json()).toMatchObject({ code: 'MEETING_EXISTS' });
+    // Can neither started it nor runs the circle: no change, no end.
+    const changed = await startOrChange(can, family, canPhone.seal(inCircle(family.id, bora)), 1);
+    expect(changed.json()).toMatchObject({ code: 'FORBIDDEN' });
+    const ended = await as(test, can, 'DELETE', `/v1/circles/${family.id}/docs/${family.id}`);
+    expect(ended.json()).toMatchObject({ code: 'FORBIDDEN' });
+
+    // Its starter changes it; the admin changes and ends it.
+    expect(
+      (await startOrChange(bora, family, boraPhone.seal(inCircle(family.id, bora)), 1)).json(),
+    ).toEqual({ version: 2 });
+    const aysePhone = phone(ayse, family);
+    expect(
+      (await startOrChange(ayse, family, aysePhone.seal(inCircle(family.id, bora)), 2)).json(),
+    ).toEqual({ version: 3 });
+    expect(
+      (await as(test, ayse, 'DELETE', `/v1/circles/${family.id}/docs/${family.id}`)).statusCode,
+    ).toBe(204);
+    expect(await list(bora, family.id)).toEqual([]);
+  });
+
+  it('says when it goes: ahead, within a week; an event says no end', async () => {
+    const [deniz, ece] = await Promise.all([person(test), person(test)]);
+    const pair = await circleWith(test, deniz, ece);
+    const denizPhone = phone(deniz, pair);
+    for (const endsAt of [Date.now() - 1_000, Date.now() + 9 * 24 * HOUR]) {
+      const bad = await startOrChange(
+        deniz,
+        pair,
+        denizPhone.seal(inCircle(pair.id, deniz)),
+        null,
+        {
+          endsAt,
+        },
+      );
+      expect(bad.statusCode).toBe(400);
+    }
+    const event = await eventWith(deniz, ece);
+    const withEnd = await as(test, deniz, 'PUT', `/v1/circles/${event.id}/docs/${event.id}`, {
+      envelope: phone(deniz, event).seal(meeting(event.id)),
+      version: null,
+      kind: 'plan',
+      pollId: null,
+      endsAt: Date.now() + HOUR,
+    });
+    expect(withEnd.statusCode).toBe(400);
+  });
+
+  it('reaches only apps that can read it, and goes at its end with the worker', async () => {
+    const [fuat, gul] = await Promise.all([person(test), person(test)]);
+    const friends = await circleWith(test, fuat, gul);
+    await startOrChange(fuat, friends, phone(fuat, friends).seal(inCircle(friends.id, fuat)), null);
+    // An app before level 3 reads an event's documents only (ADR 0026 §7).
+    const older = await call(test.app, {
+      method: 'GET',
+      url: `/v1/circles/${friends.id}/docs`,
+      accessToken: gul.session.accessToken,
+      clientLevel: 2,
+    });
+    expect(older.json()).toEqual({ docs: [] });
+    expect(await list(gul, friends.id)).toHaveLength(1);
+
+    // Past its end, the worker deletes it and tells the circle.
+    await test.admin.query(
+      `UPDATE app.circle_docs SET ends_at = now() - interval '1 second' WHERE circle_id = $1`,
+      [friends.id],
+    );
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+    const sweeper = new MeetingSweeper(
+      test.app.get(DatabaseService),
+      test.app.get(EventsService),
+      test.app.get<RedisClient>(REDIS),
+    );
+    expect(await sweeper.sweep()).toBeGreaterThanOrEqual(1);
+    expect(told).toHaveBeenCalledWith(expect.arrayContaining([fuat.userId, gul.userId]), {
+      type: 'docs.changed',
+      circleId: friends.id,
+    });
+    told.mockRestore();
+    expect(await list(gul, friends.id)).toEqual([]);
+  });
+
+  it("hands the starter's sealed notices to the others' phones, once, when it starts", async () => {
+    const [hale, ilker] = await Promise.all([person(test), person(test)]);
+    const pair = await circleWith(test, hale, ilker);
+    const forwarded = vi.spyOn(test.app.get(Notifier), 'forward');
+    const pushes = [
+      { userId: ilker.userId, deviceId: ilker.device.deviceId, sealed: 'A'.repeat(120) },
+    ];
+    const halePhone = phone(hale, pair);
+    await startOrChange(hale, pair, halePhone.seal(inCircle(pair.id, hale)), null, {
+      endsAt: Date.now() + 4 * HOUR,
+      pushes,
+    });
+    // Ilker's app is not connected: the notice goes to his phone.
+    expect(forwarded).toHaveBeenCalledWith(pushes);
+    // A change starts nothing: no notice again.
+    forwarded.mockClear();
+    await startOrChange(hale, pair, halePhone.seal(inCircle(pair.id, hale)), 1, {
+      endsAt: Date.now() + 4 * HOUR,
+      pushes,
+    });
+    expect(forwarded).not.toHaveBeenCalled();
+    forwarded.mockRestore();
   });
 });

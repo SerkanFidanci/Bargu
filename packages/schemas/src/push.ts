@@ -56,6 +56,18 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
       ts: timestamp,
     })
     .strict(),
+  // A member started a meeting in the circle (docs/ADR/0026 §6): where, as their phone names it,
+  // and when. Signed by that member's phone.
+  z
+    .object({
+      kind: z.literal('meeting'),
+      circleId: z.uuid(),
+      name: placeNameSchema,
+      emoji: placeEmojiSchema,
+      meetAt: timestamp,
+      ts: timestamp,
+    })
+    .strict(),
   z
     .object({
       kind: z.literal('notice'),

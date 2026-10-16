@@ -9,6 +9,7 @@
 "notice.memberJoined" = "Çemberine yeni biri katıldı";
 "notice.memberJoinedIn" = "%@ çemberine yeni biri katıldı";
 "late" = "%1$@ yaklaşık %2$ld dk gecikecek";
+"meeting" = "%1$@ buluşma başlattı: %2$@ · %3$@ %4$@";
 "notice.memberJoinedHistory" = "Çemberine yeni biri katıldı; artık o da konum geçmişini görebilir";
 "notice.memberJoinedHistoryIn" = "%@ çemberine yeni biri katıldı; artık o da konum geçmişini görebilir";
 "notice.memberJoinedSees" = "Çemberine yeni biri katıldı; artık o da konumunu görebilir";

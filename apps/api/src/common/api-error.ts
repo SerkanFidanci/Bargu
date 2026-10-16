@@ -57,6 +57,8 @@ export type ApiErrorCode =
   | 'GUARDIAN_APPROVAL'
   /** 15-17 buying with no parent linked: nobody could say yes (docs/ADR/0024 §5). */
   | 'GUARDIAN_LINK_REQUIRED'
+  /** The circle already has a meeting: one at a time (docs/ADR/0026). */
+  | 'MEETING_EXISTS'
   /** Coming in with a code waits for the code owner's parent (says nothing more, QA 5c F-2). */
   | 'APPROVAL_PENDING'
   /** A parent said yes, but the code or the name no longer works. */

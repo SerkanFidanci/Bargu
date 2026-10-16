@@ -14,6 +14,7 @@ export {
   votePayloadSchema,
   latePayloadSchema,
   lookPayloadSchema,
+  arrivedPayloadSchema,
   MAX_POLL_OPTIONS,
   PLACE_NAME_MAX,
   PLACE_RADIUS_M,

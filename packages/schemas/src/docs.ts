@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 import { docEnvelopeSchema } from './envelope.js';
+import { timestamp } from './payload.js';
+import { devicePushesSchema } from './push.js';
 
 /** Documents one event can hold: its meeting, a few polls and every member's vote in each. */
 export const MAX_DOCS_PER_CIRCLE = 300;
@@ -43,6 +45,13 @@ export const docPutSchema = z
     version: z.number().int().positive().nullable(),
     kind: docKindSchema,
     pollId: z.uuid().nullable(),
+    /**
+     * A meeting outside an event (docs/ADR/0026 §2): when the server deletes it (its time + 3
+     * hours). An event's documents say none.
+     */
+    endsAt: timestamp.optional(),
+    /** Starting such a meeting: one sealed notice per other member's device (ADR 0026 §6). */
+    pushes: devicePushesSchema.optional(),
   })
   .strict()
   .refine((put) => (put.kind === 'vote') === (put.pollId !== null), {

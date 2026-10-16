@@ -107,7 +107,7 @@ public struct SenderKeyDistribution: Codable, Equatable, Sendable {
 /// What a notification says (TypeScript: `PushBody`, packages/schemas/src/push.ts), decoded as
 /// strictly as the zod schema: per kind exactly its fields, ids and texts checked.
 public struct PushBody: Decodable, Equatable, Sendable {
-  public enum Kind: String, Sendable { case place, bump, notice, late }
+  public enum Kind: String, Sendable { case place, bump, notice, late, meeting }
   public static let notices: Set<String> = [
     "friendRequest", "friendAccepted", "friendAdded", "circleInvite", "memberJoined",
     "guardianRequest", "guardianLinked", "guardianEndRequested", "guardianEnded",
@@ -127,9 +127,11 @@ public struct PushBody: Decodable, Equatable, Sendable {
   public let notice: String?
   /// `late` only: about how many minutes (docs/ADR/0018).
   public let minutes: Int?
+  /// `meeting` only: when it is (Unix ms, docs/ADR/0026); `name` and `emoji` say where.
+  public let meetAt: UInt64?
 
   enum CodingKeys: String, CodingKey, CaseIterable {
-    case kind, circleId, ts, placeId, event, name, emoji, notice, minutes
+    case kind, circleId, ts, placeId, event, name, emoji, notice, minutes, meetAt
   }
 
   static func fields(_ kind: Kind) -> Set<String> {
@@ -138,6 +140,7 @@ public struct PushBody: Decodable, Equatable, Sendable {
     case .bump: return ["kind", "circleId", "ts"]
     case .notice: return ["kind", "notice", "circleId", "ts"]
     case .late: return ["kind", "circleId", "minutes", "ts"]
+    case .meeting: return ["kind", "circleId", "name", "emoji", "meetAt", "ts"]
     }
   }
 
@@ -161,6 +164,7 @@ public struct PushBody: Decodable, Equatable, Sendable {
     emoji = try c.decodeIfPresent(String.self, forKey: .emoji)
     notice = try c.decodeIfPresent(String.self, forKey: .notice)
     minutes = try c.decodeIfPresent(Int.self, forKey: .minutes)
+    meetAt = try c.decodeIfPresent(UInt64.self, forKey: .meetAt)
     switch kind {
     case .place:
       _ = try Encoding.uuidBytes(placeId ?? "")
@@ -171,6 +175,10 @@ public struct PushBody: Decodable, Equatable, Sendable {
       guard let notice, Self.notices.contains(notice) else { throw BarguCryptoError.malformed }
     case .late:
       guard let minutes, (1...600).contains(minutes) else { throw BarguCryptoError.malformed }
+    case .meeting:
+      guard Strict.isDisplayText(name, max: 40), Strict.isDisplayText(emoji, max: 16),
+        let meetAt, meetAt <= 9_007_199_254_740_991
+      else { throw BarguCryptoError.malformed }
     case .bump:
       break
     }

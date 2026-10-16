@@ -128,15 +128,18 @@ export type PlacePayload = z.infer<typeof placePayloadSchema>;
  * An event's meeting (docs/ADR/0018): when, and at which of the circle's places. One per circle
  * (its id is the circle's), editable by every member, stored encrypted like places.
  */
-export const planPayloadSchema = z
-  .object({
-    kind: z.literal('plan'),
-    id: z.uuid(),
-    meetAt: timestamp.optional(),
-    placeId: z.uuid().optional(),
-    ts: timestamp,
-  })
-  .strict();
+export const planPayloadSchema = z.object({
+  kind: z.literal('plan'),
+  id: z.uuid(),
+  meetAt: timestamp.optional(),
+  placeId: z.uuid().optional(),
+  /**
+   * Who started a meeting outside an event (docs/ADR/0026): they and the circle's admins change
+   * or end it. Never in an event's plan, which older apps read strictly.
+   */
+  by: z.uuid().optional(),
+  ts: timestamp,
+});
 export type PlanPayload = z.infer<typeof planPayloadSchema>;
 
 /** Options of a poll: two to four times, or two to four of the circle's places. */
@@ -211,6 +214,16 @@ export const latePayloadSchema = z
   })
   .strict();
 
+/**
+ * "Geldim" (docs/ADR/0026 §5): the sender says they are at the meeting themselves, so a coarse
+ * location never has to tell it. Names the meeting by its time, like `late`.
+ */
+export const arrivedPayloadSchema = z.object({
+  kind: z.literal('arrived'),
+  meetAt: timestamp,
+  ts: timestamp,
+});
+
 /** Everything a sender can put inside an encrypted message envelope (BARGU_PLAN §3.1). */
 /**
  * The sender's look (docs/ADR/0025 §3): the island pattern and the sticker edge they chose, and the
@@ -237,6 +250,7 @@ export const payloadSchema = z.discriminatedUnion('kind', [
   placePayloadSchema,
   latePayloadSchema,
   lookPayloadSchema,
+  arrivedPayloadSchema,
 ]);
 
 /**

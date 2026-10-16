@@ -4,13 +4,14 @@
  * read a paused circle). The app sends it on every request and on the event socket; an app that
  * sends nothing is level 0. A server whose minimum is above it answers 426 UPGRADE_REQUIRED.
  */
-export const CLIENT_LEVEL = 2;
+export const CLIENT_LEVEL = 3;
 
 /**
  * From which level an app reads what a server sends; an older one is not sent it at all (ADR 0024
- * §10): 1 reads a paused circle (32b0f2d), 2 a purchase request on the guardian view (slice 2c).
+ * §10): 1 reads a paused circle (32b0f2d), 2 a purchase request on the guardian view (slice 2c), 3
+ * a meeting outside an event (docs/ADR/0026).
  */
-export const CLIENT_LEVEL_FOR = { purchaseRequests: 2 } as const;
+export const CLIENT_LEVEL_FOR = { purchaseRequests: 2, circleMeetings: 3 } as const;
 
 /** Request header carrying CLIENT_LEVEL; older servers ignore it. */
 export const CLIENT_LEVEL_HEADER = 'x-bargu-client';

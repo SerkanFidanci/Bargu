@@ -19,6 +19,7 @@ import { AccountPurge } from './account/account-purge.js';
 import { AccountSweeper } from './account/account-sweeper.js';
 import { GuardianSweeper } from './guardians/guardian-sweeper.js';
 import { PlanEvents } from './billing/plan-events.js';
+import { MeetingSweeper } from './docs/meeting-sweeper.js';
 import { PlanSweeper } from './billing/plan-sweeper.js';
 
 /** The background worker process: runs jobs and maintains the queues. No HTTP. */
@@ -49,6 +50,7 @@ export class WorkerModule {
         GuardianSweeper,
         PlanEvents,
         PlanSweeper,
+        MeetingSweeper,
       ],
     };
   }

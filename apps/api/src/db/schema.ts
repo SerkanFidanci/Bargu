@@ -209,6 +209,8 @@ export const circleDocs = app.table('circle_docs', {
   envelope: jsonb('envelope').notNull(),
   version: integer('version').notNull().default(1),
   updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+  /** A meeting outside an event: when it goes (migration 0032, docs/ADR/0026). */
+  endsAt: timestamptz('ends_at'),
 });
 
 /** The notice read and explicit consent, per purpose (docs/ADR/0022). */

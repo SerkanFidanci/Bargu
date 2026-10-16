@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { verifyDocumentEnvelope, voteId } from '@bargu/crypto';
 import {
+  CLIENT_LEVEL_FOR,
   docEnvelopeSchema,
   type DocPut,
   type DocRecord,
@@ -15,9 +16,16 @@ import { circleDocs, circleMembers, circles } from '../db/schema.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
+import { Notifier } from '../push/notifier.js';
 
 /** Saves and deletes per user: voting and planning are taps, re-sealing an event a few dozen. */
-export const DOC_LIMITS = { saves: { limit: 120, windowSeconds: 60 } } as const;
+export const DOC_LIMITS = {
+  saves: { limit: 120, windowSeconds: 60 },
+  /** Notices of a meeting started outside an event, per member (docs/ADR/0026 §6). */
+  meetingNotices: { limit: 6, windowSeconds: 3600 },
+} as const;
+/** How far ahead a meeting outside an event may end (migration 0032 says the same). */
+export const MEETING_MAX_AHEAD_MS = 8 * 24 * 3600_000;
 
 /**
  * Documents of event circles (docs/ADR/0018, 0020): the meeting, polls and votes. Each is the
@@ -35,12 +43,24 @@ export class DocsService {
     private readonly database: DatabaseService,
     private readonly events: EventsService,
     private readonly limiter: RateLimiter,
+    private readonly notifier: Notifier,
   ) {}
 
-  /** An event's documents; empty unless the caller is an active member (row-level security). */
-  async list(auth: AuthContext, circleId: string): Promise<DocRecord[]> {
-    const rows = await this.database.asUser(auth.userId, (tx) =>
-      tx
+  /**
+   * A circle's documents; empty unless the caller is an active member (row-level security). A
+   * meeting outside an event only to apps of level 3 and newer (docs/ADR/0026 §7): older ones read
+   * an event's documents only.
+   */
+  async list(auth: AuthContext, circleId: string, clientLevel: number): Promise<DocRecord[]> {
+    const rows = await this.database.asUser(auth.userId, async (tx) => {
+      if (clientLevel < CLIENT_LEVEL_FOR.circleMeetings) {
+        const [circle] = await tx
+          .select({ expiresAt: circles.expiresAt })
+          .from(circles)
+          .where(eq(circles.id, circleId));
+        if (circle?.expiresAt === null) return [];
+      }
+      return tx
         .select({
           circleId: circleDocs.circleId,
           id: circleDocs.id,
@@ -49,8 +69,8 @@ export class DocsService {
           envelope: circleDocs.envelope,
         })
         .from(circleDocs)
-        .where(eq(circleDocs.circleId, circleId)),
-    );
+        .where(eq(circleDocs.circleId, circleId));
+    });
     return rows.flatMap((row) => {
       const envelope = docEnvelopeSchema.safeParse(row.envelope);
       return envelope.success ? [{ ...row, envelope: envelope.data }] : [];
@@ -64,7 +84,7 @@ export class DocsService {
     input: DocPut,
   ): Promise<{ version: number }> {
     await this.limit(auth);
-    const { envelope, kind, pollId } = input;
+    const { envelope, kind, pollId, endsAt, pushes } = input;
     if (
       envelope.circleId !== circleId ||
       envelope.senderDeviceId !== auth.deviceId ||
@@ -74,31 +94,50 @@ export class DocsService {
       throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
     }
     const shared = kind !== 'vote';
-    const { version, others } = await this.database.asUser(auth.userId, async (tx) => {
+    const { version, others, started } = await this.database.asUser(auth.userId, async (tx) => {
       const members = await this.activeMembers(tx, circleId);
       const me = members.find((member) => member.userId === auth.userId);
       if (me === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
-      if (me.expiresAt === null) throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
-      // Ended, the sweep about to delete it: nothing more is written (QA Faz 8 D3).
-      if (me.expiresAt.getTime() <= Date.now()) {
-        throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      const event = me.expiresAt !== null;
+      if (me.expiresAt !== null) {
+        // Ended, the sweep about to delete it: nothing more is written (QA Faz 8 D3).
+        if (me.expiresAt.getTime() <= Date.now()) {
+          throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+        }
+        // An event's documents go with the event: they name no end and notify nobody themselves.
+        if (endsAt !== undefined || pushes !== undefined) {
+          throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+        }
+      } else {
+        // Outside an event only the meeting (docs/ADR/0026), and it says when it goes.
+        if (kind !== 'plan') throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+        if (
+          endsAt === undefined ||
+          endsAt <= Date.now() ||
+          endsAt > Date.now() + MEETING_MAX_AHEAD_MS
+        ) {
+          throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+        }
       }
       if (envelope.epoch !== me.epoch) throw new ApiError(HttpStatus.CONFLICT, 'EPOCH_STALE');
-      // The meeting and polls are the admins' (row-level security holds the same rule); said so,
-      // rather than the "someone was faster" a refused compare-and-set would say.
-      if (kind !== 'vote' && me.role !== 'owner') {
+      // An event's meeting and polls are the admins' (row-level security holds the same rule);
+      // said so, rather than the "someone was faster" a refused compare-and-set would say.
+      if (event && kind !== 'vote' && me.role !== 'owner') {
         throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
       }
-      // One save at a time per event: the count below stays true until this one commits.
+      // One save at a time per circle: the count below stays true until this one commits.
       await tx.execute(
         sql`SELECT pg_advisory_xact_lock(hashtextextended(${`docs:${circleId}`}, 0))`,
       );
+      const meetingEnd = event || endsAt === undefined ? null : new Date(endsAt);
       let saved: { version: number }[];
       if (input.version === null) {
         const [{ total } = { total: 0 }] = await tx
           .select({ total: count() })
           .from(circleDocs)
           .where(eq(circleDocs.circleId, circleId));
+        // One meeting at a time outside an event: the others see it, and start none.
+        if (!event && total > 0) throw new ApiError(HttpStatus.CONFLICT, 'MEETING_EXISTS');
         if (total >= MAX_DOCS_PER_CIRCLE) throw new ApiError(HttpStatus.CONFLICT, 'DOCS_FULL');
         if (
           kind === 'poll' &&
@@ -112,14 +151,33 @@ export class DocsService {
         }
         saved = await tx
           .insert(circleDocs)
-          .values({ circleId, id: docId, authorId: auth.userId, shared, kind, pollId, envelope })
+          .values({
+            circleId,
+            id: docId,
+            authorId: auth.userId,
+            shared,
+            kind,
+            pollId,
+            envelope,
+            endsAt: meetingEnd,
+          })
           .onConflictDoNothing()
           .returning({ version: circleDocs.version });
       } else {
+        // Outside an event only its starter and the circle's admins change the meeting (and
+        // row-level security); said so, rather than "someone was faster".
+        if (!event && !(await this.mayRun(tx, circleId, auth.userId, me.role))) {
+          throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+        }
         // Row-level security leaves out others' own documents (votes): those are a conflict too.
         saved = await tx
           .update(circleDocs)
-          .set({ envelope, version: sql`${circleDocs.version} + 1`, updatedAt: new Date() })
+          .set({
+            envelope,
+            version: sql`${circleDocs.version} + 1`,
+            updatedAt: new Date(),
+            ...(event ? {} : { endsAt: meetingEnd }),
+          })
           .where(
             and(
               eq(circleDocs.circleId, circleId),
@@ -135,24 +193,58 @@ export class DocsService {
       return {
         version: row.version,
         others: members.filter((member) => member.userId !== auth.userId).map((m) => m.userId),
+        started: !event && input.version === null,
       };
     });
     await this.events.publish(others, { type: 'docs.changed', circleId });
+    if (started && pushes !== undefined) await this.tellStarted(auth, others, pushes);
     return { version };
   }
 
   async remove(auth: AuthContext, circleId: string, docId: string): Promise<void> {
     await this.limit(auth);
     const others = await this.database.asUser(auth.userId, async (tx) => {
+      const members = await this.activeMembers(tx, circleId);
+      const me = members.find((member) => member.userId === auth.userId);
+      // Outside an event only its starter and the circle's admins end the meeting (and RLS).
+      if (me?.expiresAt === null && !(await this.mayRun(tx, circleId, auth.userId, me.role))) {
+        throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+      }
       const removed = await tx
         .delete(circleDocs)
         .where(and(eq(circleDocs.circleId, circleId), eq(circleDocs.id, docId)))
         .returning({ id: circleDocs.id });
       if (removed.length === 0) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
-      const members = await this.activeMembers(tx, circleId);
       return members.filter((member) => member.userId !== auth.userId).map((m) => m.userId);
     });
     await this.events.publish(others, { type: 'docs.changed', circleId });
+  }
+
+  /** Whether the caller runs the circle's meeting outside an event: its starter or an admin. */
+  private async mayRun(tx: Tx, circleId: string, userId: string, role: string): Promise<boolean> {
+    if (role === 'owner') return true;
+    const [row] = await tx
+      .select({ authorId: circleDocs.authorId })
+      .from(circleDocs)
+      .where(and(eq(circleDocs.circleId, circleId), eq(circleDocs.id, circleId)));
+    return row?.authorId === userId;
+  }
+
+  /**
+   * A meeting just started outside an event (docs/ADR/0026 §6): the starter's sealed notices go to
+   * the members whose app is not connected (the others see it come), a few an hour at most.
+   */
+  private async tellStarted(
+    auth: AuthContext,
+    others: readonly string[],
+    pushes: NonNullable<DocPut['pushes']>,
+  ): Promise<void> {
+    const { limit, windowSeconds } = DOC_LIMITS.meetingNotices;
+    const hit = await this.limiter.hit(`meeting-notice:${auth.userId}`, limit, windowSeconds);
+    if (!hit.allowed) return;
+    const online = await this.events.online(others);
+    const offline = new Set(others.filter((userId) => !online.has(userId)));
+    await this.notifier.forward(pushes.filter((push) => offline.has(push.userId)));
   }
 
   private async limit(auth: AuthContext): Promise<void> {
