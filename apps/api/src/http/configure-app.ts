@@ -1,7 +1,19 @@
+import { CLIENT_LEVEL_HEADER, clientLevelOf } from '@bargu/schemas';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 
+import { ENV } from '../config/config.module.js';
+import type { Env } from '../config/env.js';
+
 const JSON_CONTENT_TYPE = /^application\/json(;|$)/i;
+
+/**
+ * The app's routes, which an app too old for the server may not use (QA 19 P4). Not the account
+ * web page's (a browser sends no level) and not the event socket (checked at its handshake).
+ */
+export function servesOnlyNewApps(url: string): boolean {
+  return url.startsWith('/v1/') && !url.startsWith('/v1/web/') && !url.startsWith('/v1/events');
+}
 
 /** Applies the HTTP hardening shared by the real server and the e2e tests. */
 export function configureApp(app: NestFastifyApplication): NestFastifyApplication {
@@ -17,6 +29,21 @@ export function configureApp(app: NestFastifyApplication): NestFastifyApplicatio
   const fastify = app.getHttpAdapter().getInstance();
   fastify.addHook('onRequest', (request, reply, done) => {
     void reply.header('x-request-id', request.id);
+    done();
+  });
+  // An app older than the server serves is told to update before anything else is looked at.
+  const { MIN_CLIENT_LEVEL } = app.get<symbol, Env>(ENV);
+  fastify.addHook('onRequest', (request, reply, done) => {
+    if (
+      MIN_CLIENT_LEVEL > 0 &&
+      servesOnlyNewApps(request.url) &&
+      clientLevelOf(request.headers[CLIENT_LEVEL_HEADER]) < MIN_CLIENT_LEVEL
+    ) {
+      void reply
+        .status(426)
+        .send({ statusCode: 426, error: 'UPGRADE_REQUIRED', code: 'UPGRADE_REQUIRED' });
+      return;
+    }
     done();
   });
   // The API speaks JSON only. Any other body type is refused before parsing, so request signatures

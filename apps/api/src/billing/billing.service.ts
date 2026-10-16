@@ -1,6 +1,6 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { Plan, PlanRecords, PlusProduct, TestPurchase, TestSimulate } from '@bargu/schemas';
-import { and, eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 import { HOUR } from '../auth/client-limits.js';
 import type { AuthContext } from '../auth/request-context.js';
@@ -8,7 +8,7 @@ import { ApiError } from '../common/api-error.js';
 import { ENV } from '../config/config.module.js';
 import { billingTestOn, type Env } from '../config/env.js';
 import { entitlements, users } from '../db/schema.js';
-import { DatabaseService } from '../infra/database/database.service.js';
+import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { PlanEvents } from './plan-events.js';
 
@@ -37,6 +37,22 @@ export function plusLive(row: Row, now: number): boolean {
 }
 
 const ms = (date: Date | null) => (date === null ? null : date.getTime());
+
+/** A test row as a store would leave it. */
+interface TestChange {
+  state: Row['state'];
+  expiresAt: Date | null;
+  graceUntil: Date | null;
+  autoRenew: boolean;
+}
+
+/** One of the caller's test rows (or its trial's end), through migration 0029's function. */
+async function changeTest(tx: Tx, id: string, change: TestChange): Promise<void> {
+  await tx.execute(
+    sql`SELECT app.change_test_entitlement(${id}, ${change.state}, ${change.expiresAt},
+         ${change.graceUntil}, ${change.autoRenew})`,
+  );
+}
 
 /**
  * The account's plan and its test purchases (docs/ADR/0024). Test purchases and simulations exist
@@ -101,6 +117,7 @@ export class BillingService {
   async testPurchase(auth: AuthContext, input: TestPurchase): Promise<Plan> {
     await this.guard(auth);
     const now = new Date();
+    const before = await this.planEvents.openness(auth.userId);
     const changedPlus = await this.database.asUser(auth.userId, async (tx) => {
       // 15-17: a purchase needs a parent's yes (docs/ADR/0023, 0024 §5), not given here yet.
       const [me] = await tx
@@ -109,14 +126,12 @@ export class BillingService {
         .where(eq(users.id, auth.userId));
       if (me?.band === '15-17') throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
       const mine = await tx.select().from(entitlements).where(eq(entitlements.userId, auth.userId));
+      // Written only through migration 0029's functions: source 'test', the caller's own rows.
+      const add = (product: string, expiresAt: Date | null, autoRenew: boolean) =>
+        tx.execute(sql`SELECT app.add_test_entitlement(${product}, ${expiresAt}, ${autoRenew})`);
       if (input.product.startsWith('cosmetic:')) {
         if (!mine.some((row) => row.product === input.product && row.state === 'active')) {
-          await tx.insert(entitlements).values({
-            userId: auth.userId,
-            product: input.product,
-            source: 'test',
-            startsAt: now,
-          });
+          await add(input.product, null, false);
         }
         return false;
       }
@@ -127,37 +142,35 @@ export class BillingService {
       }
       // Switching between monthly and yearly: the test plan running now ends first.
       for (const row of live) {
-        await tx
-          .update(entitlements)
-          .set({ state: 'expired', expiresAt: now, autoRenew: false, updatedAt: now })
-          .where(eq(entitlements.id, row.id));
+        await changeTest(tx, row.id, {
+          state: 'expired',
+          expiresAt: now,
+          graceUntil: null,
+          autoRenew: false,
+        });
       }
-      await tx.insert(entitlements).values({
-        userId: auth.userId,
-        product,
-        source: 'test',
-        startsAt: now,
-        expiresAt: new Date(now.getTime() + PERIOD_MS[product]),
-        autoRenew: true,
-      });
+      await add(product, new Date(now.getTime() + PERIOD_MS[product]), true);
       return true;
     });
-    if (changedPlus) await this.planEvents.changed(auth.userId);
+    if (changedPlus) await this.planEvents.changed(auth.userId, before);
     return this.plan(auth);
   }
 
   async simulate(auth: AuthContext, input: TestSimulate): Promise<Plan> {
     await this.guard(auth);
     const now = new Date();
+    const before = await this.planEvents.openness(auth.userId);
     await this.database.asUser(auth.userId, async (tx) => {
       const mine = await tx.select().from(entitlements).where(eq(entitlements.userId, auth.userId));
       if (input.action === 'endTrial') {
         const trial = mine.find((row) => row.product === 'trial');
         if (trial === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
-        await tx
-          .update(entitlements)
-          .set({ state: 'expired', expiresAt: now, updatedAt: now })
-          .where(eq(entitlements.id, trial.id));
+        await changeTest(tx, trial.id, {
+          state: 'expired',
+          expiresAt: now,
+          graceUntil: null,
+          autoRenew: false,
+        });
         return;
       }
       // The caller's latest test plan; a store's plan is never touched here.
@@ -170,7 +183,13 @@ export class BillingService {
       if (target === undefined) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
       const period = PERIOD_MS[target.product as PlusProduct];
       const from = Math.max(target.expiresAt?.getTime() ?? 0, now.getTime());
-      const change: Partial<Row> =
+      const kept: TestChange = {
+        state: target.state,
+        expiresAt: target.expiresAt,
+        graceUntil: target.graceUntil,
+        autoRenew: target.autoRenew,
+      };
+      const change: TestChange =
         input.action === 'renew'
           ? {
               state: 'active',
@@ -179,24 +198,22 @@ export class BillingService {
               autoRenew: true,
             }
           : input.action === 'cancel'
-            ? { state: 'canceled', autoRenew: false }
+            ? { ...kept, state: 'canceled', autoRenew: false }
             : input.action === 'expire'
               ? { state: 'expired', expiresAt: now, graceUntil: null, autoRenew: false }
               : input.action === 'fail'
-                ? { state: 'grace', graceUntil: new Date(now.getTime() + GRACE_MS) }
+                ? { ...kept, state: 'grace', graceUntil: new Date(now.getTime() + GRACE_MS) }
                 : input.action === 'recover'
                   ? {
+                      ...kept,
                       state: 'active',
                       expiresAt: new Date(now.getTime() + period),
                       graceUntil: null,
                     }
                   : { state: 'refunded', expiresAt: now, graceUntil: null, autoRenew: false };
-      await tx
-        .update(entitlements)
-        .set({ ...change, updatedAt: now })
-        .where(and(eq(entitlements.id, target.id), eq(entitlements.userId, auth.userId)));
+      await changeTest(tx, target.id, change);
     });
-    await this.planEvents.changed(auth.userId);
+    await this.planEvents.changed(auth.userId, before);
     return this.plan(auth);
   }
 

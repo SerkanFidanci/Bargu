@@ -64,6 +64,8 @@ export type ApiErrorCode =
   | 'CIRCLE_PAUSED'
   /** Already on a plan from a store: a test purchase does not replace it (ADR 0024). */
   | 'ALREADY_SUBSCRIBED'
+  /** This app is older than the server serves (MIN_CLIENT_LEVEL): it has to be updated. */
+  | 'UPGRADE_REQUIRED'
   | 'EPOCH_STALE'
   | 'KEYS_INVALID'
   | 'UNAVAILABLE'

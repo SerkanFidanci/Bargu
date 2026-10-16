@@ -285,6 +285,11 @@ Her başlık `0x01` ile başlar ve JSON'da `v: 1` taşır. Uyumsuz değişiklik 
 (`bargu/v2/…`) + yeni fixture dosyası demektir. Sabitler ve etiketler değişirse fixture testi kırılır;
 bu bilinçli bir kapıdır.
 
+Uygulamanın kendisi ayrıca bir istemci seviyesi taşır: `x-bargu-client` başlığı, canlı bağlantıda
+`client` sorgu parametresi ([ADR 0024 §10](ADR/0024-entitlements-and-test-billing.md)). Bu, mesaj
+formatının sürümü değildir; sunucu eski uygulamayı `426 UPGRADE_REQUIRED` ile güncellemeye yönlendirir.
+İmzanın kapsamında değildir: seviyesini yanlış söyleyen uygulama yalnızca kendini bozar.
+
 ## 12. Hesap yardımcıları (Faz 2)
 
 Mesaj formatının parçası değildir; aynı kütüphaneler ve etiket kuralıyla `packages/crypto/src/auth.ts`

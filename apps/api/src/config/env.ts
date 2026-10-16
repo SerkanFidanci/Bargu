@@ -111,6 +111,12 @@ export const envSchema = z
      * wrong setting); production refuses `on`.
      */
     BILLING_TEST: z.enum(['on', 'off']).optional(),
+    /**
+     * The oldest app served (QA 19 P4, @bargu/schemas CLIENT_LEVEL): below it, every /v1 request
+     * and the event socket answer 426 UPGRADE_REQUIRED. 0 serves every app, including those that
+     * send no level.
+     */
+    MIN_CLIENT_LEVEL: z.coerce.number().int().min(0).max(9999).default(0),
 
     ANDROID_PACKAGE: androidPackage.default('app.bargu'),
     /** Signing certificates of the Android app (assetlinks.json, Play Integrity check). */

@@ -10,6 +10,8 @@ import {
 } from '@bargu/crypto';
 import {
   type AgeBand,
+  CLIENT_LEVEL,
+  CLIENT_LEVEL_HEADER,
   SIGNED_REQUEST_HEADERS,
   type OtpChallenge,
   type Session,
@@ -44,6 +46,8 @@ export interface CallOptions {
   ip?: string;
   /** Override parts of the signature (tests of the verifier). */
   sign?: { timestamp?: number; nonce?: string; signer?: DeviceKeys };
+  /** The app's level it says (CLIENT_LEVEL by default, like the app); null for an old app. */
+  clientLevel?: number | null;
 }
 
 /** Sends a request the way the app will: JSON body, optional bearer token and device signature. */
@@ -51,6 +55,8 @@ export async function call(app: NestFastifyApplication, options: CallOptions): P
   const method = options.method ?? 'POST';
   const payload = options.body === undefined ? undefined : JSON.stringify(options.body);
   const headers: Record<string, string> = {};
+  const level = options.clientLevel === undefined ? CLIENT_LEVEL : options.clientLevel;
+  if (level !== null) headers[CLIENT_LEVEL_HEADER] = String(level);
   if (payload !== undefined) headers['content-type'] = 'application/json';
   if (options.accessToken !== undefined) headers.authorization = `Bearer ${options.accessToken}`;
   if (options.device !== undefined) {

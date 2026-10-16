@@ -53,6 +53,8 @@ x-app-env: &app-env
   DEVICE_ATTESTATION: optional
   # Test purchases (docs/ADR/0024 §6): off unless .env says BILLING_TEST=on; never in production.
   BILLING_TEST: ${BILLING_TEST:-off}
+  # The oldest app served (QA 19 P4): 0 serves all; raise it in .env to make old APKs update.
+  MIN_CLIENT_LEVEL: ${MIN_CLIENT_LEVEL:-0}
 
 services:
   migrate:

@@ -297,3 +297,4 @@ export {
   type TestSimulate,
   testSimulateSchema,
 } from './billing.js';
+export { CLIENT_LEVEL, CLIENT_LEVEL_HEADER, CLIENT_LEVEL_QUERY, clientLevelOf } from './client.js';

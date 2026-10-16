@@ -15,11 +15,13 @@ import {
   type Plan,
   type PublishReply,
 } from '@bargu/schemas';
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { PlanEvents } from '../../src/billing/plan-events.js';
 import { PLANS_SWEPT_KEY, PlanSweeper } from '../../src/billing/plan-sweeper.js';
 import { EventsService } from '../../src/events/events.service.js';
+import { entitlements } from '../../src/db/schema.js';
 import { DatabaseService } from '../../src/infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
 import { createTestApp, type TestApp, testEnv } from './support/app.js';
@@ -219,6 +221,57 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
     // Wrong input is refused before anything happens.
     expect((await buy(dila, 'plus_forever')).statusCode).toBe(400);
     expect((await simulate(dila, 'free')).statusCode).toBe(400);
+  });
+
+  it("lets an account write no plan of its own, and shows it no one else's (QA 19 P1, P2)", async () => {
+    const [ilke, jale] = [await person(test), await person(test)];
+    const circle = await circleWith(test, ilke, jale);
+    const database = test.app.get(DatabaseService);
+    // As the app role for Ilke: no row of hers can be added or changed directly, not even a store's.
+    await expect(
+      database.asUser(ilke.userId, (tx) =>
+        tx.insert(entitlements).values({
+          userId: ilke.userId,
+          product: 'plus_year',
+          source: 'play',
+          expiresAt: new Date(Date.now() + 365 * DAY),
+        }),
+      ),
+    ).rejects.toThrow();
+    await expect(
+      database.asUser(ilke.userId, (tx) =>
+        tx.update(entitlements).set({ expiresAt: new Date(Date.now() + 365 * DAY) }),
+      ),
+    ).rejects.toThrow();
+    expect((await planOf(ilke)).plan).toBe('trial');
+    // The worker's functions answer nothing to a session: not her circles, not who ran out.
+    const leaked = await database.asUser(ilke.userId, async (tx) => ({
+      circles: (await tx.execute(sql`SELECT * FROM app.circles_openness_of(${jale.userId})`)).rows,
+      ended: (
+        await tx.execute(
+          sql`SELECT * FROM app.plans_ended_between(now() - interval '1 year', now() + interval '1 year')`,
+        )
+      ).rows,
+    }));
+    expect(leaked).toEqual({ circles: [], ended: [] });
+    expect((await test.app.get(PlanEvents).openness(jale.userId)).get(circle.id)).toBe(true);
+  });
+
+  it('tells the others only when the circle opens or closes, not who renewed (QA 19 P3)', async () => {
+    const [kaan, lale] = [await person(test), await person(test)];
+    const circle = await circleWith(test, kaan, lale);
+    await buy(kaan, 'plus_month');
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+    // Lale's trial keeps it open anyway: Kaan cancelling or renewing changes nothing for her.
+    await simulate(kaan, 'cancel');
+    await simulate(kaan, 'renew');
+    expect(told).not.toHaveBeenCalledWith(expect.arrayContaining([lale.userId]), {
+      type: 'circle.changed',
+      circleId: circle.id,
+      epoch: circle.epoch,
+    });
+    expect(told).toHaveBeenCalledWith([kaan.userId], { type: 'plan.changed' });
+    told.mockRestore();
   });
 
   it("asks a parent's yes before a 15-17 account buys anything", async () => {

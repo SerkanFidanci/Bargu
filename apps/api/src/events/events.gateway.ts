@@ -1,17 +1,19 @@
-import { HttpStatus, Logger } from '@nestjs/common';
+import { HttpStatus, Inject, Logger } from '@nestjs/common';
 import {
   type OnGatewayConnection,
   type OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
-import type { ResumeReply } from '@bargu/schemas';
+import { CLIENT_LEVEL_QUERY, clientLevelOf, type ResumeReply } from '@bargu/schemas';
 import type { Server, Socket } from 'socket.io';
 import { z } from 'zod';
 
 import { AuthContexts } from '../auth/auth-contexts.js';
 import { RequestSignatures } from '../auth/request-signatures.js';
 import { ApiError } from '../common/api-error.js';
+import { ENV } from '../config/config.module.js';
+import type { Env } from '../config/env.js';
 import { deviceRoom, EventsService, type SocketConnection, userRoom } from './events.service.js';
 
 /** Path of the event socket; the handshake signature covers "GET <this path>". */
@@ -65,11 +67,18 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
     private readonly events: EventsService,
     private readonly contexts: AuthContexts,
     private readonly signatures: RequestSignatures,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   afterInit(server: Server): void {
     this.events.attach(server);
     server.use((socket, next) => {
+      // An app older than the server serves (QA 19 P4): its level rides in the query, since the
+      // auth object is strict (older servers would refuse a new field there).
+      if (clientLevelOf(socket.handshake.query[CLIENT_LEVEL_QUERY]) < this.env.MIN_CLIENT_LEVEL) {
+        next(new Error('UPGRADE_REQUIRED'));
+        return;
+      }
       this.authenticate(socket).then(
         (connection) => {
           this.events.bind(socket, connection);

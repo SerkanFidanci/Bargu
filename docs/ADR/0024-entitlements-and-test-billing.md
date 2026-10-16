@@ -84,6 +84,10 @@ yeni tablo `app.entitlements`:
 - Bir hesaba bir deneme. Hesabını silip aynı e-postayla yeniden açan yeni deneme alır. Bu kabul
   edilen bir risktir: e-postayı silmeden sonra tutmak, "hesabın ve bütün verilerin silinir" sözüyle
   çelişirdi (ADR 0022).
+- **Kabul edilen risk; Faz 10'da mağaza denemesine taşınır (QA 19 P5, PM kararı):** Kapalı testte
+  gerçek ödeme yok, bu yüzden şimdilik kabul. Gerçek ödemeye geçince deneme mağazanın kendi ücretsiz
+  deneme teklifine taşınır; Google Play denemeyi Google hesabı başına kendisi sınırlar. Silinen
+  hesabın e-postası yine saklanmaz, silme sözü bozulmaz.
 - Deneme kart istemez ve bitince kendiliğinden ücretliye geçmez.
 - **Hatırlatma:** Bitime 3 gün kala telefon kendi yerel bildirimini kurar (`trialEndsAt`'ten);
   uygulamada da kart çıkar. Bitince "Deneme bitti" kartı. Sunucu bildirimi gerekmez.
@@ -156,6 +160,25 @@ yeni tablo `app.entitlements`:
 - Bedava ve ücretli sınırlar ekranda yazılıdır.
 - Sonradan bedava bir özellik ücretliye taşınmaz.
 
+### 10. En eski desteklenen uygulama (QA 19 P4)
+
+- Uygulama her istekte kendi seviyesini `x-bargu-client` başlığında gönderir
+  (`@bargu/schemas` `CLIENT_LEVEL`, bu sürümde 1). Canlı bağlantıda aynı değer bağlantının sorgu
+  parametresindedir (`client`), çünkü eski sunucular kimlik nesnesindeki yeni alanı reddeder.
+  Seviye göndermeyen uygulama 0 sayılır.
+- Sunucunun ortam değeri `MIN_CLIENT_LEVEL` (varsayılan 0: herkese hizmet). Değer uygulamanın
+  seviyesinden büyükse her `/v1` isteği ve canlı bağlantı `426 UPGRADE_REQUIRED` alır, istek başka
+  hiçbir şeye bakılmadan durur. Hesap web sayfası (`/v1/web`, `/hesap`), sağlık uçları ve gizlilik
+  sayfası etkilenmez (tarayıcı seviye göndermez).
+- Seviye, eski uygulamaların sunucunun gönderdiğini yanlış okuyacağı bir değişiklikte artırılır.
+  Örnek: 32b0f2d öncesi APK'lar duraklamış çemberi okuyamaz; denemeler bitmeden önce staging'de
+  `MIN_CLIENT_LEVEL=1` yapılabilir.
+- Uygulama 426 alınca bütün ekranın yerine "Yeni sürüm gerekiyor" ekranını gösterir: güncelleyene
+  kadar konumun paylaşılmadığını ve yeni konumları göremeyeceğini söyler. Düğme yoktur (yenileme
+  yasak); güncelleme indirme bağlantısından ya da mağazadan gelir.
+- Bu kapıdan önceki APK'lar 426'yı tanımaz; yalnızca genel hata metnini gösterebilirler. Kapalı
+  testte herkes güncelleyebilir; kapı bundan sonraki sürümler için kurulur.
+
 ## Sonuçlar
 
 - **Sunucunun yeni öğrendikleri:** Kimde Bargu+ ya da deneme var, hangi süsler alınmış, hangi
@@ -179,5 +202,14 @@ yeni tablo `app.entitlements`:
   - Konum aktarımının ret nedenlerine `PAUSED` eklendi.
 - **Duraklamanın yan etkisi:** Duraklama sunucuda da uygulandığı için eski uygulama sürümleri
   duraklamış çembere konum gönderemez; hata kodunu tanımayan eski sürüm yalnızca konumunu iletemez.
+- **QA 19 düzeltmeleri (dilim 2):**
+  - P1: Uygulama rolü hak tablosuna doğrudan yazamaz. Test satın alma ve denemenin bitişi yalnızca
+    migration 0029'un işlevleriyle yazılır: kaynak `test`, yalnızca çağıranın kendi satırları; bir
+    hesabın kendine bedava `play` planı yazması böylece kapanır.
+  - P2: İşçinin işlevleri (`plans_ended_between`, `circles_openness_of`) bir oturum içinden
+    çağrılınca hiçbir şey döndürmez.
+  - P3: Plan değişikliği diğer üyelere yalnızca çemberin açıklığı gerçekten değiştiğinde söylenir.
+    İptal ya da yenileme çemberi açık bırakıyorsa kimse bir şey duymaz; iki kişilik çemberde kimin
+    ne yaptığı böylece sızmaz. Kişinin kendisi her değişiklikte `plan.changed` alır.
 - **Fiyatlar:** Tahmindir, doğrulanmadı. Gerçek ödeme için Play geliştirici hesabı gerekir (proje
   sahibi).
