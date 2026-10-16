@@ -4,6 +4,7 @@ import { type Circle, locPayloadSchema, type MessageEnvelope, type Payload } fro
 type StatusPayload = Extract<Payload, { kind: 'status' }>;
 type ProfilePayload = Extract<Payload, { kind: 'profile' }>;
 type ArrivedPayload = Extract<Payload, { kind: 'arrived' }>;
+type LookPayload = Extract<Payload, { kind: 'look' }>;
 type PlaceEventPayload = Extract<Payload, { kind: 'place_enter' | 'place_exit' }>;
 type LatePayload = Extract<Payload, { kind: 'late' }>;
 import { z } from 'zod';
@@ -58,6 +59,8 @@ export interface ReceiverDeps {
   onStatus?: (circleId: string, userId: string, status: StatusPayload) => void;
   /** A member's profile message (their photo key, docs/ADR/0014). */
   onProfile?: (userId: string, profile: ProfilePayload, senderDeviceId: string) => void;
+  /** A member's look: the cosmetics they chose and the server's pass (docs/ADR/0025). */
+  onLook?: (userId: string, look: LookPayload) => void;
   /** A member arrived at or left one of the circle's places (docs/ADR/0015). */
   onPlace?: (circleId: string, userId: string, event: PlaceEventPayload) => void;
   /** A member will be late to the event's meeting (docs/ADR/0018). */
@@ -102,6 +105,7 @@ export function createReceiver({
   onBump,
   onStatus,
   onProfile,
+  onLook,
   onPlace,
   onLate,
   onArrived,
@@ -216,6 +220,10 @@ export function createReceiver({
       }
       if (payload.kind === 'profile') {
         onProfile?.(sender.userId, payload, envelope.senderDeviceId);
+        return 'shown';
+      }
+      if (payload.kind === 'look') {
+        onLook?.(sender.userId, payload);
         return 'shown';
       }
       if (payload.kind === 'status') {
