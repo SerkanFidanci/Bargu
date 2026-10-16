@@ -35,7 +35,10 @@ beforeAll(async () => {
       done();
     },
   });
-  test = await createTestApp({ env: testEnv({ LOG_LEVEL: 'trace' }), logStream });
+  test = await createTestApp({
+    env: testEnv({ LOG_LEVEL: 'trace', BILLING_TEST: 'on' }),
+    logStream,
+  });
 });
 afterAll(async () => {
   await test.close();
@@ -269,10 +272,11 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
   });
 });
 
-describe('test billing turned off (docs/ADR/0024 §6)', () => {
+describe('test billing not turned on (docs/ADR/0024 §6, fail-closed)', () => {
+  // Nothing set, as on a server whose setting went missing.
   let off: TestApp;
   beforeAll(async () => {
-    off = await createTestApp({ env: testEnv({ BILLING_TEST: 'off' }) });
+    off = await createTestApp({ env: testEnv() });
   });
   afterAll(async () => {
     await off.close();

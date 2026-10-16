@@ -51,6 +51,8 @@ x-app-env: &app-env
   FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:-}
   # Store accounts (Apple, Google Play) do not exist yet; production requires attestation.
   DEVICE_ATTESTATION: optional
+  # Test purchases (docs/ADR/0024 §6): off unless .env says BILLING_TEST=on; never in production.
+  BILLING_TEST: ${BILLING_TEST:-off}
 
 services:
   migrate:

@@ -98,9 +98,14 @@ yeni tablo `app.entitlements`:
 
 ### 6. Sahte ödeme (test satın alma)
 
-- Ortam bayrağı `BILLING_TEST` (`on` / `off`, varsayılan `off`). Üretim yapılandırması `on`'u
-  reddeder (env.ts üretim kontrolü). Bayrak kapalıyken test uçları **404** döner. Entegrasyon testi
-  hem 404'ü hem üretim yapılandırmasının reddini sınar.
+- Ortam bayrağı `BILLING_TEST` (`on` / `off`). **Kapalı varsayılan (fail-closed, PM kararı
+  2026-10-16):** bayrak verilmezse ortam ne olursa olsun test uçları kapalıdır; yalnızca açıkça `on`
+  yazılınca açılır. Gerekçe: bedava Bargu+ veren bir uç, eksik ya da yanlış bir üretim ayarıyla
+  (`NODE_ENV`, `APP_ENV`) kendiliğinden açılmamalı. Üretim yapılandırması `on`'u ayrıca reddeder
+  (env.ts üretim kontrolü). Kapalıyken test uçları **404** döner. Testler: bayrak yokken 404
+  (entegrasyon), üretimde `on` reddedilir ve bayraksız ortam kapalıdır (birim).
+- Staging'de bayrak açıkça açıktır: Bargu'nun sunucudaki ortam dosyasında `BILLING_TEST=on`;
+  `infra/staging/compose.yml` onu API'ye ve işçiye geçirir, yoksa `off`.
 - Uçlar (oturumlu ve cihaz imzalı; hesap başına sıkı hız sınırı):
   - `POST /v1/billing/test/purchase` `{ product }`: kaynağı `test` olan hak verir. `plus_month`
     30 gün, `plus_year` 365 gün sürer; süs kalıcıdır. 15–17 için yalnızca onaylanmış bir istekle.

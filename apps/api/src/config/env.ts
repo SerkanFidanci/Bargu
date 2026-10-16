@@ -106,8 +106,9 @@ export const envSchema = z
     WEB_ORIGIN: webOrigin.optional(),
 
     /**
-     * Test purchases (docs/ADR/0024 §6): `on` lets accounts buy Bargu+ with no payment. Without
-     * it, on everywhere but production; production refuses `on`.
+     * Test purchases (docs/ADR/0024 §6): only `on` lets accounts buy Bargu+ with no payment.
+     * Fail-closed: unset is off wherever it runs (a free Bargu+ must never open by a missing or
+     * wrong setting); production refuses `on`.
      */
     BILLING_TEST: z.enum(['on', 'off']).optional(),
 
@@ -237,10 +238,9 @@ export const envSchema = z
 
 export type Env = z.infer<typeof envSchema>;
 
-/** Whether test purchases work here: on unless said otherwise, never in production. */
+/** Whether test purchases work here: only when turned on, and never in production. */
 export function billingTestOn(env: Pick<Env, 'BILLING_TEST' | 'APP_ENV'>): boolean {
-  if (env.APP_ENV === 'production') return false;
-  return env.BILLING_TEST !== 'off';
+  return env.APP_ENV !== 'production' && env.BILLING_TEST === 'on';
 }
 
 /** Where links in emails point: the account web page's origin, if one is known. */

@@ -128,9 +128,11 @@ describe('parseEnv', () => {
     expect(message).not.toContain('s3cret-pass');
   });
 
-  it('turns test purchases on everywhere but production, unless said (docs/ADR/0024)', () => {
-    expect(billingTestOn(parseEnv(base))).toBe(true);
+  it('keeps test purchases off unless turned on, and never on in production (docs/ADR/0024)', () => {
+    // Fail-closed: nothing set is off, wherever it runs.
+    expect(billingTestOn(parseEnv(base))).toBe(false);
     expect(billingTestOn(parseEnv({ ...base, BILLING_TEST: 'off' }))).toBe(false);
+    expect(billingTestOn(parseEnv({ ...base, BILLING_TEST: 'on' }))).toBe(true);
     expect(billingTestOn(parseEnv(production))).toBe(false);
     expect(billingTestOn(parseEnv({ ...production, BILLING_TEST: 'off' }))).toBe(false);
   });
