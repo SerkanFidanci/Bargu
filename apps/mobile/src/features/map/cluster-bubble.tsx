@@ -36,6 +36,7 @@ import {
 } from '@/theme';
 import { AvatarMarker, type AvatarMarkerProps, PIN_HEIGHT, STICKER } from '@/ui/avatar-marker';
 import { stickerTilt } from '@/ui/sticker';
+import { GLYPH } from '@/ui/activity-glyph';
 import { Text } from '@/ui/text';
 
 import { CLUSTER_PX } from './cluster';
@@ -61,8 +62,20 @@ export interface TogetherPerson {
   above?: ReactNode;
 }
 
-/** Where each avatar sits in the frame, from the centre, left to right. */
-const slotX = (index: number, count: number) => (index - (count - 1) / 2) * STICKER;
+/**
+ * One avatar to the next in the frame: room between them for the left one's status badge on its
+ * upper right (proje sahibi 2026-10-16: "iç içe girmemeli ama sağ üstlerinde durum şeyleri
+ * çıkacak"); the last one's badge sits on the frame's corner, as on a sticker of its own.
+ */
+const FRAME_SLOT = STICKER + GLYPH / 2 + space.xs;
+/** More than two: room on the frame's right for the count, clear of the last avatar's badge. */
+const COUNT_ROOM = GLYPH / 2 + space.lg + space.xxs;
+
+/** The avatars' part of the frame, edge to edge. */
+const avatarsWidth = (count: number) => (count - 1) * FRAME_SLOT + STICKER;
+/** Where each avatar's centre sits from the frame's centre of avatars, left to right. */
+const slotX = (index: number, count: number) =>
+  index * FRAME_SLOT + STICKER / 2 - avatarsWidth(count) / 2;
 
 /** One island flowing from where its person was to under their place, growing as it goes. */
 function Island({
@@ -122,7 +135,7 @@ function Slot({
   const avatar = <AvatarMarker {...person.marker} island={false} framed />;
   return (
     <Animated.View
-      style={[styles.slot, { left: index * STICKER }, sliding]}
+      style={[styles.slot, { left: index * FRAME_SLOT }, sliding]}
       pointerEvents="box-none"
     >
       {person.above === undefined ? null : (
@@ -183,8 +196,11 @@ export function ClusterBubble({
   }, [merge]);
 
   const count = people.length;
-  const frameWidth = count * STICKER;
-  const width = frameWidth + CLUSTER_PX * 2;
+  const listed = more > 0;
+  const avatars = avatarsWidth(count);
+  const frameWidth = avatars + (listed ? COUNT_ROOM : 0);
+  // The avatars stay centred on the position; the count's room reaches out to the right.
+  const width = (avatars / 2 + (listed ? COUNT_ROOM + space.sm : 0) + CLUSTER_PX) * 2;
   const center = { x: width / 2, y: MAP_AVATAR_BOX / 2 };
   const fromOf = (index: number) => offsets[index] ?? { x: 0, y: 0 };
   const tintOf = (person: TogetherPerson) =>
@@ -193,7 +209,6 @@ export function ClusterBubble({
       : (avatarPalette[person.marker.avatar?.color ?? 0] ?? colors.primary);
   const tints = people.map(tintOf);
   const ring = tints.length > 1 ? tints : [...tints, ...tints];
-  const listed = more > 0;
   const appear = useAnimatedStyle(() => ({ opacity: merge.get() }));
 
   const row = (
@@ -248,7 +263,7 @@ export function ClusterBubble({
     </>
   );
   const placed = {
-    left: center.x - frameWidth / 2,
+    left: center.x - avatars / 2,
     top: center.y - PIN_HEIGHT,
     width: frameWidth,
     transform: [{ rotate: `${String(stickerTilt(groupKey) / 2)}deg` }],
