@@ -1,3 +1,5 @@
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { Client } from 'pg';
@@ -33,7 +35,39 @@ function urlFor(base: string, database: string, login?: { role: string; secret: 
   return url.toString();
 }
 
+/** When a file in this repository's packages last changed; null when it is not there. */
+function modifiedAt(path: string): number | null {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- paths inside packages/, built from this file's location
+  return existsSync(path) ? statSync(path).mtimeMs : null;
+}
+
+/**
+ * The packages the API runs as built code (their dist): built before their latest change, tests
+ * fail far from the cause ("cosmeticPublicKey is not a function" after a checkout, QA 21). Stops
+ * with what to run instead; CI builds them first (turbo: test:integration needs ^build).
+ */
+function assertPackagesBuilt(): void {
+  const stale = ['crypto', 'schemas'].filter((name) => {
+    const root = fileURLToPath(new URL(`../../../../packages/${name}/`, import.meta.url));
+    const builtAt = modifiedAt(join(root, 'dist', 'index.js'));
+    if (builtAt === null) return true;
+    const src = join(root, 'src');
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- the package's own src, built from this file's location
+    const files = readdirSync(src, { recursive: true, encoding: 'utf8' });
+    return files
+      .filter((file) => !file.endsWith('.spec.ts'))
+      .some((file) => (modifiedAt(join(src, file)) ?? 0) > builtAt);
+  });
+  if (stale.length > 0) {
+    throw new Error(
+      `packages/{${stale.join(',')}}/dist is older than its src (or missing): run ` +
+        `"pnpm --filter @bargu/schemas --filter @bargu/crypto build" first`,
+    );
+  }
+}
+
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
+  assertPackagesBuilt();
   const database = `bargu_it_${String(Date.now())}_${String(process.pid)}`;
   const admin = new Client({ connectionString: ADMIN_URL });
   await admin.connect();
