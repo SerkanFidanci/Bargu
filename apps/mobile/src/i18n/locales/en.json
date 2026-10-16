@@ -1122,6 +1122,7 @@
     "start": "Start a meeting",
     "startTitle": "Start a meeting",
     "startBody": "Everyone in the circle sees it, no invitation needed. Whoever starts it and the circle's admins can change or end it.",
+    "startBodyPair": "Your friend sees it, no invitation needed. Either of you can change or end it.",
     "startHint": "The meeting ends on its own 3 hours after its time.",
     "startFromPlus": "Pick a place and a time with one of your circles",
     "started": "The meeting started; the circle has been told.",

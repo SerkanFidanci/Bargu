@@ -283,7 +283,7 @@ describe('event documents on the phone', () => {
       by: bora.userId,
       ts: 0,
     });
-    // One store per phone in the app; here both share it: back to Ayşe's view before her sync.
+    // One store per phone in the app; here both share it: back to Ayşe's view before Ayşe syncs.
     useDocs.setState({}, true);
     await ayses.sync();
     expect(started).toHaveBeenCalledTimes(1);
@@ -300,5 +300,30 @@ describe('event documents on the phone', () => {
     expect(stale).toHaveLength(1);
     expect(await borasNext.reseal(stale)).toBe(1);
     expect(server.extras.get(group.id)).toEqual({ endsAt: 2 * HOUR + MEETING.keptMs });
+  });
+
+  it("let either friend seal a friendship's meeting again, whoever started it (ADR 0026 §1)", async () => {
+    const [ayse, bora] = [somebody(), somebody()];
+    const pair = circleOf([ayse, bora], { kind: 'pair', name: null });
+    exchangeKeys(pair, [ayse, bora]);
+    let epoch = pair.epoch;
+    const server = fakeServer(() => epoch);
+    const meeting = {
+      kind: 'plan',
+      id: pair.id,
+      meetAt: 2 * HOUR,
+      by: bora.userId,
+      ts: 0,
+    } as const;
+    await docsOf(bora, () => [pair], server.api).save(pair.id, meeting, { pushes: [] });
+    // A new epoch: Ayşe, who neither started it nor is an admin, seals it again.
+    const next = { ...pair, epoch: 2 };
+    epoch = 2;
+    exchangeKeys(next, [ayse, bora]);
+    useDocs.setState({}, true);
+    const aysesNext = docsOf(ayse, () => [next], server.api);
+    const stale = await aysesNext.sync();
+    expect(stale).toHaveLength(1);
+    expect(await aysesNext.reseal(stale)).toBe(1);
   });
 });

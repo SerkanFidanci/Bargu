@@ -44,7 +44,8 @@ export function votesOf(all: Readonly<Record<string, Doc>>, circleId: string): D
  * same rule.
  */
 export function mayRunMeeting(circle: Pick<Circle, 'id' | 'kind' | 'myRole'>, me: string): boolean {
-  if (circle.myRole === 'owner') return true;
+  // In a friendship the two are equal (docs/ADR/0026 §1).
+  if (circle.myRole === 'owner' || circle.kind === 'pair') return true;
   return circle.kind !== 'event' && planOf(circle.id).by === me;
 }
 

@@ -1122,6 +1122,7 @@
     "start": "Buluşma başlat",
     "startTitle": "Buluşma başlat",
     "startBody": "Çemberdeki herkes görür, davet gerekmez. Başlatan ve çemberin yöneticileri değiştirip bitirebilir.",
+    "startBodyPair": "Arkadaşın görür, davet gerekmez. İkiniz de değiştirip bitirebilirsiniz.",
     "startHint": "Buluşma, saatinden 3 saat sonra kendiliğinden biter.",
     "startFromPlus": "Bir çemberinle yer ve saat belirle",
     "started": "Buluşma başladı; çemberdekilere haber verildi.",

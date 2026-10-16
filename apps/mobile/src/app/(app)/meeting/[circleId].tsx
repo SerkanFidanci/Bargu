@@ -146,7 +146,7 @@ function StartMeeting({ circle }: { circle: Circle }) {
   return (
     <View style={styles.start} testID="meeting-start">
       <Text variant="callout" color="textMuted">
-        {t('meeting.startBody')}
+        {t(circle.kind === 'pair' ? 'meeting.startBodyPair' : 'meeting.startBody')}
       </Text>
       <SectionTitle>{t('plan.placeTitle')}</SectionTitle>
       {circlePlaces.length === 0 ? (

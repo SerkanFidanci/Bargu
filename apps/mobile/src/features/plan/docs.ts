@@ -117,6 +117,8 @@ const activeCircles = (circles: readonly Circle[]) =>
 function mayReseal(circle: Circle, doc: Doc, me: string | null): boolean {
   if (!doc.shared) return doc.authorId === me;
   if (circle.myRole === 'owner') return true;
+  // A friendship's meeting is either one's (docs/ADR/0026 §1).
+  if (circle.kind === 'pair' && doc.payload.kind === 'plan') return true;
   return circle.kind !== 'event' && doc.payload.kind === 'plan' && doc.payload.by === me;
 }
 
