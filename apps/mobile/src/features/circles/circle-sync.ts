@@ -200,12 +200,30 @@ export function createCircleSync({
       });
     },
 
-    /** Re-runs key exchange for a circle after the user acknowledged or verified someone. */
-    resync(circleId: string): Promise<void> {
-      return serial(circleId, async () => {
-        const circle = cachedCircle(queryClient, circleId);
-        if (circle !== undefined) await syncKeys(circle, true);
-      });
+    /**
+     * After the user accepted or verified someone's key: every circle they share is fetched again
+     * and its keys exchanged. Trust is per person, so one circle alone left the others showing
+     * "Anahtar değişti" and never handing them the key (proje sahibi 2026-10-16: a new key accepted
+     * in one circle, the pair and friends circles still on hold).
+     */
+    async resyncMember(userId: string): Promise<void> {
+      const shared = (queryClient.getQueryData<Circle[]>(circlesKey) ?? []).filter(
+        (circle) =>
+          circle.myStatus === 'active' && circle.members.some((member) => member.userId === userId),
+      );
+      const results = await Promise.allSettled(
+        shared.map((circle) =>
+          serial(circle.id, async () => {
+            const fresh = await fetchCircle(circle.id);
+            if (fresh === null) return;
+            remember(fresh, false);
+            await syncKeys(fresh, true);
+          }),
+        ),
+      );
+      if (results.some((result) => result.status === 'rejected')) {
+        throw new Error('some circles could not be synced');
+      }
     },
 
     /** Events in order; several about one circle collapse into one fetch. Throws if any failed. */

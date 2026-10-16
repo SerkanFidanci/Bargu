@@ -43,6 +43,8 @@ export {
   safetyNumber,
   safetyNumberAsync,
   safetyNumberQrMatches,
+  checkSafetyNumberQr,
+  type SafetyNumberQrCheck,
   verifySafetyNumberQr,
   type SafetyNumber,
   type SafetyNumberParty,

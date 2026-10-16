@@ -129,3 +129,22 @@ yayından önce kapatıldı ve her biri testle korunuyor:
   kendiliğinden yeniden sorar (B4).
 - Profil fotoğrafı gibi büyük yüklemeler 15 saniye değil 60 saniye bekler: zayıf ağda baytların
   gitmesi zaman alır, bu ölü bir bağlantı değildir (B5). Yükleme yine yalnızca bir kez gider.
+
+## Ek (2026-10-16, proje sahibinin telefon denemesi: anahtar değişikliği)
+
+- Bir kişinin yeni anahtarı kabul edilince ya da güvenlik numarasıyla doğrulanınca, onunla paylaşılan
+  **bütün** çemberler sunucudan yeniden alınır ve anahtarlar dağıtılır. Önceden yalnızca işlemin
+  yapıldığı çember yenileniyordu. Güven kişiye bağlı olduğu için öbür çemberler "Anahtar değişti"
+  diye kalıyor ve o kişiye anahtar verilmiyordu. Staging'de görüldü: şirket telefonu anahtarını
+  aile çemberinde Seko'nun yeni cihazına göndermiş, ikili ve arkadaş çemberlerinde göndermemişti.
+- Güvenlik numarası ekranı açılınca o çemberi sunucudan yeniden alır: numara telefonda kalmış eski
+  bir anahtarla hesaplanmaz. Taranan kod tutmazsa anahtarlar bir kez daha alınır ve kod yeniden
+  denenir. Yine tutmazsa ekran nedenini söyler:
+  - kod bir güvenlik kodu değil;
+  - sunucunun o kişi için verdiği anahtar onun telefonundakinden farklı (aranızda biri olabilir);
+  - onun telefonu senin anahtarını farklı görüyor (henüz güncellenmemiş olabilir);
+  - kod başka iki kişi arasında;
+  - sunucuya ulaşılamadı.
+
+  Kodun iki yarısı iki kişinin parmak izidir; hangisinin tuttuğuna bakılır
+  (`checkSafetyNumberQr`, `packages/crypto`).

@@ -438,7 +438,16 @@
     "mismatchBody": "Make sure you scanned the right person's code. If it still doesn't match, don't share your location with them.",
     "codeLabel": "Safety number QR code with {{name}}",
     "computing": "Calculating the safety number",
-    "digitsLabel": "Safety number: {{digits}}"
+    "digitsLabel": "Safety number: {{digits}}",
+    "checking": "Getting the keys from the server again and checking…",
+    "notCode": "This is not a safety code",
+    "notCodeBody": "{{name}} should open the Safety number screen with you on their phone and show the code there.",
+    "theirsDiffer": "The key the server gives for {{name}} is not the one on their phone. Someone may be in between: don't share your location with this person.",
+    "mineDiffer": "{{name}}'s phone sees a different key for you; most likely it has not caught up yet. {{name}} should close this screen on their phone and open it again, then scan again. If it still fails, don't share your location.",
+    "otherPair": "This code is for someone else",
+    "otherPairBody": "This code is not between {{name}} and you. {{name}} should open the screen with you on their phone.",
+    "offline": "Could not check",
+    "offlineBody": "The keys could not be fetched from the server. Scan again once connected."
   },
   "notices": {
     "friendRequest": "{{name}} wants to add you as a friend",

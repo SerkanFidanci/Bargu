@@ -2,7 +2,14 @@ import { equalBytes } from '@noble/ciphers/utils.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 import { KEY_BYTES, LABELS, SAFETY_NUMBER_ITERATIONS } from './constants.js';
-import { concatBytes, labelBytes, toBase64url, utf8Encode, uuidToBytes } from './encoding.js';
+import {
+  concatBytes,
+  fromBase64url,
+  labelBytes,
+  toBase64url,
+  utf8Encode,
+  uuidToBytes,
+} from './encoding.js';
 import { BarguCryptoError } from './errors.js';
 import { sha256Hash } from './primitives.js';
 
@@ -84,6 +91,16 @@ export async function safetyNumberAsync(
   pause: () => Promise<void>,
 ): Promise<SafetyNumber> {
   assertTwoUsers(a, b);
+  const [first, second] = await fingerprintsAsync(a, b, pause);
+  return combine(first, second);
+}
+
+/** Both parties' fingerprints, hashed in short slices with `pause` between them. */
+async function fingerprintsAsync(
+  a: SafetyNumberParty,
+  b: SafetyNumberParty,
+  pause: () => Promise<void>,
+): Promise<[Uint8Array, Uint8Array]> {
   const fingerprints: Uint8Array[] = [];
   for (const party of [a, b]) {
     const steps = fingerprintSteps(party, SAFETY_NUMBER_ROUNDS_PER_PAUSE);
@@ -95,8 +112,53 @@ export async function safetyNumberAsync(
       await pause();
     }
   }
-  const [first, second] = fingerprints as [Uint8Array, Uint8Array];
-  return combine(first, second);
+  return fingerprints as [Uint8Array, Uint8Array];
+}
+
+/**
+ * What a scanned code says when it is not the one computed here: whose key the two phones see
+ * differently. `theirsDiffers`: this phone's key for them is not the one their phone has (the
+ * server gave another, or someone is in the middle). `mineDiffers`: their phone has another key
+ * for this phone (it may not have caught up yet). `bothDiffer`: a code between two other people.
+ */
+export type SafetyNumberQrCheck =
+  'match' | 'notSafetyNumber' | 'theirsDiffers' | 'mineDiffers' | 'bothDiffer';
+
+/** The two fingerprints in a scanned code, or null when it is no safety number code of ours. */
+function qrParts(scanned: string): [Uint8Array, Uint8Array] | null {
+  if (!scanned.startsWith(QR_PREFIX)) return null;
+  let bytes: Uint8Array;
+  try {
+    bytes = fromBase64url(scanned.slice(QR_PREFIX.length));
+  } catch {
+    return null;
+  }
+  if (bytes.length !== FINGERPRINT_BYTES * 2) return null;
+  return [bytes.slice(0, FINGERPRINT_BYTES), bytes.slice(FINGERPRINT_BYTES)];
+}
+
+/**
+ * Checks a scanned code half by half against this phone (`me`) and the member (`them`), so the
+ * screen can say which side to look at (proje sahibi 2026-10-16: "kodlar eşleşmedi" said nothing
+ * more). Hashes in slices like safetyNumberAsync.
+ */
+export async function checkSafetyNumberQr(
+  scanned: string,
+  me: SafetyNumberParty,
+  them: SafetyNumberParty,
+  pause: () => Promise<void>,
+): Promise<SafetyNumberQrCheck> {
+  assertTwoUsers(me, them);
+  const parts = qrParts(scanned);
+  if (parts === null) return 'notSafetyNumber';
+  const [mine, theirs] = await fingerprintsAsync(me, them, pause);
+  const has = (fingerprint: Uint8Array) => parts.some((part) => equalBytes(part, fingerprint));
+  const mineThere = has(mine);
+  const theirsThere = has(theirs);
+  if (mineThere && theirsThere) return 'match';
+  if (mineThere) return 'theirsDiffers';
+  if (theirsThere) return 'mineDiffers';
+  return 'bothDiffer';
 }
 
 function assertTwoUsers(a: SafetyNumberParty, b: SafetyNumberParty): void {

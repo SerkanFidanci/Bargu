@@ -68,7 +68,7 @@ function setup() {
   };
   const api = {
     list: jest.fn(() => Promise.resolve([circle])),
-    get: jest.fn(() => Promise.resolve(circle)),
+    get: jest.fn<Promise<Circle>, [string]>(() => Promise.resolve(circle)),
     uploadKeys: jest.fn<Promise<void>, [string, number, SenderKeyDistribution[]]>(() =>
       Promise.resolve(),
     ),
@@ -127,6 +127,35 @@ describe('circle sync', () => {
     await sync.apply([{ type: 'keys.available', circleId: circle.id, epoch: circle.epoch }]);
     expect(store.receivedKey(circle.id, circle.epoch, bob.device.deviceId)).not.toBeNull();
     expect(useCircleKeys.getState()[circle.id]?.ready).toBe(true);
+  });
+
+  it('after a key is accepted, hands ours over in every circle shared with them (2026-10-16)', async () => {
+    const { me, bob, circle, api, store, queryClient, sync } = setup();
+    const friends: Circle = { ...circle, id: randomUuid(), kind: 'friends', name: 'Ev' };
+    const other: Circle = { ...circle, id: randomUuid(), members: [card(me), card(somebody())] };
+    queryClient.setQueryData<Circle[]>(circlesKey, [circle, friends, other]);
+    // Bob's phone was replaced: his new key is on hold everywhere.
+    store.observe(circle);
+    const bobNew = { ...bob, device: generateDeviceKeys(randomUuid()) };
+    const fresh = (shared: Circle) => ({ ...shared, members: [card(me), card(bobNew)] });
+    api.get.mockImplementation((circleId: string) =>
+      Promise.resolve(fresh(circleId === friends.id ? friends : circle)),
+    );
+    store.observe(fresh(circle));
+    expect(store.trust(bob.userId)).toBe('changed');
+
+    store.acknowledgeChange(bob.userId);
+    await sync.resyncMember(bob.userId);
+    // Both circles with Bob are fetched again and get our key; the one without him is left alone.
+    expect(api.get.mock.calls.map(([circleId]) => circleId).sort()).toEqual(
+      [circle.id, friends.id].sort(),
+    );
+    const uploadedTo = api.uploadKeys.mock.calls.map(([circleId]) => circleId);
+    expect(uploadedTo).toEqual(expect.arrayContaining([circle.id, friends.id]));
+    expect(uploadedTo).not.toContain(other.id);
+    for (const shared of [circle, friends]) {
+      expect(useCircleKeys.getState()[shared.id]?.trust[bob.userId]).toBe('unverified');
+    }
   });
 
   it('forgets a circle that is gone, with its keys', async () => {

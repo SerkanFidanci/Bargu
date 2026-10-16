@@ -478,7 +478,7 @@ function ChangedKeyNotice({ circle, member }: { circle: Circle; member: MemberCa
         onPress: () => {
           keys().acknowledgeChange(member.userId);
           feedback('success');
-          void circleSync.resync(circle.id).catch(() => undefined);
+          void circleSync.resyncMember(member.userId).catch(() => undefined);
         },
       },
     ]);

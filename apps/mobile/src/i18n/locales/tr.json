@@ -438,7 +438,16 @@
     "mismatchBody": "Doğru kişinin kodunu okuttuğundan emin ol. Yine eşleşmezse bu kişiyle konum paylaşma.",
     "codeLabel": "{{name}} ile güvenlik numarası QR kodu",
     "computing": "Güvenlik numarası hesaplanıyor",
-    "digitsLabel": "Güvenlik numarası: {{digits}}"
+    "digitsLabel": "Güvenlik numarası: {{digits}}",
+    "checking": "Anahtarlar sunucudan yeniden alınıp kontrol ediliyor…",
+    "notCode": "Bu bir güvenlik kodu değil",
+    "notCodeBody": "{{name}}, kendi telefonunda seninle olan Güvenlik numarası ekranını açsın ve oradaki kodu göstersin.",
+    "theirsDiffer": "Sunucunun {{name}} için verdiği anahtar, onun telefonundaki anahtar değil. Aranızda biri olabilir: bu kişiyle konum paylaşma.",
+    "mineDiffer": "{{name}}'in telefonu senin anahtarını farklı görüyor; büyük olasılıkla henüz güncellenmedi. {{name}} bu ekranı kendi telefonunda kapatıp yeniden açsın, sonra yeniden tarayın. Yine olmazsa konum paylaşma.",
+    "otherPair": "Bu kod başka biri için",
+    "otherPairBody": "Bu kod {{name}} ile senin aranda değil. {{name}} kendi telefonunda seninle olan ekranı açsın.",
+    "offline": "Kontrol edilemedi",
+    "offlineBody": "Anahtarlar sunucudan alınamadı. Bağlantı gelince yeniden tarayın."
   },
   "notices": {
     "friendRequest": "{{name}} seni arkadaş olarak eklemek istiyor",
