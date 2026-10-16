@@ -281,6 +281,9 @@ export async function sayArrived(
     }
     throw new Error(reply.refused);
   }
+  // This phone's own word shows on its own board and chip at once (the others get the message).
+  const me = useAuth.getState().userId;
+  if (me !== null) useArrived.setState({ [`${circle.id}:${me}`]: { meetAt, ts: Date.now() } });
 }
 
 /** The meetings of events (docs/ADR/0018): estimates, "will be late", reminders to leave. */

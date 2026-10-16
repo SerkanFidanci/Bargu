@@ -1,3 +1,4 @@
+import type { LngLat } from '@maplibre/maplibre-react-native';
 import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -6,7 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Dock } from '@/features/home/dock';
 import { router } from 'expo-router';
 
+import { MapShortcuts } from '@/features/home/map-shortcuts';
+import { MeetingChip } from '@/features/home/meeting-chip';
 import { SeersPill } from '@/features/home/seers-pill';
+import { isAway, nextMeeting } from '@/features/home/shortcuts-model';
 import { AddSheet } from '@/features/circles/add-sheet';
 import { CirclesSheet } from '@/features/circles/circles-sheet';
 import { useCircles } from '@/features/circles/queries';
@@ -32,6 +36,7 @@ import { MeSheet } from '@/features/home/sheets';
 import { StatusSheet } from '@/features/social/status-sheet';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
 import { usePeopleUi } from '@/features/map/people-ui';
+import { usePersonFocus } from '@/features/map/person-focus';
 import { useWeatherHere, WeatherChip } from '@/features/weather/use-weather';
 import { WeatherLayer } from '@/features/weather/weather-layer';
 import { MapCredit } from '@/features/map/map-credit';
@@ -80,6 +85,18 @@ export default function HomeScreen() {
       .filter((place) => eventIds.has(place.circleId))
       .map((place) => place.id),
   ]);
+  // The shortcuts at the right edge (docs/ADR/0026 §8): out of the way while a person's card is open.
+  const [view, setView] = useState<{ center: LngLat; zoom: number } | null>(null);
+  const cardOpen = usePersonFocus((state) => state.selected !== null);
+  const next = nextMeeting(points, now);
+  const nextCircle =
+    next === null
+      ? undefined
+      : circleList.data?.find((circle) => circle.id === next.point.circleId);
+  const onChip =
+    next === null || nextCircle === undefined
+      ? null
+      : { circle: nextCircle, meetAt: next.point.meetAt, place: next.point.place };
   // While the map is on screen, the circles' phones send live updates.
   useWatchCircles();
   const seers = seersOf(circleList.data ?? [], sharing, myUserId, now).map((member) => ({
@@ -109,6 +126,7 @@ export default function HomeScreen() {
           bottom: insets.bottom + DOCK_HEIGHT,
         }}
         focus={myFix === null ? null : [myFix.lng, myFix.lat]}
+        onSettle={setView}
       >
         <PlacesLayer except={meetingPlaces} />
         <MeetingPointsLayer points={points} now={now} />
@@ -134,6 +152,7 @@ export default function HomeScreen() {
             router.push('/seers');
           }}
         />
+        <MeetingChip circles={circleList.data ?? []} points={points} now={now} me={myUserId} />
         {weather === null ? null : <WeatherChip here={weather} />}
         <LocationBanner />
         <NotificationCard />
@@ -155,6 +174,19 @@ export default function HomeScreen() {
           onMe={() => meSheet.current?.present()}
         />
       </Animated.View>
+      {cardOpen ? null : (
+        <MapShortcuts
+          circles={circleList.data ?? []}
+          away={view !== null && isAway(view.center, view.zoom, myFix)}
+          onRecenter={() => {
+            if (myFix !== null) map.current?.focusOn([myFix.lng, myFix.lat], 0);
+          }}
+          meeting={onChip}
+          me={myUserId}
+          now={now}
+          bottom={insets.bottom + DOCK_HEIGHT + space.md}
+        />
+      )}
       {people.overlay}
       <CirclesSheet
         ref={circles}

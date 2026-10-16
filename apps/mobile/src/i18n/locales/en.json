@@ -670,6 +670,17 @@
       "live": "Here now",
       "stale": "Here {{minutes}} min ago",
       "staleHours": "Here {{hours}} h ago"
+    },
+    "shortcuts": {
+      "recenter": "Back to my location",
+      "ghostOff": "Ghost mode is off. Tap to turn it on: nobody sees your location.",
+      "ghostOn": "Ghost mode is on: nobody sees your location. Tap to turn it off.",
+      "ghostOnToast": "You're a ghost: gone from everyone's map, your location isn't sent.",
+      "ghostOffTitle": "Turn ghost mode off?",
+      "ghostOffBody": "Your location will be shared again with your circles ({{count}}).",
+      "ghostOffConfirm": "Share",
+      "meet": "Start a meeting",
+      "here": "I'm here ({{place}})"
     }
   },
   "places": {
@@ -1148,6 +1159,14 @@
     "goneBody": "It may have ended, or you are no longer in this circle.",
     "voting": "voted on",
     "option": "option",
-    "optionLabel": "{{title}}: option {{place}}"
+    "optionLabel": "{{title}}: option {{place}}",
+    "chip": {
+      "minutes": "{{minutes}} min",
+      "there": "{{there}}/{{total}} there",
+      "coming": "{{count}} on the way",
+      "everyone": "Everyone's there",
+      "more": "+{{count}}",
+      "label": "Meeting, {{title}}: {{text}}. Opens the meeting."
+    }
   }
 }

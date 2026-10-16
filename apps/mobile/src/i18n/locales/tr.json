@@ -670,6 +670,17 @@
       "live": "Şimdi burada",
       "stale": "{{minutes}} dk önce buradaydı",
       "staleHours": "{{hours}} sa önce buradaydı"
+    },
+    "shortcuts": {
+      "recenter": "Konumuma dön",
+      "ghostOff": "Hayalet modu kapalı. Açmak için dokun: kimse konumunu görmez.",
+      "ghostOn": "Hayalet modu açık: kimse konumunu görmüyor. Kapatmak için dokun.",
+      "ghostOnToast": "Hayalet modundasın: haritalardan kayboldun, konumun gönderilmiyor.",
+      "ghostOffTitle": "Hayalet modu kapansın mı?",
+      "ghostOffBody": "Konumun yeniden paylaşılacak: {{count}} çember.",
+      "ghostOffConfirm": "Paylaş",
+      "meet": "Buluşma başlat",
+      "here": "Geldim ({{place}})"
     }
   },
   "places": {
@@ -1148,6 +1159,14 @@
     "goneBody": "Bitmiş olabilir, ya da artık bu çemberde değilsin.",
     "voting": "oylanıyor",
     "option": "aday",
-    "optionLabel": "{{title}}: aday yer {{place}}"
+    "optionLabel": "{{title}}: aday yer {{place}}",
+    "chip": {
+      "minutes": "{{minutes}} dk",
+      "there": "{{there}}/{{total}} geldi",
+      "coming": "{{count}} yolda",
+      "everyone": "Herkes geldi",
+      "more": "+{{count}}",
+      "label": "Buluşma, {{title}}: {{text}}. Buluşma ekranını açar."
+    }
   }
 }

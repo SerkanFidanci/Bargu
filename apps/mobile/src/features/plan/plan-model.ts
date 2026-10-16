@@ -261,8 +261,10 @@ export function withChoice(plan: PlanPayload, poll: PollPayload, choice: number)
 
 /** Where someone stands for the meeting, as everyone sees it on the board. */
 export type Arrival =
-  | { userId: string; state: 'there' }
-  | { userId: string; state: 'coming'; at: number; late: number }
+  /** `by`: an exact location inside the place, or their own word ("Geldim"). */
+  | { userId: string; state: 'there'; by: 'location' | 'word' }
+  /** `estimated`: their phone's estimate says so (exact sharing only), not only their own word. */
+  | { userId: string; state: 'coming'; at: number; late: number; estimated: boolean }
   | { userId: string; state: 'unknown' };
 
 /** A location this old says nothing about the meeting any more. */
@@ -290,22 +292,54 @@ export function arrivals(input: {
     const fresh = loc !== undefined && now - loc.ts <= ARRIVAL_FRESH_MS ? loc : undefined;
     // Only an exact location tells an arrival (a coarse one is a cell's centre), or their word.
     const exact = fresh !== undefined && fresh.acc <= MEETING.arrivalAccuracyM ? fresh : undefined;
-    if (
-      (exact !== undefined && distanceM(exact, place) <= place.radius) ||
-      input.arrived?.has(userId) === true
-    ) {
-      return { userId, state: 'there' };
+    if (exact !== undefined && distanceM(exact, place) <= place.radius) {
+      return { userId, state: 'there', by: 'location' };
     }
+    if (input.arrived?.has(userId) === true) return { userId, state: 'there', by: 'word' };
     // Their own word counts when it says later than their phone's estimate.
     const said = input.told?.[userId];
     const estimate = fresh?.eta?.meetAt === meetAt ? fresh.eta.at : undefined;
     const at = Math.max(estimate ?? 0, said === undefined ? 0 : meetAt + said * 60_000);
     if (at === 0) return { userId, state: 'unknown' };
-    return { userId, state: 'coming', at, late: lateMinutes(at, meetAt) };
+    return {
+      userId,
+      state: 'coming',
+      at,
+      late: lateMinutes(at, meetAt),
+      estimated: estimate !== undefined,
+    };
   });
   const rank = (row: Arrival) =>
     row.state === 'there' ? -1 : row.state === 'coming' ? row.at : Number.MAX_SAFE_INTEGER;
   return rows.sort((a, b) => rank(a) - rank(b));
+}
+
+/** A meeting's numbers at a glance (the map's meeting chip, docs/ADR/0026 §8). */
+export interface Headcount {
+  there: number;
+  /** On the way by their phone's estimate: only who shares their exact location with the circle. */
+  coming: number;
+  total: number;
+  /** Everyone there, each by an exact location (the meeting effect, never from a coarse one). */
+  allThereExactly: boolean;
+}
+
+/**
+ * Counts by the meeting's privacy rules (docs/ADR/0026 §5): "there" as the board says it, "on the
+ * way" only from an estimate (a ghost or a coarse sharer sends none: counted in the total, their
+ * state not shown), the effect only when all are there by an exact location.
+ */
+export function headcount(rows: readonly Arrival[]): Headcount {
+  const there = rows.filter((row) => row.state === 'there');
+  return {
+    there: there.length,
+    coming: rows.filter((row) => row.state === 'coming' && row.estimated).length,
+    total: rows.length,
+    allThereExactly:
+      rows.length > 1 &&
+      there.length === rows.length &&
+      there.every((row) => row.by === 'location'),
+  };
 }
 
 /** Meeting times offered from now to the event's end, in quarter hours. */

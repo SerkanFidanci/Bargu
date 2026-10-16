@@ -30,6 +30,8 @@ export interface BarguMapProps {
   onPress?: () => void;
   /** Every camera move, while it moves (the place editor sizes its circle with it). */
   onViewChange?: (view: { center: LngLat; zoom: number }) => void;
+  /** Where the camera stopped after a move (the map's "back to me" shortcut). */
+  onSettle?: (view: { center: LngLat; zoom: number }) => void;
   /** Zoom of the first focus (a street by default). */
   focusZoom?: number;
 }
@@ -61,6 +63,7 @@ export function BarguMap({
   ref,
   onPress,
   onViewChange,
+  onSettle,
   focusZoom = FOCUS_ZOOM,
 }: BarguMapProps) {
   const { t } = useTranslation();
@@ -121,6 +124,7 @@ export function BarguMap({
       onRegionDidChange={(event) => {
         useMapZoom.setState({ zoom: event.nativeEvent.zoom });
         onViewChange?.({ center: event.nativeEvent.center, zoom: event.nativeEvent.zoom });
+        onSettle?.({ center: event.nativeEvent.center, zoom: event.nativeEvent.zoom });
       }}
       {...(onViewChange === undefined
         ? {}

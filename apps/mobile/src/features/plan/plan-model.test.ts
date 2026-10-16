@@ -7,6 +7,7 @@ import {
   distanceTo,
   estimateArrival,
   type Doc,
+  headcount,
   inEtaWindow,
   lateIsNews,
   lateMinutes,
@@ -247,9 +248,9 @@ describe('who is there when', () => {
       now,
     });
     expect(rows).toEqual([
-      { userId: ids.bora, state: 'there' },
-      { userId: ids.can, state: 'coming', at: meetAt - 5 * MIN, late: 0 },
-      { userId: ids.ayse, state: 'coming', at: meetAt + 25 * MIN, late: 25 },
+      { userId: ids.bora, state: 'there', by: 'location' },
+      { userId: ids.can, state: 'coming', at: meetAt - 5 * MIN, late: 0, estimated: true },
+      { userId: ids.ayse, state: 'coming', at: meetAt + 25 * MIN, late: 25, estimated: true },
       { userId: 'dana', state: 'unknown' },
       { userId: 'emre', state: 'unknown' },
       { userId: 'fatma', state: 'unknown' },
@@ -270,9 +271,9 @@ describe('who is there when', () => {
     });
     expect(rows).toEqual([
       // There already: whatever they said.
-      { userId: ids.bora, state: 'there' },
-      { userId: ids.can, state: 'coming', at: meetAt + 15 * MIN, late: 15 },
-      { userId: ids.ayse, state: 'coming', at: meetAt + 20 * MIN, late: 20 },
+      { userId: ids.bora, state: 'there', by: 'location' },
+      { userId: ids.can, state: 'coming', at: meetAt + 15 * MIN, late: 15, estimated: false },
+      { userId: ids.ayse, state: 'coming', at: meetAt + 20 * MIN, late: 20, estimated: true },
     ]);
   });
 
@@ -290,10 +291,35 @@ describe('who is there when', () => {
       now,
     });
     expect(rows).toEqual([
-      { userId: ids.bora, state: 'there' },
-      { userId: ids.can, state: 'there' },
+      { userId: ids.bora, state: 'there', by: 'location' },
+      { userId: ids.can, state: 'there', by: 'word' },
       { userId: ids.ayse, state: 'unknown' },
     ]);
+  });
+});
+
+describe('a meeting at a glance (docs/ADR/0026 §8)', () => {
+  it('counts the way only from estimates, and celebrates only exact arrivals', () => {
+    expect(
+      headcount([
+        { userId: 'a', state: 'there', by: 'location' },
+        { userId: 'b', state: 'coming', at: 1, late: 0, estimated: true },
+        // A coarse sharer (or a ghost) who said "late": in the total, not on the way.
+        { userId: 'c', state: 'coming', at: 1, late: 10, estimated: false },
+        { userId: 'd', state: 'unknown' },
+      ]),
+    ).toEqual({ there: 1, coming: 1, total: 4, allThereExactly: false });
+    const exact = { userId: 'a', state: 'there', by: 'location' } as const;
+    expect(headcount([exact, { ...exact, userId: 'b' }]).allThereExactly).toBe(true);
+    // All there, one only by their word: no effect.
+    expect(headcount([exact, { userId: 'b', state: 'there', by: 'word' }])).toEqual({
+      there: 2,
+      coming: 0,
+      total: 2,
+      allThereExactly: false,
+    });
+    // Alone is no meeting.
+    expect(headcount([exact]).allThereExactly).toBe(false);
   });
 });
 

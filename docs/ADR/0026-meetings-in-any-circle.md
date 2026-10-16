@@ -106,6 +106,31 @@ Dokununca çember sayfası açılıyor.
 - `MIN_CLIENT_LEVEL` 2'yi de atlar: herkes bu dilimin APK'sına geçince doğrudan 3 yapılır, en geç
   1 Kasım, PM'e sorularak.
 
+### 8. Harita kısayolları ve buluşma sayacı (proje sahibinin isteği, PM onayı 2026-10-16)
+
+- Haritanın sağ kenarında, dock'un üstünde en çok üç yuvarlak düğme (48 pt dokunma alanı):
+  - **Konumuma dön:** yalnızca harita bu telefondan uzağa bakınca çıkar.
+  - **Hayalet modu:** tek dokunuşla açılır ("Gizle": haritalardan kaybolur, konum gönderilmez).
+    Kapatırken kaç çembere yeniden paylaşılacağını söyleyen bir onay sorulur ("Konumun yeniden
+    paylaşılacak: 3 çember"); yanlışlıkla kapatmak konumu açar, bu daha tehlikelidir. Paylaşılacak
+    çember yoksa sormadan kapanır. Durum renkte, düğmenin seçili durumunda ve ekran okuyucunun
+    söylediğinde görünür.
+  - **Buluşma başlat:** bir buluşma varken yerini üstteki sayaç çipine bırakır. "Geldim" yalnızca
+    saatine 15 dakika kala ya da tahmin penceresinde yere 300 m yaklaşınca çıkar; söylendiyse ve
+    duraklamış çemberde çıkmaz.
+  - Bir kişinin kartı açıkken düğmeler çekilir; kişilerin çıkartmaları ve dock açık kalır.
+- **Sayaç çipi** üstte, en yakın buluşmayı gösterir: yer ve saat, son bir saatte geri sayım
+  ("🏠 Ev · 17:30 · 25 dk"), son 10 dakikada belirgin renk; saatinden sonra "2/4 geldi · 1 yolda".
+  Başka buluşma da varsa "+1". Dokununca buluşma ekranı açılır.
+- **Sayılar §5'in kurallarıyla:** "geldi" tam konumla ya da kişinin kendi sözüyle; "yolda"
+  yalnızca telefonun tahmininden (tahmin yalnızca tam paylaşımda gider). Hayalet moddaki ya da kaba
+  hassasiyetteki kişi toplamda sayılır, durumu gösterilmez; kendi "geç kalıyorum"u onu "yolda"
+  saydırmaz. Çip telefonun saatiyle çalışır (yarım dakikada bir); hiçbir şey sorulmaz, telefondan
+  yeni bir şey çıkmaz.
+- **Konfeti:** herkes oradayken ve her biri tam konumla oradaysa bir kez (bu telefonda
+  hatırlanır). Biri yalnızca "Geldim" dediyse yok. "Hareketi azalt" açıkken yok; hareketler
+  Reanimated worklet'leri ve hareket tokenlarıyla. Sade mod henüz yok; gelince ona da uyacak.
+
 ## Sonuçlar
 
 - Sunucu yeni olarak şunu bilir: etkinlik dışı bir çemberde buluşma olduğu, kimin başlattığı,

@@ -1,4 +1,4 @@
-import type { Circle, LocPayload, PollPayload } from '@bargu/schemas';
+import type { Circle, PollPayload } from '@bargu/schemas';
 import {
   Check,
   Circle as Dot,
@@ -30,13 +30,11 @@ import { Toggle } from '@/ui/toggle';
 import { endClock } from '../circles/event-ui';
 import { memberName } from '../circles/names';
 import { useNow } from '../location/clock';
-import { useMyFix } from '../location/engine';
 import { meetings, sayArrived } from '../location/location-session';
-import { useLocations } from '../location/receive';
 import type { Place } from '../places/place-model';
 import { usePlaces } from '../places/places';
 import { docKey, useDocs } from './docs';
-import { type Meeting, meetingOf, useArrived, useLates, useMeetingChoices } from './meeting';
+import { type Meeting, meetingOf, useMeetingChoices } from './meeting';
 import { PlaceIcon, PlaceSheet, PollSheet, TimeSheet, timeRange } from './meeting-sheets';
 import {
   closePoll,
@@ -47,15 +45,8 @@ import {
   vote,
   votesOf,
 } from './plan-actions';
-import {
-  type Arrival,
-  arrivals,
-  type Doc,
-  inEtaWindow,
-  MEETING,
-  tally,
-  type TravelMode,
-} from './plan-model';
+import { type Arrival, type Doc, inEtaWindow, MEETING, tally, type TravelMode } from './plan-model';
+import { useArrivals } from './use-arrivals';
 
 /**
  * A circle's meeting (docs/ADR/0018, 0026): when and where, polls on either (events only), who gets
@@ -376,43 +367,8 @@ function ArrivalsBoard({
 }) {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
-  const locations = useLocations();
-  const lates = useLates();
-  const said = useArrived();
-  const myFix = useMyFix((state) => state.fix);
   const active = circle.members.filter((member) => member.status === 'active');
-  const located: Record<string, LocPayload | undefined> = {};
-  const told: Record<string, number | undefined> = {};
-  const arrived = new Set<string>();
-  for (const member of active) {
-    located[member.userId] = locations[`${circle.id}:${member.userId}`]?.loc;
-    const late = lates[`${circle.id}:${member.userId}`];
-    if (late?.meetAt === meeting.meetAt) told[member.userId] = late.minutes;
-    if (said[`${circle.id}:${member.userId}`]?.meetAt === meeting.meetAt)
-      arrived.add(member.userId);
-  }
-  if (myFix !== null) {
-    const eta = meetings.eta(circle.id, myFix, now);
-    located[me] = {
-      kind: 'loc',
-      lat: myFix.lat,
-      lng: myFix.lng,
-      acc: myFix.acc,
-      bat: 100,
-      chg: false,
-      ts: myFix.ts,
-      ...(eta === undefined ? {} : { eta }),
-    };
-  }
-  const rows = arrivals({
-    meetAt: meeting.meetAt,
-    place: meeting.place,
-    members: active.map((member) => member.userId),
-    locations: located,
-    told,
-    arrived,
-    now,
-  });
+  const rows = useArrivals(circle, meeting, me, now);
   const text = (row: Arrival): string => {
     if (row.state === 'there') return t('plan.there');
     if (row.state === 'unknown') return t('plan.unknown');
