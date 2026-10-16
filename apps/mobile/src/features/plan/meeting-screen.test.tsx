@@ -8,6 +8,13 @@ jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
   DEV_TOOLS_ENABLED: false,
 }));
+// The auth store loads the secure store; its native module is not there on Linux (CI).
+jest.mock('expo-secure-store', () => ({
+  AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 1,
+  getItemAsync: jest.fn(() => Promise.resolve(null)),
+  setItemAsync: jest.fn(() => Promise.resolve()),
+  deleteItemAsync: jest.fn(() => Promise.resolve()),
+}));
 const CIRCLE = '0190f7a4-5b6c-7d8e-9f01-23456789abcd';
 const HOME = '0190f7a4-2222-7222-8222-000000000001';
 jest.mock('expo-router', () => ({
