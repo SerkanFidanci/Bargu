@@ -179,6 +179,8 @@ export interface MeetingDeps {
   /** The circles as sending knows them (a background start has only the vault copy). */
   circles: () => readonly (Pick<Circle, 'id' | 'epoch' | 'myStatus'> & {
     kind?: Circle['kind'] | undefined;
+    /** A paused circle (docs/ADR/0024 §3) takes no "will be late" (QA 21 B-4). */
+    paused?: boolean | undefined;
   })[];
   docs: () => Readonly<Record<string, Doc>>;
   places: () => Readonly<Record<string, Place>>;
@@ -311,7 +313,8 @@ export function createMeetings(deps: MeetingDeps) {
     const failed = lateFailures.get(key);
     if (failed !== undefined && at < failed.next) return;
     const circle = deps.circles().find((candidate) => candidate.id === meeting.circleId);
-    if (circle === undefined) return;
+    // Paused: the server would refuse it; no try, no retries (QA 21 B-4).
+    if (circle === undefined || circle.paused === true) return;
     try {
       await deps.sendLate(circle, meeting.meetAt, minutes);
     } catch (error) {
@@ -396,7 +399,7 @@ export function createMeetings(deps: MeetingDeps) {
       const circle = deps.circles().find((candidate) => candidate.id === circleId);
       const plan = deps.docs()[docKey(circleId, circleId)]?.payload;
       const meetAt = meeting?.meetAt ?? (plan?.kind === 'plan' ? plan.meetAt : undefined);
-      if (circle === undefined || meetAt === undefined) return false;
+      if (circle === undefined || circle.paused === true || meetAt === undefined) return false;
       try {
         await deps.sendLate(circle, meetAt, minutes);
       } catch {

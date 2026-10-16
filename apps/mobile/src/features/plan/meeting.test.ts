@@ -50,6 +50,7 @@ function setup(options: {
   clock: { now: number };
   /** Whether sending "will be late" fails now (no connection). */
   offline?: () => boolean;
+  paused?: boolean;
 }) {
   const store = memoryStore();
   const sent: number[] = [];
@@ -58,7 +59,7 @@ function setup(options: {
   const cancelled: string[] = [];
   const docs = { [docKey(circleId, circleId)]: planDoc({ meetAt, placeId }) };
   const deps: MeetingDeps = {
-    circles: () => [circle],
+    circles: () => [{ ...circle, paused: options.paused }],
     docs: () => docs,
     places: () => ({ [placeId]: place }),
     sharing: () => options.sharing ?? DEFAULT_SHARING,
@@ -202,6 +203,17 @@ describe('being late', () => {
     clock.now += MIN;
     await meetings.fix(at(2_100, clock.now));
     expect(tries.count).toBe(3);
+  });
+
+  it('is not even tried in a paused circle (QA 21 B-4)', async () => {
+    const clock = { now: meetAt - 5 * MIN };
+    const { meetings, tries } = setup({ clock, paused: true });
+    meetings.setMode(circleId, 'walk');
+    await meetings.fix(at(2_100, clock.now));
+    clock.now += MEETING.lateHoldMs;
+    await meetings.fix(at(2_100, clock.now));
+    expect(await meetings.late(circleId, 20)).toBe(false);
+    expect(tries.count).toBe(0);
   });
 
   it('can be told by the user, whatever the estimate', async () => {
