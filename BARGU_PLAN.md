@@ -374,7 +374,8 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
     |---|---|---|---|
     | Fiyat | ₺0 | ₺0, kart istenmez | ₺99,99 / ay ya da ₺799,99 / yıl (yaklaşık %33 indirim) |
     | Davetle katılmak (arkadaşlık, grup, etkinlik) | Var | Var | Var |
-    | Ödeyeni olan çemberde canlı konum, dürt, durum, yerler, buluşma, oylama | Var | Var | Var |
+    | Ödeyeni olan çemberde canlı konum ve geçmiş (yer varış bildirimleri dahil, çünkü canlı konuma bağlı) | Var | Var | Var |
+    | Dürt, durum, yerler, buluşma, oylama (duraklamış çemberde de; ADR 0024) | Var | Var | Var |
     | Kendi çemberini ya da etkinliğini kurup açık tutmak | Kurabilir; ödeyen yoksa duraklar | Var | Var, sınırsız |
     | Çember geçmişi, son 14 gün | Ödeyeni olan çemberde | Var | Var |
     | Özel bitiş saatli paylaşım ("21:30'a kadar") | Yok | Var | Var |
@@ -394,6 +395,9 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
     - Harita temaları
     - Sezon paketleri (yılbaşı, bayram, yaz); maç günü takım renkleri kulüp adı ve logosu olmadan (tescilli marka)
   - Süs kuralları: yalnızca görünüş, hiçbir işlev ya da güvenlik özelliği süsün arkasında değil; rastgele kutu (sürpriz paket) yok. Arkadaşın telefonu bir süsü göstermeden önce satın alındığını doğrular (sunucunun imzaladığı hak), değiştirilmiş uygulama bedava süs gösteremez.
+    - Dilim 3'ün ilk paketleri (PM, 2026-10-16): "Ada desenleri" ve "Çıkartma kenarları", tanesi ₺29,99, dörder stil. Sezon paketi, kostümler, buluşma efektleri ve aylık hediye süs sonraki dilimde.
+    - Hak, sunucunun imzaladığı kısa süreli bir geçiş belgesidir; seçilen görünümle birlikte profilin yanında ayrı bir şifreli mesajla gider (profil dolgusu dolu olduğu için). Sunucu hangi stilin seçildiğini bilmez. Staging ile üretimin imza anahtarları ayrıdır; staging'deki test süsü üretim uygulamasında geçmez.
+    - 15–17 yaşta süs de 2c'deki ebeveyn isteğiyle alınır. Hareketli stiller sade modda ve pil tasarrufunda durur.
   - Etkinlik çemberini düzenleyen öder (Faz 11'deki etkinlik paketi), katılımcı bedava.
   - **Şimdilik sahte ödeme (proje sahibi, 2026-10-16):** mağaza hesabı ve gerçek paketler yokken ödeme akışı test satın almayla kurulur.
     - Sunucuda hak (entitlement) modeli hesap bazlı ve kaynaklı: `test` / `play` / `appstore`. Çember açıklığı bu haktan hesaplanır.
@@ -429,6 +433,8 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 - EAS Build/Submit; OTA güncellemeleri kod imzalı veya kapalı; `runtimeVersion` fingerprint policy.
 - **Play derleme ve imza (`docs/play-store/KONTROL-LISTESI.md`):** K1 AAB profili (EAS ve yerel betik), K2 upload key (depoya girmez, sahip iki yerde yedekler), K3 targetSdk 36, K4 artan versionCode, K5 `app.bargu` son onay, K6 Play App Signing sertifikası sunucudaki Play Integrity izin listesine, K8 inceleyici için demo hesap, K9 Open-Meteo ticari plan ya da kendi sunucu, K12 kalıcı alan adı (sahip kararı). 14 günlük kapalı testin saati erken başlasın diye K1–K4 hesap açılır açılmaz yapılabilir.
 - **Önce Google Play:** 13 Kasım 2023'ten sonra açılan kişisel geliştirici hesabı, üretime çıkmadan önce en az 12 test kullanıcısıyla 14 gün kesintisiz kapalı test yapmak zorunda ([Google](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)). Hesap ve 12 kişilik test grubu Faz 10'dan önce hazırlanır (proje sahibi); bu grup ilk lansman grubunun çekirdeği olabilir. iOS yayını Apple üyeliğinden sonra.
+- **Deneme mağazaya taşınır:** gerçek ödemeye geçince 21 günlük deneme, Google Play'in kendi ücretsiz deneme teklifiyle verilir (Google hesabı başına bir kez); hesabı silip yeniden açarak yeni deneme alma riski böylece kapanır (QA 19 P5, ADR 0024).
+- **İleri uyumluluk:** telefon bütün sunucu cevaplarını yeni alanları atlayarak okusun; istekler katı kalsın. Böylece sunucuya alan eklenince kurulu APK'lar bozulmaz (32b0f2d'de çember ve üye kartı için yapıldı). Tanımadığı tür değerini (yeni istek ya da bildirim türü) de bozulmadan atlasın. Sunucu, yeni bir türü onu tanımayan eski sürüme (x-bargu-client seviyesi düşük) göndermesin (2c'de ebeveyn isteklerindeki "purchase" türüyle başladı). Şifreli profil içeriği de tanımadığı alanı atar (b85ac9d); tanımadığı içerik türünü alıcı yok sayar.
 - Jailbreak/root tespiti: sadece uyarı.
 - **DoD:** kritik/yüksek bulgu yok, restore testi başarılı.
 
