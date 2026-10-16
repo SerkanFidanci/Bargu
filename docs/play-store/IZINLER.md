@@ -39,6 +39,8 @@ How we keep it minimal and transparent:
 
 ## 2. Uygulama içi açıklama ekranı: kodda var mı?
 
+**Güncel (`1a9aba4`, Faz 9 dilim 4):** aşağıdaki eksikler kapandı. Konum izni penceresi artık kendiliğinden açılmıyor; haritadaki kart §2'deki metni "Devam et / Şimdi değil" düğmeleriyle gösteriyor. Aşağısı ilk incelemedeki durumdur.
+
 **Var, ama eksik.** `location.permission` ekranı (`en.json`/`tr.json`) sistem izin penceresinden önce gösteriliyor:
 
 > "Location permission needed — So your friends can see you on the map. Your location is encrypted on your phone; not even our server can see it." [Allow]

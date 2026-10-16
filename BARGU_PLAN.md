@@ -215,8 +215,8 @@ export const haptic = { select: 'selection', success: 'success', bump: 'heavy' }
   - Evde → ev rozeti
   - Şarjda → şimşek; pil < %15 → kırmızı nabız
   - Eski veri → gri + "12 dk"
-  - Avatarlar hafifçe "nefes alır" (Skia shader)
-- Yakın avatarlar **Skia metaball** efektiyle sıvı gibi birleşip ayrılır (kümeleme).
+  - Avatar **çıkartma ve ada** (proje sahibinin seçimi, 2026-10-16; ADR 0008 eki): kalın beyaz kenarlı, kişinin kimliğinden türeyen sabit açıyla hafif eğik çıkartma; altında kişinin renginde küçük bir ada, adanın ortası tam konum. Dururken çıkartma hafifçe kalkıp iner, ada altında küçülür.
+- Yakın kişiler **tek çerçeve** (proje sahibinin düzeltmesi, 2026-10-16): birlikte duranlar ortak beyaz çıkartma çerçevesinde, kenar halkası bir kişinin renginden ötekine geçer, altta tek ada. Çerçevede en çok 2 avatar, her biri ayrı dokunulur; kullanıcı oradaysa hep görünür. İkiden fazla kişide sağ üst köşede toplam sayı yazar; çerçeveye dokununca oradakilerin listesi açılır ("Sen" önce), listeden kişi kartına gidilir.
 - Basılı tut → **radyal menü:** Dürt · Yol tarifi · Profil · Bildirimler.
 - Gece otomatik koyu harita stili.
 
@@ -328,7 +328,7 @@ Faz 8'den sonra proje sahibinin isteğiyle yapılıyor (yapım aşamasında).
 
 ### Faz 9 — Güvenlik Özellikleri & Uyum
 **Sıra (PM, 2026-10-15; her dilim ayrı commit, her dilimden sonra test oturumu):**
-1. Gizlilik açıkları: ayrılınca geçmiş kapanır (W4), QR iptali (O2, O3), hatırlatıcı temizliği (O5), kapalı uygulamada yeni izleyici uyarısı (G2), geçmiş listeleme sınırı (G3), istek zaman aşımı + tek yeniden deneme (kabulde 15 sn, geçmiş silme), "Çember bulunamadı" yarışı.
+1. Gizlilik açıkları: ayrılınca geçmiş kapanır (W4), QR iptali (O2, O3), hatırlatıcı temizliği (O5), kapalı uygulamada yeni izleyici uyarısı (G2), geçmiş listeleme sınırı (G3), istek zaman aşımı + tek yeniden deneme (kabulde 15 sn, geçmiş silme), "Çember bulunamadı" yarışı, kişi kartındaki dört düğmenin yazıları sığmıyor ("Dür t", "Yol ta…"; proje sahibinin ekran görüntüsü, 2026-10-15).
 2. Çember rolleri ve planlama yetkisi: roller, O4 sunucu yetkisi, O6 QR katıl–ayrıl, buluşma noktaları haritada (ADR).
 3. Güvenlik özellikleri: 7 günlük hatırlatma (geçmiş dahil), yeni izleyici bildirimi, tümünü durdur, biyometrik kilit, uzaktan cihaz iptali, güvenlik olayları listesi.
 4. KVKK ve Play: hesap silme + web silme sayfası (K7), veri dışa aktarma, amaç başına ayrı rıza ve ayrı aydınlatma, K10, K11, K13 (sayfalar geçici alan adında), ön plan servisi beyanı ve video.
@@ -368,8 +368,25 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
   - Yeni kullanıcıya 21 günlük deneme: bu sürede istediği kadar çember kurar ve davet eder.
   - Ödeyen kalmazsa çember silinmez, veri kaybolmaz; konum paylaşımı duraklar ve "çemberi açık tutmak için biri abone olsun" kartı çıkar. Ödeme hatasında önce ek süre tanınır.
   - Güvendeyim, eve vardım ve "hepsini durdur" duraklamış çemberde de çalışır; hep bedava.
-  - **Tek abonelik: Bargu+.** Abonenin kurduğu ve içinde olduğu tüm çemberleri açık tutar; üstüne harita temaları, avatar ve figür stilleri, widget stilleri, özel bitiş saatli paylaşım, daha fazla yer, çember geçmişinin son 14 günü (ADR 0019), her ay bir hediye süs ve "kendi geçmişin" (Faz 11). Aylık ve indirimli yıllık; öğrenci indirimi.
-  - **Tek seferlik süs paketleri** (paket başına ₺19–49, indirimli setler; isteğe bağlı "kurucu üye" ömür boyu planı):
+  - **Paketler (PM, 2026-10-16; proje sahibi "kafana göre belirle" dedi).** Tek abonelik Bargu+; abone, kurduğu ve içinde olduğu bütün çemberleri herkes için açık tutar ("ailede bir kişi öder, herkes kullanır").
+
+    | Özellik | Bedava (davetli üye) | Deneme (21 gün) | Bargu+ |
+    |---|---|---|---|
+    | Fiyat | ₺0 | ₺0, kart istenmez | ₺99,99 / ay ya da ₺799,99 / yıl (yaklaşık %33 indirim) |
+    | Davetle katılmak (arkadaşlık, grup, etkinlik) | Var | Var | Var |
+    | Ödeyeni olan çemberde canlı konum, dürt, durum, yerler, buluşma, oylama | Var | Var | Var |
+    | Kendi çemberini ya da etkinliğini kurup açık tutmak | Kurabilir; ödeyen yoksa duraklar | Var | Var, sınırsız |
+    | Çember geçmişi, son 14 gün | Ödeyeni olan çemberde | Var | Var |
+    | Özel bitiş saatli paylaşım ("21:30'a kadar") | Yok | Var | Var |
+    | Kendi geçmişin: keşif haritası, rotalar, yıl sonu kartı (Faz 11) | Yok | Var | Var |
+    | Harita temaları ve widget stilleri | Varsayılan tema | Bütün temalar | Bütün temalar |
+    | Her ay bir hediye süs | Yok | Yok | Var |
+    | Güvenlik ve gizlilik: Güvendeyim, eve vardım, hayalet, hassasiyet, tümünü durdur, kilit, hesap silme, dışa aktarma | Hep var | Hep var | Hep var |
+
+    - 15–17 yaşta satın alma ebeveyn onayıyla (ADR 0023). Öğrenci indirimi ve "kurucu üye" ömür boyu planı sonraya; öğrencilik doğrulanamadığı için şimdilik yok.
+    - Deneme bitince kart istenmeden Bargu+'ya geçmez; kullanıcı kendisi seçer. Bitimden 3 gün önce uygulama içi hatırlatma.
+  - **Tek seferlik süs paketleri** (tek paket ₺29,99, sezon paketi ₺49,99; çıkartma ve ada görünümüne göre):
+    - Çıkartma kenarı stilleri, ada renk ve desenleri, ortak çerçeve stilleri
     - Avatar çerçeveleri (altın, neon, hareketli)
     - Figür kostümleri (yürüyen figüre şapka, forma; araç yerine spor araba, motosiklet, scooter)
     - Hız izi renkleri ve desenleri
@@ -378,7 +395,13 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
     - Sezon paketleri (yılbaşı, bayram, yaz); maç günü takım renkleri kulüp adı ve logosu olmadan (tescilli marka)
   - Süs kuralları: yalnızca görünüş, hiçbir işlev ya da güvenlik özelliği süsün arkasında değil; rastgele kutu (sürpriz paket) yok. Arkadaşın telefonu bir süsü göstermeden önce satın alındığını doğrular (sunucunun imzaladığı hak), değiştirilmiş uygulama bedava süs gösteremez.
   - Etkinlik çemberini düzenleyen öder (Faz 11'deki etkinlik paketi), katılımcı bedava.
-  - Önce Google Play Billing; App Store abonelikleri iOS yayınıyla gelir. Abonelik hakkı mağazaya değil hesaba bağlı tutulur, böylece iOS gelince aynı hak orada da geçerli olur. Satın alma, yenileme, iptal ve iade mağaza sunucu bildirimleriyle sunucuda doğrulanır; hak ve duraklama değişiklikleri WS olayıyla herkese anında gider (polling yok).
+  - **Şimdilik sahte ödeme (proje sahibi, 2026-10-16):** mağaza hesabı ve gerçek paketler yokken ödeme akışı test satın almayla kurulur.
+    - Sunucuda hak (entitlement) modeli hesap bazlı ve kaynaklı: `test` / `play` / `appstore`. Çember açıklığı bu haktan hesaplanır.
+    - Ödeme ekranı gerçek akışla aynı. "Satın al" staging'de sunucunun test satın alma ucunu çağırır ve hak verir; ekranda "TEST — gerçek ödeme yok" bandı.
+    - Üretimde test ucu kapalı (ortam bayrağı; sunucu 404 döner), test düğmesi yalnızca preview derlemesinde.
+    - Geliştirici menüsünden yenileme, iptal, süre dolması ve ödeme hatası (ek süre) taklit edilebilir; duraklayan çember ve hatırlatmalar böyle denenir.
+    - Gerçek mağaza bağlantısı Play hesabı açılınca aynı hak arayüzünün arkasına eklenir.
+  - Gerçek ödemede önce Google Play Billing; App Store abonelikleri iOS yayınıyla gelir. Abonelik hakkı mağazaya değil hesaba bağlı tutulur, böylece iOS gelince aynı hak orada da geçerli olur. Satın alma, yenileme, iptal ve iade mağaza sunucu bildirimleriyle sunucuda doğrulanır; hak ve duraklama değişiklikleri WS olayıyla herkese anında gider (polling yok).
   - Ödeme ekranı Türkçe, fiyatlar TL, iptal tek dokunuş; yıllık plan özendirilir. Sınırlar yayından önce ekranda yazılıdır; sonradan bedava bir özellik ücretliye taşınmaz.
   - Ödeme kütüphanesi seçimi ADR ile (gerekçe + bakım durumu). Ödeme kayıtlarında konum ya da çember içeriği yok.
   - Vergi yapısı (bireysel 20/B istisnası ya da şirket) mali müşavirle; KDV ve dijital hizmet vergisini mağaza keser (proje sahibi).
@@ -387,7 +410,7 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 - **Zengin davet kartı:** davet linki WhatsApp ve Instagram'da önizlemeli açılır. Önizlemeyi o şirketlerin sunucuları çektiği için kişisel veri içermez (ad, fotoğraf yok); ad ve fotoğraf uygulamada çözülür.
 - **Sade mod:** efekt, ses ve titreşim yoğunluğu ayarı (tam / az / kapalı); motion tokenlarıyla ölçeklenir, sistemin "Hareketi azalt" ayarından bağımsız.
 - **Düşük detaylı dünya haritası:** Türkiye dışındaki arkadaş boş haritada kalmasın; self-host düşük zoom'lu dünya katmanı.
-- **Lansman ölçümü:** konum ve kimlik içermeyen sayımlar (günlük aktif, davet başına katılan, 30. gün tutunma, ödemeye geçiş). Üçüncü parti analitik SDK'sı yok.
+- **Lansman ölçümü (ertelendi, proje sahibi 2026-10-16):** konum ve kimlik içermeyen sayımlar (günlük aktif, davet başına katılan, 30. gün tutunma, ödemeye geçiş). Üçüncü parti analitik SDK'sı yok.
 - **DoD:**
   - Satın alma, yenileme, iptal ve iade çemberdeki herkeste yenileme gerektirmeden WS olayıyla görünür (entegrasyon testi).
   - Ödeyeni kalmayan çember duraklar, biri abone olunca yenileme gerektirmeden açılır; duraklamış çemberde Güvendeyim çalışır (test).
@@ -423,7 +446,7 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
   - Kayıt yalnızca paylaşım açıkken zaten alınan konumlardan yapılır; ayrıca arka planda konum istemez (Play beyanı tek özellik kalır).
   - Süre seçilir (30 gün / 1 yıl), tek dokunuşla silinir, dışa aktarılabilir. Abonelik bitince kayıt durur ama mevcut geçmiş silinmez; görülebilir ve dışa aktarılabilir.
   - Arkadaşların izi yalnızca çember geçmişi kurallarıyla görünür (Ek iş, ADR 0019; Bargu+ ile son 14 gün). THREAT_MODEL güncellenir: kilidi açık telefonda geçmiş görünür, biyometrik kilit önerilir.
-- **Lansman:** önce tek bir fakülte, yurt ya da kulüp; 72 saatte grubun %25'i aktif değilse sebebi bulunmadan genişlenmez. Şubat 2027 deneme, Eylül 2027 yeni kayıt dönemi. Ücretli içerik paylaşımlarında "#Reklam" etiketi.
+- **Lansman (ertelendi, proje sahibi 2026-10-16; davet ödülüyle birlikte):** önce tek bir fakülte, yurt ya da kulüp; 72 saatte grubun %25'i aktif değilse sebebi bulunmadan genişlenmez. Şubat 2027 deneme, Eylül 2027 yeni kayıt dönemi. Ücretli içerik paylaşımlarında "#Reklam" etiketi.
 - **DoD:**
   - Konum linki sayfası anahtarı hiçbir isteğe koymaz (test); süresi biten link açılmaz.
   - Widget ve Live Activity içeriği APNs/FCM'de düz görünmez.
@@ -455,7 +478,7 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 - **Arkaplan konum:** Transistorsoft (önerilen, ücretli) vs `expo-location` + `expo-task-manager` (ücretsiz, daha az güvenilir).
 - **Hosting:** Hetzner (AB) + KVKK standart sözleşme (önerilen) vs Türkiye'de sunucu.
 - **Marka:** renk paleti, logo, display font.
-- **Fiyatlar (tahmin, doğrulanmadı):** Bargu+ yaklaşık ₺99,99/ay (Life360 Silver ile aynı seviye), öğrenciye ₺59,99–69,99, yıllıkta indirim; tek seferlik paket ₺19–49; etkinlik paketi ₺199–499. ₺99,99'luk aboneliğin net getirisi yaklaşık ₺57. Para modelinin kendisi kararlaştırıldı (Bölüm 1, Faz 9B).
+- **Fiyatlar (PM önerisi, 2026-10-16; piyasa denemesiyle değişebilir):** Bargu+ ₺99,99/ay ya da ₺799,99/yıl; tek süs paketi ₺29,99, sezon paketi ₺49,99; etkinlik paketi ₺199–499 (Faz 11). Öğrenci indirimi doğrulama yolu bulununca. ₺99,99'luk aboneliğin net getirisi yaklaşık ₺57. Para modelinin kendisi kararlaştırıldı (Bölüm 1, Faz 9B).
 - **Yaş sınırı ve doğrulama:** hukuki görüşe bağlı (Faz 9).
 - **Güvendeyim SMS yedeği:** şebeke çökünce işe yarar ama SMS düz metindir; konumsuz "iyiyim" SMS'i mi, hiç SMS yok mu?
 - **Gelirin vergi yapısı:** bireysel (20/B istisnası) ya da şirket; mali müşavirle.
