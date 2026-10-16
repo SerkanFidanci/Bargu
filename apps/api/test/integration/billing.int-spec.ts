@@ -29,6 +29,7 @@ import { entitlements } from '../../src/db/schema.js';
 import { DatabaseService } from '../../src/infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
 import { createTestApp, type TestApp, testEnv } from './support/app.js';
+import { call } from './support/client.js';
 import { as, circleWith, consentToHistory, type Person, person } from './support/people.js';
 
 let test: TestApp;
@@ -369,6 +370,14 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
     const [asked] = (await view()).requests;
     expect(asked).toMatchObject({ kind: 'purchase', product: 'plus_year', name: null, by: null });
     if (asked === undefined) throw new Error('no request');
+    // An app before level 2 cannot read the kind: it is not sent it (ADR 0024 §10, PM).
+    const older = await call(test.app, {
+      method: 'GET',
+      url: `/v1/guardians/${link.id}`,
+      accessToken: parent.session.accessToken,
+      clientLevel: 1,
+    });
+    expect(older.json<GuardianView>().requests).toEqual([]);
 
     // A no drops it, and the child's Bargu+ screen hears it.
     told.mockClear();

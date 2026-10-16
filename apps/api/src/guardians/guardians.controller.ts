@@ -1,5 +1,17 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
 import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
+import {
+  CLIENT_LEVEL_HEADER,
+  clientLevelOf,
   type GuardianCode,
   type GuardianEnd,
   type GuardianLink,
@@ -80,8 +92,9 @@ export class GuardiansController {
     @CurrentAuth() auth: AuthContext,
     @Param('id', idPipe) id: string,
     @Body(new ZodPipe(guardianSettingsSchema)) body: GuardianSettings,
+    @Headers(CLIENT_LEVEL_HEADER) level: string | undefined,
   ): Promise<GuardianView> {
-    return this.guardians.setSettings(auth, id, body);
+    return this.guardians.setSettings(auth, id, body, clientLevelOf(level));
   }
 
   @Post(':id/requests/:requestId/approve')
@@ -104,9 +117,14 @@ export class GuardiansController {
     return this.guardians.answer(auth, id, requestId, false);
   }
 
+  /** What the app can read of it: the level it says (`x-bargu-client`, ADR 0024 §10). */
   @Get(':id')
-  view(@CurrentAuth() auth: AuthContext, @Param('id', idPipe) id: string): Promise<GuardianView> {
-    return this.guardians.view(auth, id);
+  view(
+    @CurrentAuth() auth: AuthContext,
+    @Param('id', idPipe) id: string,
+    @Headers(CLIENT_LEVEL_HEADER) level: string | undefined,
+  ): Promise<GuardianView> {
+    return this.guardians.view(auth, id, clientLevelOf(level));
   }
 
   @Post(':id/confirm')

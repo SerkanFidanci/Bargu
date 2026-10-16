@@ -117,10 +117,11 @@ yeni tablo `app.entitlements`:
   - Test satın alma kapalıysa (üretim) satın alma ucu da yoktur (404). Gerçek mağaza gelince
     onaydan sonra çocuğun telefonu mağaza akışını açar (Faz 10).
   - Süs paketleri 15–17 için dilim 3'e kadar `GUARDIAN_APPROVAL` ile reddedilir, istek açılmaz.
-  - **Eski uygulamalarla uyum:** Bu sürümden önceki uygulamalar ebeveyn görünümündeki istek
-    listesini katı okur; yeni `purchase` türü, 2b ya da daha eski bir uygulamadaki ebeveyn
-    ekranını açılmaz yapar. Bu sürümden itibaren liste esnek okunur: tanınmayan türdeki istek
-    atlanır, görünümün geri kalanı bozulmaz. Kapalı testte herkes güncelleyerek çözülür.
+  - **Eski uygulamalarla uyum (PM kararı):** Bu sürümden önceki uygulamalar ebeveyn görünümündeki
+    istek listesini katı okur; `purchase` türünü görseler ebeveyn ekranı açılmazdı. Bu yüzden
+    sunucu satın alma isteğini yalnızca seviye 2 ve üstüne gönderir (§10). Eski bir ebeveyn
+    uygulaması isteği görmez ama ekranı bozulmaz; istek yeni uygulamada görünür. Bu sürümden
+    itibaren liste ayrıca esnek okunur: tanınmayan tür atlanır.
 
 ### 6. Sahte ödeme (test satın alma)
 
@@ -200,7 +201,7 @@ yeni tablo `app.entitlements`:
 ### 10. En eski desteklenen uygulama (QA 19 P4)
 
 - Uygulama her istekte kendi seviyesini `x-bargu-client` başlığında gönderir
-  (`@bargu/schemas` `CLIENT_LEVEL`, bu sürümde 1). Canlı bağlantıda aynı değer bağlantının sorgu
+  (`@bargu/schemas` `CLIENT_LEVEL`, bu sürümde 2). Canlı bağlantıda aynı değer bağlantının sorgu
   parametresindedir (`client`), çünkü eski sunucular kimlik nesnesindeki yeni alanı reddeder.
   Seviye göndermeyen uygulama 0 sayılır.
 - Sunucunun ortam değeri `MIN_CLIENT_LEVEL` (varsayılan 0: herkese hizmet). Değer uygulamanın
@@ -208,8 +209,24 @@ yeni tablo `app.entitlements`:
   hiçbir şeye bakılmadan durur. Hesap web sayfası (`/v1/web`, `/hesap`), sağlık uçları ve gizlilik
   sayfası etkilenmez (tarayıcı seviye göndermez).
 - Seviye, eski uygulamaların sunucunun gönderdiğini yanlış okuyacağı bir değişiklikte artırılır.
-  Örnek: 32b0f2d öncesi APK'lar duraklamış çemberi okuyamaz; denemeler bitmeden önce staging'de
-  `MIN_CLIENT_LEVEL=1` yapılabilir.
+  Seviyeler (`CLIENT_LEVEL_FOR`):
+  - 0: seviye göndermeyen her uygulama (bu kapıdan öncekiler).
+  - 1: duraklamış çemberi okur (32b0f2d ve sonrası; dilim 2a).
+  - 2: ebeveyn görünümünde satın alma isteğini okur (dilim 2c).
+- **İleri uyumluluk kuralı (PM kararı, 2026-10-16):**
+  - Uygulama, cevaplarda ve olaylarda tanımadığı bir türü atlar; listenin ya da görünümün geri
+    kalanı bozulmaz. Bundan sonraki her cevap şeması böyle yazılır (örnek: ebeveyn görünümündeki
+    istek listesi, dilim 2c).
+  - Sunucu yeni bir türü, onu okuyamayacak seviyedeki uygulamaya hiç göndermez. İsteği gönderen
+    uygulamanın seviyesine bakar (`x-bargu-client`). Örnek: satın alma isteği seviye 2'den
+    eskilere ne ebeveyn görünümünde ne ayar cevabında gider. Canlı olay `guardians.changed`
+    içerik taşımaz, yalnızca "yeniden oku" der; bu yüzden ayrıca süzülmesi gerekmez.
+  - Bildirim türleri için: eski uygulama tanımadığı bildirimde çökmez. Android sessizce atlar,
+    iOS uzantısı hiçbir şey söylemeyen genel metni gösterir. Bu yüzden yeni bildirim türü
+    (`guardianPurchase`) olduğu gibi gönderilir.
+  - Kapı (`MIN_CLIENT_LEVEL`) ancak herkes yeni sürüme geçince yükseltilir. Karar PM'e sorulur.
+    Seviye 1 atlandı; sahibin bütün telefonları dilim 2c APK'sına geçince doğrudan 2 yapılır, en geç
+    1 Kasım'da (denemeler bitmeden önce). Test botu da seviyesini gönderir.
 - Uygulama 426 alınca bütün ekranın yerine "Yeni sürüm gerekiyor" ekranını gösterir: güncelleyene
   kadar konumun paylaşılmadığını ve yeni konumları göremeyeceğini söyler. Düğme yoktur (yenileme
   yasak); güncelleme indirme bağlantısından ya da mağazadan gelir.

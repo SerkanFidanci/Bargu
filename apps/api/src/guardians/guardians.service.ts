@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { generateToken, hashToken } from '@bargu/crypto';
 import {
   AVATAR_EMOJIS,
+  CLIENT_LEVEL_FOR,
   GUARDIAN_CODE_TTL_MS,
   GUARDIAN_END_AFTER_MS,
   type GuardianCode,
@@ -289,7 +290,11 @@ export class GuardiansService {
    * What the parent sees, and the child alike: the child's age band and the people in the child's
    * circles (who could see the child's location). Only for an active link, to either side.
    */
-  async view(auth: AuthContext, linkId: string): Promise<GuardianView> {
+  /**
+   * The view both sides share, as far as the caller's app can read it: a purchase request only to
+   * level 2 and newer (older ones cannot read the kind, ADR 0024 §10).
+   */
+  async view(auth: AuthContext, linkId: string, clientLevel: number): Promise<GuardianView> {
     const found = await this.database.asUser(auth.userId, (tx) => this.read(tx, linkId));
     if (found?.link.status !== 'active') throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
     const childId = found.row.child_id;
@@ -329,7 +334,10 @@ export class GuardiansService {
         updatedBy: null,
       },
       usage: tools.usage,
-      requests: tools.requests,
+      requests: tools.requests.filter(
+        (request) =>
+          request.kind !== 'purchase' || clientLevel >= CLIENT_LEVEL_FOR.purchaseRequests,
+      ),
       circles: circles
         .filter((circle) => circle.myStatus === 'active')
         .map((circle) => ({
@@ -354,6 +362,7 @@ export class GuardiansService {
     auth: AuthContext,
     linkId: string,
     settings: GuardianSettings,
+    clientLevel: number,
   ): Promise<GuardianView> {
     const childId = await this.database.asUser(auth.userId, async (tx) => {
       const found = await this.read(tx, linkId);
@@ -368,7 +377,7 @@ export class GuardiansService {
     });
     await this.changed([childId, ...(await this.parentsOf(childId))]);
     await this.notifier.notify([childId], 'guardianSettings', linkId);
-    return this.view(auth, linkId);
+    return this.view(auth, linkId, clientLevel);
   }
 
   /**
