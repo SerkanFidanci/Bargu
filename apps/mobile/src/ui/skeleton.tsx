@@ -4,13 +4,13 @@ import Animated, {
   cancelAnimation,
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 
 import { ambient, radius, useTheme } from '@/theme';
+import { useEffects } from '@/theme/effects';
 
 export interface SkeletonProps {
   width: DimensionValue;
@@ -21,7 +21,7 @@ export interface SkeletonProps {
 /** Placeholder shape while content loads; pulses gently (static with Reduce Motion). */
 export function Skeleton({ width, height, round = false }: SkeletonProps) {
   const { colors } = useTheme();
-  const reduced = useReducedMotion();
+  const reduced = useEffects() !== 'full';
   const pulse = useSharedValue(1);
 
   useEffect(() => {

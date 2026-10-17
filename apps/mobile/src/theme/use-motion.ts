@@ -6,18 +6,18 @@ import {
   FadeOutDown,
   FadeOutUp,
   ReduceMotion,
-  useReducedMotion,
   ZoomIn,
 } from 'react-native-reanimated';
 
+import { useEffects } from './effects';
 import { choreography, duration, spring } from './motion';
 
 /**
- * Entering/exiting animations that respect Reduce Motion (BARGU_PLAN §4.1): with it on, things
- * fade in place instead of moving or bouncing.
+ * Entering/exiting animations that respect Reduce Motion (BARGU_PLAN §4.1) and sade mod "off":
+ * then things fade in place instead of moving or bouncing.
  */
 export function useMotion() {
-  const reduced = useReducedMotion();
+  const reduced = useEffects() === 'off';
   const fade = FadeIn.duration(duration.fast);
   const springy = <
     T extends { damping: (v: number) => T; stiffness: (v: number) => T; mass: (v: number) => T },
@@ -59,6 +59,13 @@ export function useMotion() {
         ? fade
         : springy(ZoomIn.springify(), spring.bouncy)
             .delay(index * choreography.digitStagger)
+            .reduceMotion(ReduceMotion.System),
+    /** The n-th of a few buttons springing in one after another (the map's shortcuts). */
+    springAt: (index: number) =>
+      reduced
+        ? fade
+        : springy(ZoomIn.springify(), spring.bouncy)
+            .delay(index * choreography.stagger)
             .reduceMotion(ReduceMotion.System),
     /** The n-th item of the radial menu fanning out around a held avatar. */
     radialAt: (index: number) =>

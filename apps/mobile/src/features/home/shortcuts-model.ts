@@ -39,8 +39,9 @@ export function isAway(
 export type TimedPoint = MeetingPoint & { meetAt: number };
 
 /**
- * The meeting the chip shows: the earliest one still on (until its time + MEETING.keptMs), and how
- * many more there are.
+ * The meeting the chip shows, and how many more there are: the next one coming first (soonest
+ * first), then those whose time has passed but are still on until their time + MEETING.keptMs
+ * (latest first, QA 22).
  */
 export function nextMeeting(
   points: readonly MeetingPoint[],
@@ -51,7 +52,11 @@ export function nextMeeting(
       (point): point is TimedPoint =>
         point.state === 'set' && point.meetAt !== undefined && point.meetAt + MEETING.keptMs > now,
     )
-    .sort((a, b) => a.meetAt - b.meetAt);
+    .sort((a, b) => {
+      const aComing = a.meetAt > now;
+      if (aComing !== b.meetAt > now) return aComing ? -1 : 1;
+      return aComing ? a.meetAt - b.meetAt : b.meetAt - a.meetAt;
+    });
   const [first] = timed;
   return first === undefined ? null : { point: first, more: timed.length - 1 };
 }

@@ -5,12 +5,12 @@ import Animated, {
   Easing,
   interpolate,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 
 import { ambient, type ColorTokens, radius, space, touchTarget, useTheme } from '@/theme';
+import { useEffects } from '@/theme/effects';
 import type { HapticKind } from '@/theme/motion';
 import { useMotion } from '@/theme/use-motion';
 
@@ -61,7 +61,7 @@ export function Button({
 }: ButtonProps) {
   const { colors } = useTheme();
   const motion = useMotion();
-  const reduced = useReducedMotion();
+  const reduced = useEffects() === 'off';
   const palette = PALETTE[variant];
   const inactive = disabled || loading;
   const textColor = colors[palette.text];

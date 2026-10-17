@@ -9,16 +9,27 @@ import {
   Rect,
   Skia,
   type SkPoint,
-  useClock,
 } from '@shopify/react-native-skia';
+import { createContext, useContext } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import { useDerivedValue, useReducedMotion } from 'react-native-reanimated';
+import { type SharedValue, useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { weatherFx } from '@/theme';
+import { useEffects } from '@/theme/effects';
 
 import { useMapScheme } from '../map/appearance';
+import { usePlayClock } from './play-clock';
 import type { WeatherHere } from './weather';
+
+/** The layer's one clock (play-clock.ts): every effect reads it, none runs one of its own. */
+const WeatherClock = createContext<SharedValue<number> | null>(null);
+
+function useWeatherClock(): SharedValue<number> {
+  const clock = useContext(WeatherClock);
+  if (clock === null) throw new Error('weather effect outside WeatherLayer');
+  return clock;
+}
 
 /** Effect colours over the light and the dark map (rain, snow, fog and cloud, sun, flash). */
 const PALETTE = {
@@ -69,7 +80,7 @@ function Rain({
   tilt: number;
   color: string;
 }) {
-  const clock = useClock();
+  const clock = useWeatherClock();
   const { width, height } = area;
   const path = useDerivedValue(() => {
     const t = clock.get();
@@ -89,7 +100,7 @@ function Rain({
 
 /** Snow: flakes drifting down and swaying. */
 function Snow({ area, count, color }: { area: Area; count: number; color: string }) {
-  const clock = useClock();
+  const clock = useWeatherClock();
   const { width, height } = area;
   const { fallMs, sway, size } = weatherFx.snow;
   const points = useDerivedValue(() => {
@@ -125,7 +136,7 @@ function Drift({
   /** Fog lies low and wide; clouds float higher and rounder. */
   low: boolean;
 }) {
-  const clock = useClock();
+  const clock = useWeatherClock();
   const { width, height } = area;
   const radius = (low ? 0.5 : 0.3) * width;
   const shift = useDerivedValue(() => ((clock.get() / driftMs) % 1) * (width + radius * 2));
@@ -171,7 +182,7 @@ function Puff({
 
 /** A clear day: a soft warm glow in the corner, slowly breathing. */
 function Sun({ area, top, color }: { area: Area; top: number; color: string }) {
-  const clock = useClock();
+  const clock = useWeatherClock();
   const { pulseMs, opacity } = weatherFx.sun;
   const glow = useDerivedValue(
     () => opacity * (0.75 + 0.25 * Math.sin((clock.get() / pulseMs) * 2 * Math.PI)),
@@ -189,7 +200,7 @@ function Sun({ area, top, color }: { area: Area; top: number; color: string }) {
 
 /** A clear night: a few stars twinkling. */
 function Stars({ area, color }: { area: Area; color: string }) {
-  const clock = useClock();
+  const clock = useWeatherClock();
   const { count, twinkleMs } = weatherFx.stars;
   const stars = Array.from({ length: count }, (_, i) => ({
     x: seed(i + 0.11) * area.width,
@@ -207,7 +218,7 @@ function Stars({ area, color }: { area: Area; color: string }) {
 
 /** A storm: a short flash of lightning now and then. */
 function Lightning({ area, color }: { area: Area; color: string }) {
-  const clock = useClock();
+  const clock = useWeatherClock();
   const { everyMs, ms, opacity } = weatherFx.flash;
   const flash = useDerivedValue(() => {
     const cycle = Math.floor(clock.get() / everyMs);
@@ -314,18 +325,32 @@ function Effects({
 /**
  * The weather where the user is, drawn over the map (BARGU_PLAN §4.3 ambient states): rain,
  * drizzle, snow, fog, clouds, a storm's lightning, the sun by day and stars at night. One Skia
- * canvas, every frame computed on the UI thread; it never takes a touch. Off with Reduce Motion.
+ * canvas computed on the UI thread; it never takes a touch. By sade mod (docs/ADR/0027): "full"
+ * plays a while each time it is woken (the map opened, the weather changed, `wake`: a touch or a
+ * move), then holds its last frame; "reduced" is one still frame; "off" (and Reduce Motion, or the
+ * map not on screen) draws nothing.
  */
-export function WeatherLayer({ here }: { here: WeatherHere }) {
-  const reduced = useReducedMotion();
+export function WeatherLayer({ here, wake = 0 }: { here: WeatherHere; wake?: number }) {
+  const level = useEffects();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const scheme = useMapScheme();
-  if (reduced) return null;
+  const clock = usePlayClock(
+    level,
+    [here.kind, String(here.day), String(here.intensity), String(wake)].join(':'),
+  );
+  if (level === 'off') return null;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Canvas style={StyleSheet.absoluteFill}>
-        <Effects here={here} area={{ width, height }} top={insets.top} palette={PALETTE[scheme]} />
+        <WeatherClock.Provider value={clock}>
+          <Effects
+            here={here}
+            area={{ width, height }}
+            top={insets.top}
+            palette={PALETTE[scheme]}
+          />
+        </WeatherClock.Provider>
       </Canvas>
     </View>
   );

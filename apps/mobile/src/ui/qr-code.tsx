@@ -4,7 +4,6 @@ import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -13,6 +12,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { ambient, elevation, qrColors, radius, space, useTheme } from '@/theme';
 import { useMotion } from '@/theme/use-motion';
+import { useEffects } from '@/theme/effects';
 
 /** Light modules around the code (the "quiet zone" scanners need), in modules. */
 const QUIET_ZONE = 2;
@@ -52,7 +52,7 @@ export interface QrCodeProps {
 export function QrCode({ value, size, label }: QrCodeProps) {
   const { colors } = useTheme();
   const motion = useMotion();
-  const reduced = useReducedMotion();
+  const reduced = useEffects() !== 'full';
   const { size: modules, path } = useMemo(() => qrPath(value), [value]);
   const halo = useSharedValue(0);
 

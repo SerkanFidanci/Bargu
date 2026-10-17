@@ -55,6 +55,8 @@ export interface MapAvatarProps {
   pokedAt?: number | undefined;
   /** A meeting to celebrate around this avatar (meet-burst.tsx). */
   burst?: { at: number; colors: readonly [string, string] } | null | undefined;
+  /** When their latest location came (sade mod "reduced" moves once per new one). */
+  news?: number | undefined;
 }
 
 /**
@@ -78,6 +80,7 @@ export function MapAvatar({
   userId,
   activity,
   detail,
+  news,
 }: MapAvatarProps) {
   const lift = useSharedValue(0);
   useEffect(() => {
@@ -102,12 +105,13 @@ export function MapAvatar({
       activity={activity}
       heading={hdg}
       detail={detail}
+      news={news}
     />
   );
   return (
     <View style={styles.box} pointerEvents="box-none">
       {gait === null || heading === null || heading === undefined ? null : (
-        <Footprints gait={gait} heading={heading} center={CENTER} color={color} />
+        <Footprints gait={gait} heading={heading} center={CENTER} color={color} news={news} />
       )}
       {level === 0 ? null : (
         <View

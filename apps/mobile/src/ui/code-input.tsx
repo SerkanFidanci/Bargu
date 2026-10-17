@@ -7,7 +7,6 @@ import Animated, {
   type SharedValue,
   useAnimatedProps,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withSequence,
@@ -28,6 +27,7 @@ import {
   useTheme,
 } from '@/theme';
 import { feedback } from '@/theme/haptics';
+import { useEffects } from '@/theme/effects';
 
 import { Text } from './text';
 
@@ -72,7 +72,7 @@ export const CodeInput = forwardRef<TextInput, CodeInputProps>(function CodeInpu
   ref,
 ) {
   const { colors } = useTheme();
-  const reduced = useReducedMotion();
+  const reduced = useEffects() !== 'full';
   const [focused, setFocused] = useState(false);
   const curl = useSharedValue(0);
   const spin = useSharedValue(0);

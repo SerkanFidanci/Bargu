@@ -3,7 +3,6 @@ import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
   type SharedValue,
@@ -12,6 +11,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { create } from 'zustand';
 
 import { ambient, avatarPalette, radius, space, useTheme } from '@/theme';
+import { useEffects } from '@/theme/effects';
 
 interface CelebrationState {
   pending: boolean;
@@ -34,13 +34,15 @@ const PIECE = { width: space.sm, height: space.md };
 
 /**
  * A short burst of confetti from the bottom of the screen. Decorative and non-blocking (touches
- * pass through); skipped entirely with Reduce Motion. Piece paths are fixed per index, so the
- * burst looks the same each time and needs no randomness.
+ * pass through); half as many pieces in sade mod "reduced", none with "off" or Reduce Motion.
+ * Piece paths are fixed per index, so the burst looks the same each time and needs no randomness.
  */
 export function Confetti({ onDone }: { onDone: () => void }) {
-  const reduced = useReducedMotion();
+  const level = useEffects();
+  const reduced = level === 'off';
   const progress = useSharedValue(0);
-  const { count } = ambient.confetti;
+  const count =
+    level === 'reduced' ? Math.ceil(ambient.confetti.count / 2) : ambient.confetti.count;
 
   useEffect(() => {
     if (reduced) {

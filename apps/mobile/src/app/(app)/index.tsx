@@ -11,6 +11,7 @@ import { MapShortcuts } from '@/features/home/map-shortcuts';
 import { MeetingChip } from '@/features/home/meeting-chip';
 import { SeersPill } from '@/features/home/seers-pill';
 import { isAway, nextMeeting } from '@/features/home/shortcuts-model';
+import { useOnScreen } from '@/features/home/use-on-screen';
 import { AddSheet } from '@/features/circles/add-sheet';
 import { CirclesSheet } from '@/features/circles/circles-sheet';
 import { useCircles } from '@/features/circles/queries';
@@ -42,6 +43,7 @@ import { WeatherLayer } from '@/features/weather/weather-layer';
 import { MapCredit } from '@/features/map/map-credit';
 import { useMe } from '@/features/profile/queries';
 import { space, touchTarget } from '@/theme';
+import { EffectsPaused } from '@/theme/effects';
 import { useMotion } from '@/theme/use-motion';
 import { Confetti, useCelebration } from '@/ui/confetti';
 import type { SheetRef } from '@/ui/sheet';
@@ -87,6 +89,10 @@ export default function HomeScreen() {
   ]);
   // The shortcuts at the right edge (docs/ADR/0026 §8): out of the way while a person's card is open.
   const [view, setView] = useState<{ center: LngLat; zoom: number } | null>(null);
+  // Nothing moves while the map is not seen (another page over it, the app in the background);
+  // a touch or a move wakes the weather for a while (docs/ADR/0027).
+  const onScreen = useOnScreen();
+  const [wake, setWake] = useState(0);
   const cardOpen = usePersonFocus((state) => state.selected !== null);
   const next = nextMeeting(points, now);
   const nextCircle =
@@ -117,105 +123,113 @@ export default function HomeScreen() {
   if (me.data === undefined) return null;
 
   return (
-    <View style={styles.screen}>
-      <BarguMap
-        ref={map}
-        onPress={people.onMapPress}
-        insets={{
-          top: insets.top + PILL_HEIGHT,
-          bottom: insets.bottom + DOCK_HEIGHT,
-        }}
-        focus={myFix === null ? null : [myFix.lng, myFix.lat]}
-        onSettle={setView}
-      >
-        <PlacesLayer except={meetingPlaces} />
-        <MeetingPointsLayer points={points} now={now} />
-        <PeopleLayer
-          me={me.data}
-          circles={circleList.data ?? []}
-          handlersFor={people.handlersFor}
-          onGroup={people.openGroup}
-        />
-        {DEV_TOOLS_ENABLED ? <SwarmLayer /> : null}
-      </BarguMap>
-      {weather === null ? null : <WeatherLayer here={weather} />}
-      <MapCredit bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
-      <Animated.View
-        entering={motion.enterDown}
-        style={[styles.top, { top: insets.top + space.sm }]}
-        pointerEvents="box-none"
-      >
-        <SeersPill
-          seers={seers}
-          ghost={sharing.ghost !== 'off'}
+    <EffectsPaused.Provider value={!onScreen}>
+      <View style={styles.screen}>
+        <BarguMap
+          ref={map}
           onPress={() => {
-            router.push('/seers');
+            people.onMapPress();
+            setWake((count) => count + 1);
           }}
+          insets={{
+            top: insets.top + PILL_HEIGHT,
+            bottom: insets.bottom + DOCK_HEIGHT,
+          }}
+          focus={myFix === null ? null : [myFix.lng, myFix.lat]}
+          onSettle={(settled) => {
+            setView(settled);
+            setWake((count) => count + 1);
+          }}
+        >
+          <PlacesLayer except={meetingPlaces} />
+          <MeetingPointsLayer points={points} now={now} />
+          <PeopleLayer
+            me={me.data}
+            circles={circleList.data ?? []}
+            handlersFor={people.handlersFor}
+            onGroup={people.openGroup}
+          />
+          {DEV_TOOLS_ENABLED ? <SwarmLayer /> : null}
+        </BarguMap>
+        {weather === null ? null : <WeatherLayer here={weather} wake={wake} />}
+        <MapCredit bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
+        <Animated.View
+          entering={motion.enterDown}
+          style={[styles.top, { top: insets.top + space.sm }]}
+          pointerEvents="box-none"
+        >
+          <SeersPill
+            seers={seers}
+            ghost={sharing.ghost !== 'off'}
+            onPress={() => {
+              router.push('/seers');
+            }}
+          />
+          <MeetingChip circles={circleList.data ?? []} points={points} now={now} me={myUserId} />
+          {weather === null ? null : <WeatherChip here={weather} />}
+          <LocationBanner />
+          <NotificationCard />
+          <NewPhoneCard onChoose={() => circles.current?.present()} />
+          <SharingReminderCard />
+          {DEV_TOOLS_ENABLED ? <SwarmPanel /> : null}
+        </Animated.View>
+        <Animated.View
+          entering={motion.enterUpAt(1)}
+          style={[styles.bottom, { bottom: insets.bottom + space.md }]}
+          pointerEvents="box-none"
+        >
+          <Dock
+            me={me.data}
+            addOpen={addOpen}
+            requests={requests}
+            onCircles={() => circles.current?.present()}
+            onAdd={toggleAdd}
+            onMe={() => meSheet.current?.present()}
+          />
+        </Animated.View>
+        {cardOpen ? null : (
+          <MapShortcuts
+            circles={circleList.data ?? []}
+            away={view !== null && isAway(view.center, view.zoom, myFix)}
+            onRecenter={() => {
+              if (myFix !== null) map.current?.focusOn([myFix.lng, myFix.lat], 0);
+            }}
+            meeting={onChip}
+            me={myUserId}
+            now={now}
+            bottom={insets.bottom + DOCK_HEIGHT + space.md}
+          />
+        )}
+        {people.overlay}
+        <CirclesSheet
+          ref={circles}
+          onAdd={() => {
+            circles.current?.dismiss();
+            add.current?.present();
+            setAddOpen(true);
+          }}
+          onClose={() => circles.current?.dismiss()}
         />
-        <MeetingChip circles={circleList.data ?? []} points={points} now={now} me={myUserId} />
-        {weather === null ? null : <WeatherChip here={weather} />}
-        <LocationBanner />
-        <NotificationCard />
-        <NewPhoneCard onChoose={() => circles.current?.present()} />
-        <SharingReminderCard />
-        {DEV_TOOLS_ENABLED ? <SwarmPanel /> : null}
-      </Animated.View>
-      <Animated.View
-        entering={motion.enterUpAt(1)}
-        style={[styles.bottom, { bottom: insets.bottom + space.md }]}
-        pointerEvents="box-none"
-      >
-        <Dock
+        <AddSheet
+          ref={add}
+          onDismiss={() => {
+            setAddOpen(false);
+          }}
+          onClose={() => add.current?.dismiss()}
+        />
+        <MeSheet
+          ref={meSheet}
           me={me.data}
-          addOpen={addOpen}
-          requests={requests}
-          onCircles={() => circles.current?.present()}
-          onAdd={toggleAdd}
-          onMe={() => meSheet.current?.present()}
-        />
-      </Animated.View>
-      {cardOpen ? null : (
-        <MapShortcuts
-          circles={circleList.data ?? []}
-          away={view !== null && isAway(view.center, view.zoom, myFix)}
-          onRecenter={() => {
-            if (myFix !== null) map.current?.focusOn([myFix.lng, myFix.lat], 0);
+          onClose={() => meSheet.current?.dismiss()}
+          onStatus={() => {
+            meSheet.current?.dismiss();
+            statusSheet.current?.present();
           }}
-          meeting={onChip}
-          me={myUserId}
-          now={now}
-          bottom={insets.bottom + DOCK_HEIGHT + space.md}
         />
-      )}
-      {people.overlay}
-      <CirclesSheet
-        ref={circles}
-        onAdd={() => {
-          circles.current?.dismiss();
-          add.current?.present();
-          setAddOpen(true);
-        }}
-        onClose={() => circles.current?.dismiss()}
-      />
-      <AddSheet
-        ref={add}
-        onDismiss={() => {
-          setAddOpen(false);
-        }}
-        onClose={() => add.current?.dismiss()}
-      />
-      <MeSheet
-        ref={meSheet}
-        me={me.data}
-        onClose={() => meSheet.current?.dismiss()}
-        onStatus={() => {
-          meSheet.current?.dismiss();
-          statusSheet.current?.present();
-        }}
-      />
-      <StatusSheet ref={statusSheet} onClose={() => statusSheet.current?.dismiss()} />
-      {celebrating ? <Confetti onDone={celebrated} /> : null}
-    </View>
+        <StatusSheet ref={statusSheet} onClose={() => statusSheet.current?.dismiss()} />
+        {celebrating ? <Confetti onDone={celebrated} /> : null}
+      </View>
+    </EffectsPaused.Provider>
   );
 }
 

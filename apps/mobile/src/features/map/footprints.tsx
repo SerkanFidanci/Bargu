@@ -5,13 +5,13 @@ import Animated, {
   Easing,
   type SharedValue,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 
 import { activityFx } from '@/theme';
+import { useEffects } from '@/theme/effects';
 
 /** Where the first print is drawn behind the person's position (px). */
 const START = 6;
@@ -82,14 +82,18 @@ export function Footprints({
   heading,
   center,
   color,
+  news,
 }: {
   gait: 'walk' | 'run';
   heading: number;
   /** The person's position inside the marker box (its centre). */
   center: number;
   color: string;
+  /** When their latest location came: at sade mod "reduced" each one plays the steps once. */
+  news?: number | undefined;
 }) {
-  const reduced = useReducedMotion();
+  const level = useEffects();
+  const again = level === 'reduced' ? news : undefined;
   const phase = useSharedValue(0);
   const { prints, spacing, side } = activityFx.footprints[gait];
   const cycleMs = activityFx[gait].cycleMs;
@@ -97,12 +101,14 @@ export function Footprints({
   useEffect(() => {
     cancelAnimation(phase);
     phase.set(0);
-    if (reduced) return;
-    phase.set(withRepeat(withTiming(1, { duration: cycleMs, easing: Easing.linear }), -1, false));
+    if (level === 'off') return;
+    // Endless at "full" (the map lively), once per new location at "reduced" (docs/ADR/0027).
+    const once = withTiming(1, { duration: cycleMs, easing: Easing.linear });
+    phase.set(level === 'full' ? withRepeat(once, -1, false) : once);
     return () => {
       cancelAnimation(phase);
     };
-  }, [phase, reduced, cycleMs]);
+  }, [phase, level, cycleMs, again]);
 
   return (
     <View

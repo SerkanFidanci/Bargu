@@ -16,7 +16,8 @@ export const spring = {
 } as const satisfies Record<string, WithSpringConfig>;
 
 /** Milliseconds. Nothing keeps the user waiting longer than `slow` (BARGU_PLAN §4.1). */
-export const duration = { fast: 150, base: 250, slow: 400 } as const;
+/** `instant`: no motion at all (sade mod "off"), where an animation must still be named. */
+export const duration = { instant: 0, fast: 150, base: 250, slow: 400 } as const;
 
 export const timing = {
   fast: { duration: duration.fast, reduceMotion: ReduceMotion.System },
@@ -26,7 +27,7 @@ export const timing = {
 
 /**
  * Ambient loops (not user-triggered, so not bound by the 400 ms rule): avatars "breathe" on the
- * map and skeletons pulse while loading. Both stop entirely with Reduce Motion.
+ * map and skeletons pulse while loading. Both stop below sade mod "full" and with Reduce Motion.
  */
 export const ambient = {
   breathe: { duration: 2400, scale: 1.04 },
@@ -106,6 +107,11 @@ export const weatherFx = {
   flash: { everyMs: 6_500, ms: 160, opacity: 0.55 },
   sun: { pulseMs: 5_000, opacity: 0.32 },
   stars: { count: 18, twinkleMs: 3_200 },
+  /**
+   * At sade mod "full" the weather plays this long (the map opened, the weather changed, a touch
+   * or a move), in this many steps (30 a second), then holds its last frame (docs/ADR/0027).
+   */
+  play: { ms: 20_000, steps: 600 },
 } as const;
 
 /** "You met": a burst of particles around the user's avatar (BARGU_PLAN §4.3). */
@@ -188,6 +194,26 @@ export const choreography = {
   hold: 350,
   /** Radial menu items pop out one after another, quicker than rows. */
   radialStagger: 30,
+} as const;
+
+/**
+ * The map's shortcuts and meeting chip (docs/ADR/0026 §8): short, one-off effects, never an endless
+ * loop (battery). Counts are for the full level of sade mod; "reduced" plays one, "off" none.
+ */
+export const shortcutFx = {
+  /** Ghost mode on: the ghost floats up and down this many times, then rests. */
+  ghostFloats: 3,
+  /** Ghost mode off: a little "pof", squeezed then past its size. */
+  pof: { squeeze: 0.72, overshoot: 1.14 },
+  /** "Back to me": one ring spreading from the button, the icon turning once. */
+  radar: { duration: 700, scale: 2.4, opacity: 0.6 },
+  /** "Geldim" appearing: this many rings, then still; one more when the chip's minute changes. */
+  hereRings: 3,
+  ring: { duration: 1200, scale: 2.2, opacity: 0.5 },
+  /** The meeting chip's last stretch: this many breaths as it starts, then still. */
+  chipBreaths: 3,
+  /** A changed minute rolls in from below. */
+  roll: { duration: 280, distance: 12 },
 } as const;
 
 /** Haptic feedback per interaction kind (expo-haptics), see haptics.ts. */

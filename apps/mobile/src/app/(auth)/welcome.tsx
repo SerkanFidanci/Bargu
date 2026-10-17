@@ -7,7 +7,6 @@ import Animated, {
   useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -21,6 +20,7 @@ import {
 import { choreography, radius, space, useTheme } from '@/theme';
 import { Button } from '@/ui/button';
 import { Text } from '@/ui/text';
+import { useEffects } from '@/theme/effects';
 
 const PAGES = [
   { key: 'locked', Illustration: LockedIllustration },
@@ -134,7 +134,7 @@ function Parallax({
   depth: number;
   children: React.ReactNode;
 }) {
-  const reduced = useReducedMotion();
+  const reduced = useEffects() === 'off';
   const style = useAnimatedStyle(() => {
     const distance = offset.get() - index * width;
     const progress = Math.abs(distance) / Math.max(width, 1);

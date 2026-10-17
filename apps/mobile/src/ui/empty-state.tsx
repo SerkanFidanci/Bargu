@@ -5,7 +5,6 @@ import Animated, {
   cancelAnimation,
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -13,6 +12,7 @@ import Animated, {
 
 import { ambient, radius, space, useTheme } from '@/theme';
 import { useMotion } from '@/theme/use-motion';
+import { useEffects } from '@/theme/effects';
 
 import { Button } from './button';
 import { Text } from './text';
@@ -28,7 +28,7 @@ export interface EmptyStateProps {
 export function EmptyState({ icon: Icon, title, body, action }: EmptyStateProps) {
   const { colors } = useTheme();
   const motion = useMotion();
-  const reduced = useReducedMotion();
+  const reduced = useEffects() !== 'full';
   const bob = useSharedValue(0);
 
   useEffect(() => {

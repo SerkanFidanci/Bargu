@@ -167,6 +167,7 @@ export function PeopleLayer({
                 {...shown.marker}
                 spd={myFix.spd}
                 hdg={myFix.hdg}
+                news={myFix.ts}
                 burst={burst}
                 above={shown.above}
               />
@@ -185,6 +186,7 @@ export function PeopleLayer({
               {...shown.marker}
               spd={loc.spd}
               hdg={loc.hdg}
+              news={person.entry.receivedAt}
               handlers={shown.handlers}
               pokedAt={shown.pokedAt}
               above={shown.above}

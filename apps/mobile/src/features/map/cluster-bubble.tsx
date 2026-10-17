@@ -16,7 +16,6 @@ import Animated, {
   type SharedValue,
   useAnimatedStyle,
   useDerivedValue,
-  useReducedMotion,
   useSharedValue,
   withSequence,
   withSpring,
@@ -38,6 +37,7 @@ import { AvatarMarker, type AvatarMarkerProps, PIN_HEIGHT, STICKER } from '@/ui/
 import { stickerTilt } from '@/ui/sticker';
 import { GLYPH } from '@/ui/activity-glyph';
 import { Text } from '@/ui/text';
+import { useEffects } from '@/theme/effects';
 
 import { CLUSTER_PX } from './cluster';
 import { MAP_AVATAR_BOX } from './map-avatar';
@@ -191,7 +191,7 @@ export function ClusterBubble({
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const reduced = useReducedMotion();
+  const reduced = useEffects() === 'off';
   const merge = useSharedValue(reduced ? 1 : 0);
 
   useEffect(() => {

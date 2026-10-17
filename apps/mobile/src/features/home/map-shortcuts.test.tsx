@@ -1,5 +1,5 @@
 import type { Circle } from '@bargu/schemas';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
 import i18n from '@/i18n';
@@ -107,7 +107,9 @@ describe('the map shortcuts (docs/ADR/0026 §8)', () => {
       expect.any(Array),
     );
     const buttons = alert.mock.calls[0]?.[2] ?? [];
-    buttons.find((button) => button.style !== 'cancel')?.onPress?.();
+    await act(() => {
+      buttons.find((button) => button.style !== 'cancel')?.onPress?.();
+    });
     expect(useSharing.getState().ghost).toBe('off');
     alert.mockRestore();
   });
@@ -140,7 +142,9 @@ describe('the map shortcuts (docs/ADR/0026 §8)', () => {
     await view.rerender(shortcuts({ meeting, now: meeting.meetAt }));
     await fireEvent.press(screen.getByTestId('shortcut-here'));
     expect(mockSayArrived).toHaveBeenCalledWith(family, meeting.meetAt);
-    useArrived.setState({ [`${family.id}:${ME}`]: { meetAt: meeting.meetAt, ts: NOW } });
+    await act(() => {
+      useArrived.setState({ [`${family.id}:${ME}`]: { meetAt: meeting.meetAt, ts: NOW } });
+    });
     await view.rerender(shortcuts({ meeting, now: meeting.meetAt + MIN }));
     expect(screen.queryByTestId('shortcut-here')).toBeNull();
   });

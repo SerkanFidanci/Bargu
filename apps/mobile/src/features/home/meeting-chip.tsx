@@ -1,21 +1,19 @@
 import type { Circle } from '@bargu/schemas';
 import { router } from 'expo-router';
 import { Flag } from 'lucide-react-native';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
-  cancelAnimation,
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
-  withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 import { z } from 'zod';
 
-import { ambient, elevation, radius, space, touchTarget, useTheme } from '@/theme';
+import { ambient, elevation, radius, shortcutFx, space, touchTarget, useTheme } from '@/theme';
+import { type EffectLevel, repeatFinite, timesAt, useEffects } from '@/theme/effects';
 import { useMotion } from '@/theme/use-motion';
 import { useCelebration } from '@/ui/confetti';
 import { PressableScale } from '@/ui/pressable-scale';
@@ -81,16 +79,17 @@ function Chip({
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const motion = useMotion();
+  const level = useEffects();
   const meeting = { circleId: circle.id, meetAt: point.meetAt, place: point.place };
   const count = headcount(useArrivals(circle, meeting, me, now));
   const { phase, minutes } = countdown(point.meetAt, now);
   const close = phase === 'close';
-  const breathing = useBreathing(close);
+  const breathing = useBreathing(close, level);
   useCelebrateOnce(`${circle.id}:${String(point.meetAt)}`, count.allThereExactly);
 
   const where = `${point.place.emoji} ${point.place.name}`;
   const everyone = count.total > 1 && count.there === count.total;
-  const parts =
+  const lead = (
     phase === 'now'
       ? [
           where,
@@ -99,72 +98,103 @@ function Chip({
             : t('meeting.chip.there', { there: count.there, total: count.total }),
           everyone || count.coming === 0 ? null : t('meeting.chip.coming', { count: count.coming }),
         ]
-      : [
-          where,
-          endClock(point.meetAt, now, i18n.language),
-          phase === 'later' ? null : t('meeting.chip.minutes', { minutes }),
-        ];
-  const text = parts.filter((part) => part !== null).join(' · ');
+      : [where, endClock(point.meetAt, now, i18n.language)]
+  ).filter((part) => part !== null);
+  // The minutes left, rolling in as they change (the rest of the text stays still).
+  const left =
+    phase === 'soon' || phase === 'close' ? t('meeting.chip.minutes', { minutes }) : null;
+  const text = [...lead, left].filter((part) => part !== null).join(' · ');
   const tint = close ? colors.onAccent : colors.text;
 
   return (
-    <Animated.View entering={motion.pop} exiting={motion.fadeOut} style={breathing}>
-      <PressableScale
-        testID="meeting-chip"
-        haptic="select"
-        accessibilityRole="button"
-        accessibilityLabel={t('meeting.chip.label', { title: point.title, text })}
-        onPress={() => {
-          router.push({ pathname: '/meeting/[circleId]', params: { circleId: circle.id } });
-        }}
-        style={[
-          styles.chip,
-          {
-            backgroundColor: close ? colors.accent : colors.surfaceRaised,
-            boxShadow: elevation.floating,
-          },
-        ]}
-      >
-        <Flag color={close ? colors.onAccent : colors.accent} size={18} strokeWidth={2.5} />
-        <Text
-          variant="subhead"
-          numberOfLines={2}
-          maxFontSizeMultiplier={1.6}
-          style={[styles.text, { color: tint }]}
+    <Animated.View entering={motion.pop} exiting={motion.fadeOut}>
+      <Animated.View style={breathing}>
+        <PressableScale
+          testID="meeting-chip"
+          haptic="select"
+          accessibilityRole="button"
+          accessibilityLabel={t('meeting.chip.label', { title: point.title, text })}
+          onPress={() => {
+            router.push({ pathname: '/meeting/[circleId]', params: { circleId: circle.id } });
+          }}
+          style={[
+            styles.chip,
+            {
+              backgroundColor: close ? colors.accent : colors.surfaceRaised,
+              boxShadow: elevation.floating,
+            },
+          ]}
         >
-          {text}
-        </Text>
-        {more > 0 ? (
-          <Text variant="caption" maxFontSizeMultiplier={1.6} style={{ color: tint }}>
-            {t('meeting.chip.more', { count: more })}
-          </Text>
-        ) : null}
-      </PressableScale>
+          <Flag color={close ? colors.onAccent : colors.accent} size={18} strokeWidth={2.5} />
+          <View style={styles.text}>
+            <Text
+              variant="subhead"
+              numberOfLines={2}
+              maxFontSizeMultiplier={1.6}
+              style={{ color: tint }}
+            >
+              {lead.join(' · ')}
+              {left === null ? '' : ' ·'}
+            </Text>
+            {left === null ? null : <Rolling text={left} color={tint} level={level} />}
+          </View>
+          {more > 0 ? (
+            <Text variant="caption" maxFontSizeMultiplier={1.6} style={{ color: tint }}>
+              {t('meeting.chip.more', { count: more })}
+            </Text>
+          ) : null}
+        </PressableScale>
+      </Animated.View>
     </Animated.View>
   );
 }
 
-/** The last stretch before the meeting: the chip breathes gently; it stays still with Reduce Motion. */
-function useBreathing(on: boolean) {
-  const reduced = useReducedMotion();
+/** The minutes left: a changed value rolls in from below (once per change, none when "off"). */
+function Rolling({ text, color, level }: { text: string; color: string; level: EffectLevel }) {
+  const offset = useSharedValue(0);
+  const shown = useRef(text);
+  useEffect(() => {
+    if (shown.current === text) return;
+    shown.current = text;
+    if (level === 'off') return;
+    offset.set(shortcutFx.roll.distance);
+    offset.set(
+      withTiming(0, { duration: shortcutFx.roll.duration, easing: Easing.out(Easing.cubic) }),
+    );
+  }, [text, level, offset]);
+  const style = useAnimatedStyle(() => ({
+    opacity: 1 - offset.get() / shortcutFx.roll.distance,
+    transform: [{ translateY: offset.get() }],
+  }));
+  return (
+    <Animated.View style={style}>
+      <Text variant="subhead" maxFontSizeMultiplier={1.6} style={{ color }}>
+        {text}
+      </Text>
+    </Animated.View>
+  );
+}
+
+/**
+ * The last stretch before the meeting begins: the chip breathes a few times, then stays still
+ * (once when reduced, not at all when "off"); never an endless loop.
+ */
+function useBreathing(on: boolean, level: EffectLevel) {
   const scale = useSharedValue(1);
   useEffect(() => {
-    if (!on || reduced) {
-      cancelAnimation(scale);
-      scale.set(1);
-      return;
-    }
+    const breaths = timesAt(level, shortcutFx.chipBreaths);
+    if (!on || breaths === 0) return;
     scale.set(
-      withRepeat(
+      repeatFinite(
         withTiming(ambient.breathe.scale, {
           duration: ambient.breathe.duration / 2,
           easing: Easing.inOut(Easing.quad),
         }),
-        -1,
+        breaths,
         true,
       ),
     );
-  }, [on, reduced, scale]);
+  }, [on, level, scale]);
   return useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
 }
 
@@ -198,5 +228,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     maxWidth: '100%',
   },
-  text: { flexShrink: 1 },
+  text: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: space.xs,
+  },
 });

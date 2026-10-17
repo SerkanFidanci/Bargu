@@ -131,7 +131,11 @@ Dokununca çember sayfası açılıyor.
   yeni bir şey çıkmaz.
 - **Konfeti:** herkes oradayken ve her biri tam konumla oradaysa bir kez (bu telefonda
   hatırlanır). Biri yalnızca "Geldim" dediyse yok. "Hareketi azalt" açıkken yok; hareketler
-  Reanimated worklet'leri ve hareket tokenlarıyla. Sade mod henüz yok; gelince ona da uyacak.
+  Reanimated worklet'leri ve hareket tokenlarıyla. Sade moda uyar: "az"da yarı yarıya, "kapalı"da yok (ADR 0027).
+- **Efektler (PM, 2026-10-17):** düğmelerin yaylı girişi (yalnızca harita ilk açılınca), hayalet
+  açılınca birkaç tur süzülme ve kapanınca "pof", "Konumuma dön"de radar halkası, "Geldim" belirince
+  birkaç nabız, sayaçta kayan rakamlar. Hepsi her modda sonlu; sade mod (tam / az / kapalı), pil
+  ve görünmeyen harita kuralları ADR 0027'de.
 
 ## Sonuçlar
 

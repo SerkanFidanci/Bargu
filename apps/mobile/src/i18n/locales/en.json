@@ -184,7 +184,15 @@
       "plus": "Bargu+",
       "plusFree": "Free",
       "plusTrial": "Trial · {{days}} days",
-      "plusOn": "On"
+      "plusOn": "On",
+      "effects": "Effects (calm mode)",
+      "effects_full": "Full",
+      "effects_reduced": "Less",
+      "effects_off": "Off",
+      "effectsDetail_full": "All motion, celebrations and vibration on.",
+      "effectsDetail_reduced": "Only short, one-off effects; nothing repeats.",
+      "effectsDetail_off": "No motion, celebrations or vibration.",
+      "effectsSystem": "Your phone's Reduce Motion is on: motion is off."
     }
   },
   "ui": {

@@ -1,5 +1,5 @@
 import type { Circle, LocPayload } from '@bargu/schemas';
-import { render, screen } from '@testing-library/react-native';
+import { act, render, screen } from '@testing-library/react-native';
 
 import i18n from '@/i18n';
 
@@ -162,10 +162,14 @@ describe('the meeting chip on the map (docs/ADR/0026 §8)', () => {
     expect(useCelebration.getState().pending).toBe(false);
 
     // All four there by an exact location: once, and not again.
-    useLocations.setState({ ...others, ...located(ids.bora, 40, now) });
+    await act(() => {
+      useLocations.setState({ ...others, ...located(ids.bora, 40, now) });
+    });
     await view.rerender(chip(now + MIN));
     expect(useCelebration.getState().pending).toBe(true);
-    useCelebration.setState({ pending: false });
+    await act(() => {
+      useCelebration.setState({ pending: false });
+    });
     await view.rerender(chip(now + 2 * MIN));
     expect(useCelebration.getState().pending).toBe(false);
   });

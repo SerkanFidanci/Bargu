@@ -20,6 +20,7 @@ import {
 import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import { DEV_TOOLS_ENABLED, env } from '@/config/env';
 import { usePlan } from '@/features/billing/plan';
@@ -40,9 +41,11 @@ import { startSwarm } from '@/features/dev/map-swarm';
 import { useMyFix } from '@/features/location/engine';
 import { INITIAL_VIEW } from '@/features/map/style';
 import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
+import { setEffectLevel } from '@/features/home/effect-prefs';
 import { usePushState } from '@/features/notifications/push';
 import { askForPush } from '@/features/notifications/use-push';
 import { meKey } from '@/features/profile/queries';
+import { EFFECT_LEVELS, useEffectChoice } from '@/theme/effects';
 import { feedback } from '@/theme/haptics';
 import { radius, space, touchTarget, useTheme } from '@/theme';
 import { Appear } from '@/ui/appear';
@@ -78,6 +81,8 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
             : t('sheets.me.plusFree');
     const appearance = useMapAppearance((state) => state.mode);
     const setAppearance = useMapAppearance((state) => state.setMode);
+    const effects = useEffectChoice((state) => state.level);
+    const systemReduced = useReducedMotion();
     const createPasskey = async () => {
       try {
         await addPasskey();
@@ -189,6 +194,21 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
             label: t(`sheets.me.mapAppearance_${value}`),
           }))}
         />
+        <View style={styles.effects}>
+          <Segmented
+            testID="effects-level"
+            label={t('sheets.me.effects')}
+            value={effects}
+            onChange={setEffectLevel}
+            options={EFFECT_LEVELS.map((value) => ({
+              value,
+              label: t(`sheets.me.effects_${value}`),
+            }))}
+          />
+          <Text variant="footnote" color="textMuted">
+            {systemReduced ? t('sheets.me.effectsSystem') : t(`sheets.me.effectsDetail_${effects}`)}
+          </Text>
+        </View>
         <Row
           icon={Sparkles}
           label={t('sheets.me.plus')}
@@ -344,6 +364,7 @@ function Row({
 
 const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  effects: { gap: space.sm },
   profileText: { flex: 1, gap: space.xxs },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: touchTarget },
   rowIcon: {

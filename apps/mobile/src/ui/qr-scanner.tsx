@@ -6,13 +6,13 @@ import { Linking, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 
 import { ambient, qrColors, radius, space, useTheme } from '@/theme';
+import { useEffects } from '@/theme/effects';
 
 import { Button } from './button';
 import { EmptyState } from './empty-state';
@@ -37,7 +37,7 @@ export function QrScanner({ onScan, paused = false, size }: QrScannerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
-  const reduced = useReducedMotion();
+  const reduced = useEffects() !== 'full';
   const sweep = useSharedValue(0);
   const last = useRef<string | null>(null);
   const [asking, setAsking] = useState(false);

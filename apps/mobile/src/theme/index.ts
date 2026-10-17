@@ -14,6 +14,7 @@ export {
   meetFx,
   orbit,
   press,
+  shortcutFx,
   spring,
   stickerFx,
   timing,

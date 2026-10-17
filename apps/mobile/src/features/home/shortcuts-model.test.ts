@@ -40,13 +40,16 @@ describe('the map shortcuts (docs/ADR/0026 §8)', () => {
     expect(isAway(at(500), 17, null)).toBe(false);
   });
 
-  it('show the earliest meeting still on, with how many more, never one without a time', () => {
+  it('show the next meeting coming, then one under way, with how many more (QA 22)', () => {
     const later = point({ circleId: 'b', meetAt: NOW + 2 * 60 * MIN });
     const gone = point({ circleId: 'c', meetAt: NOW - MEETING.keptMs });
     expect(nextMeeting([later, point(), gone], NOW)).toEqual({ point: point(), more: 1 });
-    // Started an hour ago: still on, first.
+    // One started an hour ago (still on) does not hide the one coming.
     const started = point({ circleId: 'd', meetAt: NOW - 60 * MIN });
-    expect(nextMeeting([later, started], NOW)?.point.circleId).toBe('d');
+    expect(nextMeeting([started, later], NOW)).toEqual({ point: later, more: 1 });
+    // With nothing coming, the latest one under way.
+    const earlier = point({ circleId: 'e', meetAt: NOW - 2 * 60 * MIN });
+    expect(nextMeeting([earlier, started], NOW)?.point.circleId).toBe('d');
     // An event's places still voted on, or a meeting with no time: no chip.
     expect(
       nextMeeting([point({ state: 'voting' }), point({ meetAt: undefined }), gone], NOW),

@@ -5,12 +5,12 @@ import {
   Easing,
   ReduceMotion,
   useDerivedValue,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 
 import { meetFx } from '@/theme';
+import { useEffects } from '@/theme/effects';
 
 function seed(n: number): number {
   'worklet';
@@ -23,7 +23,7 @@ function seed(n: number): number {
  * who met. Plays once each time `at` changes; nothing with Reduce Motion.
  */
 export function MeetBurst({ at, colors }: { at: number; colors: readonly [string, string] }) {
-  const reduced = useReducedMotion();
+  const reduced = useEffects() === 'off';
   const progress = useSharedValue(1);
   const size = meetFx.reach * 2 + meetFx.size * 2;
   const center = size / 2;

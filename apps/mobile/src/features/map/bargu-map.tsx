@@ -10,9 +10,9 @@ import {
 import { type ReactNode, type Ref, useEffect, useImperativeHandle, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
 
 import { duration } from '@/theme/motion';
+import { useEffects } from '@/theme/effects';
 
 import { useMapScheme } from './appearance';
 import { useMapZoom } from './map-zoom';
@@ -71,7 +71,7 @@ export function BarguMap({
   const camera = useRef<CameraRef>(null);
   const map = useRef<MapRef>(null);
   const focused = useRef(false);
-  const reduced = useReducedMotion();
+  const reduced = useEffects() === 'off';
 
   useImperativeHandle(
     ref,

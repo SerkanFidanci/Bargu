@@ -8,7 +8,6 @@ import Animated, {
   cancelAnimation,
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -26,6 +25,7 @@ import {
   stickerPaper,
   useTheme,
 } from '@/theme';
+import { type EffectLevel, repeatFinite, useEffects } from '@/theme/effects';
 
 import { Avatar } from './avatar';
 import { ActivityGlyph, GLYPH } from './activity-glyph';
@@ -57,6 +57,8 @@ export interface AvatarMarkerProps {
   framed?: boolean | undefined;
   /** Their speed or how long they have stayed, on a line under the island (live locations only). */
   detail?: MarkerDetail | undefined;
+  /** When their latest location came: at sade mod "reduced" each one plays the motion once. */
+  news?: number | undefined;
 }
 
 /** What someone seems to be doing (features/map/activity.ts decides). */
@@ -82,19 +84,24 @@ export function markerDetailText(detail: MarkerDetail, t: TFunction, spoken = fa
   return t(`ui.marker.detail.${spoken ? 'spoken' : 'short'}.${key}`, { n });
 }
 
-/** The loop that drives an activity's motion: one cycle per period, endlessly. */
-function useCycle(periodMs: number | null) {
-  const reduced = useReducedMotion();
+/**
+ * The loop that drives an activity's motion, one cycle per period (docs/ADR/0027): endlessly at
+ * sade mod "full" (the map lively, the project owner's wish), once per new location at "reduced",
+ * never at "off".
+ */
+function useCycle(periodMs: number | null, level: EffectLevel, news: number | undefined) {
   const phase = useSharedValue(0);
+  const again = level === 'reduced' ? news : undefined;
   useEffect(() => {
     cancelAnimation(phase);
     phase.set(0);
-    if (reduced || periodMs === null) return;
-    phase.set(withRepeat(withTiming(1, { duration: periodMs, easing: Easing.linear }), -1, false));
+    if (level === 'off' || periodMs === null) return;
+    const once = withTiming(1, { duration: periodMs, easing: Easing.linear });
+    phase.set(level === 'full' ? withRepeat(once, -1, false) : once);
     return () => {
       cancelAnimation(phase);
     };
-  }, [phase, reduced, periodMs]);
+  }, [phase, level, periodMs, again]);
   return phase;
 }
 
@@ -122,22 +129,22 @@ export const PIN_HEIGHT = STICKER + stickerFx.rise;
 const ISLAND = stickerFx.island;
 const BADGE = space.lg;
 
-function useLoop(active: boolean, duration: number) {
-  const reduced = useReducedMotion();
+/** A there-and-back loop (breathing, a pulse): as useCycle, once per new location when reduced. */
+function useLoop(active: boolean, duration: number, level: EffectLevel, news: number | undefined) {
   const progress = useSharedValue(0);
+  const again = level === 'reduced' ? news : undefined;
   useEffect(() => {
-    if (reduced || !active) {
+    if (level === 'off' || !active) {
       cancelAnimation(progress);
       progress.set(0);
       return;
     }
-    progress.set(
-      withRepeat(withTiming(1, { duration, easing: Easing.inOut(Easing.sin) }), -1, true),
-    );
+    const half = withTiming(1, { duration, easing: Easing.inOut(Easing.sin) });
+    progress.set(level === 'full' ? withRepeat(half, -1, true) : repeatFinite(half, 1, true));
     return () => {
       cancelAnimation(progress);
     };
-  }, [progress, reduced, active, duration]);
+  }, [progress, level, active, duration, again]);
   return progress;
 }
 
@@ -148,8 +155,8 @@ function useLoop(active: boolean, duration: number) {
  * gently up and down and its island shrinks under it; moving, it moves the way they move, with a
  * small drawing of what they are doing (activity-glyph.tsx) (BARGU_PLAN §4.3). Ambient states
  * without text: a bolt while charging, a pulsing red ring when the battery is low, grey with the
- * age when the location is old, a slow ripple from the island once settled somewhere. Reduce
- * Motion stops the loops.
+ * age when the location is old, a slow ripple from the island once settled somewhere. Sade mod
+ * scales the loops (useCycle); Reduce Motion stops them.
  */
 export function AvatarMarker({
   name,
@@ -163,6 +170,7 @@ export function AvatarMarker({
   island = true,
   framed = false,
   detail,
+  news,
 }: AvatarMarkerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -171,9 +179,10 @@ export function AvatarMarker({
   const tilt = stickerTilt(userId ?? name);
   const doing: MarkerActivity = stale ? 'still' : activity;
   const moving = doing !== 'still' && doing !== 'settled';
-  const breath = useLoop(!stale && !moving, ambient.breathe.duration);
-  const cycle = useCycle(periodOf(doing));
-  const pulse = useLoop(lowBattery && !charging && !stale, ambient.pulse.duration);
+  const level = useEffects();
+  const breath = useLoop(!stale && !moving, ambient.breathe.duration, level, news);
+  const cycle = useCycle(periodOf(doing), level, news);
+  const pulse = useLoop(lowBattery && !charging && !stale, ambient.pulse.duration, level, news);
 
   // Live and still: the sticker floats a little above its island, which shrinks under it.
   const floating = useAnimatedStyle(() => ({

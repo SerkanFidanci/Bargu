@@ -184,7 +184,15 @@
       "plus": "Bargu+",
       "plusFree": "Bedava",
       "plusTrial": "Deneme · {{days}} gün",
-      "plusOn": "Açık"
+      "plusOn": "Açık",
+      "effects": "Efektler (sade mod)",
+      "effects_full": "Tam",
+      "effects_reduced": "Az",
+      "effects_off": "Kapalı",
+      "effectsDetail_full": "Bütün hareketler, kutlamalar ve titreşim açık.",
+      "effectsDetail_reduced": "Yalnızca kısa, tek seferlik efektler; tekrar eden hareket yok.",
+      "effectsDetail_off": "Hareket, kutlama ve titreşim yok.",
+      "effectsSystem": "Telefonun \"Hareketi azalt\" ayarı açık: hareketler kapalı."
     }
   },
   "ui": {

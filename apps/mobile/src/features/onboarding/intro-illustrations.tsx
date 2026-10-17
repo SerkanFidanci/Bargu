@@ -3,7 +3,6 @@ import Animated, {
   cancelAnimation,
   Easing,
   useAnimatedProps,
-  useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
@@ -14,6 +13,7 @@ import Animated, {
 import Svg, { Circle, G, Path } from 'react-native-svg';
 
 import { ambient, avatarPalette, spring, timing, useTheme } from '@/theme';
+import { useEffects } from '@/theme/effects';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedG = Animated.createAnimatedComponent(G);
@@ -43,7 +43,7 @@ export interface IllustrationProps {
 /** A padlock closing over a location pin: only friends hold the key. */
 export function LockedIllustration({ active }: IllustrationProps) {
   const { colors } = useTheme();
-  const reduced = useReducedMotion();
+  const reduced = useEffects() !== 'full';
   const shackle = useSharedValue(reduced ? 0 : -14);
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export function LockedIllustration({ active }: IllustrationProps) {
 /** A dot with three rings — exact, neighbourhood, city — the highlight stepping outwards. */
 export function PrecisionIllustration({ active }: IllustrationProps) {
   const { colors } = useTheme();
-  const reduced = useReducedMotion();
+  const reduced = useEffects() !== 'full';
   const ring = useSharedValue<number>(RINGS[1]);
 
   useEffect(() => {
@@ -142,7 +142,7 @@ export function PrecisionIllustration({ active }: IllustrationProps) {
 /** An avatar that fades into a ghost and back: ghost mode in one tap. */
 export function GhostIllustration({ active }: IllustrationProps) {
   const { colors } = useTheme();
-  const reduced = useReducedMotion();
+  const reduced = useEffects() !== 'full';
   const ghost = useSharedValue(reduced ? 1 : 0);
 
   useEffect(() => {
