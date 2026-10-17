@@ -175,7 +175,8 @@ Kısayollar ve sayaç, QA 21 ve ikili eşitlik, APK (`c3a9729`, öncekilerin yer
 12. Arkadaşlıkta (ikili) arkadaş da buluşmayı değiştirir ve "Buluşmayı bitir"i görür. Duraklamış
     çemberde "geç kalıyorum" gitmez.
 
-Efektler ve sade mod APK'sı (link PM'e iletilir; öncekilerin yerine):
+Efektler ve sade mod, APK (`43ff254`, öncekilerin yerine):
+<https://api.46-62-162-70.sslip.io/apk/bargu-43ff254-5ec235ef4e09675d.apk>
 
 13. Harita ilk açılınca sağdaki düğmeler sırayla zıplayarak gelir; bir kart kapanınca sakince
     belirir. Hayalet açılınca simge birkaç kez süzülüp durur, kapanınca "pof"; "Konumuma dön"de
