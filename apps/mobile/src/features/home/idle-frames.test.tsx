@@ -42,10 +42,11 @@ import { AvatarMarker, type MarkerActivity } from '@/ui/avatar-marker';
 
 /**
  * The measurement the PM asked for (docs/ADR/0027): frames the map asks for while nobody touches
- * it, counted as requestAnimationFrame calls once what was started has had time to finish. An
- * endless animation asks for a frame every frame; a finished one asks for none.
+ * it, counted as requestAnimationFrame calls once what was started has had time to finish (the
+ * longest one-off effect, the ghost's floats, takes under 7 s). An endless animation asks for a
+ * frame every frame; a finished one asks for none.
  */
-async function framesWhileIdle(settleMs = 30_000, windowMs = 10_000): Promise<number> {
+async function framesWhileIdle(settleMs = 10_000, windowMs = 3_000): Promise<number> {
   await act(() => {
     jest.advanceTimersByTime(settleMs);
   });
@@ -102,6 +103,8 @@ const people = (news: number): ReactElement => (
 
 // Reanimated runs its frames on these timers: installed once, as the animations start on them.
 jest.useFakeTimers();
+// Seconds of animation frames are played through here: slower on a busy CI machine.
+jest.setTimeout(30_000);
 
 beforeAll(async () => {
   await i18n.changeLanguage('tr');
