@@ -623,6 +623,29 @@ describe('a meeting in any circle (docs/ADR/0026)', () => {
     expect(await list(fikret, id)).toHaveLength(1);
   });
 
+  it('keeps its end only to the full hour (ADR 0026 §2, QA 22)', async () => {
+    const [jale, kerem] = await Promise.all([person(test), person(test)]);
+    const family = await circleWith(test, jale, kerem);
+    // An end as an older app sends it, to the millisecond.
+    const endsAt = Date.now() + 4 * HOUR + 17 * 60_000 + 321;
+    const started = await startOrChange(
+      jale,
+      family,
+      phone(jale, family).seal(inCircle(family.id, jale)),
+      null,
+      { endsAt },
+    );
+    expect(started.statusCode).toBe(200);
+    const { rows } = await test.admin.query<{ ends_at: Date }>(
+      'SELECT ends_at FROM app.circle_docs WHERE circle_id = $1 AND id = $1',
+      [family.id],
+    );
+    const kept = rows[0]?.ends_at.getTime() ?? 0;
+    expect(kept % HOUR).toBe(0);
+    expect(kept).toBeGreaterThanOrEqual(endsAt);
+    expect(kept - endsAt).toBeLessThan(HOUR);
+  });
+
   it("goes with its starter's account, and the circle hears it (QA 21 B-3)", async () => {
     const [ayse, bora, can] = await Promise.all([person(test), person(test), person(test)]);
     const family = await circleWith(test, ayse, bora, can);

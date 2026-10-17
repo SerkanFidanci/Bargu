@@ -59,9 +59,16 @@ export const MEETING = {
   arrivalAccuracyM: 100,
 } as const;
 
-/** When a meeting outside an event goes: its time plus MEETING.keptMs; null without a time. */
+const HOUR_MS = 3600_000;
+
+/**
+ * When the server deletes a meeting outside an event: its time plus MEETING.keptMs, up to the next
+ * full hour, so the server learns its time within an hour only (docs/ADR/0026 §2, QA 22). The
+ * phone itself drops it at its time plus MEETING.keptMs. Null without a time.
+ */
 export function meetingEnd(plan: Pick<PlanPayload, 'meetAt'>): number | null {
-  return plan.meetAt === undefined ? null : plan.meetAt + MEETING.keptMs;
+  if (plan.meetAt === undefined) return null;
+  return Math.ceil((plan.meetAt + MEETING.keptMs) / HOUR_MS) * HOUR_MS;
 }
 
 /**
@@ -296,9 +303,11 @@ export function arrivals(input: {
       return { userId, state: 'there', by: 'location' };
     }
     if (input.arrived?.has(userId) === true) return { userId, state: 'there', by: 'word' };
-    // Their own word counts when it says later than their phone's estimate.
+    // Their own word counts when it says later than their phone's estimate. An estimate only
+    // with an exact location: a coarse sharer's phone sends none, and one that did is not taken
+    // (QA 22).
     const said = input.told?.[userId];
-    const estimate = fresh?.eta?.meetAt === meetAt ? fresh.eta.at : undefined;
+    const estimate = exact?.eta?.meetAt === meetAt ? exact.eta.at : undefined;
     const at = Math.max(estimate ?? 0, said === undefined ? 0 : meetAt + said * 60_000);
     if (at === 0) return { userId, state: 'unknown' };
     return {

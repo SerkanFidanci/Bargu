@@ -27,6 +27,16 @@ export const DOC_LIMITS = {
 /** How far ahead a meeting outside an event may end (migration 0032 says the same). */
 export const MEETING_MAX_AHEAD_MS = 8 * 24 * 3600_000;
 
+const HOUR_MS = 3600_000;
+
+/**
+ * A meeting's end as kept: up to the next full hour (docs/ADR/0026 §2, QA 22), so what the server
+ * holds says its time within an hour only (today's apps round it themselves before sending).
+ */
+export function fullHourAfter(at: number): number {
+  return Math.ceil(at / HOUR_MS) * HOUR_MS;
+}
+
 /**
  * Documents of event circles (docs/ADR/0018, 0020): the meeting, polls and votes. Each is the
  * signed, encrypted document of the member who last saved it. The server checks the signature (the
@@ -114,7 +124,7 @@ export class DocsService {
         if (
           endsAt === undefined ||
           endsAt <= Date.now() ||
-          endsAt > Date.now() + MEETING_MAX_AHEAD_MS
+          fullHourAfter(endsAt) > Date.now() + MEETING_MAX_AHEAD_MS
         ) {
           throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
         }
@@ -129,7 +139,7 @@ export class DocsService {
       await tx.execute(
         sql`SELECT pg_advisory_xact_lock(hashtextextended(${`docs:${circleId}`}, 0))`,
       );
-      const meetingEnd = event || endsAt === undefined ? null : new Date(endsAt);
+      const meetingEnd = event || endsAt === undefined ? null : new Date(fullHourAfter(endsAt));
       let saved: { version: number }[];
       if (input.version === null) {
         const [{ total } = { total: 0 }] = await tx

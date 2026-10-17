@@ -118,9 +118,9 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
    edilemedi.
 8. Profil, `look` ve plan içerikleri esnek okunur; diğer içerik türleri hâlâ katı (yeni alan
    eklenirse önce okumayı esnetmek gerekir).
-9. Buluşma: sunucu bir çemberde buluşma olduğunu, başlatanı ve bitiş saatini (saat + 3 sa),
-   dolayısıyla buluşmanın saatini dakikasına kadar bilir; yalnızca yer şifreli. Sonraki dilimde
-   `endsAt` bir sonraki tam saate yuvarlanacak (PM, ADR 0026 §2).
+9. Buluşma: sunucu bir çemberde buluşma olduğunu, başlatanı ve bitiş saatini (saat + 3 sa,
+   bir sonraki tam saate yuvarlanmış), dolayısıyla buluşmanın saatini bir saatlik aralıkla bilir;
+   yer şifreli. Eski uygulamalar bitişi dakikasıyla gönderir, sunucu yine yuvarlayarak saklar.
 10. Sade mod (efekt yoğunluğu ayarı) henüz yok: konfeti ve çipin nefes alması şimdilik yalnızca
     sistemin "Hareketi azalt" ayarına uyar.
 11. Kısayol sütunu küçük ekranda ve en büyük yazıda telefonda denenmedi (çip yazısı iki satıra

@@ -13,6 +13,7 @@ import {
   lateMinutes,
   leaveReminderAt,
   MEETING,
+  meetingEnd,
   meetingTimes,
   PROGRESS,
   tally,
@@ -290,11 +291,30 @@ describe('who is there when', () => {
       arrived: new Set([ids.can]),
       now,
     });
+    // A coarse location with an estimate (an older or changed phone): not on the way (QA 22).
+    expect(
+      arrivals({
+        meetAt,
+        place,
+        members: [ids.ayse],
+        locations: { [ids.ayse]: loc(north(2_000), { acc: 708, eta: { meetAt, at: meetAt } }) },
+        now,
+      }),
+    ).toEqual([{ userId: ids.ayse, state: 'unknown' }]);
     expect(rows).toEqual([
       { userId: ids.bora, state: 'there', by: 'location' },
       { userId: ids.can, state: 'there', by: 'word' },
       { userId: ids.ayse, state: 'unknown' },
     ]);
+  });
+});
+
+describe('a meeting outside an event on the server', () => {
+  it('goes at its time plus 3 hours, up to the next full hour (ADR 0026 §2, QA 22)', () => {
+    const hour = 60 * MIN;
+    expect(meetingEnd({ meetAt: 10 * hour })).toBe(10 * hour + MEETING.keptMs);
+    expect(meetingEnd({ meetAt: 10 * hour + 17 * MIN })).toBe(11 * hour + MEETING.keptMs);
+    expect(meetingEnd({})).toBeNull();
   });
 });
 

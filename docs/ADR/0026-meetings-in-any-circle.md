@@ -48,8 +48,10 @@ Dokununca çember sayfası açılıyor.
   gönderir (buluşma saati + 3 saat). Sunucu böylece bir çemberde buluşma olduğunu, kimin
   başlattığını ve **buluşmanın saatini** bilir (`endsAt` − 3 saat, dakikasına kadar); yeri bilmez.
   Etkinliklerin bitişini zaten bildiği gibi.
-- **Sonra (PM, 2026-10-16):** `endsAt` bir sonraki tam saate yukarı yuvarlanır; sunucu saati
-  yalnızca bir saatlik aralıkla öğrenir. Bedeli: buluşma sunucuda en çok bir saat daha geç silinir
+- **Tam saate yuvarlama (PM, 2026-10-16; QA 22, 2026-10-17'de yapıldı):** `endsAt` bir sonraki
+  tam saate yukarı yuvarlanır. Telefon göndermeden önce yuvarlar; sunucu da sakladığını yuvarlar
+  (eski uygulamalar dakikasıyla gönderir). Sunucu saati yalnızca bir saatlik aralıkla saklar;
+  yeni uygulamalarda yolda da öyle görür. Bedeli: buluşma sunucuda en çok bir saat daha geç silinir
   (telefon yine saat + 3 saatte haritadan kaldırır). Sunucu yuvarlanmamış değeri reddetmez; eski
   ve yeni uygulama birlikte çalışır.
 - **Başlatan hesabını silerse (QA 21 B-3):** yazdığı belgeler hesabıyla gider; başlattığı buluşma
@@ -134,7 +136,7 @@ Dokununca çember sayfası açılıyor.
 ## Sonuçlar
 
 - Sunucu yeni olarak şunu bilir: etkinlik dışı bir çemberde buluşma olduğu, kimin başlattığı,
-  ne zaman biteceği, dolayısıyla buluşmanın saati (yuvarlama gelene kadar dakikasına kadar). Yeri
+  ne zaman biteceği, dolayısıyla buluşmanın saati (bir saatlik aralıkla; eski uygulamalardan yolda dakikasıyla). Yeri
   bilmez.
 - "Yol tarifi" buluşma yerinin koordinatını kullanıcının seçtiği harita uygulamasına verir; bu,
   kullanıcının dokunmasıyla olur.
