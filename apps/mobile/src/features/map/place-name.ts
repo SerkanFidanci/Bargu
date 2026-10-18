@@ -59,3 +59,25 @@ export function placeName(
   );
   return parts.length === 0 ? null : parts.join(', ');
 }
+
+/**
+ * The town or district around a point ("Kadıköy"), from the labels the map has drawn, as for
+ * placeName: on the phone, never sent anywhere (docs/ADR/0013). For the weather card; null when
+ * the map shows none nearby.
+ */
+export function townName(
+  features: readonly PlaceFeature[],
+  at: GlidePoint,
+  language: string,
+): string | null {
+  let best: { name: string; distance: number } | null = null;
+  for (const feature of features) {
+    if (!PLACE_KINDS.town.includes(String(feature.properties?.kind) as 'locality')) continue;
+    const point = pointOf(feature);
+    const name = nameOf(feature.properties, language);
+    if (point === null || name === null) continue;
+    const distance = distanceBetween(at, point);
+    if (best === null || distance < best.distance) best = { name, distance };
+  }
+  return best?.name ?? null;
+}

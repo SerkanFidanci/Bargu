@@ -24,7 +24,11 @@ export function Pill({
   const { colors } = useTheme();
   const look = [
     styles.pill,
-    { backgroundColor: colors.surfaceRaised, boxShadow: elevation.floating },
+    {
+      backgroundColor: colors.surfaceRaised,
+      borderColor: colors.border,
+      boxShadow: elevation.floating,
+    },
   ];
   if (onPress === undefined) {
     return (
@@ -57,6 +61,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.xs,
     borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth * 2,
     alignSelf: 'center',
+    maxWidth: '100%',
   },
 });

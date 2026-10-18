@@ -336,7 +336,7 @@ function Ring({
   );
 }
 
-/** A round shortcut: 48 pt, raised, or filled when on; an optional effect drawn behind it. */
+/** A round shortcut: 48 pt, raised with a hairline, or filled when on; an effect drawn behind it. */
 function RoundButton({
   icon: Icon,
   label,
@@ -369,7 +369,10 @@ function RoundButton({
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={selected === undefined ? undefined : { selected }}
-        style={[styles.button, { backgroundColor: fill, boxShadow: elevation.raised }]}
+        style={[
+          styles.button,
+          { backgroundColor: fill, borderColor: colors.border, boxShadow: elevation.raised },
+        ]}
       >
         <Animated.View style={iconStyle}>
           <Icon color={ink} size={touchTarget * 0.46} strokeWidth={2.25} />
@@ -386,6 +389,7 @@ const styles = StyleSheet.create({
     width: touchTarget,
     height: touchTarget,
     borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth * 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

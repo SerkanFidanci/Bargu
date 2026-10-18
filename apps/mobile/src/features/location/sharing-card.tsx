@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Eye, History } from 'lucide-react-native';
+import { CirclePause, Eye, EyeOff, Ghost, History } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
@@ -10,6 +10,7 @@ import { useCircle } from '@/features/circles/queries';
 import { radius, space, useTheme } from '@/theme';
 import { Button } from '@/ui/button';
 import { SectionTitle } from '@/ui/screen';
+import { Hint } from '@/ui/hint';
 import { Segmented } from '@/ui/segmented';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
@@ -235,6 +236,8 @@ function HistoryControl({
   );
 }
 
+const GHOST_ICONS = { off: Ghost, freeze: CirclePause, hide: EyeOff } as const;
+
 /**
  * Ghost mode for every circle at once (BARGU_PLAN §2): "freeze" leaves the last location where it
  * is, "hide" takes it off everyone's map. Nothing is sent while either is on.
@@ -251,11 +254,13 @@ export function GhostControl() {
         onChange={(mode) => {
           updateSharing((current) => ({ ...current, ghost: mode }));
         }}
-        options={GHOST_MODES.map((value) => ({ value, label: t(`location.ghost.${value}`) }))}
+        options={GHOST_MODES.map((value) => ({
+          value,
+          label: t(`location.ghost.${value}`),
+          icon: GHOST_ICONS[value],
+        }))}
       />
-      <Text variant="footnote" color="textMuted">
-        {t(`location.ghost.${ghost}Detail`)}
-      </Text>
+      <Hint>{t(`location.ghost.${ghost}Detail`)}</Hint>
     </View>
   );
 }

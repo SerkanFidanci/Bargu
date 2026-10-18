@@ -112,7 +112,14 @@
       "none": "Seni kimse görmüyor",
       "hint": "Kimlerin seni gördüğünü açar; oradan tümünü durdurabilirsin",
       "count": "{{count}} kişi seni görüyor",
-      "ghost": "Hayalet modundasın"
+      "ghost": "Hayalet modundasın",
+      "now": {
+        "shared": "Konumun şu an paylaşılıyor",
+        "hidden": "Konumun gizli: kimseye gönderilmiyor",
+        "frozen": "Konumun donduruldu: son konumun duruyor",
+        "nobody": "Konumun kimseyle paylaşılmıyor",
+        "noPermission": "Konum izni yok: konumun gönderilmiyor"
+      }
     },
     "dock": {
       "circles": "Çemberler",

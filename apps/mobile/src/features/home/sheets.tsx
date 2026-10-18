@@ -2,22 +2,27 @@ import type { Me } from '@bargu/schemas';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  Ban,
   Bell,
+  ChevronRight,
   HeartHandshake,
   History,
   KeyRound,
   Map as MapIcon,
   LogOut,
   type LucideIcon,
+  Moon,
   Pencil,
   Smile,
   ShieldCheck,
   Smartphone,
+  Sparkle,
   Sparkles,
+  Sun,
   UserCog,
   Wrench,
 } from 'lucide-react-native';
-import { forwardRef } from 'react';
+import { Children, forwardRef, Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
@@ -52,6 +57,7 @@ import { Appear } from '@/ui/appear';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
 import { PressableScale } from '@/ui/pressable-scale';
+import { Hint } from '@/ui/hint';
 import { Segmented } from '@/ui/segmented';
 import { Sheet, type SheetRef } from '@/ui/sheet';
 import { Text } from '@/ui/text';
@@ -60,81 +66,89 @@ import { toast } from '@/ui/toast';
 /** Licence page of the map data (ODbL), linked from the Me sheet as the credit's permanent home. */
 const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
 
-export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onStatus: () => void }>(
-  function MeSheet({ me, onClose, onStatus }, ref) {
-    const { t } = useTranslation();
-    const queryClient = useQueryClient();
-    const push = usePushState((state) => state.state);
-    const myStatus = useMyStatus((state) => state.status);
-    const historyCircles = Object.values(useSharing((state) => state.circles)).filter(
-      (sharing) => sharing.history === true,
-    ).length;
-    const plan = usePlan().data;
-    const now = useNow();
-    const planDetail =
-      plan === undefined
-        ? undefined
-        : plan.plan === 'plus'
-          ? t('sheets.me.plusOn')
-          : plan.plan === 'trial' && plan.trialEndsAt !== null
-            ? t('sheets.me.plusTrial', { days: daysLeft(plan.trialEndsAt, now) })
-            : t('sheets.me.plusFree');
-    const appearance = useMapAppearance((state) => state.mode);
-    const setAppearance = useMapAppearance((state) => state.setMode);
-    const effects = useEffectChoice((state) => state.level);
-    const systemReduced = useReducedMotion();
-    const createPasskey = async () => {
-      try {
-        await addPasskey();
-        // The count shown here comes from the cache: update it from the result, no refetch.
-        queryClient.setQueryData<Me>(meKey, (current) =>
-          current === undefined ? current : { ...current, passkeys: current.passkeys + 1 },
-        );
-        feedback('success');
-        toast.success(t('sheets.me.passkeyAdded'));
-      } catch (failure) {
-        const detail = DEV_TOOLS_ENABLED ? ` (${passkeyDiagnostic(failure)})` : '';
-        if (failure instanceof Error) {
-          toast.error(errorMessage(failure, t) + detail);
-          return;
-        }
-        const reason = passkeyFailure(failure);
-        if (reason === 'exists') toast.info(t('sheets.me.passkeyExists'));
-        else if (reason !== 'cancelled') toast.error(t('sheets.me.passkeyFailed') + detail);
+export const MeSheet = forwardRef<
+  SheetRef,
+  { me: Me; onClose: () => void; onStatus: () => void; onDismiss?: () => void }
+>(function MeSheet({ me, onClose, onStatus, onDismiss }, ref) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const push = usePushState((state) => state.state);
+  const myStatus = useMyStatus((state) => state.status);
+  const historyCircles = Object.values(useSharing((state) => state.circles)).filter(
+    (sharing) => sharing.history === true,
+  ).length;
+  const plan = usePlan().data;
+  const now = useNow();
+  const planDetail =
+    plan === undefined
+      ? undefined
+      : plan.plan === 'plus'
+        ? t('sheets.me.plusOn')
+        : plan.plan === 'trial' && plan.trialEndsAt !== null
+          ? t('sheets.me.plusTrial', { days: daysLeft(plan.trialEndsAt, now) })
+          : t('sheets.me.plusFree');
+  const appearance = useMapAppearance((state) => state.mode);
+  const setAppearance = useMapAppearance((state) => state.setMode);
+  const effects = useEffectChoice((state) => state.level);
+  const systemReduced = useReducedMotion();
+  const createPasskey = async () => {
+    try {
+      await addPasskey();
+      // The count shown here comes from the cache: update it from the result, no refetch.
+      queryClient.setQueryData<Me>(meKey, (current) =>
+        current === undefined ? current : { ...current, passkeys: current.passkeys + 1 },
+      );
+      feedback('success');
+      toast.success(t('sheets.me.passkeyAdded'));
+    } catch (failure) {
+      const detail = DEV_TOOLS_ENABLED ? ` (${passkeyDiagnostic(failure)})` : '';
+      if (failure instanceof Error) {
+        toast.error(errorMessage(failure, t) + detail);
+        return;
       }
-    };
-    const confirmSignOut = () => {
-      Alert.alert(t('sheets.me.logoutTitle'), t('sheets.me.logoutBody'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('sheets.me.logout'),
-          style: 'destructive',
-          onPress: () => {
-            onClose();
-            void signOut();
-          },
+      const reason = passkeyFailure(failure);
+      if (reason === 'exists') toast.info(t('sheets.me.passkeyExists'));
+      else if (reason !== 'cancelled') toast.error(t('sheets.me.passkeyFailed') + detail);
+    }
+  };
+  const confirmSignOut = () => {
+    Alert.alert(t('sheets.me.logoutTitle'), t('sheets.me.logoutBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('sheets.me.logout'),
+        style: 'destructive',
+        onPress: () => {
+          onClose();
+          void signOut();
         },
-      ]);
-    };
+      },
+    ]);
+  };
 
-    return (
-      <Sheet ref={ref} title={t('sheets.me.title')} testID="me-sheet">
-        <Appear style={styles.profile}>
-          <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="lg" userId={me.userId} />
-          <View style={styles.profileText}>
-            <Text variant="title2">{me.displayName}</Text>
-            <Text variant="callout" color="textMuted">{`@${me.username ?? ''}`}</Text>
-          </View>
-        </Appear>
-        <Button
-          label={t('sheets.me.editProfile')}
-          icon={Pencil}
-          variant="secondary"
-          onPress={() => {
-            onClose();
-            router.push('/edit-profile');
-          }}
-        />
+  return (
+    <Sheet
+      ref={ref}
+      title={t('sheets.me.title')}
+      testID="me-sheet"
+      {...(onDismiss === undefined ? {} : { onDismiss })}
+    >
+      <Appear style={styles.profile}>
+        <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="lg" userId={me.userId} />
+        <View style={styles.profileText}>
+          <Text variant="title2">{me.displayName}</Text>
+          <Text variant="callout" color="textMuted">{`@${me.username ?? ''}`}</Text>
+        </View>
+      </Appear>
+      <Button
+        label={t('sheets.me.editProfile')}
+        icon={Pencil}
+        variant="secondary"
+        onPress={() => {
+          onClose();
+          router.push('/edit-profile');
+        }}
+      />
+      <Group>
         {passkeysSupported() ? (
           <Row
             icon={KeyRound}
@@ -157,7 +171,9 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
           }
           onPress={onStatus}
         />
-        <GhostControl />
+      </Group>
+      <GhostControl />
+      <Group>
         <Row
           icon={History}
           label={t('sheets.me.history')}
@@ -184,31 +200,35 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
                 : undefined
           }
         />
+      </Group>
+      <Segmented
+        testID="map-appearance"
+        label={t('sheets.me.mapAppearance')}
+        value={appearance}
+        onChange={setAppearance}
+        options={MAP_APPEARANCES.map((value) => ({
+          value,
+          label: t(`sheets.me.mapAppearance_${value}`),
+          icon: APPEARANCE_ICONS[value],
+        }))}
+      />
+      <View style={styles.effects}>
         <Segmented
-          testID="map-appearance"
-          label={t('sheets.me.mapAppearance')}
-          value={appearance}
-          onChange={setAppearance}
-          options={MAP_APPEARANCES.map((value) => ({
+          testID="effects-level"
+          label={t('sheets.me.effects')}
+          value={effects}
+          onChange={setEffectLevel}
+          options={EFFECT_LEVELS.map((value) => ({
             value,
-            label: t(`sheets.me.mapAppearance_${value}`),
+            label: t(`sheets.me.effects_${value}`),
+            icon: EFFECT_ICONS[value],
           }))}
         />
-        <View style={styles.effects}>
-          <Segmented
-            testID="effects-level"
-            label={t('sheets.me.effects')}
-            value={effects}
-            onChange={setEffectLevel}
-            options={EFFECT_LEVELS.map((value) => ({
-              value,
-              label: t(`sheets.me.effects_${value}`),
-            }))}
-          />
-          <Text variant="footnote" color="textMuted">
-            {systemReduced ? t('sheets.me.effectsSystem') : t(`sheets.me.effectsDetail_${effects}`)}
-          </Text>
-        </View>
+        <Hint>
+          {systemReduced ? t('sheets.me.effectsSystem') : t(`sheets.me.effectsDetail_${effects}`)}
+        </Hint>
+      </View>
+      <Group>
         <Row
           icon={Sparkles}
           label={t('sheets.me.plus')}
@@ -296,20 +316,41 @@ export const MeSheet = forwardRef<SheetRef, { me: Me; onClose: () => void; onSta
           detail={t('sheets.me.mapDataDetail')}
           onPress={() => void Linking.openURL(OSM_COPYRIGHT_URL)}
         />
-        <Button
-          testID="sign-out"
-          label={t('sheets.me.logout')}
-          icon={LogOut}
-          variant="ghost"
-          onPress={confirmSignOut}
-        />
-        <Text variant="caption" color="textMuted" align="center">
-          {t('sheets.me.version', { version: env.appVersion })}
-        </Text>
-      </Sheet>
-    );
-  },
-);
+      </Group>
+      <Button
+        testID="sign-out"
+        label={t('sheets.me.logout')}
+        icon={LogOut}
+        variant="ghost"
+        onPress={confirmSignOut}
+      />
+      <Text variant="caption" color="textMuted" align="center">
+        {t('sheets.me.version', { version: env.appVersion })}
+      </Text>
+    </Sheet>
+  );
+});
+
+const APPEARANCE_ICONS = { auto: MapIcon, light: Sun, dark: Moon } as const;
+const EFFECT_ICONS = { full: Sparkles, reduced: Sparkle, off: Ban } as const;
+
+/** Rows that belong together on one card, a hairline between them (the theme of 2026-10-18). */
+function Group({ children }: { children: ReactNode }) {
+  const { colors } = useTheme();
+  const rows = Children.toArray(children);
+  return (
+    <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      {rows.map((row, index) => (
+        <Fragment key={index}>
+          {index === 0 ? null : (
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          )}
+          {row}
+        </Fragment>
+      ))}
+    </View>
+  );
+}
 
 function Row({
   icon: Icon,
@@ -336,6 +377,9 @@ function Row({
           </Text>
         )}
       </View>
+      {onPress === undefined ? null : (
+        <ChevronRight color={colors.textMuted} size={20} strokeWidth={2.25} />
+      )}
     </>
   );
   if (onPress === undefined) {
@@ -366,7 +410,18 @@ const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
   effects: { gap: space.sm },
   profileText: { flex: 1, gap: space.xxs },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: touchTarget },
+  group: {
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    paddingHorizontal: space.md,
+  },
+  divider: { height: StyleSheet.hairlineWidth * 2, marginLeft: touchTarget + space.xs },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    minHeight: touchTarget + space.md,
+  },
   rowIcon: {
     width: touchTarget - space.sm,
     height: touchTarget - space.sm,

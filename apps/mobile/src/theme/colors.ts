@@ -30,15 +30,20 @@ export interface ColorTokens {
   ghost: string;
   /** Dims the map behind a modal sheet. */
   scrim: string;
+  /**
+   * A still glow around what is chosen or primary (a selected option, the add button): never
+   * text, never animated; none at sade mod "off" (docs/ADR/0008, theme 2026-10-18).
+   */
+  glow: string;
 }
 
 export const lightColors: ColorTokens = {
   background: '#FFFFFF',
-  surface: '#F5F4F1',
+  surface: '#F5F3FF',
   surfaceRaised: '#FFFFFF',
-  text: '#16151C',
-  textMuted: '#5E5C68',
-  border: '#E4E2DC',
+  text: '#16142B',
+  textMuted: '#5C5876',
+  border: '#E2DDF5',
   primary: '#5B34F2',
   onPrimary: '#FFFFFF',
   primarySoft: '#EEE9FF',
@@ -50,26 +55,32 @@ export const lightColors: ColorTokens = {
   onDanger: '#FFFFFF',
   ghost: '#8A8896',
   scrim: 'rgba(10, 10, 15, 0.4)',
+  glow: 'rgba(91, 52, 242, 0.32)',
 };
 
+/**
+ * Night: deep navy-violet surfaces with violet-tinted hairlines, white on the violet (the project
+ * owner's theme, 2026-10-18).
+ */
 export const darkColors: ColorTokens = {
-  background: '#0D0D12',
-  surface: '#17171E',
-  surfaceRaised: '#202029',
-  text: '#F3F2EE',
-  textMuted: '#A6A4B0',
-  border: '#2C2C36',
-  primary: '#8C6CFF',
-  onPrimary: '#0D0D12',
-  primarySoft: '#2A2147',
+  background: '#0F0E22',
+  surface: '#17152D',
+  surfaceRaised: '#1F1C3A',
+  text: '#F4F2FF',
+  textMuted: '#ABA7C8',
+  border: '#36305E',
+  primary: '#7A55F6',
+  onPrimary: '#FFFFFF',
+  primarySoft: '#2B2455',
   accent: '#FF7A52',
-  onAccent: '#0D0D12',
+  onAccent: '#0F0E22',
   success: '#34D399',
-  onSuccess: '#0D0D12',
+  onSuccess: '#0F0E22',
   danger: '#F97066',
-  onDanger: '#0D0D12',
-  ghost: '#6E6C7A',
-  scrim: 'rgba(0, 0, 0, 0.55)',
+  onDanger: '#0F0E22',
+  ghost: '#6E6A8A',
+  scrim: 'rgba(5, 4, 20, 0.6)',
+  glow: 'rgba(122, 85, 246, 0.55)',
 };
 
 /**

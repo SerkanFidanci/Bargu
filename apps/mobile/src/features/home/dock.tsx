@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { choreography, elevation, radius, space, spring, touchTarget, useTheme } from '@/theme';
+import { useGlow } from '@/theme/effects';
 import { useMotion } from '@/theme/use-motion';
 import { Avatar } from '@/ui/avatar';
 import { IconButton } from '@/ui/icon-button';
@@ -21,12 +22,15 @@ export interface DockProps {
   addOpen: boolean;
   /** Invitations waiting for an answer, shown as a badge on Circles. */
   requests: number;
+  /** Where the user is: the circles (the map, or their sheet) or Me (the theme of 2026-10-18). */
+  active: 'circles' | 'me';
 }
 
 /** The three-item bar at the bottom of the map: Circles · Add · Me (BARGU_PLAN §4.3). */
-export function Dock({ me, onCircles, onAdd, onMe, addOpen, requests }: DockProps) {
+export function Dock({ me, onCircles, onAdd, onMe, addOpen, requests, active }: DockProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const glow = useGlow();
   const turn = useSharedValue(0);
   useEffect(() => {
     turn.set(withSpring(addOpen ? choreography.addTurn : 0, spring.bouncy));
@@ -36,7 +40,11 @@ export function Dock({ me, onCircles, onAdd, onMe, addOpen, requests }: DockProp
     <View
       style={[
         styles.dock,
-        { backgroundColor: colors.surfaceRaised, boxShadow: elevation.floating },
+        {
+          backgroundColor: colors.surfaceRaised,
+          borderColor: colors.border,
+          boxShadow: elevation.floating,
+        },
       ]}
     >
       <DockItem
@@ -48,13 +56,18 @@ export function Dock({ me, onCircles, onAdd, onMe, addOpen, requests }: DockProp
         }
         onPress={onCircles}
         testID="dock-circles"
+        active={active === 'circles'}
       >
         <View>
-          <Users color={colors.text} size={24} strokeWidth={2.25} />
+          <Users
+            color={active === 'circles' ? colors.primary : colors.text}
+            size={24}
+            strokeWidth={2.25}
+          />
           {requests > 0 ? <RequestBadge count={requests} /> : null}
         </View>
       </DockItem>
-      <Animated.View style={turned}>
+      <Animated.View style={[turned, styles.add, glow === undefined ? null : { boxShadow: glow }]}>
         <IconButton
           testID="dock-add"
           icon={Plus}
@@ -64,7 +77,7 @@ export function Dock({ me, onCircles, onAdd, onMe, addOpen, requests }: DockProp
           onPress={onAdd}
         />
       </Animated.View>
-      <DockItem label={t('main.dock.me')} onPress={onMe} testID="dock-me">
+      <DockItem label={t('main.dock.me')} onPress={onMe} testID="dock-me" active={active === 'me'}>
         <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="sm" userId={me.userId} />
       </DockItem>
     </View>
@@ -95,13 +108,16 @@ function DockItem({
   onPress,
   children,
   testID,
+  active,
 }: {
   label: string;
+  active: boolean;
   accessibilityLabel?: string;
   onPress: () => void;
   children: React.ReactNode;
   testID: string;
 }) {
+  const { colors } = useTheme();
   return (
     <PressableScale
       testID={testID}
@@ -109,12 +125,20 @@ function DockItem({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ selected: active }}
       style={styles.item}
     >
       {children}
-      <Text variant="caption" color="textMuted" maxFontSizeMultiplier={1.3}>
+      <Text
+        variant="caption"
+        maxFontSizeMultiplier={1.3}
+        style={{ color: active ? colors.primary : colors.textMuted }}
+      >
         {label}
       </Text>
+      <View
+        style={[styles.underline, { backgroundColor: active ? colors.primary : 'transparent' }]}
+      />
     </PressableScale>
   );
 }
@@ -128,7 +152,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     marginHorizontal: space.lg,
+    borderWidth: StyleSheet.hairlineWidth * 2,
   },
+  underline: { width: space.xl, height: space.xs - 1, borderRadius: radius.pill },
+  add: { borderRadius: radius.pill },
   badge: {
     position: 'absolute',
     top: -space.xs,

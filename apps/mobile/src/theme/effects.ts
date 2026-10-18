@@ -2,6 +2,8 @@ import { createContext, useContext } from 'react';
 import { type AnimatableValue, useReducedMotion, withRepeat } from 'react-native-reanimated';
 import { create } from 'zustand';
 
+import { useTheme } from './index';
+
 /**
  * Sade mod (docs/ADR/0027): how much effect, motion and vibration this phone wants. "full" plays
  * everything, the map lively; "reduced" only short, one-off effects (an avatar moves once per new
@@ -74,4 +76,13 @@ export function repeatFinite<T extends AnimatableValue>(
 ): T {
   const count = Math.max(1, Math.floor(times));
   return withRepeat(animation, reverse ? count * 2 : count, reverse);
+}
+
+/**
+ * A still glow around what is chosen or primary (ColorTokens.glow; a box-shadow, never animated),
+ * or none at "off" (docs/ADR/0008, the theme of 2026-10-18).
+ */
+export function useGlow(): string | undefined {
+  const { colors } = useTheme();
+  return useEffects() === 'off' ? undefined : `0px 0px 16px ${colors.glow}`;
 }

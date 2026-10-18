@@ -1,5 +1,6 @@
 import type { LngLat } from '@maplibre/maplibre-react-native';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ import { useAuth } from '@/features/auth/auth-store';
 import { useNow } from '@/features/location/clock';
 import { useMyFix } from '@/features/location/engine';
 import { LocationBanner } from '@/features/location/location-banner';
+import { useLocationPermission } from '@/features/location/tracker';
 import { NewPhoneCard } from '@/features/location/new-phone-card';
 import { SwarmLayer, SwarmPanel } from '@/features/dev/swarm-panel';
 import { DEV_TOOLS_ENABLED } from '@/config/env';
@@ -63,6 +65,7 @@ export default function HomeScreen() {
   const meSheet = useRef<SheetRef>(null);
   const statusSheet = useRef<SheetRef>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [meOpen, setMeOpen] = useState(false);
   const motion = useMotion();
   const celebrating = useCelebration((state) => state.pending);
   const celebrated = useCelebration((state) => state.done);
@@ -93,6 +96,20 @@ export default function HomeScreen() {
   // a touch or a move wakes the weather for a while (docs/ADR/0027).
   const onScreen = useOnScreen();
   const [wake, setWake] = useState(0);
+  // The weather card names the town around this phone from the map's own labels (ADR 0013), for
+  // the square kilometre it is in: looked up again when that changes or the map settles.
+  const { i18n } = useTranslation();
+  const permission = useLocationPermission((state) => state.state);
+  const [town, setTown] = useState<string | null>(null);
+  const cell = myFix === null ? null : `${myFix.lng.toFixed(2)}:${myFix.lat.toFixed(2)}`;
+  const [lookups, setLookups] = useState(0);
+  useEffect(() => {
+    if (cell === null) return;
+    const [lng = 0, lat = 0] = cell.split(':').map(Number);
+    void map.current?.townName([lng, lat], i18n.language).then((name) => {
+      if (name !== null) setTown(name);
+    });
+  }, [cell, i18n.language, lookups]);
   const cardOpen = usePersonFocus((state) => state.selected !== null);
   const next = nextMeeting(points, now);
   const nextCircle =
@@ -139,6 +156,7 @@ export default function HomeScreen() {
           onSettle={(settled) => {
             setView(settled);
             setWake((count) => count + 1);
+            setLookups((count) => count + 1);
           }}
         >
           <PlacesLayer except={meetingPlaces} />
@@ -158,15 +176,19 @@ export default function HomeScreen() {
           style={[styles.top, { top: insets.top + space.sm }]}
           pointerEvents="box-none"
         >
-          <SeersPill
-            seers={seers}
-            ghost={sharing.ghost !== 'off'}
-            onPress={() => {
-              router.push('/seers');
-            }}
-          />
+          <View style={styles.topRow} pointerEvents="box-none">
+            <SeersPill
+              seers={seers}
+              ghost={sharing.ghost}
+              permission={permission}
+              onPress={() => {
+                router.push('/seers');
+              }}
+            />
+            {weather === null ? null : <WeatherChip here={weather} town={town} />}
+          </View>
           <MeetingChip circles={circleList.data ?? []} points={points} now={now} me={myUserId} />
-          {weather === null ? null : <WeatherChip here={weather} />}
+
           <LocationBanner />
           <NotificationCard />
           <NewPhoneCard onChoose={() => circles.current?.present()} />
@@ -184,7 +206,11 @@ export default function HomeScreen() {
             requests={requests}
             onCircles={() => circles.current?.present()}
             onAdd={toggleAdd}
-            onMe={() => meSheet.current?.present()}
+            onMe={() => {
+              meSheet.current?.present();
+              setMeOpen(true);
+            }}
+            active={meOpen ? 'me' : 'circles'}
           />
         </Animated.View>
         {cardOpen ? null : (
@@ -220,6 +246,9 @@ export default function HomeScreen() {
         <MeSheet
           ref={meSheet}
           me={me.data}
+          onDismiss={() => {
+            setMeOpen(false);
+          }}
           onClose={() => meSheet.current?.dismiss()}
           onStatus={() => {
             meSheet.current?.dismiss();
@@ -243,4 +272,14 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   bottom: { position: 'absolute', left: 0, right: 0 },
+  // "Who sees me" and the weather side by side; on a narrow screen or with large text the weather
+  // goes under.
+  topRow: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+  },
 });

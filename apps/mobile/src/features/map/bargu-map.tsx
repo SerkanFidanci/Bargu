@@ -16,7 +16,7 @@ import { useEffects } from '@/theme/effects';
 
 import { useMapScheme } from './appearance';
 import { useMapZoom } from './map-zoom';
-import { PLACE_LAYERS, placeName } from './place-name';
+import { PLACE_LAYERS, placeName, townName } from './place-name';
 import { FOCUS_ZOOM, INITIAL_VIEW, mapStyle } from './style';
 
 export interface BarguMapProps {
@@ -44,6 +44,8 @@ export interface BarguMapHandle {
   fitTo(bounds: LngLatBounds, bottom: number): void;
   /** The place name around a point, read from the labels the map shows (place-name.ts). */
   placeName(at: LngLat, language: string): Promise<string | null>;
+  /** The town or district around a point, from the same labels (the weather card). */
+  townName(at: LngLat, language: string): Promise<string | null>;
 }
 
 const MAX_ZOOM = 18;
@@ -103,6 +105,21 @@ export function BarguMap({
           { layers: PLACE_LAYERS },
         );
         return placeName(features, { lng: at[0], lat: at[1] }, language);
+      },
+      async townName(at, language) {
+        const current = map.current;
+        if (current === null) return null;
+        const [x, y] = await current.project(at);
+        // Towns are labelled sparsely: a wider look around than for a neighbourhood.
+        const reach = PLACE_SEARCH_PX * 2;
+        const features = await current.queryRenderedFeatures(
+          [
+            [x - reach, y - reach],
+            [x + reach, y + reach],
+          ],
+          { layers: PLACE_LAYERS },
+        );
+        return townName(features, { lng: at[0], lat: at[1] }, language);
       },
     }),
     [insets, reduced],

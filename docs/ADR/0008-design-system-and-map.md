@@ -123,3 +123,35 @@ marka kararı (renk, yazı tipi) ve bazı kütüphane seçimleri burada netleşt
   her avatara ayrı ayrı dokunulur, basılı tutulur. Daha fazla kişide çerçevenin sağ üst köşesinde
   oradaki toplam kişi sayısı yazar; çerçeveye dokununca oradaki herkes bir pencerede listelenir ve
   birine dokununca onun kartı açılır (`TogetherSheet`). Önceki "dokununca yakınlaş" kalktı.
+
+## Ek (2026-10-18, proje sahibinin isteği: tema)
+
+Proje sahibi uygulamanın yeniden çizilmiş iki ekranını gönderdi ("temayı bu şekilde düzenle"); PM
+onayladı (sunucu değişmez, dilim 3b'den önce).
+
+- **Renkler:** koyu tema nötr siyahtan lacivert-mora geçti (arka `#0F0E22`, yüzey `#17152D`,
+  yükseltilmiş `#1F1C3A`, mor tonlu kenar `#36305E`). Mor `#7A55F6` oldu, üstündeki yazı beyaz.
+  Açık temanın karşılığı: hafif mor tonlu yüzey `#F5F3FF`, mor tonlu kenar `#E2DDF5`. Her
+  yazı/zemin çifti WCAG AA'yı geçer (`colors.test.ts`).
+- **Parıltı:** seçili ve birincil öğelerin çevresinde durağan, mor bir gölge (`ColorTokens.glow`,
+  `useGlow`): seçili seçenek ve "+" düğmesi. Hiç hareket etmez; sade mod "kapalı"da yoktur
+  (ADR 0027).
+- **Hap ve kartlar:** haplar, dock, kısayollar ve kartlar ince mor tonlu kenarlıklı. Ben sayfasında
+  ilişkili satırlar tek kartta, aralarında ince çizgi; açan satırlarda ">" var.
+- **"Seni görüyor" hapı:** iki satır ve ">". İkinci satır gerçek durumu söyler (güvenlik metni,
+  testli): yalnızca konum gerçekten giderken "Konumun şu an paylaşılıyor"; hayalet "Gizle"de
+  "gizli", "Dondur"da "donduruldu", gören yoksa "kimseyle paylaşılmıyor", konum izni yoksa "izin
+  yok". Haritada hava kartıyla yan yana; dar ekranda ya da büyük yazıda hava alta geçer.
+- **Hava kartı:** "☁ 12°" ve altında telefonun çevresindeki ilçe ya da kasaba adı. Ad haritanın
+  kendi çizdiği etiketlerden çıkar, ağa istek yok (ADR 0013). Sokak yakınlığında haritada şehir
+  etiketi çizilmediği için çoğu zaman ilçe adı ("Kadıköy") görünür; yakında etiket yoksa yalnızca
+  sıcaklık.
+- **Seçim çubukları:** seçeneklerin yanında simge var (hayalet: hayalet, duraklat, göz kapalı;
+  harita görünümü: harita, güneş, ay; efektler: yıldızlar, yıldız, yasak). Anlam her zaman
+  yazıdadır. Açıklama satırlarının başında ⓘ var (`Hint`).
+- **Dock:** bulunulan yer mor yazı ve altında mor çizgiyle işaretli: haritada ve çemberlerde
+  "Çemberler", Ben sayfası açıkken "Ben". Ekran okuyucu bunu seçili olarak okur.
+- **Bekleyen:** kişi işaretlerinin pin biçimi (proje sahibi "pin olsun" dedi; PM, dilim 3'ün süs
+  paketleri çıkartmaya bağlı olduğu için çıkartmanın kalmasını ve pinin ayrıntılarının ona
+  eklenmesini öneriyor) ve hayalet düğmesindeki mor noktanın anlamı. İkisi de karar bekliyor;
+  kodda değişmedi.

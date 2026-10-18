@@ -19,7 +19,7 @@ import {
   RADIAL_RADIUS,
   radialPosition,
 } from './person-focus';
-import { placeName } from './place-name';
+import { placeName, townName } from './place-name';
 
 // The card's actions navigate; the router itself is not part of these tests.
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
@@ -66,6 +66,16 @@ describe('place names from the map', () => {
     expect(placeName(features, { lng: 29.012, lat: 41.051 }, 'tr')).toBe('Serencebey, Beşiktaş');
     expect(placeName(features, { lng: 29.012, lat: 41.051 }, 'en')).toBe('Serencebey, Besiktas');
     expect(placeName([], { lng: 29, lat: 41 }, 'tr')).toBeNull();
+  });
+
+  it('names the nearest town for the weather card, never a neighbourhood (ADR 0013)', () => {
+    const features = [
+      { geometry: point(29.01, 41.05), properties: { kind: 'neighbourhood', name: 'Serencebey' } },
+      { geometry: point(29.3, 41.3), properties: { kind: 'locality', name: 'Uzak' } },
+      { geometry: point(29.0, 41.04), properties: { kind: 'locality', name: 'Beşiktaş' } },
+    ];
+    expect(townName(features, { lng: 29.012, lat: 41.051 }, 'tr')).toBe('Beşiktaş');
+    expect(townName(features.slice(0, 1), { lng: 29.012, lat: 41.051 }, 'tr')).toBeNull();
   });
 });
 

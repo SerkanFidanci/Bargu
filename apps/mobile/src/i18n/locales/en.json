@@ -112,7 +112,14 @@
       "none": "Nobody can see you",
       "hint": "Shows who sees you; you can stop it all from there",
       "count": "Seen by {{count}}",
-      "ghost": "You are a ghost"
+      "ghost": "You are a ghost",
+      "now": {
+        "shared": "Your location is being shared now",
+        "hidden": "Your location is hidden: sent to nobody",
+        "frozen": "Your location is frozen: your last one stays",
+        "nobody": "Your location is shared with nobody",
+        "noPermission": "No location permission: your location isn't sent"
+      }
     },
     "dock": {
       "circles": "Circles",
