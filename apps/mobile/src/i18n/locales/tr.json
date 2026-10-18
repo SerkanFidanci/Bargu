@@ -118,7 +118,8 @@
         "hidden": "Konumun gizli: kimseye gönderilmiyor",
         "frozen": "Konumun donduruldu: son konumun duruyor",
         "nobody": "Konumun kimseyle paylaşılmıyor",
-        "noPermission": "Konum izni yok: konumun gönderilmiyor"
+        "noPermission": "Konum izni yok: konumun gönderilmiyor",
+        "checking": "Kontrol ediliyor…"
       }
     },
     "dock": {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, StyleSheet, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -42,8 +43,13 @@ export function QrScanner({ onScan, paused = false, size }: QrScannerProps) {
   const last = useRef<string | null>(null);
   const [asking, setAsking] = useState(false);
 
+  // Stops (and settles) the moment sade mod leaves "full", not only on the next visit (QA 23).
   useEffect(() => {
-    if (reduced) return;
+    if (reduced) {
+      cancelAnimation(sweep);
+      sweep.set(0);
+      return;
+    }
     sweep.set(
       withRepeat(
         withTiming(1, { duration: ambient.scanLine, easing: Easing.inOut(Easing.sin) }),
@@ -51,6 +57,9 @@ export function QrScanner({ onScan, paused = false, size }: QrScannerProps) {
         true,
       ),
     );
+    return () => {
+      cancelAnimation(sweep);
+    };
   }, [reduced, sweep]);
 
   useEffect(() => {

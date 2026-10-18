@@ -164,3 +164,10 @@ onayladı (sunucu değişmez, dilim 3b'den önce).
   gerçekten birine giderken görünür ("seni görüyor" hapının ikinci satırıyla aynı hesap): hayalet
   (gizle ya da dondur), bütün çemberler duraklamış ya da paylaşım kapalı (gören yok) ya da konum
   izni yokken kalkar. Ekran okuyucu "Konumun paylaşılıyor." der. Bir güvenlik göstergesi, testli.
+- **Göstergeler gerçeği geç söylemez (QA 24):** konum izni henüz bilinmezken (uygulama yeni
+  açılmış) hap "Kontrol ediliyor…" der ve nokta görünmez; "paylaşılıyor" yalnızca izin verilmişken.
+  Zamanlı bir paylaşım bittiği anda tek bir zamanlayıcı hem konum motorunu durdurur hem ekranların
+  saatini günceller: hap ve nokta yarım dakikalık saat vuruşunu beklemez. Hava kartındaki ilçe adı
+  bulunduğu yaklaşık 1 km'lik kareyle saklanır; başka bir kareye geçilince eski ad görünmez.
+- **Kontrast (QA 24):** koyu temada mor simge ile açık mor zemini (`primarySoft` `#28214F`) 3:1'in,
+  açık temada hata rengi (`danger` `#CC2A1E`) yüzey üstünde 4,5:1'in üstünde; ikisi de testte.

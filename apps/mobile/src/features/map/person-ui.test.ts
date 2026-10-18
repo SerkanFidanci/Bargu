@@ -19,7 +19,7 @@ import {
   RADIAL_RADIUS,
   radialPosition,
 } from './person-focus';
-import { placeName, townName } from './place-name';
+import { placeName, townIn, townName } from './place-name';
 
 // The card's actions navigate; the router itself is not part of these tests.
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
@@ -76,6 +76,15 @@ describe('place names from the map', () => {
     ];
     expect(townName(features, { lng: 29.012, lat: 41.051 }, 'tr')).toBe('Beşiktaş');
     expect(townName(features.slice(0, 1), { lng: 29.012, lat: 41.051 }, 'tr')).toBeNull();
+  });
+
+  it('shows a town only for the square it was found in (QA 24 B-3)', () => {
+    const found = { cell: '29.01:41.05', name: 'Beşiktaş' };
+    expect(townIn(found, '29.01:41.05')).toBe('Beşiktaş');
+    // Moved on (to Ankara, say): the old name does not stay with the new weather.
+    expect(townIn(found, '32.85:39.93')).toBeNull();
+    expect(townIn(null, '29.01:41.05')).toBeNull();
+    expect(townIn(found, null)).toBeNull();
   });
 });
 

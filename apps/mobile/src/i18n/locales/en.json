@@ -118,7 +118,8 @@
         "hidden": "Your location is hidden: sent to nobody",
         "frozen": "Your location is frozen: your last one stays",
         "nobody": "Your location is shared with nobody",
-        "noPermission": "No location permission: your location isn't sent"
+        "noPermission": "No location permission: your location isn't sent",
+        "checking": "Checking…"
       }
     },
     "dock": {

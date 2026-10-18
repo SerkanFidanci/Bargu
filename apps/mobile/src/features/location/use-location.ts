@@ -9,6 +9,7 @@ import { liveRequest, useConnection } from '../live/live-session';
 import { useMyFix } from './engine';
 import { locationEngine, restoreLocations, useLiveUntil } from './location-session';
 import { useSharing } from './sharing';
+import { useSharingEnd } from './sharing-end';
 import {
   checkLocationPermission,
   lastKnownFix,
@@ -34,30 +35,6 @@ function useAppActive(): boolean {
   return active;
 }
 
-/** Re-renders when the earliest timed share ends, so the service stops right on time. */
-function useNextExpiry(): number {
-  const sharing = useSharing();
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const now = Date.now();
-    const ends = Object.values(sharing.circles)
-      .map((circle) => circle.until)
-      .filter((until): until is number => until !== null && until > now);
-    if (ends.length === 0) return;
-    const timer = setTimeout(
-      () => {
-        void locationEngine.changed();
-        setTick((value) => value + 1);
-      },
-      Math.min(...ends) - now + 1,
-    );
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [sharing]);
-  return tick;
-}
-
 /**
  * The signed-in app's side of the location engine (the permission is asked from the disclosure
  * card on the map, LocationBanner, never by itself: Google Play K10), keeps the location
@@ -70,7 +47,8 @@ export function useLocationSession(ready: boolean): void {
   const sharing = useSharing();
   const circles = useCircles().data;
   const liveUntil = useLiveUntil((state) => state.until);
-  const expiry = useNextExpiry();
+  // The earliest timed share's end: the service stops and every screen says so at once.
+  const expiry = useSharingEnd(() => void locationEngine.changed());
 
   useEffect(() => {
     if (ready) restoreLocations();

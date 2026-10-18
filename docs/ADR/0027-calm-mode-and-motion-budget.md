@@ -63,6 +63,11 @@ Sahip haritanın canlı olmasını özellikle istedi ve pil denemesine "iyi" ded
 ### 5. Titreşim
 
 - Hafif titreşim (kısayollar, hayalet, Geldim dahil) "kapalı"da çalmaz.
+- **Titreşim yalnızca Efektler seçimine ve telefonun kendi titreşim ayarına bağlıdır (PM, QA 23):**
+  sistemin "Hareketi azalt" ayarı ve pil tasarrufu titreşimi kapatmaz; ikisi yalnızca hareketi
+  etkiler. Testli.
+- Açık bir ekrandaki döngüler (QR kodunun halesi, tarayıcının çizgisi) sade mod "tam"dan çıktığı
+  anda durur; sayfaya yeniden girmek gerekmez (QA 23, ölçüm testinde).
 
 ## Ölçüm
 

@@ -81,3 +81,14 @@ export function townName(
   }
   return best?.name ?? null;
 }
+
+/**
+ * The town to show for the square kilometre this phone is in: only the one found there (QA 24
+ * B-3). Moved on, the old name goes; where the map names nothing, none.
+ */
+export function townIn(
+  found: { cell: string; name: string } | null,
+  cell: string | null,
+): string | null {
+  return found !== null && cell !== null && found.cell === cell ? found.name : null;
+}

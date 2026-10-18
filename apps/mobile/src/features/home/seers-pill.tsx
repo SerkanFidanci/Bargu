@@ -20,10 +20,10 @@ export interface SeersPillProps {
 
 /**
  * What the second line says about this phone's location, from what is really so (the PM: a
- * safety text): never "shared now" while a ghost (hidden or frozen), with nobody to see it, or
- * without the location permission.
+ * safety text): never "shared now" while a ghost (hidden or frozen), with nobody to see it,
+ * without the location permission, or before the permission is known (QA 24 B-1: "checking").
  */
-export type SharingNow = 'shared' | 'hidden' | 'frozen' | 'nobody' | 'noPermission';
+export type SharingNow = 'shared' | 'hidden' | 'frozen' | 'nobody' | 'noPermission' | 'checking';
 
 export function sharingNow(input: {
   ghost: GhostMode;
@@ -34,7 +34,7 @@ export function sharingNow(input: {
   if (input.ghost === 'freeze') return 'frozen';
   if (input.seers === 0) return 'nobody';
   if (input.permission === 'blocked' || input.permission === 'undetermined') return 'noPermission';
-  return 'shared';
+  return input.permission === 'granted' ? 'shared' : 'checking';
 }
 
 /**

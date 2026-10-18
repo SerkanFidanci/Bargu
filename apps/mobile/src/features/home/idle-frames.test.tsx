@@ -15,6 +15,11 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+// The camera itself is not what is measured: the scanner's sweeping line is.
+jest.mock('expo-camera', () => {
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+  return { CameraView: View, useCameraPermissions: () => [{ granted: true }, jest.fn()] };
+});
 jest.mock('@/features/storage/vault', () => ({ isVaultOpen: () => false }));
 jest.mock('@/features/location/location-session', () => ({
   meetings: { eta: () => undefined },
@@ -39,6 +44,8 @@ import i18n from '@/i18n';
 import { EffectsPaused, useEffectChoice } from '@/theme/effects';
 import { weatherFx } from '@/theme';
 import { AvatarMarker, type MarkerActivity } from '@/ui/avatar-marker';
+import { QrCode } from '@/ui/qr-code';
+import { QrScanner } from '@/ui/qr-scanner';
 
 /**
  * The measurement the PM asked for (docs/ADR/0027): frames the map asks for while nobody touches
@@ -205,4 +212,20 @@ describe('frames on the map while nobody touches it (docs/ADR/0027)', () => {
       expect(await framesWhileIdle(0)).toBe(0);
     },
   );
+
+  it('none from the QR screens once sade mod leaves "full" while they are open (QA 23)', async () => {
+    await render(
+      <>
+        <QrCode value="bargu://invite/abc" size={200} label="Davet" />
+        <QrScanner onScan={jest.fn()} size={200} />
+      </>,
+    );
+    // At "full" the halo and the sweeping line run…
+    expect(await framesWhileIdle(1_000, 1_000)).toBeGreaterThan(0);
+    // …and stop at once when the user picks "less", no new visit needed.
+    await act(() => {
+      useEffectChoice.setState({ level: 'reduced' });
+    });
+    expect(await framesWhileIdle(1_000)).toBe(0);
+  });
 });

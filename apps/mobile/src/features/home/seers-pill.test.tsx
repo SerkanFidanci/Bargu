@@ -21,6 +21,8 @@ describe('"who sees me" (BARGU_PLAN §2, the theme of 2026-10-18)', () => {
     expect(sharingNow({ ...base, seers: 0 })).toBe('nobody');
     expect(sharingNow({ ...base, permission: 'blocked' })).toBe('noPermission');
     expect(sharingNow({ ...base, permission: 'undetermined' })).toBe('noPermission');
+    // Before the permission is known (the app just opened): not "shared", and so no dot (QA 24 B-1).
+    expect(sharingNow({ ...base, permission: 'unknown' })).toBe('checking');
     // A ghost is told as one whatever else holds.
     expect(sharingNow({ ghost: 'hide', seers: 0, permission: 'blocked' })).toBe('hidden');
     // Every circle paused or sharing off: nobody gets it (seersOf counts none), so not "shared".
@@ -32,6 +34,7 @@ describe('"who sees me" (BARGU_PLAN §2, the theme of 2026-10-18)', () => {
     ['hide', 'granted', 'Konumun gizli: kimseye gönderilmiyor'],
     ['freeze', 'granted', 'Konumun donduruldu: son konumun duruyor'],
     ['off', 'blocked', 'Konum izni yok: konumun gönderilmiyor'],
+    ['off', 'unknown', 'Kontrol ediliyor…'],
   ] as const)('reads ghost %s, permission %s as "%s"', async (ghost, permission, text) => {
     await render(
       <SeersPill seers={[ada]} ghost={ghost} permission={permission} onPress={jest.fn()} />,

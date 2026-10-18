@@ -2,6 +2,7 @@ import { create } from 'qrcode';
 import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -56,8 +57,13 @@ export function QrCode({ value, size, label }: QrCodeProps) {
   const { size: modules, path } = useMemo(() => qrPath(value), [value]);
   const halo = useSharedValue(0);
 
+  // Stops (and settles) the moment sade mod leaves "full", not only on the next visit (QA 23).
   useEffect(() => {
-    if (reduced) return;
+    if (reduced) {
+      cancelAnimation(halo);
+      halo.set(0);
+      return;
+    }
     halo.set(
       withRepeat(
         withTiming(1, { duration: ambient.qrHalo.duration, easing: Easing.out(Easing.quad) }),
@@ -65,6 +71,9 @@ export function QrCode({ value, size, label }: QrCodeProps) {
         false,
       ),
     );
+    return () => {
+      cancelAnimation(halo);
+    };
   }, [halo, reduced]);
 
   const haloStyle = useAnimatedStyle(() => ({

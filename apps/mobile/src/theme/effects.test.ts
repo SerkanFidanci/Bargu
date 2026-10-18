@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 
-import { effectLevel, savingFrom, timesAt, useEffectChoice } from './effects';
+import { effectLevel, savingFrom, timesAt, useDeviceSaving, useEffectChoice } from './effects';
 import { feedback } from './haptics';
 
 afterEach(() => {
@@ -33,6 +33,14 @@ describe('sade mod (docs/ADR/0027)', () => {
     expect(timesAt('full', 3)).toBe(3);
     expect(timesAt('reduced', 3)).toBe(1);
     expect(timesAt('off', 3)).toBe(0);
+  });
+
+  it('vibrates by the Effects choice only: battery saving does not silence it (QA 23)', () => {
+    jest.clearAllMocks();
+    useDeviceSaving.setState({ saving: true });
+    feedback('select');
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+    useDeviceSaving.setState({ saving: false });
   });
 
   it('silences vibration when off', () => {

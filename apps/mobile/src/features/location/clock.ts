@@ -29,3 +29,11 @@ export function useNow(): number {
   }, []);
   return clock((state) => state.now);
 }
+
+/**
+ * Brings every screen's clock to now at once, off the half-minute beat: a moment that matters just
+ * passed (a timed share ended, QA 24 B-2), so what they show changes right then.
+ */
+export function catchUp(): void {
+  clock.setState({ now: Date.now() });
+}

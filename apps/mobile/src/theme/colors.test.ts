@@ -23,6 +23,10 @@ const pairs: readonly (readonly [keyof ColorTokens, keyof ColorTokens, number])[
   ['danger', 'background', BODY],
   ['success', 'background', BODY],
   ['danger', 'surface', LARGE],
+  // Violet icons on their soft violet tiles (Me, guardians, circles) are graphics: 3:1 (QA 24 B-4).
+  ['primary', 'primarySoft', LARGE],
+  // An error message on a card is small text (QA 24 B-4).
+  ['danger', 'surface', BODY],
 ];
 
 describe.each([

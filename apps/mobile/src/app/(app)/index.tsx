@@ -39,6 +39,7 @@ import { MeSheet } from '@/features/home/sheets';
 import { StatusSheet } from '@/features/social/status-sheet';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
 import { usePeopleUi } from '@/features/map/people-ui';
+import { townIn } from '@/features/map/place-name';
 import { usePersonFocus } from '@/features/map/person-focus';
 import { useWeatherHere, WeatherChip } from '@/features/weather/use-weather';
 import { WeatherLayer } from '@/features/weather/weather-layer';
@@ -100,14 +101,16 @@ export default function HomeScreen() {
   // the square kilometre it is in: looked up again when that changes or the map settles.
   const { i18n } = useTranslation();
   const permission = useLocationPermission((state) => state.state);
-  const [town, setTown] = useState<string | null>(null);
+  // Kept with the square it was found for: moved on to another, the old name no longer shows, and
+  // none at all where the map names nothing (QA 24 B-3).
+  const [found, setFound] = useState<{ cell: string; name: string } | null>(null);
   const cell = myFix === null ? null : `${myFix.lng.toFixed(2)}:${myFix.lat.toFixed(2)}`;
   const [lookups, setLookups] = useState(0);
   useEffect(() => {
     if (cell === null) return;
     const [lng = 0, lat = 0] = cell.split(':').map(Number);
     void map.current?.townName([lng, lat], i18n.language).then((name) => {
-      if (name !== null) setTown(name);
+      if (name !== null) setFound({ cell, name });
     });
   }, [cell, i18n.language, lookups]);
   const cardOpen = usePersonFocus((state) => state.selected !== null);
@@ -185,7 +188,7 @@ export default function HomeScreen() {
                 router.push('/seers');
               }}
             />
-            {weather === null ? null : <WeatherChip here={weather} town={town} />}
+            {weather === null ? null : <WeatherChip here={weather} town={townIn(found, cell)} />}
           </View>
           <MeetingChip circles={circleList.data ?? []} points={points} now={now} me={myUserId} />
 
