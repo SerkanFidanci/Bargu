@@ -11,3 +11,10 @@ import './src/features/location/background-task';
 import './src/features/notifications/background-push';
 // 5. the screens.
 import 'expo-router/entry';
+
+// The measurement overlay, in development and preview builds only (docs/ADR/0028). The condition
+// is a constant when a release bundle is built (Expo inlines EXPO_PUBLIC_* there), so a production
+// bundle does not contain the overlay's code at all, not even switched off.
+if (__DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1') {
+  void import('./src/features/dev/measure');
+}
