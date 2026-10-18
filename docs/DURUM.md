@@ -195,7 +195,8 @@ Efektler ve sade mod, APK (`43ff254`, öncekilerin yerine):
 15. Hava (yağmur, güneş, yıldız) harita açılınca yaklaşık 20 saniye oynar, sonra donar; haritaya
     dokununca ya da kaydırınca yeniden oynar. Pil tasarrufunu açınca "az" gibi davranır.
 
-Tema ve pin APK'sı (link PM'e iletilir; öncekilerin yerine):
+Tema ve pin, APK (`2c89424`, öncekilerin yerine):
+<https://api.46-62-162-70.sslip.io/apk/bargu-2c89424-80efcb6d3c0db7e6.apk>
 
 16. Koyu temada yüzeyler lacivert-mor; seçili seçenekler dolu mor ve hafif parlak. Ben sayfasında
     satırlar kartlarda, seçeneklerde simgeler, açıklamalarda ⓘ.
