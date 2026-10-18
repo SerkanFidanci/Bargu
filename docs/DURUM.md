@@ -69,6 +69,7 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 | İkili eşit           | `220d2c8`, `fae1d4d`                                             | PM'in kararı: arkadaşlıkta iki kişi de buluşmayı değiştirir ve bitirir (migration 0036; uygulama bir sonraki APK'da)                                                                                                                                                                                                                                                                                                                          |
 | Kısayollar           | `c9313c0`                                                        | Sahibin isteği: haritanın sağ kenarında konumuma dön, hayalet modu (tek dokunuşla açılır, kapatırken onay) ve buluşma başlat; üstte en yakın buluşmanın sayaç çipi ("🏠 Ev · 17:30 · 25 dk", saatinde "2/4 geldi · 1 yolda", sayılar ADR 0026 kurallarıyla); herkes tam konumla gelince bir kez konfeti (ADR 0026 §8)                                                                                                                         |
 | Efektler ve sade mod | `79abd4e`, `7b6c059`                                             | Kısayol efektleri (yaylı giriş, süzülen hayalet ve "pof", radar halkası, Geldim nabzı, kayan dakika), hepsi sonlu; sade mod (Ben > Efektler: tam / az / kapalı), pil tasarrufu ve %20 altı "az" gibi, "Hareketi azalt" ve görünmeyen harita "kapalı" gibi; hava 20 sn oynayıp donar (ADR 0027). QA 22: buluşma bitişi sunucuda tam saate yuvarlanır, tahmin yalnızca tam konumla, çipte yaklaşan buluşma önde                                 |
+| Tema ve pin          | `f4138da`, `1aba84f`, `5d64cb9`                                  | Sahibin gönderdiği tasarım (ADR 0008 eki): lacivert-mor koyu tema ve açık karşılığı, durağan mor parıltı, iki satırlı "seni görüyor" (ikinci satır gerçek durumu söyler), şehir/ilçe adlı hava kartı, simgeli seçim çubukları ve ⓘ açıklamalar, kartlı Ben sayfası, dock'ta seçili sekme; hayalet düğmesinde "konum paylaşılıyor" noktası; kişiler pin (mor halka, uç, konum noktası, yeşil canlı noktası), birlikte duranlar tek ortak pin   |
 
 ### QA turları
 
@@ -77,9 +78,11 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
   A-1 (aşağıda) ve test botunun kodunun depoya alınması sonraya.
 - QA 21 (P1b, T-1, 2c, 3a, buluşma): orta ya da yüksek bulgu yok. Düşük B-1…B-5 düzeltildi.
 
-### Test sonuçları (son çalıştırma, `b989b93`)
+### Test sonuçları (son çalıştırma, `5d64cb9`)
 
-- Birim: mobil 438 (buluşma ekranı, haritadaki noktalar, kaba konumda "geldi" yok, bildirim metni,
+- Birim: mobil 447 (tema: "seni görüyor"un ikinci satırı her durumda doğru, hayalet düğmesinin
+  noktası ve etiketi, ilçe adı haritanın etiketinden, dock'ta seçili sekme, yeşil canlı noktası
+  yalnızca tazeyken; buluşma ekranı, haritadaki noktalar, kaba konumda "geldi" yok, bildirim metni,
   duraklamış çemberde "geç kalıyorum" yok, arkadaşlıkta iki kişi de buluşmayı yeniden mühürler;
   kısayollar: hayalet tek dokunuşla açılır ve onaysız kapanmaz, çipin sayıları kaba paylaşanı
   "yolda" saymaz, konfeti yalnızca tam konumla gelince ve bir kez; sade mod kuralları, titreşim
@@ -133,6 +136,12 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
     kadar kırılır, düğmeler sabit 48 pt).
 11. "Tam"da avatar döngüleri (nefes, yürüyüş, yerleşik halka, düşük pil nabzı) bilerek sonsuz:
     sahip haritanın canlı olmasını istedi. Pil tasarrufunda ve %20 altında "az" gibi durur.
+12. Hava kartındaki ad haritanın kendi etiketlerinden: sokak yakınlığında şehir etiketi çizilmediği
+    için çoğu zaman "İstanbul" yerine ilçe adı ("Kadıköy") görünür; yakında etiket yoksa ad yok.
+13. Harita zemininin (sokaklar, binalar) koyu renkleri tema dilimine girmedi; yeni temayla ton farkı
+    olabilir.
+14. Dilim 3'ün süs paketleri çıkartmaya göre tasarlanmıştı; 3b'de pine göre değişecek ("Halka
+    desenleri", "Pin çerçeveleri"), wip/dilim-3b uyarlanacak.
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -185,6 +194,18 @@ Efektler ve sade mod, APK (`43ff254`, öncekilerin yerine):
     kıpırdar, hava durağan; "Kapalı"da hiçbir şey kıpırdamaz, titreşim yok.
 15. Hava (yağmur, güneş, yıldız) harita açılınca yaklaşık 20 saniye oynar, sonra donar; haritaya
     dokununca ya da kaydırınca yeniden oynar. Pil tasarrufunu açınca "az" gibi davranır.
+
+Tema ve pin APK'sı (link PM'e iletilir; öncekilerin yerine):
+
+16. Koyu temada yüzeyler lacivert-mor; seçili seçenekler dolu mor ve hafif parlak. Ben sayfasında
+    satırlar kartlarda, seçeneklerde simgeler, açıklamalarda ⓘ.
+17. "Seni görüyor" iki satır: altta "Konumun şu an paylaşılıyor"; hayalet "Gizle"de "gizli",
+    "Dondur"da "donduruldu", paylaşım kapalıysa "kimseyle paylaşılmıyor" yazar. Yanında hava kartı
+    (sıcaklık ve ilçe adı).
+18. Hayalet düğmesinde mor nokta konum paylaşılırken görünür; hayalet açılınca kalkar.
+19. Kişiler pin: mor halkalı daire, aşağı uç, konum noktası, konumu tazeyken yeşil nokta; eski
+    konumda gri ve "23 sa". Birlikte duran iki kişi tek ortak pinde.
+20. Alttaki çubukta haritadayken "Çemberler", Ben açıkken "Ben" mor ve altı çizili.
 
 ### Senden gerekenler
 
