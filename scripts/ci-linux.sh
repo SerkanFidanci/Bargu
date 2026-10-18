@@ -36,7 +36,12 @@ docker run --rm \
     failed=0
     pnpm format:check > /tmp/format.log 2>&1 || { tail -20 /tmp/format.log; echo "ci-linux: format failed"; failed=1; }
     pnpm check:chars > /tmp/chars.log 2>&1 || { tail -20 /tmp/chars.log; echo "ci-linux: check:chars failed"; failed=1; }
-    if ! pnpm exec turbo run typecheck lint test build --continue --ui=stream > /tmp/turbo.log 2>&1; then
+    # The tests after the rest, not beside it: jest (a worker per core) and the typed lint at once
+    # ran out of memory in a 16 GB Docker (exit 137), though each passes alone.
+    turbo_ok=1
+    pnpm exec turbo run typecheck lint build --continue --ui=stream > /tmp/turbo.log 2>&1 || turbo_ok=0
+    pnpm exec turbo run test --continue --ui=stream >> /tmp/turbo.log 2>&1 || turbo_ok=0
+    if [ "$turbo_ok" = 0 ]; then
       grep -nE "ERROR|FAIL|error TS|✖|●" /tmp/turbo.log | head -80
       echo "ci-linux: typecheck, lint, test or build failed"
       failed=1
