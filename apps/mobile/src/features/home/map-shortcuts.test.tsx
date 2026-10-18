@@ -68,6 +68,7 @@ const shortcuts = (props: Partial<Parameters<typeof MapShortcuts>[0]> = {}) => (
     me={ME}
     now={NOW}
     bottom={0}
+    shared={false}
     {...props}
   />
 );
@@ -112,6 +113,20 @@ describe('the map shortcuts (docs/ADR/0026 §8)', () => {
     });
     expect(useSharing.getState().ghost).toBe('off');
     alert.mockRestore();
+  });
+
+  it('wear a violet dot only while the location really goes to someone, and say so', async () => {
+    const view = await render(shortcuts({ shared: true }));
+    expect(screen.getByTestId('ghost-shared-dot')).toBeTruthy();
+    expect(screen.getByTestId('shortcut-ghost').props.accessibilityLabel).toContain(
+      'Konumun paylaşılıyor.',
+    );
+    // A ghost, every circle paused, sharing off, nobody, no permission: sharingNow says so.
+    await view.rerender(shortcuts({ shared: false }));
+    expect(screen.queryByTestId('ghost-shared-dot')).toBeNull();
+    expect(screen.getByTestId('shortcut-ghost').props.accessibilityLabel).not.toContain(
+      'Konumun paylaşılıyor.',
+    );
   });
 
   it('turn ghost mode off at once when no circle would get the location', async () => {

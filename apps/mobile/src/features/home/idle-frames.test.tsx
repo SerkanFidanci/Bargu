@@ -154,6 +154,7 @@ describe('frames on the map while nobody touches it (docs/ADR/0027)', () => {
           me={ME}
           now={meetAt}
           bottom={0}
+          shared
         />,
       );
       // Every effect started: the radar, the ghost floating, "Geldim" ringing.

@@ -695,7 +695,8 @@
       "ghostOffBody": "Konumun yeniden paylaşılacak: {{count}} çember.",
       "ghostOffConfirm": "Paylaş",
       "meet": "Buluşma başlat",
-      "here": "Geldim ({{place}})"
+      "here": "Geldim ({{place}})",
+      "shared": "Konumun paylaşılıyor."
     }
   },
   "places": {

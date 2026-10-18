@@ -23,6 +23,8 @@ describe('"who sees me" (BARGU_PLAN §2, the theme of 2026-10-18)', () => {
     expect(sharingNow({ ...base, permission: 'undetermined' })).toBe('noPermission');
     // A ghost is told as one whatever else holds.
     expect(sharingNow({ ghost: 'hide', seers: 0, permission: 'blocked' })).toBe('hidden');
+    // Every circle paused or sharing off: nobody gets it (seersOf counts none), so not "shared".
+    expect(sharingNow({ ghost: 'off', seers: 0, permission: 'granted' })).not.toBe('shared');
   });
 
   it.each([

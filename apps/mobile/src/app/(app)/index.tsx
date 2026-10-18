@@ -10,7 +10,7 @@ import { router } from 'expo-router';
 
 import { MapShortcuts } from '@/features/home/map-shortcuts';
 import { MeetingChip } from '@/features/home/meeting-chip';
-import { SeersPill } from '@/features/home/seers-pill';
+import { SeersPill, sharingNow } from '@/features/home/seers-pill';
 import { isAway, nextMeeting } from '@/features/home/shortcuts-model';
 import { useOnScreen } from '@/features/home/use-on-screen';
 import { AddSheet } from '@/features/circles/add-sheet';
@@ -224,6 +224,9 @@ export default function HomeScreen() {
             me={myUserId}
             now={now}
             bottom={insets.bottom + DOCK_HEIGHT + space.md}
+            shared={
+              sharingNow({ ghost: sharing.ghost, seers: seers.length, permission }) === 'shared'
+            }
           />
         )}
         {people.overlay}

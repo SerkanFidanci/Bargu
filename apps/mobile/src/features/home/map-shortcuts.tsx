@@ -49,6 +49,11 @@ export interface MapShortcutsProps {
   now: number;
   /** Where the column ends, above the dock. */
   bottom: number;
+  /**
+   * This phone's location is really going to someone now (sharingNow, the same truth as "who sees
+   * me"): the ghost button wears a violet dot (a safety sign, the owner's choice).
+   */
+  shared: boolean;
 }
 
 /** The shortcuts sprang in once this app run: coming back (a card closed) is a short fade. */
@@ -69,6 +74,7 @@ export function MapShortcuts({
   me,
   now,
   bottom,
+  shared,
 }: MapShortcutsProps) {
   const { t } = useTranslation();
   const motion = useMotion();
@@ -109,7 +115,7 @@ export function MapShortcuts({
         </Animated.View>
       ) : null}
       <Animated.View entering={entering(1)}>
-        <GhostButton circles={circles} now={now} level={level} />
+        <GhostButton circles={circles} now={now} level={level} shared={shared} />
       </Animated.View>
       {meeting === null ? (
         <Animated.View entering={entering(2)}>
@@ -187,12 +193,15 @@ function GhostButton({
   circles,
   now,
   level,
+  shared,
 }: {
   circles: readonly Circle[];
   now: number;
   level: EffectLevel;
+  shared: boolean;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
   const on = useSharing((state) => state.ghost !== 'off');
   const lift = useSharedValue(0);
   const size = useSharedValue(1);
@@ -246,8 +255,25 @@ function GhostButton({
         icon={Ghost}
         tone={on ? 'primary' : 'raised'}
         selected={on}
-        label={on ? t('map.shortcuts.ghostOn') : t('map.shortcuts.ghostOff')}
+        label={[
+          on ? t('map.shortcuts.ghostOn') : t('map.shortcuts.ghostOff'),
+          shared ? t('map.shortcuts.shared') : null,
+        ]
+          .filter((part) => part !== null)
+          .join(' ')}
         iconStyle={floating}
+        badge={
+          shared ? (
+            <View
+              testID="ghost-shared-dot"
+              pointerEvents="none"
+              style={[
+                styles.dot,
+                { backgroundColor: colors.primary, borderColor: colors.surfaceRaised },
+              ]}
+            />
+          ) : null
+        }
         onPress={() => {
           if (on) {
             turnOff();
@@ -345,6 +371,7 @@ function RoundButton({
   selected,
   iconStyle,
   behind,
+  badge,
   testID,
 }: {
   icon: LucideIcon;
@@ -354,6 +381,8 @@ function RoundButton({
   selected?: boolean;
   iconStyle?: ComponentProps<typeof Animated.View>['style'];
   behind?: ReactNode;
+  /** A small sign on the button's corner. */
+  badge?: ReactNode;
   testID: string;
 }) {
   const { colors } = useTheme();
@@ -378,6 +407,7 @@ function RoundButton({
           <Icon color={ink} size={touchTarget * 0.46} strokeWidth={2.25} />
         </Animated.View>
       </PressableScale>
+      {badge}
     </View>
   );
 }
@@ -392,6 +422,15 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth * 2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dot: {
+    position: 'absolute',
+    top: space.xxs,
+    right: space.xxs,
+    width: space.md,
+    height: space.md,
+    borderRadius: radius.pill,
+    borderWidth: space.xxs,
   },
   ring: {
     position: 'absolute',

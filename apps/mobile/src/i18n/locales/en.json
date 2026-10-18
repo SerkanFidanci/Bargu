@@ -695,7 +695,8 @@
       "ghostOffBody": "Your location will be shared again with your circles ({{count}}).",
       "ghostOffConfirm": "Share",
       "meet": "Start a meeting",
-      "here": "I'm here ({{place}})"
+      "here": "I'm here ({{place}})",
+      "shared": "Your location is being shared."
     }
   },
   "places": {
