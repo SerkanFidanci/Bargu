@@ -69,6 +69,11 @@ Dokununca çember sayfası açılıyor.
 - Kayıtlı bir yer (ailenin "Ev"i) buluşma yeri olunca buluşma süresince buluşma görünümüne geçer,
   sonra normale döner.
 - İğne oradaki kişilerin çıkartmalarını ve ortak çerçeveyi örtmez: kişiler üstte kalır.
+- Haritanın o anki yakınlığında etiketleri üst üste binecek buluşma yerleri (bir etkinliğin iki
+  adayı bir sokak arada) tek kartta, alt alta birer satır olarak çizilir; her satır kendi
+  buluşmasını açar, buluşmanın kendisi en üstte ve mercan. Yakınlaşınca ayrılırlar. Kartta en çok 4
+  satır, fazlası sayıyla. Seçilmemiş yerlerin kesikli kenarı soluk (proje sahibi, 2026-10-18: biri
+  ötekini örtüyor, tıklanamıyordu).
 - Hareket Reanimated worklet'leri ve hareket tokenlarıyla yapılır; sade modda ve "Hareketi azalt"
   ayarında durur. Yazı açık ve koyu temada okunur.
 
