@@ -1,43 +1,20 @@
-import {
-  Blur,
-  Canvas,
-  ColorMatrix,
-  Group,
-  LinearGradient,
-  Oval,
-  Paint,
-  RoundedRect,
-  vec,
-} from '@shopify/react-native-skia';
 import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   type SharedValue,
   useAnimatedStyle,
-  useDerivedValue,
   useSharedValue,
   withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
-import {
-  avatarPalette,
-  elevation,
-  radius,
-  space,
-  spring,
-  stickerFx,
-  stickerPaper,
-  timing,
-  useTheme,
-} from '@/theme';
-import { AvatarMarker, type AvatarMarkerProps, PIN_HEIGHT, STICKER } from '@/ui/avatar-marker';
-import { stickerTilt } from '@/ui/sticker';
-import { GLYPH } from '@/ui/activity-glyph';
-import { Text } from '@/ui/text';
+import { elevation, pinFx, radius, space, spring, timing, useTheme } from '@/theme';
 import { useEffects } from '@/theme/effects';
+import { GLYPH } from '@/ui/activity-glyph';
+import { AvatarMarker, type AvatarMarkerProps, PIN_CIRCLE, PIN_HEIGHT } from '@/ui/avatar-marker';
+import { Text } from '@/ui/text';
 
 import { CLUSTER_PX } from './cluster';
 import { MAP_AVATAR_BOX } from './map-avatar';
@@ -45,17 +22,10 @@ import { MeetBurst } from './meet-burst';
 import type { ScreenPoint } from './person-focus';
 import { type PersonHandlers, PersonGestures } from './person-gestures';
 
-const ISLAND = stickerFx.island;
-/** The frame's ring in the people's colours (px). */
-const RING = space.xxs + 1;
-/** "Goo": blur the islands, then cut the blurred alpha sharply so touching shapes become one. */
-const GOO_BLUR = space.md;
-const GOO_MATRIX = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 24, -9];
-
 /** Someone in a group standing together: their avatar as on their own, and what goes with it. */
 export interface TogetherPerson {
   id: string;
-  marker: Omit<AvatarMarkerProps, 'island' | 'framed'>;
+  marker: Omit<AvatarMarkerProps, 'framed'>;
   handlers?: PersonHandlers | undefined;
   pokedAt?: number | undefined;
   /** Drawn above their avatar (a status bubble). */
@@ -63,51 +33,24 @@ export interface TogetherPerson {
 }
 
 /**
- * One avatar to the next in the frame: room between them for the left one's status badge on its
- * upper right (proje sahibi 2026-10-16: "iç içe girmemeli ama sağ üstlerinde durum şeyleri
- * çıkacak"); the last one's badge sits on the frame's corner, as on a sticker of its own.
+ * One avatar to the next in the shared pin: room between them for the left one's activity badge on
+ * its upper right (proje sahibi 2026-10-16: "iç içe girmemeli ama sağ üstlerinde durum şeyleri
+ * çıkacak"); the last one's badge sits on the pin's corner, as on a pin of its own.
  */
-const FRAME_SLOT = STICKER + GLYPH / 2 + space.xs;
+const FRAME_SLOT = PIN_CIRCLE + GLYPH / 2 + pinFx.together.gap;
 /**
- * More than two: room on the frame's right for the count, a clear gap from the last avatar and its
+ * More than two: room on the pin's right for the count, a clear gap from the last avatar and its
  * badge (proje sahibi 2026-10-16: "3 bir şeyin üzerine binmesin").
  */
 const COUNT_ROOM = GLYPH / 2 + space.lg + space.sm;
 
-/** The avatars' part of the frame, edge to edge. */
-const avatarsWidth = (count: number) => (count - 1) * FRAME_SLOT + STICKER;
-/** Where each avatar's centre sits from the frame's centre of avatars, left to right. */
+/** The avatars' part of the pin, edge to edge. */
+const avatarsWidth = (count: number) => (count - 1) * FRAME_SLOT + PIN_CIRCLE;
+/** Where each avatar's centre sits from the pin's centre of avatars, left to right. */
 const slotX = (index: number, count: number) =>
-  index * FRAME_SLOT + STICKER / 2 - avatarsWidth(count) / 2;
+  index * FRAME_SLOT + PIN_CIRCLE / 2 - avatarsWidth(count) / 2;
 
-/** One island flowing from where its person was to under their place, growing as it goes. */
-function Island({
-  from,
-  to,
-  merge,
-  color,
-  center,
-}: {
-  from: { x: number; y: number };
-  to: number;
-  merge: SharedValue<number>;
-  color: string;
-  center: { x: number; y: number };
-}) {
-  const width = useDerivedValue(
-    () => ISLAND.width * (1 + (stickerFx.together.islandGrow - 1) * merge.get()),
-  );
-  const height = useDerivedValue(
-    () => ISLAND.height * (1 + (stickerFx.together.islandTall - 1) * merge.get()),
-  );
-  const x = useDerivedValue(
-    () => center.x + from.x + (to - from.x) * merge.get() - width.get() / 2,
-  );
-  const y = useDerivedValue(() => center.y + from.y * (1 - merge.get()) - height.get() / 2);
-  return <Oval x={x} y={y} width={width} height={height} color={color} />;
-}
-
-/** One avatar sliding from where its person was into its place in the frame; jumps when poked. */
+/** One avatar sliding from where its person was into its place in the pin; jumps when poked. */
 function Slot({
   person,
   index,
@@ -121,7 +64,7 @@ function Slot({
   from: { x: number; y: number };
   to: number;
   merge: SharedValue<number>;
-  /** Their own tap and hold; off when a tap on the frame lists everyone instead. */
+  /** Their own tap and hold; off when a tap on the pin lists everyone instead. */
   tappable: boolean;
 }) {
   const lift = useSharedValue(0);
@@ -135,7 +78,7 @@ function Slot({
       { translateY: from.y * (1 - merge.get()) + lift.get() },
     ],
   }));
-  const avatar = <AvatarMarker {...person.marker} island={false} framed />;
+  const avatar = <AvatarMarker {...person.marker} framed />;
   return (
     <Animated.View
       style={[styles.slot, { left: index * FRAME_SLOT }, sliding]}
@@ -159,14 +102,12 @@ function Slot({
 
 /**
  * People standing together (proje sahibi 2026-10-16: "2'si tek çerçevede toplansın, 2'den fazla
- * varsa sağ üstte yazsın, tıklayınca oradaki kişiler bir pencerede gözüksün"): two avatars flow
- * into one shared sticker frame, its ring running from one person's colour to the other's, above
- * one island where their islands met like liquid (Skia "goo" on the UI thread, BARGU_PLAN §4.3).
- * Two people: each avatar is still theirs to tap or hold. More: the frame says how many in its
- * upper right corner, and a tap lists everyone there.
+ * varsa sağ üstte yazsın, tıklayınca oradaki kişiler bir pencerede gözüksün"), as one shared pin
+ * (the owner, 2026-10-18): the avatars slide from where each was into one ring, with one tail down
+ * to one dot on where they are. Two people: each avatar is still theirs to tap or hold. More: the
+ * pin says how many in its upper right corner, and a tap lists everyone there.
  */
 export function ClusterBubble({
-  groupKey,
   people,
   more,
   offsets,
@@ -174,19 +115,17 @@ export function ClusterBubble({
   burst,
   onList,
 }: {
-  /** The same while the same people stand together (its tilt). */
-  groupKey: string;
   /** Who shows, in order (cluster.ts capsuleOf). */
   people: readonly TogetherPerson[];
   /** How many more there are than shown. */
   more: number;
   /** Where each one shown was on screen relative to the centre (px). */
   offsets: readonly { x: number; y: number }[];
-  /** Everyone's names, for the frame's label. */
+  /** Everyone's names, for the pin's label. */
   everyone: readonly string[];
   /** A meeting to celebrate here (the user is one of them). */
   burst?: { at: number; colors: readonly [string, string] } | null | undefined;
-  /** More than two: a tap on the frame, to list everyone here. */
+  /** More than two: a tap on the pin, to list everyone here. */
   onList: (point: ScreenPoint) => void;
 }) {
   const { t } = useTranslation();
@@ -206,12 +145,10 @@ export function ClusterBubble({
   const width = (avatars / 2 + (listed ? COUNT_ROOM + space.sm : 0) + CLUSTER_PX) * 2;
   const center = { x: width / 2, y: MAP_AVATAR_BOX / 2 };
   const fromOf = (index: number) => offsets[index] ?? { x: 0, y: 0 };
-  const tintOf = (person: TogetherPerson) =>
-    person.marker.staleMinutes !== undefined
-      ? colors.textMuted
-      : (avatarPalette[person.marker.avatar?.color ?? 0] ?? colors.primary);
-  const tints = people.map(tintOf);
-  const ring = tints.length > 1 ? tints : [...tints, ...tints];
+  // Grey only when every location here is old.
+  const ring = people.every((person) => person.marker.staleMinutes !== undefined)
+    ? colors.textMuted
+    : colors.primary;
   const appear = useAnimatedStyle(() => ({ opacity: merge.get() }));
 
   const row = (
@@ -219,25 +156,15 @@ export function ClusterBubble({
       <Animated.View
         style={[
           styles.frame,
-          { backgroundColor: stickerPaper, boxShadow: elevation.raised },
+          {
+            backgroundColor: colors.surfaceRaised,
+            borderColor: ring,
+            boxShadow: elevation.raised,
+          },
           appear,
         ]}
         pointerEvents="none"
-      >
-        <Canvas style={StyleSheet.absoluteFill}>
-          <RoundedRect
-            x={RING / 2}
-            y={RING / 2}
-            width={frameWidth - RING}
-            height={STICKER - RING}
-            r={(STICKER - RING) / 2}
-            style="stroke"
-            strokeWidth={RING}
-          >
-            <LinearGradient start={vec(0, 0)} end={vec(frameWidth, 0)} colors={ring} />
-          </RoundedRect>
-        </Canvas>
-      </Animated.View>
+      />
       {people.map((person, index) => (
         <Slot
           key={person.id}
@@ -253,7 +180,7 @@ export function ClusterBubble({
         <Animated.View
           style={[
             styles.count,
-            { backgroundColor: colors.primary, borderColor: stickerPaper },
+            { backgroundColor: colors.primary, borderColor: colors.surfaceRaised },
             appear,
           ]}
           pointerEvents="none"
@@ -265,45 +192,34 @@ export function ClusterBubble({
       ) : null}
     </>
   );
-  const placed = {
-    left: center.x - avatars / 2,
-    top: center.y - PIN_HEIGHT,
-    width: frameWidth,
-    transform: [{ rotate: `${String(stickerTilt(groupKey) / 2)}deg` }],
-  };
+  const placed = { left: center.x - avatars / 2, top: center.y - PIN_HEIGHT, width: frameWidth };
 
   return (
     <View style={[styles.box, { width }]} pointerEvents="box-none">
-      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Group opacity={ISLAND.opacity}>
-          <Group
-            layer={
-              <Paint>
-                <Blur blur={GOO_BLUR} />
-                <ColorMatrix matrix={GOO_MATRIX} />
-              </Paint>
-            }
-          >
-            {people.map((person, index) => (
-              <Island
-                key={person.id}
-                from={fromOf(index)}
-                to={slotX(index, count)}
-                merge={merge}
-                color={tintOf(person)}
-                center={center}
-              />
-            ))}
-          </Group>
-        </Group>
-        <Oval
-          x={center.x - ISLAND.core / 2}
-          y={center.y - ISLAND.core / 4}
-          width={ISLAND.core}
-          height={ISLAND.core / 2}
-          color={colors.primary}
-        />
-      </Canvas>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.tail,
+          {
+            left: center.x - pinFx.tailWidth / 2,
+            top: center.y - pinFx.tail - pinFx.ring / 2,
+            borderTopColor: ring,
+          },
+          appear,
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.dot,
+          {
+            left: center.x - pinFx.dot / 2,
+            top: center.y - pinFx.dot / 2,
+            backgroundColor: ring,
+            borderColor: colors.surfaceRaised,
+          },
+        ]}
+      />
       {burst === null || burst === undefined ? null : (
         <MeetBurst key={burst.at} at={burst.at} colors={burst.colors} />
       )}
@@ -332,12 +248,30 @@ export function ClusterBubble({
 
 const styles = StyleSheet.create({
   box: { height: MAP_AVATAR_BOX },
-  row: { position: 'absolute', height: STICKER },
-  frame: { ...StyleSheet.absoluteFill, borderRadius: radius.pill, overflow: 'hidden' },
-  slot: { position: 'absolute', top: 0, width: STICKER, alignItems: 'center' },
+  row: { position: 'absolute', height: PIN_CIRCLE },
+  frame: { ...StyleSheet.absoluteFill, borderRadius: radius.pill, borderWidth: pinFx.ring },
+  slot: { position: 'absolute', top: 0, width: PIN_CIRCLE, alignItems: 'center' },
   // Whatever sits above an avatar ends where it begins.
   above: { position: 'absolute', bottom: PIN_HEIGHT + space.xs, alignItems: 'center' },
-  // How many stand here, on the frame's upper right corner.
+  // A downward triangle from the shared ring to the dot.
+  tail: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    borderLeftWidth: pinFx.tailWidth / 2,
+    borderRightWidth: pinFx.tailWidth / 2,
+    borderTopWidth: pinFx.tail + pinFx.ring / 2,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  dot: {
+    position: 'absolute',
+    width: pinFx.dot,
+    height: pinFx.dot,
+    borderRadius: radius.pill,
+    borderWidth: pinFx.ring / 2,
+  },
+  // How many stand here, on the pin's upper right corner.
   count: {
     position: 'absolute',
     top: -space.sm,

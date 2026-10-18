@@ -23,7 +23,23 @@ describe('the line under someone on the map (proje sahibi 2026-10-16)', () => {
     );
     expect(screen.queryByTestId('marker-detail')).toBeNull();
     expect(screen.getByText('12 dk')).toBeTruthy();
-    await rerender(<AvatarMarker name="Ayşe" avatar={null} detail={SPEED} framed island={false} />);
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} detail={SPEED} framed />);
     expect(screen.queryByTestId('marker-detail')).toBeNull();
+  });
+});
+
+describe('a person as a pin (the owner, 2026-10-18)', () => {
+  beforeAll(async () => {
+    await i18n.changeLanguage('tr');
+  });
+
+  it('wears the green live dot only while the location is fresh, also in a shared pin', async () => {
+    const { rerender } = await render(<AvatarMarker name="Ayşe" avatar={null} />);
+    expect(screen.getByTestId('marker-live')).toBeTruthy();
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} staleMinutes={90} />);
+    expect(screen.queryByTestId('marker-live')).toBeNull();
+    expect(screen.getByText('1 sa')).toBeTruthy();
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} framed />);
+    expect(screen.getByTestId('marker-live')).toBeTruthy();
   });
 });

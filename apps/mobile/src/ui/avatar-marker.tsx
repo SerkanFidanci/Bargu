@@ -16,13 +16,11 @@ import Animated, {
 import {
   activityFx,
   ambient,
-  avatarPalette,
   avatarSize,
   elevation,
+  pinFx,
   radius,
   space,
-  stickerFx,
-  stickerPaper,
   useTheme,
 } from '@/theme';
 import { type EffectLevel, repeatFinite, useEffects } from '@/theme/effects';
@@ -30,7 +28,6 @@ import { type EffectLevel, repeatFinite, useEffects } from '@/theme/effects';
 import { Avatar } from './avatar';
 import { ActivityGlyph, GLYPH } from './activity-glyph';
 import { gaitPose, leanSideOf } from './gait';
-import { stickerTilt } from './sticker';
 import { Text } from './text';
 
 export interface AvatarMarkerProps {
@@ -49,11 +46,9 @@ export interface AvatarMarkerProps {
   /** Degrees from north while moving: they lean that way and the badge faces it. */
   heading?: number | null | undefined;
   /**
-   * The island in their colour under the sticker, on the exact position. Off when several people
-   * stand together: their islands are drawn as one (features/map/cluster-bubble.tsx).
+   * In a pin shared with others (features/map/cluster-bubble.tsx): only the avatar and its signs;
+   * the shared pin draws the ring, the tail and the dot on the position.
    */
-  island?: boolean | undefined;
-  /** Inside a frame shared with others: the frame is the paper, so no edge, shadow or tilt of its own. */
   framed?: boolean | undefined;
   /** Their speed or how long they have stayed, on a line under the island (live locations only). */
   detail?: MarkerDetail | undefined;
@@ -122,11 +117,10 @@ function periodOf(activity: MarkerActivity): number | null {
   }
 }
 
-/** The sticker: the avatar with its white die-cut edge. */
-export const STICKER = avatarSize.md + stickerFx.edge * 2;
-/** From the top of the sticker to the centre of its island: the person's exact position. */
-export const PIN_HEIGHT = STICKER + stickerFx.rise;
-const ISLAND = stickerFx.island;
+/** The pin's circle: the avatar in its ring. */
+export const PIN_CIRCLE = avatarSize.md + pinFx.ring * 2;
+/** From the top of the circle to the dot on the person's exact position. */
+export const PIN_HEIGHT = PIN_CIRCLE + pinFx.tail;
 const BADGE = space.lg;
 
 /** A there-and-back loop (breathing, a pulse): as useCycle, once per new location when reduced. */
@@ -149,14 +143,14 @@ function useLoop(active: boolean, duration: number, level: EffectLevel, news: nu
 }
 
 /**
- * A person on the map (proje sahibi 2026-10-16: "sıradan bir şey yapma"): their avatar as a white
- * die-cut sticker, tilted their own way, floating just above a small island in their colour that
- * sits on the exact position. While the location is live and they stand still the sticker floats
- * gently up and down and its island shrinks under it; moving, it moves the way they move, with a
- * small drawing of what they are doing (activity-glyph.tsx) (BARGU_PLAN §4.3). Ambient states
- * without text: a bolt while charging, a pulsing red ring when the battery is low, grey with the
- * age when the location is old, a slow ripple from the island once settled somewhere. Sade mod
- * scales the loops (useCycle); Reduce Motion stops them.
+ * A person on the map as a pin (the project owner, 2026-10-18): their avatar in a violet ring (grey
+ * when the location is old), a short tail down to a dot on the exact position, and a green dot on
+ * the circle while the location is fresh. While live and still the pin floats gently above its
+ * dot; moving, it moves the way they move, with a small drawing of what they are doing
+ * (activity-glyph.tsx) (BARGU_PLAN §4.3). Ambient states without text: a bolt while charging, a
+ * pulsing red ring when the battery is low, grey with the age when the location is old, a slow
+ * ripple from the dot once settled somewhere. Sade mod scales the loops (useCycle); Reduce Motion
+ * stops them.
  */
 export function AvatarMarker({
   name,
@@ -167,7 +161,6 @@ export function AvatarMarker({
   userId,
   activity = 'still',
   heading,
-  island = true,
   framed = false,
   detail,
   news,
@@ -175,8 +168,7 @@ export function AvatarMarker({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const stale = staleMinutes !== undefined;
-  const tint = stale ? colors.textMuted : (avatarPalette[avatar?.color ?? 0] ?? colors.primary);
-  const tilt = stickerTilt(userId ?? name);
+  const ring = stale ? colors.textMuted : colors.primary;
   const doing: MarkerActivity = stale ? 'still' : activity;
   const moving = doing !== 'still' && doing !== 'settled';
   const level = useEffects();
@@ -184,9 +176,9 @@ export function AvatarMarker({
   const cycle = useCycle(periodOf(doing), level, news);
   const pulse = useLoop(lowBattery && !charging && !stale, ambient.pulse.duration, level, news);
 
-  // Live and still: the sticker floats a little above its island, which shrinks under it.
+  // Live and still: the pin floats a little above its dot.
   const floating = useAnimatedStyle(() => ({
-    transform: [{ translateY: -breath.get() * stickerFx.float.lift }],
+    transform: [{ translateY: -breath.get() * pinFx.float.lift }],
   }));
   const leanSide = leanSideOf(heading);
   // Walking and running: a real gait (gait.ts); a bike sways; a car hums.
@@ -214,19 +206,7 @@ export function AvatarMarker({
       ],
     };
   });
-  // The island under a sticker in the air (a step, a float) is smaller and lighter.
-  const ground = useAnimatedStyle(() => {
-    const lift =
-      doing === 'walking' || doing === 'running'
-        ? gaitPose(cycle.get(), doing === 'walking' ? activityFx.walk : activityFx.run, 0).lift
-        : 0;
-    const shrink = lift * activityFx.shadow.shrink + breath.get() * stickerFx.float.shrink;
-    return {
-      opacity: ISLAND.opacity * (1 - lift * 0.5),
-      transform: [{ scaleX: 1 - shrink }, { scaleY: 1 - shrink }],
-    };
-  });
-  // Settled in one place: a slow ripple spreading from the island.
+  // Settled in one place: a slow ripple spreading from the dot.
   const ripple = useAnimatedStyle(() => ({
     opacity: doing === 'settled' ? activityFx.settled.opacity * (1 - cycle.get()) : 0,
     transform: [{ scale: 1 + cycle.get() * (activityFx.settled.scale - 1) }],
@@ -260,24 +240,25 @@ export function AvatarMarker({
 
   return (
     <View accessible accessibilityLabel={label} style={styles.container}>
-      {island ? (
-        <View style={styles.islandSlot} pointerEvents="none">
-          <Animated.View style={[styles.ripple, { borderColor: tint }, ripple]} />
-          <Animated.View style={[styles.island, { backgroundColor: tint }, ground]} />
-          <View style={[styles.core, { backgroundColor: tint }]} />
+      {framed ? null : (
+        <View style={styles.dotSlot} pointerEvents="none">
+          <Animated.View style={[styles.ripple, { borderColor: ring }, ripple]} />
+          <View
+            style={[styles.dot, { backgroundColor: ring, borderColor: colors.surfaceRaised }]}
+          />
         </View>
-      ) : null}
+      )}
       <Animated.View style={[styles.pin, motion]}>
-        <Animated.View style={floating}>
-          <Animated.View
+        <Animated.View style={[styles.pin, floating]}>
+          <View
             style={[
-              styles.sticker,
+              styles.circle,
               framed
                 ? null
                 : {
-                    backgroundColor: stickerPaper,
+                    borderColor: ring,
+                    backgroundColor: colors.surfaceRaised,
                     boxShadow: elevation.raised,
-                    transform: [{ rotate: `${String(tilt)}deg` }],
                   },
             ]}
           >
@@ -293,19 +274,30 @@ export function AvatarMarker({
               </View>
             )}
             {lowBattery && !charging && !stale ? (
-              <Animated.View style={[styles.ring, { borderColor: colors.danger }, pulsing]} />
+              <Animated.View style={[styles.lowBattery, { borderColor: colors.danger }, pulsing]} />
             ) : null}
             {charging && !stale ? (
               <View
                 style={[
                   styles.badge,
-                  { backgroundColor: colors.success, borderColor: stickerPaper },
+                  styles.charging,
+                  { backgroundColor: colors.success, borderColor: colors.surfaceRaised },
                 ]}
               >
                 <Zap color={colors.onSuccess} fill={colors.onSuccess} size={10} strokeWidth={2} />
               </View>
             ) : null}
-          </Animated.View>
+            {stale ? null : (
+              <View
+                testID="marker-live"
+                style={[
+                  styles.live,
+                  { backgroundColor: colors.success, borderColor: colors.surfaceRaised },
+                ]}
+              />
+            )}
+          </View>
+          {framed ? null : <View style={[styles.tail, { borderTopColor: ring }]} />}
         </Animated.View>
       </Animated.View>
       {stale ? (
@@ -334,38 +326,51 @@ export function AvatarMarker({
 }
 
 const styles = StyleSheet.create({
-  // Tall enough for the island under the sticker; the age (or speed, or stay) hangs below it.
-  container: { alignItems: 'center', minHeight: PIN_HEIGHT + ISLAND.height / 2 },
-  // Rotations and squash pivot on the sticker's lower edge, right above the person's position.
+  // Tall enough for the pin down to its dot; the age (or speed, or stay) hangs below it.
+  container: { alignItems: 'center', minHeight: PIN_HEIGHT + pinFx.dot / 2 },
+  // Rotations and squash pivot on the tail's tip, the person's position.
   pin: { alignItems: 'center', transformOrigin: '50% 100%' },
-  islandSlot: {
+  dotSlot: {
     position: 'absolute',
-    top: PIN_HEIGHT - ISLAND.height / 2,
-    left: -ISLAND.width,
-    right: -ISLAND.width,
-    height: ISLAND.height,
+    top: PIN_HEIGHT - pinFx.dot / 2,
+    width: pinFx.dot,
+    height: pinFx.dot,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  island: {
-    position: 'absolute',
-    width: ISLAND.width,
-    height: ISLAND.height,
+  dot: {
+    width: pinFx.dot,
+    height: pinFx.dot,
     borderRadius: radius.pill,
-  },
-  core: {
-    width: ISLAND.core,
-    height: ISLAND.core / 2,
-    borderRadius: radius.pill,
+    borderWidth: pinFx.ring / 2,
   },
   ripple: {
     position: 'absolute',
-    width: ISLAND.width,
-    height: ISLAND.height,
+    width: PIN_CIRCLE / 2,
+    height: PIN_CIRCLE / 2,
     borderRadius: radius.pill,
     borderWidth: space.xxs,
   },
-  // The activity drawing sits on the bubble's upper corner, big enough to read its motion.
+  circle: {
+    width: PIN_CIRCLE,
+    height: PIN_CIRCLE,
+    borderRadius: radius.pill,
+    borderWidth: pinFx.ring,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // A downward triangle from the circle to the dot.
+  tail: {
+    width: 0,
+    height: 0,
+    marginTop: -pinFx.ring / 2,
+    borderLeftWidth: pinFx.tailWidth / 2,
+    borderRightWidth: pinFx.tailWidth / 2,
+    borderTopWidth: pinFx.tail + pinFx.ring / 2,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  // The activity drawing sits on the circle's upper corner, big enough to read its motion.
   activity: {
     position: 'absolute',
     right: -GLYPH / 2,
@@ -377,20 +382,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  sticker: { padding: stickerFx.edge, borderRadius: radius.pill },
-  ring: {
+  lowBattery: {
     position: 'absolute',
-    top: -space.xxs,
-    left: -space.xxs,
-    width: STICKER + space.xxs * 2,
-    height: STICKER + space.xxs * 2,
+    top: -pinFx.ring - space.xxs,
+    left: -pinFx.ring - space.xxs,
+    width: PIN_CIRCLE + space.xxs * 2,
+    height: PIN_CIRCLE + space.xxs * 2,
     borderRadius: radius.pill,
     borderWidth: space.xxs,
   },
   badge: {
     position: 'absolute',
-    right: -space.xxs,
-    bottom: -space.xxs,
     width: BADGE,
     height: BADGE,
     borderRadius: BADGE / 2,
@@ -398,8 +400,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Charging on the lower left: the lower right is the live dot's.
+  charging: { left: -space.xs, bottom: -space.xs },
+  live: {
+    position: 'absolute',
+    right: -space.xxs,
+    bottom: -space.xxs,
+    width: pinFx.live,
+    height: pinFx.live,
+    borderRadius: radius.pill,
+    borderWidth: space.xxs,
+  },
   age: {
-    marginTop: stickerFx.rise + ISLAND.height / 2 + space.xxs,
+    marginTop: pinFx.dot / 2 + space.xs,
     paddingHorizontal: space.sm,
     borderRadius: radius.pill,
   },

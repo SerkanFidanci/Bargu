@@ -242,7 +242,6 @@ function TogetherMarker({
   return (
     <GlidingMarker id={cluster.key} fix={fix} receivedAt={now}>
       <ClusterBubble
-        groupKey={cluster.key}
         people={capsule.shown.map(({ member }) => together(member))}
         more={capsule.more}
         offsets={capsule.shown.map(({ index }) => cluster.offsets[index] ?? { x: 0, y: 0 })}

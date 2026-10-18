@@ -151,7 +151,16 @@ onayladı (sunucu değişmez, dilim 3b'den önce).
   yazıdadır. Açıklama satırlarının başında ⓘ var (`Hint`).
 - **Dock:** bulunulan yer mor yazı ve altında mor çizgiyle işaretli: haritada ve çemberlerde
   "Çemberler", Ben sayfası açıkken "Ben". Ekran okuyucu bunu seçili olarak okur.
-- **Bekleyen:** kişi işaretlerinin pin biçimi (proje sahibi "pin olsun" dedi; PM, dilim 3'ün süs
-  paketleri çıkartmaya bağlı olduğu için çıkartmanın kalmasını ve pinin ayrıntılarının ona
-  eklenmesini öneriyor) ve hayalet düğmesindeki mor noktanın anlamı. İkisi de karar bekliyor;
-  kodda değişmedi.
+- **Kişi işaretleri: çıkartma ve ada, pinle değişti (sahip, 2026-10-18).** Kişinin avatarı mor
+  halkalı bir dairede (konumu eskiyse gri), kısa bir uç aşağıdaki konum noktasına iner; konum
+  tazeyken dairenin sağ altında yeşil "canlı" noktası var. Eğik beyaz çıkartma ve renkli ada
+  kalktı. Etkinlik çizimi sağ üstte, şarj şimşeği sol altta, düşük pil kırmızı halkası, eskime
+  ("23 sa", gri), hız ve durma etiketi, hayalet hâli aynen kaldı; hareketler sade mod kurallarıyla
+  (ADR 0027). Birlikte duranlar tek ortak pinde: en çok 2 avatar aynı mor halkada, her biri ayrı
+  dokunulur, fazlası sağ üstte sayı, dokununca liste (önceki "goo" adası ve eğiklik kalktı).
+  Dilim 3'ün süs paketleri buna göre değişecek (3b'de, PM): "Halka desenleri" ve "Pin
+  çerçeveleri".
+- **Hayalet düğmesindeki mor nokta (sahip, 2026-10-18):** "konumun paylaşılıyor". Yalnızca konum
+  gerçekten birine giderken görünür ("seni görüyor" hapının ikinci satırıyla aynı hesap): hayalet
+  (gizle ya da dondur), bütün çemberler duraklamış ya da paylaşım kapalı (gören yok) ya da konum
+  izni yokken kalkar. Ekran okuyucu "Konumun paylaşılıyor." der. Bir güvenlik göstergesi, testli.

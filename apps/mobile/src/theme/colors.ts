@@ -108,8 +108,5 @@ if (avatarPalette.length !== AVATAR_COLORS) {
   throw new Error('avatar palette must match AVATAR_COLORS');
 }
 
-/** Map stickers are white paper in both themes, as a sticker is (ui/avatar-marker.tsx). */
-export const stickerPaper = '#FFFFFF';
-
 /** QR codes are always dark on white, in both themes: scanners expect that contrast. */
 export const qrColors = { dark: '#16151C', light: '#FFFFFF' } as const;
