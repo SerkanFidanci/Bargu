@@ -32,6 +32,9 @@ jest.mock('./location-session', () => {
     useLiveUntil: create(() => ({ until: 0 })),
   };
 });
+// expo-router's native stack needs a native view jest does not have on Linux (CI); only its focus
+// effect is imported here, for the watch requests this test does not cover.
+jest.mock('expo-router', () => ({ useFocusEffect: () => undefined }));
 jest.mock('../circles/queries', () => ({ useCircles: () => ({ data: [] }) }));
 jest.mock('../live/live-session', () => ({
   liveRequest: () => null,
