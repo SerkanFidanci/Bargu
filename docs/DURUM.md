@@ -5,19 +5,19 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                                                 |
-| -------------------------------- | --------------------------------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                          |
-| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                         |
-| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                          |
-| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı) |
-| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim) |
-| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)         |
-| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                       |
-| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                      |
-| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)            |
-| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)         |
-| Faz 9B — Para modeli & Bargu+    | 🟡 Sürüyor: dilim 1–2c, 3a ve buluşma bitti; 3b askıda                |
+| Faz                              | Durum                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                              |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                             |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                              |
+| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)     |
+| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)     |
+| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)             |
+| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                           |
+| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                          |
+| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                |
+| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)             |
+| Faz 9B — Para modeli & Bargu+    | 🟡 Sürüyor: dilim 1–2c, 3a, buluşma, tema bitti; konum 1. adım; 3b askıda |
 
 ## Ortamlar
 
@@ -55,21 +55,24 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 
 ### Yapılanlar
 
-| Dilim                | Commit                                                           | Ne                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1                    | `c04c446`, `b4fb39a`                                             | Hak tablosu, 21 günlük deneme, duraklayan çember, test satın alma uçları (yalnızca `BILLING_TEST=on` olan yerde)                                                                                                                                                                                                                                                                                                                              |
-| QA 19                | `e95152b`                                                        | Hak tablosuna yalnızca işlevlerle yazılır (P1), işçi işlevleri oturuma bir şey vermez (P2), iptal ya da yenileme başkasına söylenmez (P3), istemci seviyesi kapısı (P4), silip yeniden kaydolma denemesi kabul edilen risk (P5)                                                                                                                                                                                                               |
-| 2a                   | `8aa73f8`                                                        | Bargu+ ekranı (TEST bandı, yıllık önde, tek dokunuşla iptal), deneme hatırlatması, duraklamış çember uygulamada, "Yeni sürüm gerekiyor" ekranı                                                                                                                                                                                                                                                                                                |
-| 2b                   | `40fe657`                                                        | Haritada hız ("40 km/sa") ve durma süresi ("2 sa") satırı; "Hızımı göster" ayarı (15–17'de kapalı başlar)                                                                                                                                                                                                                                                                                                                                     |
-| QA 20 P1b            | `714b71b`                                                        | Test hakları veritabanında da yalnızca test kurulumunda sayılır ve yazılır (migration 0030); test planı en çok bir yıl                                                                                                                                                                                                                                                                                                                        |
-| 2c                   | `f7b73de`, `2571e4f`, `b85ac9d`                                  | 15–17 satın alma ebeveyn onayıyla (migration 0031); istemci seviyesi 2 (satın alma isteği eski uygulamalara gönderilmez); profil içeriği esnek okunur (yeni alanlar eski uygulamayı bozmaz)                                                                                                                                                                                                                                                   |
-| 3a                   | `450e155`                                                        | Sunucu imzalı süs geçiş belgesi (`GET /v1/me/cosmetics/pass`) ve şifreli `look` mesajı; staging imza anahtarı `stg-1`. Uygulama tarafı (3b) yok: süs henüz görünmez                                                                                                                                                                                                                                                                           |
-| Buluşma              | `230cf81`, `8de3a8b`                                             | Proje sahibinin isteği: her çemberde tek buluşma (migration 0032), herkes başlatır, başlatan ve yöneticiler değiştirir ve bitirir, saatinden 3 saat sonra kendiliğinden silinir. Haritada kayıtlı yer gibi değil (mercan, kesikli kenar, bayrak), dokununca kendi ekranı; "Geldim", yol tarifi, başlayınca tek bildirim. İstemci seviyesi 3                                                                                                   |
-| QA 21                | `557be04`, `ce453a9`, `d93196e`, `5fb98a3`, `f060920`, `ff86173` | Bildirimler cihaz başına bir kez ve yalnızca üyenin kendi cihazına (B-2); "Ebeveynime sor"a aynı anda iki dokunuş 500 değil (B-1, migration 0033); test satın alma veritabanı bayrağına uyar, kapalıysa 404 (B-5, migration 0034); hesabı silinenin belgeleri giderken çember haber alır (B-3, migration 0035); duraklamış çemberde "geç kalıyorum" yok (B-4, uygulama); paketlerin derlemesi eskiyse entegrasyon testleri açık hatayla durur |
-| İkili eşit           | `220d2c8`, `fae1d4d`                                             | PM'in kararı: arkadaşlıkta iki kişi de buluşmayı değiştirir ve bitirir (migration 0036; uygulama bir sonraki APK'da)                                                                                                                                                                                                                                                                                                                          |
-| Kısayollar           | `c9313c0`                                                        | Sahibin isteği: haritanın sağ kenarında konumuma dön, hayalet modu (tek dokunuşla açılır, kapatırken onay) ve buluşma başlat; üstte en yakın buluşmanın sayaç çipi ("🏠 Ev · 17:30 · 25 dk", saatinde "2/4 geldi · 1 yolda", sayılar ADR 0026 kurallarıyla); herkes tam konumla gelince bir kez konfeti (ADR 0026 §8)                                                                                                                         |
-| Efektler ve sade mod | `79abd4e`, `7b6c059`                                             | Kısayol efektleri (yaylı giriş, süzülen hayalet ve "pof", radar halkası, Geldim nabzı, kayan dakika), hepsi sonlu; sade mod (Ben > Efektler: tam / az / kapalı), pil tasarrufu ve %20 altı "az" gibi, "Hareketi azalt" ve görünmeyen harita "kapalı" gibi; hava 20 sn oynayıp donar (ADR 0027). QA 22: buluşma bitişi sunucuda tam saate yuvarlanır, tahmin yalnızca tam konumla, çipte yaklaşan buluşma önde                                 |
-| Tema ve pin          | `f4138da`, `1aba84f`, `5d64cb9`                                  | Sahibin gönderdiği tasarım (ADR 0008 eki): lacivert-mor koyu tema ve açık karşılığı, durağan mor parıltı, iki satırlı "seni görüyor" (ikinci satır gerçek durumu söyler), şehir/ilçe adlı hava kartı, simgeli seçim çubukları ve ⓘ açıklamalar, kartlı Ben sayfası, dock'ta seçili sekme; hayalet düğmesinde "konum paylaşılıyor" noktası; kişiler pin (mor halka, uç, konum noktası, yeşil canlı noktası), birlikte duranlar tek ortak pin   |
+| Dilim                    | Commit                                                           | Ne                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1                        | `c04c446`, `b4fb39a`                                             | Hak tablosu, 21 günlük deneme, duraklayan çember, test satın alma uçları (yalnızca `BILLING_TEST=on` olan yerde)                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| QA 19                    | `e95152b`                                                        | Hak tablosuna yalnızca işlevlerle yazılır (P1), işçi işlevleri oturuma bir şey vermez (P2), iptal ya da yenileme başkasına söylenmez (P3), istemci seviyesi kapısı (P4), silip yeniden kaydolma denemesi kabul edilen risk (P5)                                                                                                                                                                                                                                                                                                                    |
+| 2a                       | `8aa73f8`                                                        | Bargu+ ekranı (TEST bandı, yıllık önde, tek dokunuşla iptal), deneme hatırlatması, duraklamış çember uygulamada, "Yeni sürüm gerekiyor" ekranı                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 2b                       | `40fe657`                                                        | Haritada hız ("40 km/sa") ve durma süresi ("2 sa") satırı; "Hızımı göster" ayarı (15–17'de kapalı başlar)                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| QA 20 P1b                | `714b71b`                                                        | Test hakları veritabanında da yalnızca test kurulumunda sayılır ve yazılır (migration 0030); test planı en çok bir yıl                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 2c                       | `f7b73de`, `2571e4f`, `b85ac9d`                                  | 15–17 satın alma ebeveyn onayıyla (migration 0031); istemci seviyesi 2 (satın alma isteği eski uygulamalara gönderilmez); profil içeriği esnek okunur (yeni alanlar eski uygulamayı bozmaz)                                                                                                                                                                                                                                                                                                                                                        |
+| 3a                       | `450e155`                                                        | Sunucu imzalı süs geçiş belgesi (`GET /v1/me/cosmetics/pass`) ve şifreli `look` mesajı; staging imza anahtarı `stg-1`. Uygulama tarafı (3b) yok: süs henüz görünmez                                                                                                                                                                                                                                                                                                                                                                                |
+| Buluşma                  | `230cf81`, `8de3a8b`                                             | Proje sahibinin isteği: her çemberde tek buluşma (migration 0032), herkes başlatır, başlatan ve yöneticiler değiştirir ve bitirir, saatinden 3 saat sonra kendiliğinden silinir. Haritada kayıtlı yer gibi değil (mercan, kesikli kenar, bayrak), dokununca kendi ekranı; "Geldim", yol tarifi, başlayınca tek bildirim. İstemci seviyesi 3                                                                                                                                                                                                        |
+| QA 21                    | `557be04`, `ce453a9`, `d93196e`, `5fb98a3`, `f060920`, `ff86173` | Bildirimler cihaz başına bir kez ve yalnızca üyenin kendi cihazına (B-2); "Ebeveynime sor"a aynı anda iki dokunuş 500 değil (B-1, migration 0033); test satın alma veritabanı bayrağına uyar, kapalıysa 404 (B-5, migration 0034); hesabı silinenin belgeleri giderken çember haber alır (B-3, migration 0035); duraklamış çemberde "geç kalıyorum" yok (B-4, uygulama); paketlerin derlemesi eskiyse entegrasyon testleri açık hatayla durur                                                                                                      |
+| İkili eşit               | `220d2c8`, `fae1d4d`                                             | PM'in kararı: arkadaşlıkta iki kişi de buluşmayı değiştirir ve bitirir (migration 0036; uygulama bir sonraki APK'da)                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Kısayollar               | `c9313c0`                                                        | Sahibin isteği: haritanın sağ kenarında konumuma dön, hayalet modu (tek dokunuşla açılır, kapatırken onay) ve buluşma başlat; üstte en yakın buluşmanın sayaç çipi ("🏠 Ev · 17:30 · 25 dk", saatinde "2/4 geldi · 1 yolda", sayılar ADR 0026 kurallarıyla); herkes tam konumla gelince bir kez konfeti (ADR 0026 §8)                                                                                                                                                                                                                              |
+| Efektler ve sade mod     | `79abd4e`, `7b6c059`                                             | Kısayol efektleri (yaylı giriş, süzülen hayalet ve "pof", radar halkası, Geldim nabzı, kayan dakika), hepsi sonlu; sade mod (Ben > Efektler: tam / az / kapalı), pil tasarrufu ve %20 altı "az" gibi, "Hareketi azalt" ve görünmeyen harita "kapalı" gibi; hava 20 sn oynayıp donar (ADR 0027). QA 22: buluşma bitişi sunucuda tam saate yuvarlanır, tahmin yalnızca tam konumla, çipte yaklaşan buluşma önde                                                                                                                                      |
+| Tema ve pin              | `f4138da`, `1aba84f`, `5d64cb9`                                  | Sahibin gönderdiği tasarım (ADR 0008 eki): lacivert-mor koyu tema ve açık karşılığı, durağan mor parıltı, iki satırlı "seni görüyor" (ikinci satır gerçek durumu söyler), şehir/ilçe adlı hava kartı, simgeli seçim çubukları ve ⓘ açıklamalar, kartlı Ben sayfası, dock'ta seçili sekme; hayalet düğmesinde "konum paylaşılıyor" noktası; kişiler pin (mor halka, uç, konum noktası, yeşil canlı noktası), birlikte duranlar tek ortak pin                                                                                                        |
+| QA 23–24                 | `7f08964`                                                        | İzin bilinmeden "paylaşılıyor" denmez ("Kontrol ediliyor…", hayalet düğmesinde nokta yok); süreli paylaşım bittiği an konum durur ve bütün ekranlar aynı anda söyler; hava kartında eski ilçe adı kalmaz; iki renk çifti okunur; QR halesi ve tarayıcı çizgisi sade mod "tam"dan çıkınca durur; titreşim yalnızca Efektler seçimine bağlı                                                                                                                                                                                                          |
+| Konum doğruluğu, 1. adım | `7f23b98`, `c7eb602`, `f9ffb32`                                  | Sahibin şikâyeti: konum geç geliyor, virajda pin yoldan çıkıp sonra düzeliyor (ADR 0028). Gönderen ham konumu süzer (eski, 2 dk'dan bayat, GPS açıkken 100 m'den zayıf, 180 km/sa'ten hızlı sıçrama; kapalı alanda 45 sn sonra en iyisi doğruluğuyla gider); alıcı geç gelen eski konumu göstermez; pin iki konum arasında kayar, tahmin en çok 1 sn ve yalnızca düz yolda (eskiden 10 sn); zayıf konumda daire; harita açıkken kendi pini saniyede bir; Efektler'de pil tasarrufu notu; önizleme paketinde ölçüm katmanı (production'da kodu yok) |
+| Buluşma kartı            | `7f4d989`                                                        | Sahibin ekran görüntüsü: bir etkinliğin iki adayı (Hilltown, Avm) haritada üst üste biniyor, alttaki tıklanamıyordu. Haritanın yakınlığında etiketleri çakışacak buluşmalar tek kartta alt alta birer satır; her satır kendi buluşmasını açar, buluşmanın kendisi üstte ve mercan; yakınlaşınca ayrılır; seçilmemiş yerlerin kesikli kenarı soluk (ADR 0026 §3)                                                                                                                                                                                    |
 
 ### QA turları
 
@@ -78,15 +81,30 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
   A-1 (aşağıda) ve test botunun kodunun depoya alınması sonraya.
 - QA 21 (P1b, T-1, 2c, 3a, buluşma): orta ya da yüksek bulgu yok. Düşük B-1…B-5 düzeltildi.
 
-### Test sonuçları (son çalıştırma, `5d64cb9`)
+### Test sonuçları (son çalıştırma, `7f4d989`)
 
-- Birim: mobil 447 (tema: "seni görüyor"un ikinci satırı her durumda doğru, hayalet düğmesinin
-  noktası ve etiketi, ilçe adı haritanın etiketinden, dock'ta seçili sekme, yeşil canlı noktası
-  yalnızca tazeyken; buluşma ekranı, haritadaki noktalar, kaba konumda "geldi" yok, bildirim metni,
-  duraklamış çemberde "geç kalıyorum" yok, arkadaşlıkta iki kişi de buluşmayı yeniden mühürler;
-  kısayollar: hayalet tek dokunuşla açılır ve onaysız kapanmaz, çipin sayıları kaba paylaşanı
-  "yolda" saymaz, konfeti yalnızca tam konumla gelince ve bir kez; sade mod kuralları, titreşim
-  "kapalı"da yok, harita görünmüyorken durur).
+- Mobil 489. Konum doğruluğu (ADR 0028): Filtre: eski, bayat, zayıf, kapalı alanda en iyisi
+  doğruluğuyla, sıçrama ve iki onay, tek sapkın konum hiç kullanılmaz, otoyol hızı geçer. Motor: iki
+  kaynakta pin geri gitmez, kapalı alan, kaba çembere giden hücre ham konumun hücresiyle birebir
+  aynı, ölçüme hiçbir koordinat gitmez. Alıcı: geç gelen gösterilmez, aynı zaman yerine geçer, saati
+  geri alınan gösterilir. Kayma: hedefini geçmez, tahmin en çok 1 sn, virajda, yavaşlarken, dururken
+  ve zayıf konumda tahmin yok, geç gelende yerinde kalır, 30 sn ve 500 m'de atlar. Kendi pini:
+  harita açıkken saniyede bir, harita kapanınca ve uygulama arka plana geçince hemen durur.
+- Production paketi (`expo export`, bayraksız): ölçüm katmanının metinleri 0 kez; bayraklı
+  (önizleme) pakette var.
+- Buluşma kartı: sokak yakınlığında iki aday tek kartta, yakınlaşınca ya da şehrin öbür ucunda ayrı;
+  zincirleme çakışanlar tek kart, buluşma en üstte; her satır kendi buluşmasını açar; 4'ten fazlası
+  sayıyla.
+- `scripts/ci-linux.sh`: `f9ffb32` ve `7f4d989` push'tan önce geçti (Linux'ta açılamayan kanca
+  testi, expo-router yüzünden, push'tan önce yakalandı ve düzeltildi). CI iki push'ta da 5/5 yeşil;
+  staging `7f4d989`, sağlık ok, hata 0.
+- Birim (`5d64cb9`): mobil 447 (tema: "seni görüyor"un ikinci satırı her durumda doğru, hayalet
+  düğmesinin noktası ve etiketi, ilçe adı haritanın etiketinden, dock'ta seçili sekme, yeşil canlı
+  noktası yalnızca tazeyken; buluşma ekranı, haritadaki noktalar, kaba konumda "geldi" yok, bildirim
+  metni, duraklamış çemberde "geç kalıyorum" yok, arkadaşlıkta iki kişi de buluşmayı yeniden
+  mühürler; kısayollar: hayalet tek dokunuşla açılır ve onaysız kapanmaz, çipin sayıları kaba
+  paylaşanı "yolda" saymaz, konfeti yalnızca tam konumla gelince ve bir kez; sade mod kuralları,
+  titreşim "kapalı"da yok, harita görünmüyorken durur).
 - Ölçüm (ADR 0027, `idle-frames.test.tsx`): dokunulmayan 10 saniyede istenen kare. "Az" ve
   "kapalı"da avatarların her etkinliği, ayak izleri, kısayollar ve çip: 0. "Tam"da kısayollar ve
   çip 0; avatar döngüleri canlı (sahibin isteği); hava 20 saniyeden sonra 0; harita görünmüyorken 0.
@@ -142,6 +160,16 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
     olabilir.
 14. Dilim 3'ün süs paketleri çıkartmaya göre tasarlanmıştı; 3b'de pine göre değişecek ("Halka
     desenleri", "Pin çerçeveleri"), wip/dilim-3b uyarlanacak.
+15. Konum (ADR 0028): arkadaşın konumu 5 saniyede bir geliyorsa pin yeni yere 2 saniyede kayar ve
+    bekler (tahmin yerine doğruluk). Akıcı hareket yalnızca canlı modda: arkadaşın uygulaması
+    öndeyken. Arka planda canlı mod 3. adım, ayrı onayla (önce tek telefonda deneme, pil etkisi).
+16. Filtrenin sayıları (2 dk, 100 m, 45 sn, 180 km/sa, iki onay) başlangıç değeri; ölçüm katmanıyla
+    ayarlanacak. Kapalı alanda ilk 45 saniye yeni konum gitmez.
+17. Harita açıkken 1 saniyelik GPS pil harcar; yalnızca ekran açık, uygulama önde ve harita
+    görünürken. Ölçüm katmanı açıkken kare ölçer sürekli çalışır.
+18. Ölçüm katmanındaki arkadaş gecikmesi iki telefonun saat farkını da içerir.
+19. Production'da ölçüm katmanından boş bir dinleyici kancası, boş bir yuva ve menü satırının metin
+    anahtarı kalır (kod değil, hiç çalışmaz).
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -207,6 +235,31 @@ Tema ve pin, APK (`2c89424`, öncekilerin yerine):
 19. Kişiler pin: mor halkalı daire, aşağı uç, konum noktası, konumu tazeyken yeşil nokta; eski
     konumda gri ve "23 sa". Birlikte duran iki kişi tek ortak pinde.
 20. Alttaki çubukta haritadayken "Çemberler", Ben açıkken "Ben" mor ve altı çizili.
+
+Konum doğruluğu, buluşma kartı ve QA 23–24, APK (`7f4d989`, öncekilerin yerine):
+<https://api.46-62-162-70.sslip.io/apk/bargu-7f4d989-844b6872707f2f20.apk>
+
+21. Harita açıkken yürüyün: kendi pininiz saniyede bir akar; ekranı kapatıp açınca normale döner.
+22. Araçta virajlı yolda arkadaşın pini yoldan çıkıp dümdüz gitmez; en çok bir saniye önde olur ve
+    virajda hiç önde olmaz. Pin hiç geri sıçramaz.
+23. Kapalı alanda (AVM, ev içi) bir süre sonra konum soluk bir daireyle görünür.
+24. Uygulama yeni açılınca "seni görüyor" bir an "Kontrol ediliyor…" der; süreli paylaşım bittiği
+    an yazı ve hayalet düğmesindeki nokta birlikte değişir.
+25. Pil tasarrufu açıkken Ben > Efektler'de "Pil tasarrufu nedeniyle şu an Az" notu.
+26. Ölçüm katmanı: Ben > (en altta, geliştirici satırları) "Geliştirici: ölçüm katmanı". Haritanın
+    solunda küçük bir pano açılır; × ile kapanır, aynı satırla yeniden açılır.
+    - "Örnek: servis 5,0 sn · canlı 1,0 sn": telefonun konumu ne sıklıkla aldığı (servis arka
+      plan, canlı harita açıkken).
+    - "Gecikme 0,4 sn · doğruluk ±8 m": son konumun ölçülmesiyle telefona ulaşması arası; ne kadar
+      kesin olduğu.
+    - "Gönderim: 5,0 sn (normal / canlı)": arkadaşlara ne sıklıkla gittiği; biri izliyorsa canlı.
+    - "Atılan: eski · bayat · zayıf · sıçrama" ve "Kapalı alanda gönderilen": filtrenin yaptığı.
+    - Her arkadaş için "gecikme · aralık · ±m · geç": konumunun kaç saniye geç ve kaç saniyede bir
+      geldiği, doğruluğu ve sırası bozuk gelip gösterilmeyenler.
+    - "Ekran: fps · en kötü kare": akıcılık.
+      Yürürken ve araçta birkaç dakika açık tutup ekran görüntüsü yeterli.
+27. Bir etkinliğin birbirine yakın iki adayı haritada tek kartta alt alta görünür; ikisine de ayrı
+    ayrı dokunulabilir. Yakınlaşınca kendi etiketlerine ayrılırlar.
 
 ### Senden gerekenler
 
