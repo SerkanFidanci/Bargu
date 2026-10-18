@@ -1,11 +1,38 @@
 import { glide } from '@/theme/motion';
 
-import { distanceBetween, glideStep, isMoving, nextInterval, project, trailLevel } from './glide';
+import {
+  distanceBetween,
+  type GlideFix,
+  type GlidePoint,
+  glideStep,
+  isMoving,
+  isRough,
+  project,
+  trailLevel,
+} from './glide';
 
 const GALATA = { lat: 41.0256, lng: 28.9742 };
 const NOW = 1_800_000_000_000;
 
-describe('gliding between locations', () => {
+/** A car going east at 14 m/s, measured `age` ms ago, the location before it a second earlier. */
+function car(age = 300, changes: Partial<GlideFix> = {}) {
+  const fix: GlideFix = { ...GALATA, spd: 14, hdg: 90, acc: 5, ts: NOW - age, ...changes };
+  const previous: GlideFix = {
+    ...project(GALATA, 270, 14),
+    spd: 14,
+    hdg: 85,
+    acc: 5,
+    ts: fix.ts - 1_000,
+  };
+  return { fix, previous, shown: at(previous) };
+}
+
+/** Only the position of a point or a fix. */
+function at(point: GlidePoint): GlidePoint {
+  return { lat: point.lat, lng: point.lng };
+}
+
+describe('gliding between locations (docs/ADR/0028)', () => {
   it('projects along a heading by the given distance', () => {
     const east = project(GALATA, 90, 100);
     expect(distanceBetween(GALATA, east)).toBeCloseTo(100, 0);
@@ -15,40 +42,112 @@ describe('gliding between locations', () => {
     expect(north.lat).toBeGreaterThan(GALATA.lat);
   });
 
-  it('settles a still person into place', () => {
-    const fix = { ...project(GALATA, 0, 20), spd: 0, hdg: null, ts: NOW };
-    const step = glideStep({ shown: GALATA, fix, now: NOW, intervalMs: 5_000 });
-    expect(step).toEqual({
-      to: { lat: fix.lat, lng: fix.lng },
-      durationMs: glide.settle,
+  it('places the first location', () => {
+    const step = glideStep({
+      shown: GALATA,
+      fix: { ...GALATA, ts: NOW },
+      previous: null,
+      now: NOW,
+    });
+    expect(step).toEqual({ to: GALATA, durationMs: 0, linear: false });
+  });
+
+  it('glides over the gap between the two locations ×1.1, within limits', () => {
+    const still = (gap: number) =>
+      glideStep({
+        shown: GALATA,
+        fix: { ...project(GALATA, 0, 5), spd: 0, ts: NOW },
+        previous: { ...GALATA, ts: NOW - gap },
+        now: NOW,
+      });
+    expect(still(1_000)?.durationMs).toBe(1_100);
+    expect(still(100)?.durationMs).toBe(glide.minSpanMs);
+    expect(still(5_000)?.durationMs).toBe(glide.maxSpanMs);
+    // Someone still eases into place, right onto the location.
+    expect(still(1_000)).toMatchObject({ to: at(project(GALATA, 0, 5)), linear: false });
+  });
+
+  it('on a straight steady course, goes at most a second past the location', () => {
+    const { fix, previous, shown } = car();
+    const step = glideStep({ shown, fix, previous, now: NOW });
+    expect(step?.linear).toBe(true);
+    expect(step?.durationMs).toBe(1_100);
+    expect(distanceBetween(GALATA, step?.to ?? GALATA)).toBeCloseTo(14 * (glide.leadMs / 1000), 0);
+    expect(step?.to.lng).toBeGreaterThan(GALATA.lng);
+  });
+
+  it('never guesses more than a second ahead, however late the location or long the glide', () => {
+    for (const age of [0, 500, 3_000, 20_000]) {
+      for (const gap of [300, 1_000, 5_000, 25_000]) {
+        for (const spd of [2, 14, 40, 80]) {
+          const fix: GlideFix = { ...GALATA, spd, hdg: 90, acc: 5, ts: NOW - age };
+          const previous: GlideFix = { ...GALATA, spd, hdg: 90, acc: 5, ts: fix.ts - gap };
+          const step = glideStep({ shown: GALATA, fix, previous, now: NOW });
+          // Never past the target: at most the speed × 1 s beyond the location, never behind it.
+          expect(distanceBetween(GALATA, step?.to ?? GALATA)).toBeLessThanOrEqual(
+            spd * (glide.leadMs / 1000) + 0.01,
+          );
+        }
+      }
+    }
+  });
+
+  it('guesses nothing on a bend: the pin goes to the location itself', () => {
+    const { fix, previous, shown } = car(300, { hdg: 130 });
+    const step = glideStep({ shown, fix, previous, now: NOW });
+    expect(step).toEqual({ to: GALATA, durationMs: 1_100, linear: true });
+  });
+
+  it('guesses nothing when slowing to a stop, or when stopped', () => {
+    const slow = car(300, { spd: 1.5 });
+    expect(glideStep({ ...slow, now: NOW })?.to).toEqual(GALATA);
+    const stopped = car(300, { spd: 0, hdg: null });
+    expect(glideStep({ ...stopped, now: NOW })).toEqual({
+      to: GALATA,
+      durationMs: 1_100,
       linear: false,
     });
   });
 
-  it('carries a moving person on until the next location is due', () => {
-    // 14 m/s east (a car), measured 300 ms ago, next one expected in 5 s.
-    const fix = { ...GALATA, spd: 14, hdg: 90, ts: NOW - 300 };
-    const step = glideStep({ shown: project(GALATA, 270, 30), fix, now: NOW, intervalMs: 5_000 });
-    expect(step.linear).toBe(true);
-    expect(step.durationMs).toBe(5_000);
-    // Where the car should be 5.3 s after the fix: 74 m east of it.
-    expect(distanceBetween(GALATA, step.to)).toBeCloseTo(14 * 5.3, 0);
-    expect(step.to.lng).toBeGreaterThan(GALATA.lng);
+  it('guesses nothing for a rough location, or without a heading before', () => {
+    expect(glideStep({ ...car(300, { acc: 60 }), now: NOW })?.to).toEqual(GALATA);
+    // Indoors: the best Wi-Fi guess, drawn as a circle (isRough), never guessed ahead.
+    expect(glideStep({ ...car(300, { acc: 250 }), now: NOW })?.to).toEqual(GALATA);
+    const { fix, previous, shown } = car();
+    expect(glideStep({ shown, fix, previous: { ...previous, hdg: null }, now: NOW })?.to).toEqual(
+      GALATA,
+    );
   });
 
-  it('never extrapolates more than the limit past a location', () => {
-    const fix = { ...GALATA, spd: 10, hdg: 0, ts: NOW - 4_000 };
-    const step = glideStep({ shown: GALATA, fix, now: NOW, intervalMs: 60_000 });
-    expect(step.durationMs).toBe(glide.maxAheadMs - 4_000);
-    expect(distanceBetween(GALATA, step.to)).toBeCloseTo(10 * (glide.maxAheadMs / 1000), 0);
-    // Already older than the limit: it only settles on the location.
-    const old = { ...fix, ts: NOW - glide.maxAheadMs - 1 };
-    expect(glideStep({ shown: GALATA, fix: old, now: NOW, intervalMs: 5_000 }).linear).toBe(false);
+  it('stays put when a location measured before the shown one arrives late', () => {
+    const { fix, previous, shown } = car();
+    expect(glideStep({ shown, fix: { ...fix, ts: previous.ts - 1 }, previous, now: NOW })).toBe(
+      null,
+    );
+    // The same time again (a coarser precision for that position) still moves it.
+    expect(glideStep({ shown, fix: { ...fix, ts: previous.ts }, previous, now: NOW })).not.toBe(
+      null,
+    );
   });
 
-  it('jumps instead of gliding across the city', () => {
-    const far = { ...project(GALATA, 45, glide.teleportM + 500), spd: 14, hdg: 45, ts: NOW };
-    expect(glideStep({ shown: GALATA, fix: far, now: NOW, intervalMs: 5_000 }).durationMs).toBe(0);
+  it('places, without gliding, after a long gap or across town', () => {
+    const { fix, previous, shown } = car();
+    const late = { ...previous, ts: fix.ts - glide.jumpGapMs - 1 };
+    expect(glideStep({ shown, fix, previous: late, now: NOW })?.durationMs).toBe(0);
+    const far = { ...fix, ...project(GALATA, 45, glide.teleportM + 100) };
+    expect(glideStep({ shown, fix: far, previous, now: NOW })).toEqual({
+      to: at(far),
+      durationMs: 0,
+      linear: false,
+    });
+  });
+
+  it('draws a circle for a rough location, not for a neighbourhood or city cell', () => {
+    expect(isRough(undefined)).toBe(false);
+    expect(isRough(30)).toBe(false);
+    expect(isRough(250)).toBe(true);
+    expect(isRough(708)).toBe(false);
+    expect(isRough(7_072)).toBe(false);
   });
 
   it('needs both a speed and a heading to count as moving', () => {
@@ -56,13 +155,6 @@ describe('gliding between locations', () => {
     expect(isMoving({ spd: 5, hdg: null })).toBe(false);
     expect(isMoving({ spd: 0.5, hdg: 10 })).toBe(false);
     expect(isMoving({})).toBe(false);
-  });
-
-  it('expects the next location after the last gap, within limits', () => {
-    expect(nextInterval(null, NOW)).toBe(glide.defaultIntervalMs);
-    expect(nextInterval(NOW - 1_000, NOW)).toBe(1_000);
-    expect(nextInterval(NOW - 100, NOW)).toBe(glide.minIntervalMs);
-    expect(nextInterval(NOW - 600_000, NOW)).toBe(glide.maxAheadMs);
   });
 
   it('grows the trail with speed', () => {

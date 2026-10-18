@@ -9,6 +9,7 @@ import { liveRequest, useConnection } from '../live/live-session';
 import { useMyFix } from './engine';
 import { locationEngine, restoreLocations, useLiveUntil } from './location-session';
 import { useSharing } from './sharing';
+import { useMapOpen } from './map-open';
 import { useSharingEnd } from './sharing-end';
 import {
   checkLocationPermission,
@@ -39,7 +40,8 @@ function useAppActive(): boolean {
  * The signed-in app's side of the location engine (the permission is asked from the disclosure
  * card on the map, LocationBanner, never by itself: Google Play K10), keeps the location
  * service running while any circle gets the location (GPS only when one gets it exactly), and adds
- * 1-second updates while someone watches and the app is open.
+ * 1-second updates while someone watches and the app is open, or while this phone's own map is on
+ * screen (its own pin follows the GPS; sending keeps its rules, send.ts).
  */
 export function useLocationSession(ready: boolean): void {
   const active = useAppActive();
@@ -47,6 +49,7 @@ export function useLocationSession(ready: boolean): void {
   const sharing = useSharing();
   const circles = useCircles().data;
   const liveUntil = useLiveUntil((state) => state.until);
+  const mapOpen = useMapOpen((state) => state.open);
   // The earliest timed share's end: the service stops and every screen says so at once.
   const expiry = useSharingEnd(() => void locationEngine.changed());
 
@@ -86,11 +89,12 @@ export function useLocationSession(ready: boolean): void {
 
   useEffect(() => {
     const remaining = liveUntil - Date.now();
-    if (!ready || !active || permission !== 'granted' || remaining <= 0) return;
+    const watched = remaining > 0;
+    if (!ready || !active || permission !== 'granted' || (!watched && !mapOpen)) return;
     let stop: (() => void) | null = null;
     let cancelled = false;
     void watchLive((fix) => {
-      void locationEngine.fix(fix);
+      void locationEngine.fix(fix, 'live');
     }).then(
       (stopWatching) => {
         if (cancelled) stopWatching();
@@ -98,16 +102,19 @@ export function useLocationSession(ready: boolean): void {
       },
       () => undefined,
     );
-    const timer = setTimeout(() => {
-      stop?.();
-      stop = null;
-    }, remaining);
+    // Watched only: until the watching ends. With the map open: as long as it is (this effect ends).
+    const timer = mapOpen
+      ? null
+      : setTimeout(() => {
+          stop?.();
+          stop = null;
+        }, remaining);
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      if (timer !== null) clearTimeout(timer);
       stop?.();
     };
-  }, [ready, active, permission, liveUntil]);
+  }, [ready, active, permission, liveUntil, mapOpen]);
 }
 
 /**

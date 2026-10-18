@@ -20,9 +20,11 @@ import { useAuth } from '@/features/auth/auth-store';
 import { useNow } from '@/features/location/clock';
 import { useMyFix } from '@/features/location/engine';
 import { LocationBanner } from '@/features/location/location-banner';
+import { useMapOpen } from '@/features/location/map-open';
 import { useLocationPermission } from '@/features/location/tracker';
 import { NewPhoneCard } from '@/features/location/new-phone-card';
 import { SwarmLayer, SwarmPanel } from '@/features/dev/swarm-panel';
+import { useDevSlots } from '@/features/dev/slots';
 import { DEV_TOOLS_ENABLED } from '@/config/env';
 import { seersOf, useSharing } from '@/features/location/sharing';
 import { useWatchCircles } from '@/features/location/use-location';
@@ -96,6 +98,14 @@ export default function HomeScreen() {
   // Nothing moves while the map is not seen (another page over it, the app in the background);
   // a touch or a move wakes the weather for a while (docs/ADR/0027).
   const onScreen = useOnScreen();
+  const devOverlay = useDevSlots((state) => state.mapOverlay);
+  // While the map is seen, this phone's own pin follows the GPS every second (use-location.ts).
+  useEffect(() => {
+    useMapOpen.setState({ open: onScreen });
+    return () => {
+      useMapOpen.setState({ open: false });
+    };
+  }, [onScreen]);
   const [wake, setWake] = useState(0);
   // The weather card names the town around this phone from the map's own labels (ADR 0013), for
   // the square kilometre it is in: looked up again when that changes or the map settles.
@@ -233,6 +243,7 @@ export default function HomeScreen() {
           />
         )}
         {people.overlay}
+        {devOverlay}
         <CirclesSheet
           ref={circles}
           onAdd={() => {

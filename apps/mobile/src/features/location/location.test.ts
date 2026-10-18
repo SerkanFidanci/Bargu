@@ -277,6 +277,27 @@ describe('a location from one phone to another', () => {
     expect(bestPerPerson(state).map((entry) => entry.circleId)).toEqual([exact.id]);
   });
 
+  it('never shows a location older than the one on the map (it arrived late)', () => {
+    const circle = circleOf([alice, bob]);
+    exchangeKeys(circle, [alice, bob]);
+    const receiver = receiverOf(alice, () => [circle]);
+    const key = `${circle.id}:${bob.userId}`;
+    // Sent in this order (numbered so), measured the other way round.
+    const newer = nth(send([circle], DEFAULT_SHARING, moved(GALATA, 50, NOW - 1_000)));
+    const older = nth(send([circle], DEFAULT_SHARING, moved(GALATA, 20, NOW - 3_000)));
+    expect(receiver.receive(newer)).toBe('shown');
+    expect(receiver.receive(older)).toBe('ignored');
+    expect(useLocations.getState()[key]?.loc.ts).toBe(NOW - 1_000);
+    // The same position again (a coarser precision for it) still replaces it.
+    const coarse = settingsWith({ [circle.id]: { sharing: true, precision: 'city', until: null } });
+    const again = nth(send([circle], coarse, moved(GALATA, 50, NOW - 1_000)));
+    expect(receiver.receive(again)).toBe('shown');
+    expect(useLocations.getState()[key]?.loc.acc).toBeGreaterThanOrEqual(5_000);
+    // Hours "older": the sender's clock was put back, so it is shown.
+    const reset = nth(send([circle], DEFAULT_SHARING, moved(GALATA, 10, NOW - 3 * 3_600_000)));
+    expect(receiver.receive(reset)).toBe('shown');
+  });
+
   it('numbers messages so none can be replayed, also across restarts', () => {
     const circle = circleOf([alice, bob]);
     exchangeKeys(circle, [alice, bob]);

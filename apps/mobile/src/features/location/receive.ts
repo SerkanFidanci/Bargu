@@ -17,6 +17,7 @@ import { create } from 'zustand';
 
 import type { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
+import { probe } from './probe';
 
 const receivedSchema = z
   .object({
@@ -41,6 +42,13 @@ const REPLAY_KEY = 'replay:v1';
  */
 const LOCATIONS_KEY = 'locations:v1';
 const entryKey = (circleId: string, userId: string) => `${circleId}:${userId}`;
+/**
+ * A location measured up to this long before the one shown arrived late (the relay's snapshot
+ * after a reconnection, an older position sent after a newer one): it is not shown, the person
+ * would step back on the map. Older still, the sender's clock was put back: it is shown
+ * (docs/ADR/0028). The same time again replaces it (a coarser precision for the same position).
+ */
+const LATE_WITHIN_MS = 10 * 60_000;
 
 export type Outcome = 'shown' | 'removed' | 'bumped' | 'waiting' | 'ignored';
 
@@ -164,7 +172,19 @@ export function createReceiver({
       });
       persistReplay(replayGuard);
       if (payload.kind === 'loc') {
-        set({ circleId: circle.id, userId: sender.userId, loc: payload, receivedAt: now() });
+        const shown = useLocations.getState()[entryKey(circle.id, sender.userId)]?.loc.ts;
+        const late =
+          shown !== undefined && payload.ts < shown && shown - payload.ts <= LATE_WITHIN_MS;
+        const at = now();
+        probe.current?.received({
+          userId: sender.userId,
+          ts: payload.ts,
+          acc: payload.acc,
+          at,
+          ignored: late,
+        });
+        if (late) return 'ignored';
+        set({ circleId: circle.id, userId: sender.userId, loc: payload, receivedAt: at });
         return 'shown';
       }
       if (payload.kind === 'share_stop') {

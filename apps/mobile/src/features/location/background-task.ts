@@ -24,7 +24,7 @@ TaskManager.defineTask<{ locations?: LocationObject[] }>(LOCATION_TASK, async ({
       return;
     }
     loadSharingSettings();
-    await locationEngine.fix(fixOf(newest));
+    await locationEngine.fix(fixOf(newest), 'service');
     // Sharing ended meanwhile (time up, last circle left): no reason to keep the GPS on.
     if (!locationEngine.active()) await stopTracking();
   } catch {

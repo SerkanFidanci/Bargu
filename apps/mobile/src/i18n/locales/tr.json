@@ -200,7 +200,8 @@
       "effectsDetail_full": "Bütün hareketler, kutlamalar ve titreşim açık.",
       "effectsDetail_reduced": "Yalnızca kısa, tek seferlik efektler; tekrar eden hareket yok.",
       "effectsDetail_off": "Hareket, kutlama ve titreşim yok.",
-      "effectsSystem": "Telefonun \"Hareketi azalt\" ayarı açık: hareketler kapalı."
+      "effectsSystem": "Telefonun \"Hareketi azalt\" ayarı açık: hareketler kapalı.",
+      "effectsSaving": "Pil tasarrufu ya da düşük pil nedeniyle şu an Az gibi: haritadakiler yalnızca yeni konumla kıpırdar. Düzelince Tam'a döner."
     }
   },
   "ui": {
@@ -298,6 +299,26 @@
       "expire": "Süre dolsun",
       "refund": "İade",
       "endTrial": "Deneme bitsin"
+    },
+    "measure": {
+      "link": "Geliştirici: ölçüm katmanı",
+      "title": "Ölçüm",
+      "close": "Ölçümü kapat",
+      "seconds": "{{s}} sn",
+      "phone": "Bu telefon",
+      "samples": "Örnek: servis {{service}} · canlı {{live}}",
+      "age": "Gecikme {{age}} · doğruluk ±{{acc}} m",
+      "sends": "Gönderim: {{gap}} ({{mode}})",
+      "modeLive": "canlı",
+      "modeNormal": "normal",
+      "dropped": "Atılan: eski {{old}} · bayat {{stale}} · zayıf {{inaccurate}} · sıçrama {{jump}}",
+      "fallback": "Kapalı alanda gönderilen: {{count}}",
+      "friends": "Arkadaşlar",
+      "noFriends": "Henüz konum gelmedi",
+      "friend": "{{name}}: gecikme {{delay}} · aralık {{gap}} · ±{{acc}} m · geç {{late}}",
+      "screen": "Ekran",
+      "fps": "{{fps}} fps · en kötü kare {{worst}} ms",
+      "fpsWaiting": "Ölçülüyor…"
     }
   },
   "scan": {

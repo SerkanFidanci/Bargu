@@ -43,6 +43,7 @@ import { GhostControl } from '@/features/location/sharing-card';
 import { useSharing } from '@/features/location/sharing';
 import { useMyStatus } from '@/features/social/status';
 import { startSwarm } from '@/features/dev/map-swarm';
+import { useDevSlots } from '@/features/dev/slots';
 import { useMyFix } from '@/features/location/engine';
 import { INITIAL_VIEW } from '@/features/map/style';
 import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
@@ -50,7 +51,7 @@ import { setEffectLevel } from '@/features/home/effect-prefs';
 import { usePushState } from '@/features/notifications/push';
 import { askForPush } from '@/features/notifications/use-push';
 import { meKey } from '@/features/profile/queries';
-import { EFFECT_LEVELS, useEffectChoice } from '@/theme/effects';
+import { EFFECT_LEVELS, useDeviceSaving, useEffectChoice } from '@/theme/effects';
 import { feedback } from '@/theme/haptics';
 import { radius, space, touchTarget, useTheme } from '@/theme';
 import { Appear } from '@/ui/appear';
@@ -91,6 +92,9 @@ export const MeSheet = forwardRef<
   const setAppearance = useMapAppearance((state) => state.setMode);
   const effects = useEffectChoice((state) => state.level);
   const systemReduced = useReducedMotion();
+  // Battery saving plays "full" as "less" for now (docs/ADR/0027): said so, not a frozen map.
+  const saving = useDeviceSaving((state) => state.saving);
+  const toggleMeasure = useDevSlots((state) => state.toggleOverlay);
   const createPasskey = async () => {
     try {
       await addPasskey();
@@ -225,7 +229,11 @@ export const MeSheet = forwardRef<
           }))}
         />
         <Hint>
-          {systemReduced ? t('sheets.me.effectsSystem') : t(`sheets.me.effectsDetail_${effects}`)}
+          {systemReduced
+            ? t('sheets.me.effectsSystem')
+            : saving && effects === 'full'
+              ? t('sheets.me.effectsSaving')
+              : t(`sheets.me.effectsDetail_${effects}`)}
         </Hint>
       </View>
       <Group>
@@ -292,6 +300,16 @@ export const MeSheet = forwardRef<
                 startSwarm(fix ?? { lat, lng });
               }}
             />
+            {toggleMeasure === null ? null : (
+              <Row
+                icon={Wrench}
+                label={t('dev.measure.link')}
+                onPress={() => {
+                  onClose();
+                  toggleMeasure();
+                }}
+              />
+            )}
             <Row
               icon={Wrench}
               label={t('dev.billing.link')}

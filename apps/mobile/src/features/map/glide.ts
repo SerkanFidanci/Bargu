@@ -12,6 +12,8 @@ export interface GlideFix extends GlidePoint {
   spd?: number | null | undefined;
   /** Degrees from north, when known. */
   hdg?: number | null | undefined;
+  /** Accuracy radius (m), when known. */
+  acc?: number | undefined;
   /** When it was measured (Unix ms). */
   ts: number;
 }
@@ -48,7 +50,7 @@ export function project(from: GlidePoint, headingDeg: number, metres: number): G
   };
 }
 
-/** Whether a fix says its person is moving, with a direction to extrapolate along. */
+/** Whether a fix says its person is moving, with a direction. */
 export function isMoving(fix: Pick<GlideFix, 'spd' | 'hdg'>): boolean {
   return (
     fix.spd !== null &&
@@ -59,36 +61,64 @@ export function isMoving(fix: Pick<GlideFix, 'spd' | 'hdg'>): boolean {
   );
 }
 
+/** Whether a location is too rough to point at (a circle shows where they may be), not a cell. */
+export function isRough(acc: number | undefined): boolean {
+  return acc !== undefined && acc > glide.roughAccuracyM && acc < glide.cellAccuracyM;
+}
+
+/** Degrees between two headings (0–180). */
+function turn(a: number, b: number): number {
+  const diff = Math.abs(a - b) % 360;
+  return diff > 180 ? 360 - diff : diff;
+}
+
 /**
- * How a marker moves when a new location arrives (dead reckoning, at most `glide.maxAheadMs`
- * past the measurement). A moving person is carried at constant speed from where the marker is
- * now to where they should be when the next location is due; a still one eases into place; a jump
- * farther than `glide.teleportM` is not animated.
+ * How far ahead of the location (m) the pin may go: only on a straight, steady, well measured
+ * course, never on a bend, when slowing to a stop or for a rough location.
+ */
+function lead(fix: GlideFix, previous: GlideFix, aheadMs: number): number {
+  const { spd, hdg, acc } = fix;
+  if (spd === null || spd === undefined || spd < glide.leadSpeed) return 0;
+  if (hdg === null || hdg === undefined || previous.hdg === null || previous.hdg === undefined) {
+    return 0;
+  }
+  if (acc === undefined || acc > glide.leadAccuracyM) return 0;
+  if (turn(previous.hdg, hdg) >= glide.leadTurnDeg) return 0;
+  return spd * (Math.min(aheadMs, glide.leadMs) / 1000);
+}
+
+/**
+ * How a marker moves when a new location arrives (docs/ADR/0028), or null to leave it: one
+ * measured before the location it shows arrived late, and the pin never steps back. The first
+ * location, one after a long gap and one far away are placed; otherwise the pin glides from where
+ * it is to the location over the gap between the two (×1.1, within limits), a moving person at
+ * constant speed, and on a straight steady course to at most `glide.leadMs` past it.
  */
 export function glideStep(input: {
   shown: GlidePoint;
   fix: GlideFix;
+  /** The location the marker had before this one; null for its first. */
+  previous: GlideFix | null;
   now: number;
-  /** Expected time until the next location (from the last gap between two of them). */
-  intervalMs: number;
-}): GlideStep {
-  const { shown, fix, now } = input;
+}): GlideStep | null {
+  const { shown, fix, previous, now } = input;
+  if (previous !== null && fix.ts < previous.ts) return null;
   const target: GlidePoint = { lat: fix.lat, lng: fix.lng };
-  if (distanceBetween(shown, target) > glide.teleportM) {
+  if (
+    previous === null ||
+    fix.ts - previous.ts > glide.jumpGapMs ||
+    distanceBetween(shown, target) > glide.teleportM
+  ) {
     return { to: target, durationMs: 0, linear: false };
   }
-  if (!isMoving(fix)) return { to: target, durationMs: glide.settle, linear: false };
-  const interval = Math.min(Math.max(input.intervalMs, glide.minIntervalMs), glide.maxAheadMs);
-  const age = Math.max(0, now - fix.ts);
-  const ahead = Math.min(age + interval, glide.maxAheadMs);
-  // Already as old as the limit: nothing left to extrapolate.
-  if (ahead <= age) return { to: target, durationMs: glide.settle, linear: false };
-  const metres = (fix.spd ?? 0) * (ahead / 1000);
-  return {
-    to: project(target, fix.hdg ?? 0, metres),
-    durationMs: ahead - age,
-    linear: true,
-  };
+  const durationMs = Math.min(
+    Math.max((fix.ts - previous.ts) * glide.spanFactor, glide.minSpanMs),
+    glide.maxSpanMs,
+  );
+  const linear = isMoving(fix);
+  // By the glide's end the location is its age plus the glide old; the guess covers at most 1 s.
+  const ahead = lead(fix, previous, Math.max(0, now - fix.ts) + durationMs);
+  return { to: ahead === 0 ? target : project(target, fix.hdg ?? 0, ahead), durationMs, linear };
 }
 
 /** Trail length for a speed: 0 none (still), 1 walking, 2 cycling or running, 3 in a vehicle. */
@@ -99,10 +129,4 @@ export function trailLevel(spd: number | null | undefined): 0 | 1 | 2 | 3 {
   if (spd >= bike) return 2;
   if (spd >= walk) return 1;
   return 0;
-}
-
-/** Expected gap until the next location, from the last one (unknown: the moving default). */
-export function nextInterval(previousAt: number | null, at: number): number {
-  if (previousAt === null) return glide.defaultIntervalMs;
-  return Math.min(Math.max(at - previousAt, glide.minIntervalMs), glide.maxAheadMs);
 }

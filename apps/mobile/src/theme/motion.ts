@@ -53,23 +53,36 @@ export const ambient = {
 } as const;
 
 /**
- * People gliding on the map between two locations (BARGU_PLAN §3.3 receiver). Someone moving is
- * carried on along their heading at their speed until about when the next location is due, never
- * more than `maxAheadMs` past the last one (dead reckoning); someone still settles into place.
+ * People gliding on the map between two locations (BARGU_PLAN §3.3 receiver, docs/ADR/0028): from
+ * where the pin is to the new location, over about the time since the previous one, so at a steady
+ * rate it never stands still. A guess ahead only on a straight, steady, well measured course, and
+ * never more than `leadMs` past the location (the PM): no pin runs off a winding road.
  */
 export const glide = {
-  /** A still person (or one without speed and heading) moves to the new spot this fast. */
-  settle: duration.slow,
-  /** How far ahead of the last location a moving person is extrapolated, at most. */
-  maxAheadMs: 10_000,
-  /** Expected gap between two locations until the real one is known (send.ts: 5 s moving). */
-  defaultIntervalMs: 5_000,
-  /** Live mode sends about every second: no gap is assumed shorter than this. */
-  minIntervalMs: 900,
-  /** Below this speed (m/s) a person counts as still: no extrapolation, no trail. */
+  /** The glide lasts the gap between the two locations times this… */
+  spanFactor: 1.1,
+  /** …but not less than this… */
+  minSpanMs: 250,
+  /** …nor more (after a long gap: get there, do not crawl). */
+  maxSpanMs: 2_000,
+  /** A guess ahead goes at most this far past the location in time… */
+  leadMs: 1_000,
+  /** …only faster than this (m/s)… */
+  leadSpeed: 2,
+  /** …heading within this many degrees of the location before (no guess on a bend)… */
+  leadTurnDeg: 20,
+  /** …and measured at least this precisely (m). */
+  leadAccuracyM: 20,
+  /** Below this speed (m/s) a person counts as still: eased into place, no trail. */
   movingSpeed: 1,
-  /** Farther than this (m) from where the avatar is shown: jump, do not glide across the city. */
-  teleportM: 2_000,
+  /** A location this long after the previous one is placed, not glided to. */
+  jumpGapMs: 30_000,
+  /** Farther than this (m) from where the pin is: placed, not glided across town. */
+  teleportM: 500,
+  /** A location less precise than this (m) shows a circle of where they may be, and no guess… */
+  roughAccuracyM: 100,
+  /** …unless it is a neighbourhood or city cell (1 km or more, precision.ts): those show none. */
+  cellAccuracyM: 700,
   /** Speeds (m/s) from which the trail grows: walking, cycling or running, in a vehicle. */
   trailSpeeds: [1, 3, 8],
 } as const;

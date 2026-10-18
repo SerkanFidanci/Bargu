@@ -12,7 +12,6 @@ export interface SwarmPerson {
   name: string;
   avatar: Avatar;
   fix: GlideFix & { bat: number; chg: boolean };
-  receivedAt: number;
 }
 
 export const useSwarm = create<{ people: SwarmPerson[] }>(() => ({ people: [] }));
@@ -58,11 +57,11 @@ export function startSwarm(center: GlidePoint, count = SWARM_SIZE): void {
         ...start,
         spd: pick(SPEEDS, index),
         hdg: varied(index + 0.25) * 360,
+        acc: 5,
         ts: now,
         bat: (index * 7) % 100,
         chg: index % 5 === 0,
       },
-      receivedAt: now,
     };
   });
   useSwarm.setState({ people });
@@ -75,7 +74,7 @@ export function startSwarm(center: GlidePoint, count = SWARM_SIZE): void {
         // A gentle turn now and then, like a street.
         const hdg = ((person.fix.hdg ?? 0) + (varied(tick * 100 + index) - 0.5) * 30 + 360) % 360;
         const next = project(person.fix, hdg, (spd * TICK_MS) / 1000);
-        return { ...person, fix: { ...person.fix, ...next, hdg, ts: at }, receivedAt: at };
+        return { ...person, fix: { ...person.fix, ...next, hdg, ts: at } };
       }),
     }));
   }, TICK_MS);

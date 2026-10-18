@@ -11,6 +11,8 @@ import { create } from 'zustand';
 
 import type { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
+import { filterFix, type FilterState, freshFilter } from './fix-filter';
+import { type FixSource, probe } from './probe';
 import { type Battery, buildEnvelopes, type Fix, type LastSent, shouldSend } from './send';
 import { circleSharing, type SharingSettings, sharedCircles } from './sharing';
 import { nextStay, type Stay } from './stay';
@@ -73,8 +75,9 @@ export interface EngineDeps {
 
 /**
  * The sending half of the location engine (BARGU_PLAN §3.3), the same whether the app is open or
- * the screen is locked: the location service hands every fix to `fix()`, which decides by the
- * frequency table whether it goes out. Only the newest unsent fix is kept while offline. Circles
+ * the screen is locked: the location service hands every fix to `fix()`, which first drops old,
+ * cached, inaccurate and jumping ones (fix-filter.ts, on the raw position: each circle's precision
+ * is applied after, when sending) and then decides by the frequency table whether it goes out. Only the newest unsent fix is kept while offline. Circles
  * that stop getting the location (sharing off, time up, ghost "hide") get it taken back.
  */
 export function createLocationEngine(deps: EngineDeps) {
@@ -85,6 +88,7 @@ export function createLocationEngine(deps: EngineDeps) {
   let liveUntil = 0;
   let running: Promise<void> | null = null;
   let stay: Stay | null = null;
+  let filter: FilterState = freshFilter(now());
 
   const live = () => now() < liveUntil;
   const shared = () =>
@@ -160,6 +164,7 @@ export function createLocationEngine(deps: EngineDeps) {
       return false;
     }
     last = { fix, sentAt: at };
+    probe.current?.sent({ at, live: live() });
     const held = published();
     for (const circle of circles) if (!refused.has(circle.id)) held.add(circle.id);
     setPublished(held);
@@ -188,7 +193,17 @@ export function createLocationEngine(deps: EngineDeps) {
     return running;
   }
 
-  function fix(next: Fix): Promise<void> {
+  /**
+   * Whether GPS is worth its battery: some circle gets the exact location. Neighbourhood and
+   * city cells (1 and 10 km) are well served by Wi-Fi and cell positioning.
+   */
+  function gps(): boolean {
+    const settings = deps.sharing();
+    return shared().some((circle) => circleSharing(settings, circle.id).precision === 'exact');
+  }
+
+  /** A position this phone uses: its own marker, places, and sending by the frequency table. */
+  function adopt(next: Fix): Promise<void> {
     latest = next;
     stay = nextStay(stay, next, next.ts);
     useMyFix.setState({ fix: next, since: stay.since });
@@ -203,13 +218,22 @@ export function createLocationEngine(deps: EngineDeps) {
   }
 
   return {
-    /** A new position from the location service. */
-    fix,
+    /** A new raw position from the location service or the 1-second watch. */
+    fix(next: Fix, source: FixSource = 'service'): Promise<void> {
+      const at = now();
+      const result = filterFix(filter, next, at, gps());
+      filter = result.state;
+      probe.current?.sampled({ source, ts: next.ts, acc: next.acc, at, outcome: result.outcome });
+      if (result.take !== null) return adopt(result.take);
+      // Nothing new to use, but a timed share may just have ended: take it back without waiting.
+      if (toWithdraw().length > 0) return pump();
+      return running ?? Promise.resolve();
+    },
 
     /** Someone looks at one of this phone's circles: live updates for a while. */
     watched(): Promise<void> {
       liveUntil = now() + LIVE_MS;
-      return latest === null ? Promise.resolve() : fix(latest);
+      return latest === null ? Promise.resolve() : adopt(latest);
     },
 
     live,
@@ -219,14 +243,7 @@ export function createLocationEngine(deps: EngineDeps) {
       return shared().length > 0;
     },
 
-    /**
-     * Whether GPS is worth its battery: some circle gets the exact location. Neighbourhood and
-     * city cells (1 and 10 km) are well served by Wi-Fi and cell positioning.
-     */
-    gps(): boolean {
-      const settings = deps.sharing();
-      return shared().some((circle) => circleSharing(settings, circle.id).precision === 'exact');
-    },
+    gps,
 
     /** Back online: the newest unsent fix goes out. */
     flush(): Promise<void> {
@@ -253,6 +270,7 @@ export function createLocationEngine(deps: EngineDeps) {
       pending = null;
       liveUntil = 0;
       stay = null;
+      filter = freshFilter(now());
       useMyFix.setState({ fix: null, since: null });
     },
   };

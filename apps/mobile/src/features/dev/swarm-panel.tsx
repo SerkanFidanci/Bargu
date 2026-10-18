@@ -21,12 +21,7 @@ export function SwarmLayer() {
   return (
     <>
       {people.map((person) => (
-        <GlidingMarker
-          key={person.id}
-          id={person.id}
-          fix={person.fix}
-          receivedAt={person.receivedAt}
-        >
+        <GlidingMarker key={person.id} id={person.id} fix={person.fix}>
           <MapAvatar
             name={person.name}
             avatar={person.avatar}

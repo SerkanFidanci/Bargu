@@ -1,18 +1,21 @@
+import { applyPrecision } from '@bargu/crypto';
 import type { MessageEnvelope, PublishReply } from '@bargu/schemas';
 
-import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle } from './engine';
-import { SEND_RULES } from './send';
+import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix } from './engine';
+import { FIX_RULES } from './fix-filter';
+import { type LocationProbe, probe } from './probe';
+import { createReceiver, useLocations } from './receive';
+import { locPayload, SEND_RULES } from './send';
 import { DEFAULT_SHARING, type SharingSettings } from './sharing';
-import { circleOf, GALATA, moved, nth, type Person, somebody } from './test-support';
+import { circleOf, exchangeKeys, GALATA, moved, nth, type Person, somebody } from './test-support';
 
 const START = 1_800_000_000_000;
 
 function setup(circleCount = 2) {
   const me: Person = somebody();
   const friend = somebody();
-  const circles: SendCircle[] = Array.from({ length: circleCount }, () =>
-    toSendCircle(circleOf([me, friend]), me.userId),
-  );
+  const full = Array.from({ length: circleCount }, () => circleOf([me, friend]));
+  const circles: SendCircle[] = full.map((circle) => toSendCircle(circle, me.userId));
   let settings: SharingSettings = DEFAULT_SHARING;
   let now = START;
   let offline = false;
@@ -47,6 +50,9 @@ function setup(circleCount = 2) {
   });
   return {
     engine,
+    me,
+    friend,
+    full,
     circles,
     published,
     withdrawn,
@@ -80,10 +86,12 @@ describe('location engine', () => {
     t.at(SEND_RULES.movingIntervalMs);
     await t.engine.fix(fixAt(SEND_RULES.movingIntervalMs, 3));
     expect(t.published).toHaveLength(1);
-    await t.engine.fix(fixAt(SEND_RULES.movingIntervalMs, 30));
+    // A position is used once: the next one is measured a second later (fix-filter.ts).
+    t.at(SEND_RULES.movingIntervalMs + 1_000);
+    await t.engine.fix(fixAt(SEND_RULES.movingIntervalMs + 1_000, 30));
     expect(t.published).toHaveLength(2);
-    t.at(SEND_RULES.movingIntervalMs + SEND_RULES.heartbeatMs);
-    await t.engine.fix(fixAt(SEND_RULES.movingIntervalMs + SEND_RULES.heartbeatMs, 30));
+    t.at(SEND_RULES.movingIntervalMs + 1_000 + SEND_RULES.heartbeatMs);
+    await t.engine.fix(fixAt(SEND_RULES.movingIntervalMs + 1_000 + SEND_RULES.heartbeatMs, 30));
     expect(t.published).toHaveLength(3);
   });
 
@@ -213,5 +221,99 @@ describe('location engine', () => {
       circles: { [nth(t.circles).id]: { sharing: true, precision: 'city', until: null } },
     });
     expect(t.engine.gps()).toBe(false);
+  });
+});
+
+describe('the positions the engine uses (docs/ADR/0028)', () => {
+  const BATTERY = { level: 80, charging: false };
+
+  afterEach(() => {
+    probe.current = null;
+  });
+
+  it('never steps back to a position older than the one used (two location sources)', async () => {
+    const t = setup(1);
+    t.at(2_000);
+    await t.engine.fix(fixAt(2_000, 20), 'live');
+    // The location service's position from a second earlier arrives after the watch's.
+    await t.engine.fix(fixAt(1_000, 10), 'service');
+    expect(useMyFix.getState().fix?.ts).toBe(START + 2_000);
+    expect(t.published).toHaveLength(1);
+  });
+
+  it('indoors with GPS, holds the guesses back, then sends the best one with its accuracy', async () => {
+    const t = setup(1);
+    await t.engine.fix(fixAt(0));
+    const guess = (ms: number, acc: number) => ({ ...fixAt(ms, 40), acc });
+    for (const [ms, acc] of [
+      [10_000, 400],
+      [20_000, 150],
+      [30_000, 300],
+    ] as const) {
+      t.at(ms);
+      await t.engine.fix(guess(ms, acc));
+    }
+    expect(t.published).toHaveLength(1);
+    expect(useMyFix.getState().fix?.acc).toBe(8);
+    t.at(FIX_RULES.fallbackMs);
+    await t.engine.fix(guess(FIX_RULES.fallbackMs, 250));
+    expect(t.published).toHaveLength(2);
+    expect(useMyFix.getState().fix?.acc).toBe(150);
+  });
+
+  it('gives a coarse circle the cell of the very same raw position', async () => {
+    const t = setup(2);
+    const [exact, coarse] = [nth(t.full, 0), nth(t.full, 1)];
+    for (const circle of t.full) exchangeKeys(circle, [t.me, t.friend]);
+    t.set({
+      ghost: 'off',
+      circles: { [coarse.id]: { sharing: true, precision: 'neighborhood', until: null } },
+    });
+    useLocations.setState({}, true);
+    const receiver = createReceiver({
+      keys: () => t.friend.keys,
+      circles: () => t.full,
+      store: () => t.friend.store,
+      now: () => START,
+    });
+    const raw = { ...fixAt(0, 123), acc: 30 };
+    await t.engine.fix(raw);
+    for (const envelope of t.published.flat()) receiver.receive(envelope);
+    const shown = useLocations.getState();
+    expect(shown[`${exact.id}:${t.me.userId}`]?.loc).toMatchObject({ lat: raw.lat, lng: raw.lng });
+    // Exactly what the coarse circle got before the filter: the raw position's cell.
+    expect(shown[`${coarse.id}:${t.me.userId}`]?.loc).toEqual(
+      applyPrecision(locPayload(raw, BATTERY), 'neighborhood'),
+    );
+  });
+
+  it('without GPS (coarse circles only), uses a Wi-Fi guess like any position', async () => {
+    const t = setup(1);
+    t.set({
+      ghost: 'off',
+      circles: { [nth(t.circles).id]: { sharing: true, precision: 'city', until: null } },
+    });
+    await t.engine.fix({ ...fixAt(0), acc: 900 });
+    expect(t.published).toHaveLength(1);
+  });
+
+  it('tells the measurement overlay times, accuracies and counts, never a position', async () => {
+    const heard: unknown[] = [];
+    const listener: LocationProbe = {
+      sampled: (input) => heard.push(input),
+      sent: (input) => heard.push(input),
+      received: (input) => heard.push(input),
+    };
+    probe.current = listener;
+    const t = setup(1);
+    const first = fixAt(0, 77);
+    await t.engine.fix(first, 'live');
+    await t.engine.fix(fixAt(0, 78), 'service');
+    expect(heard).toEqual([
+      { source: 'live', ts: START, acc: 8, at: START, outcome: 'taken' },
+      { at: START, live: false },
+      { source: 'service', ts: START, acc: 8, at: START, outcome: 'old' },
+    ]);
+    expect(JSON.stringify(heard)).not.toContain(String(first.lat).slice(0, 6));
   });
 });

@@ -13,6 +13,7 @@ import { MapAvatar } from './map-avatar';
 import type { PersonHandlers } from './person-gestures';
 import { useMeetingWatcher } from './use-meetings';
 import { type Cluster, capsuleOf, clusterPeople } from './cluster';
+import { UncertaintyLayer } from './uncertainty-layer';
 import { useMapZoom } from './map-zoom';
 import { activityOf } from './activity';
 import { motionDetail } from './motion-detail';
@@ -44,7 +45,8 @@ function cardOf(circles: readonly Circle[], userId: string): MemberCard | undefi
 
 /** Someone on the map: a member at their best location, or the user at the phone's position. */
 type PersonOnMap = { id: string; lat: number; lng: number } & (
-  { kind: 'member'; entry: ReceivedLocation; card: MemberCard } | { kind: 'me'; ts: number }
+  | { kind: 'member'; entry: ReceivedLocation; card: MemberCard }
+  | { kind: 'me'; ts: number; acc: number }
 );
 
 /**
@@ -94,7 +96,17 @@ export function PeopleLayer({
   const people: PersonOnMap[] =
     myFix === null
       ? members
-      : [...members, { kind: 'me', id: me.userId, lat: myFix.lat, lng: myFix.lng, ts: myFix.ts }];
+      : [
+          ...members,
+          {
+            kind: 'me',
+            id: me.userId,
+            lat: myFix.lat,
+            lng: myFix.lng,
+            ts: myFix.ts,
+            acc: myFix.acc,
+          },
+        ];
   const clusters = clusterPeople(people, zoom);
 
   /** A person's sticker as drawn on its own or side by side with others. */
@@ -142,6 +154,14 @@ export function PeopleLayer({
 
   return (
     <>
+      <UncertaintyLayer
+        spots={people.map((person) => ({
+          id: person.id,
+          lat: person.lat,
+          lng: person.lng,
+          acc: person.kind === 'me' ? person.acc : person.entry.loc.acc,
+        }))}
+      />
       {clusters.map((cluster) => {
         if (cluster.members.length > 1) {
           return (
@@ -149,7 +169,6 @@ export function PeopleLayer({
               key={cluster.key}
               cluster={cluster}
               meId={me.userId}
-              now={now}
               burst={burst}
               together={together}
               onGroup={onGroup}
@@ -162,7 +181,7 @@ export function PeopleLayer({
         if (person.kind === 'me') {
           if (myFix === null) return null;
           return (
-            <GlidingMarker key="me" id="me" fix={myFix} receivedAt={myFix.ts}>
+            <GlidingMarker key="me" id="me" fix={myFix}>
               <MapAvatar
                 {...shown.marker}
                 spd={myFix.spd}
@@ -176,12 +195,7 @@ export function PeopleLayer({
         }
         const { loc } = person.entry;
         return (
-          <GlidingMarker
-            key={person.id}
-            id={person.id}
-            fix={loc}
-            receivedAt={person.entry.receivedAt}
-          >
+          <GlidingMarker key={person.id} id={person.id} fix={loc}>
             <MapAvatar
               {...shown.marker}
               spd={loc.spd}
@@ -202,14 +216,12 @@ export function PeopleLayer({
 function TogetherMarker({
   cluster,
   meId,
-  now,
   burst,
   together,
   onGroup,
 }: {
   cluster: Cluster<PersonOnMap>;
   meId: string;
-  now: number;
   burst: { at: number; colors: readonly [string, string] } | null;
   together: (person: PersonOnMap) => TogetherPerson;
   onGroup: ((people: GroupMember[], from: ScreenPoint) => void) | undefined;
@@ -240,7 +252,7 @@ function TogetherMarker({
       };
     });
   return (
-    <GlidingMarker id={cluster.key} fix={fix} receivedAt={now}>
+    <GlidingMarker id={cluster.key} fix={fix}>
       <ClusterBubble
         people={capsule.shown.map(({ member }) => together(member))}
         more={capsule.more}

@@ -11,7 +11,7 @@ import Animated, {
 import { duration } from '@/theme';
 import { useEffects } from '@/theme/effects';
 
-import { type GlideFix, glideStep, nextInterval } from './glide';
+import { type GlideFix, glideStep } from './glide';
 
 /** MapLibre markers take their position from Reanimated on the UI thread (MapLibre RN v11). */
 const AnimatedMarker = Animated.createAnimatedComponent(Marker);
@@ -20,22 +20,20 @@ export interface GlidingMarkerProps {
   id: string;
   /** A new object for each new location (the stored one, not rebuilt on render). */
   fix: GlideFix;
-  /** When this phone got the fix (gaps between them predict the next one). */
-  receivedAt: number;
   onPress?: () => void;
   children: ReactElement;
 }
 
 /**
- * A person on the map who glides between locations instead of jumping (glide.ts). Only the start
- * of each glide runs in JavaScript, when a location arrives; the movement itself is a Reanimated
- * timing on the UI thread. By sade mod (docs/ADR/0027): "reduced" makes each glide short, "off"
+ * A person on the map who glides between locations instead of jumping (glide.ts), and stays put
+ * when a location measured before the one shown arrives late. Only the start of each glide runs in
+ * JavaScript, when a location arrives; the movement itself is a Reanimated timing on the UI thread. By sade mod (docs/ADR/0027): "reduced" makes each glide short, "off"
  * (and Reduce Motion, or the map not on screen) places the marker without moving it.
  */
-export function GlidingMarker({ id, fix, receivedAt, onPress, children }: GlidingMarkerProps) {
+export function GlidingMarker({ id, fix, onPress, children }: GlidingMarkerProps) {
   const lat = useSharedValue(fix.lat);
   const lng = useSharedValue(fix.lng);
-  const previous = useRef<number | null>(null);
+  const previous = useRef<GlideFix | null>(null);
   // The first position only: afterwards Reanimated moves it (a changing prop would fight it).
   const [initial] = useState<LngLat>(() => [fix.lng, fix.lat]);
   // Read when a location arrives: a change of level alone starts no glide.
@@ -49,10 +47,11 @@ export function GlidingMarker({ id, fix, receivedAt, onPress, children }: Glidin
     const step = glideStep({
       shown: { lat: lat.get(), lng: lng.get() },
       fix,
+      previous: previous.current,
       now: Date.now(),
-      intervalMs: nextInterval(previous.current, receivedAt),
     });
-    previous.current = receivedAt;
+    if (step === null) return;
+    previous.current = fix;
     if (step.durationMs === 0 || levelNow.current === 'off') {
       lat.set(step.to.lat);
       lng.set(step.to.lng);
@@ -66,7 +65,7 @@ export function GlidingMarker({ id, fix, receivedAt, onPress, children }: Glidin
     };
     lat.set(withTiming(step.to.lat, config));
     lng.set(withTiming(step.to.lng, config));
-  }, [fix, receivedAt, lat, lng]);
+  }, [fix, lat, lng]);
 
   const animatedProps = useAnimatedProps<{ lngLat: LngLat }>(() => ({
     lngLat: [lng.get(), lat.get()],

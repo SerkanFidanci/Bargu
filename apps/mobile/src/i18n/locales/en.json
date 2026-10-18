@@ -200,7 +200,8 @@
       "effectsDetail_full": "All motion, celebrations and vibration on.",
       "effectsDetail_reduced": "Only short, one-off effects; nothing repeats.",
       "effectsDetail_off": "No motion, celebrations or vibration.",
-      "effectsSystem": "Your phone's Reduce Motion is on: motion is off."
+      "effectsSystem": "Your phone's Reduce Motion is on: motion is off.",
+      "effectsSaving": "Battery saving or a low battery: for now it plays as Less, people move only with a new location. Back to Full afterwards."
     }
   },
   "ui": {
@@ -298,6 +299,26 @@
       "expire": "Run out",
       "refund": "Refund",
       "endTrial": "End the trial"
+    },
+    "measure": {
+      "link": "Developer: measurement overlay",
+      "title": "Measurement",
+      "close": "Close the measurement",
+      "seconds": "{{s}} s",
+      "phone": "This phone",
+      "samples": "Samples: service {{service}} · live {{live}}",
+      "age": "Delay {{age}} · accuracy ±{{acc}} m",
+      "sends": "Sending: {{gap}} ({{mode}})",
+      "modeLive": "live",
+      "modeNormal": "normal",
+      "dropped": "Dropped: old {{old}} · stale {{stale}} · weak {{inaccurate}} · jump {{jump}}",
+      "fallback": "Sent indoors: {{count}}",
+      "friends": "Friends",
+      "noFriends": "No location yet",
+      "friend": "{{name}}: delay {{delay}} · gap {{gap}} · ±{{acc}} m · late {{late}}",
+      "screen": "Screen",
+      "fps": "{{fps}} fps · worst frame {{worst}} ms",
+      "fpsWaiting": "Measuring…"
     }
   },
   "scan": {
