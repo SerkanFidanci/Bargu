@@ -11,6 +11,7 @@ import { Pill } from '@/ui/pill';
 import { Text } from '@/ui/text';
 
 import { useConnection } from '../live/live-session';
+import { useMapCardTurn } from './map-cards';
 import { requestLocationPermission, useLocationPermission } from './tracker';
 
 /** A connection that comes back this fast is not worth a line on screen (no flicker on open). */
@@ -46,8 +47,12 @@ export function LocationBanner() {
   const connecting = useConnecting();
   // "Şimdi değil": asked again the next time the app starts.
   const [later, setLater] = useState(false);
+  const asking = (permission === 'undetermined' && !later) || permission === 'blocked';
+  // The first card on the map: the others wait for it (map-cards.ts).
+  const turn = useMapCardTurn('locationPermission', asking);
 
-  if ((permission === 'undetermined' && !later) || permission === 'blocked') {
+  if (asking) {
+    if (!turn) return null;
     const blocked = permission === 'blocked';
     return (
       <Animated.View

@@ -9,6 +9,7 @@ import { Button } from '@/ui/button';
 import { Text } from '@/ui/text';
 
 import { finishSharingReview } from './location-session';
+import { useMapCardTurn } from './map-cards';
 import { useSharingReview } from './sharing';
 
 /**
@@ -20,7 +21,9 @@ export function NewPhoneCard({ onChoose }: { onChoose: () => void }) {
   const { colors } = useTheme();
   const motion = useMotion();
   const pending = useSharingReview((state) => state.pending);
-  if (!pending) return null;
+  // Right after the permission card, before the others (map-cards.ts).
+  const turn = useMapCardTurn('newPhone', pending);
+  if (!pending || !turn) return null;
   return (
     <Animated.View
       entering={motion.enterDown}

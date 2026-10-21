@@ -15,6 +15,7 @@ import { useCircles } from '../circles/queries';
 import { historyAudience } from '../history/viewers';
 import { useNow } from './clock';
 import { reviewSharing } from './location-session';
+import { useMapCardTurn } from './map-cards';
 import { seersByCircle, useSharing } from './sharing';
 import { anyoneSees, reminderDue, reminderSummary, useSharingReminder } from './sharing-reminder';
 
@@ -32,16 +33,20 @@ export function SharingReminderCard() {
   const circles = useCircles().data ?? [];
   const settings = useSharing();
   const now = useNow();
-  if (me === null || !reminderDue(reviewedAt, now)) return null;
-  const summary = reminderSummary(
-    seersByCircle(circles, settings, me, now),
-    historyAudience(circles, settings, me),
-    (circle) => {
-      const partner = circle.kind === 'pair' ? partnerOf(circle, me) : undefined;
-      return partner === undefined ? (circle.name ?? '') : memberName(partner);
-    },
-  );
-  if (!anyoneSees(summary)) return null;
+  const summary =
+    me === null || !reminderDue(reviewedAt, now)
+      ? null
+      : reminderSummary(
+          seersByCircle(circles, settings, me, now),
+          historyAudience(circles, settings, me),
+          (circle) => {
+            const partner = circle.kind === 'pair' ? partnerOf(circle, me) : undefined;
+            return partner === undefined ? (circle.name ?? '') : memberName(partner);
+          },
+        );
+  // After the cards in front of it on the map, one at a time (map-cards.ts).
+  const turn = useMapCardTurn('sharingReminder', summary !== null && anyoneSees(summary));
+  if (summary === null || !anyoneSees(summary) || !turn) return null;
   const text = [
     summary.people > 0
       ? t('location.reminder.location', {

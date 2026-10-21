@@ -10,6 +10,7 @@ import { useMotion } from '@/theme/use-motion';
 import { Button } from '@/ui/button';
 import { Text } from '@/ui/text';
 
+import { useMapCardTurn } from '../map-cards';
 import { backgroundLiveOn, useSharing } from '../sharing';
 import { dismissCard, restoreCard, useCardSeen } from './notice-card';
 
@@ -28,7 +29,9 @@ export function BackgroundLiveCard() {
   useEffect(() => {
     restoreCard();
   }, []);
-  if (!on || seen) return null;
+  // The last card on the map: it waits for the others to be answered (location/map-cards.ts).
+  const turn = useMapCardTurn('backgroundLive', on && !seen);
+  if (!on || seen || !turn) return null;
   return (
     <Animated.View
       entering={motion.enterDown}

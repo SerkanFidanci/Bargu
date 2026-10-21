@@ -11,6 +11,7 @@ import { Text } from '@/ui/text';
 
 import { useAuth } from '../auth/auth-store';
 import { useCircles } from '../circles/queries';
+import { useMapCardTurn } from '../location/map-cards';
 import { useLocationPermission } from '../location/tracker';
 import { vault } from '../storage/vault';
 import { usePushState } from './push';
@@ -47,7 +48,10 @@ export function NotificationCard() {
       circle.myStatus === 'active' &&
       circle.members.some((member) => member.userId !== me && member.status === 'active'),
   );
-  if (push !== 'undetermined' || location === 'undetermined' || !someone || hidden) return null;
+  const asking = push === 'undetermined' && location !== 'undetermined' && someone && !hidden;
+  // After the cards in front of it on the map, one at a time (location/map-cards.ts).
+  const turn = useMapCardTurn('notificationPrompt', asking);
+  if (!asking || !turn) return null;
   return (
     <Animated.View
       entering={motion.enterDown}
