@@ -215,8 +215,8 @@ export const haptic = { select: 'selection', success: 'success', bump: 'heavy' }
   - Evde → ev rozeti
   - Şarjda → şimşek; pil < %15 → kırmızı nabız
   - Eski veri → gri + "12 dk"
-  - Avatar **çıkartma ve ada** (proje sahibinin seçimi, 2026-10-16; ADR 0008 eki): kalın beyaz kenarlı, kişinin kimliğinden türeyen sabit açıyla hafif eğik çıkartma; altında kişinin renginde küçük bir ada, adanın ortası tam konum. Dururken çıkartma hafifçe kalkıp iner, ada altında küçülür.
-- Yakın kişiler **tek çerçeve** (proje sahibinin düzeltmesi, 2026-10-16): birlikte duranlar ortak beyaz çıkartma çerçevesinde, kenar halkası bir kişinin renginden ötekine geçer, altta tek ada. Çerçevede en çok 2 avatar, her biri ayrı dokunulur; kullanıcı oradaysa hep görünür. İkiden fazla kişide sağ üst köşede toplam sayı yazar; çerçeveye dokununca oradakilerin listesi açılır ("Sen" önce), listeden kişi kartına gidilir.
+  - Avatar **pin** (proje sahibinin seçimi, 2026-10-18; 2026-10-16 tarihli çıkartma ve ada yerine; ADR 0008 eki): mor tonlu halkalı yuvarlak avatar, aşağı sivri uç, ucun altında küçük nokta (tam konum), sağ altta yeşil "canlı" noktası, altında küçük etiket (ör. eskimişse "23 sa").
+- Yakın kişiler **tek çerçeve** (proje sahibinin düzeltmesi, 2026-10-16): birlikte duranlar tek bir ortak pinde (2026-10-18'den beri pin biçiminde; önce ortak beyaz çıkartma çerçevesiydi), halka bir kişinin renginden ötekine geçer, altta tek uç. Çerçevede en çok 2 avatar, her biri ayrı dokunulur; kullanıcı oradaysa hep görünür. İkiden fazla kişide sağ üst köşede toplam sayı yazar; çerçeveye dokununca oradakilerin listesi açılır ("Sen" önce), listeden kişi kartına gidilir.
 - Basılı tut → **radyal menü:** Dürt · Yol tarifi · Profil · Bildirimler.
 - Gece otomatik koyu harita stili.
 
@@ -386,8 +386,8 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 
     - 15–17 yaşta satın alma ebeveyn onayıyla (ADR 0023). Öğrenci indirimi ve "kurucu üye" ömür boyu planı sonraya; öğrencilik doğrulanamadığı için şimdilik yok.
     - Deneme bitince kart istenmeden Bargu+'ya geçmez; kullanıcı kendisi seçer. Bitimden 3 gün önce uygulama içi hatırlatma.
-  - **Tek seferlik süs paketleri** (tek paket ₺29,99, sezon paketi ₺49,99; çıkartma ve ada görünümüne göre):
-    - Çıkartma kenarı stilleri, ada renk ve desenleri, ortak çerçeve stilleri
+  - **Tek seferlik süs paketleri** (tek paket ₺29,99, sezon paketi ₺49,99; pin görünümüne göre):
+    - Pin halkası stilleri ve desenleri, pin ucu ve etiket stilleri, ortak pin stilleri
     - Avatar çerçeveleri (altın, neon, hareketli)
     - Figür kostümleri (yürüyen figüre şapka, forma; araç yerine spor araba, motosiklet, scooter)
     - Hız izi renkleri ve desenleri
@@ -395,7 +395,7 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
     - Harita temaları
     - Sezon paketleri (yılbaşı, bayram, yaz); maç günü takım renkleri kulüp adı ve logosu olmadan (tescilli marka)
   - Süs kuralları: yalnızca görünüş, hiçbir işlev ya da güvenlik özelliği süsün arkasında değil; rastgele kutu (sürpriz paket) yok. Arkadaşın telefonu bir süsü göstermeden önce satın alındığını doğrular (sunucunun imzaladığı hak), değiştirilmiş uygulama bedava süs gösteremez.
-    - Dilim 3'ün ilk paketleri (PM, 2026-10-16): "Ada desenleri" ve "Çıkartma kenarları", tanesi ₺29,99, dörder stil. Sezon paketi, kostümler, buluşma efektleri ve aylık hediye süs sonraki dilimde.
+    - Dilim 3'ün ilk paketleri (PM, 2026-10-16): "Halka desenleri" ve "Pin çerçeveleri" (2026-10-18'de pin kararıyla "Ada desenleri" ve "Çıkartma kenarları"nın yerine), tanesi ₺29,99, dörder stil. Hiçbiri satılmadığı için paket kimlikleri değişebilir. Sezon paketi, kostümler, buluşma efektleri ve aylık hediye süs sonraki dilimde.
     - Hak, sunucunun imzaladığı kısa süreli bir geçiş belgesidir; seçilen görünümle birlikte profilin yanında ayrı bir şifreli mesajla gider (profil dolgusu dolu olduğu için). Sunucu hangi stilin seçildiğini bilmez. Staging ile üretimin imza anahtarları ayrıdır; staging'deki test süsü üretim uygulamasında geçmez.
     - 15–17 yaşta süs de 2c'deki ebeveyn isteğiyle alınır. Hareketli stiller sade modda ve pil tasarrufunda durur.
   - Etkinlik çemberini düzenleyen öder (Faz 11'deki etkinlik paketi), katılımcı bedava.
@@ -409,6 +409,47 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
   - Ödeme ekranı Türkçe, fiyatlar TL, iptal tek dokunuş; yıllık plan özendirilir. Sınırlar yayından önce ekranda yazılıdır; sonradan bedava bir özellik ücretliye taşınmaz.
   - Ödeme kütüphanesi seçimi ADR ile (gerekçe + bakım durumu). Ödeme kayıtlarında konum ya da çember içeriği yok.
   - Vergi yapısı (bireysel 20/B istisnası ya da şirket) mali müşavirle; KDV ve dijital hizmet vergisini mağaza keser (proje sahibi).
+- **Buluşma (proje sahibinin telefon denemesi, 2026-10-16; ADR 0026; dilim 3b'den önce):**
+  - Haritada buluşma kayıtlı yerden ayrı görünür: farklı renk, kesik kenar, bayraklı iğne ve saat ("17:30 · Ev"); oylanıyorsa "oylanıyor" yazar. Kayıtlı bir yer buluşma yeri olursa buluşma süresince buluşma görünümüne geçer. Oradaki kişilerin pinleri buluşma iğnesinin üstünde görünür kalır.
+  - Dokununca buluşmanın kendi ekranı: yer, saat, kim geliyor, küçük harita, yol tarifi, "geç kalıyorum"; yetkili kişi yer ve saati değiştirir, buluşmayı bitirir.
+  - Etkinlik dışı çemberde de (aile, arkadaş, ikili) "Buluşma başlat", davetsiz. Çemberde aynı anda tek buluşma; başlatan ve çember yöneticileri değiştirir ya da bitirir (ikili çemberde iki kişi eşittir, ikisi de değiştirir ve bitirir; QA 21); bitince birkaç saat sonra sunucudan kendiliğinden silinir. Oylama şimdilik yalnızca etkinlikte.
+  - Gizlilik: "kim geliyor" yalnızca kişinin o çemberde zaten paylaştığından hesaplanır. Hayalet modda, kaba hassasiyette ve duraklamış çemberde varış tahmini yok. "Geldi" yalnızca tam hassasiyette ya da kişi kendisi "geldim" deyince. Yol tarifi yalnızca dokununca harita uygulamasını açar.
+- **Harita kısayolları ve buluşma sayacı (proje sahibinin isteği, 2026-10-16; yalnızca uygulama):**
+  - Sağ kenarda en çok 3 yuvarlak düğme: konumuma dön (harita kaydırılınca), hayalet modu, buluş. Buluşma varken "buluş", sayaç çipine dönüşür. "Geldim" yalnızca saate ya da yere yaklaşınca çıkar. Hayalet modu tek dokunuşla açılır; kapatırken kısa bir onay sorulur ("Konumun yeniden paylaşılacak").
+  - Sayaç çipi üstte: "🏠 Ev · 17:30 · 25 dk"; saatinde "2/4 geldi · 1 yolda". Sayılar buluşmanın gizlilik kurallarıyla hesaplanır: kaba hassasiyetteki ya da hayalet moddaki kişi "yolda" sayılmaz. Telefonun saatiyle çalışır, yoklama yok. Herkes gelince konfeti, sade moda uyar.
+  - Sonra (ayrı dilim, yerel modül): bildirim çubuğunda canlı sayaç (Android süren bildirim, iOS Live Activity).
+  - Efektler (proje sahibi "PM yönlendirsin" dedi; PM, 2026-10-17): düğmelerin yaylı girişi (yalnızca harita ilk açılınca), hayalet açılınca süzülme (birkaç tur, sonra durur) ve kapanınca "pof", "Konumuma dön"de radar halkası, "Geldim" belirince birkaç nabız, sayaçta kayan rakamlar. Yeni efektler hep sonludur (pil). Sade mod (tam / az / kapalı) bu dilimde gelir ve bütün efektleri ölçekler. "Tam"da (varsayılan) haritadaki kişiler bugünkü gibi canlıdır. Hava katmanı ise "tam"da da harita açılınca, hava değişince ve dokununca yaklaşık 20 saniye oynar, sonra son karede durur; "az"da durağandır, "kapalı"da yoktur. "Az"da her yeni konumda tek kısa döngü, "kapalı"da hiç; bu ikisinde boştaki harita kare üretmez. Pil tasarrufu açıkken ya da pil %20'nin altındayken uygulama kendiliğinden "az" gibi davranır. "Hareketi azalt" açıkken "kapalı" gibi davranır.
+  - QA 23 notları (sonraki uygulama dilimine): titreşim yalnızca Efektler seçimine ve telefonun kendi titreşim ayarına bağlıdır; "Hareketi azalt" ve pil tasarrufu titreşimi kapatmaz (PM kararı, ADR 0027'ye yazılır). QR ekranlarındaki döngüler sade mod canlı değişince de dursun.
+  - QA 22 düşük notları (sonraki uygulama dilimine): çip, saati geçmiş ama henüz silinmemiş buluşmayı yaklaşan buluşmanın önüne koyuyor, yaklaşan öne gelsin. Alıcı, kaba konumla gelen tahmini de "yolda" sayıyor; gönderici zaten atıyor, savunma için alıcı da doğruluk ≤ 100 m şartı arasın. Buluşma saatinin sunucuda tam saate yuvarlanması (ADR 0026, "sonra") da bu dilime.
+- **Tema yenileme (proje sahibinin gönderdiği tasarım, 2026-10-18; ADR 0008 eki; dilim 3b'den önce; yalnızca uygulama):**
+  - Koyu temada lacivert-mor tonlu yüzeyler, ince mor kenarlı kartlar, daha parlak mor vurgu, seçili öğede durağan mor parıltı; açık temanın karşılığı da çıkarılır. Renk kontrast testi geçer.
+  - Açıklama satırlarında ⓘ simgesi.
+  - "Seni görüyor" hapı iki satır ve ok. İkinci satır gerçek durumu söyler: hayalet ya da dondurulmuşsa "konumun paylaşılıyor" demez.
+  - Hava ayrı kart, sıcaklık ve şehir. Şehir adı telefonda haritanın kendi etiketlerinden çıkar, ağa sorulmaz (ADR 0013).
+  - Kısayol düğmeleri koyu ve ince kenarlı. Hayalet düğmesindeki mor nokta "konumun şu an paylaşılıyor" demektir (proje sahibi): en az bir çember konumunu şu an alıyorsa görünür; hayalet, dondurma, duraklama ya da paylaşım kapalıyken kalkar.
+  - Dock'ta seçili sekme göstergesi. Ben sayfasında simgeli seçim çubukları ve gruplu kartlar.
+  - Parıltılar sade moda uyar.
+  - Kişi işareti pin olur (proje sahibi, 2026-10-18; Bölüm 4.3).
+- **Konum gecikmesi ve sapma (proje sahibinin telefon denemesi, 2026-10-18; birinci öncelik):**
+  - Önce uçtan uca ölçüm (yalnızca süreler, koordinat yok), sonra düzeltme. Hedef: iki taraf da açıkken 1–3 sn.
+  - Alıcıdaki tahmin en çok birkaç saniye ileri gider ve hiç geri sıçramaz (bugün 10 sn ileri gidip dönüşte geri sıçrıyordu). Kötü örnekler (düşük doğruluk, olanaksız hız) süzülür.
+  - Arka planda gecikme: izlenen telefonun canlı moda geçirilmesi araştırılır; aralık politikası değişirse ADR. Canlı mod dışında pil geriye gitmez.
+  - 1. adım yapıldı ve QA 25'ten geçti (ADR 0028): tahmin en çok 1 sn, geri sıçrama yok, gönderen süzgeci, kapalı alanda belirsizlik dairesi, kaba çembere giden konum değişmedi. Düşük not: 24,8 günden uzak paylaşım bitişinde zamanlayıcı taşıyor, parçalı kurulsun. 2. adım: proje sahibinin ölçümü; 3. adım: arka planda canlı mod (ADR 0028 onayıyla).
+- **Daha gerçekçi hareket görselleri (proje sahibi, 2026-10-18; konum düzeltmesinden sonra, dilim 3b'den önce):**
+  - Yürüme, koşma, bisiklet ve araba yeniden çizilir; donma nedeni bulunur. Pil tasarrufu sade modu "az"a çektiyse Ben > Efektler'de bunun nedeni yazar.
+  - 120 km/sa üstünde yarış arabası ve hız çizgileri; korkuluklarla:
+    - Yalnızca paylaşan "Hızımı göster" açık ve tam hassasiyetteyse.
+    - 200 km/sa üstü yarış arabası değil, hızlı ulaşım (tren ya da uçak) görünür.
+    - Hız kutlanmaz: konfeti, ses ya da rozet yok.
+    - Sade moda uyar.
+  - Önce proje sahibine görsel önizleme.
+- **UX düzeni (proje sahibinin paylaştığı GPT notu, 2026-10-21; PM; hareket görsellerinden sonra, dilim 3b'den önce; yalnızca uygulama):**
+  - Kişi kartında "Sessize al" ve sessiz göstergesi; Ben > Bildirimler'de sistem ayarına geçiş ve sessize alınanların listesi.
+  - Ben sayfası başlıklı gruplar: Profil · Konum ve gizlilik (hayalet, kimler görüyor, konum geçmişim) · Güvenlik (geçiş anahtarı, güvenlik, ebeveyn) · Bildirimler · Görünüm ve harita · Bargu+ ve uygulama · Çıkış ayrı. "Gizlilik ve hesap" içeriğine göre "Hesap ve veri" olur.
+  - "Seni görenler" ekranındaki çember kartı o çemberin paylaşım ayarını açar; Ben'den de bu ekrana gidilir.
+  - Ekle menüsünün adı "Ekle" olur ve içine "Çember oluştur" eklenir. "Çemberden ayrıl" ayrı bir tehlike bölümüne taşınır. Boş bölümler açıklama ve işlem gösterir.
+  - Kişi kartında görünür kapat (×) düğmesi. Karttaki "Profil" düğmesinin adı açtığı ekrana göre düzeltilir.
+  - Sonraya: alt ekrandan dönünce Ben ya da Çemberler sayfasının ve kaydırma yerinin korunması.
 - **Güvendeyim düğmesi:** tek dokunuşla seçilen çemberlere "iyiyim" + konum + pil. Mevcut şifreli bildirim yolundan gider; zayıf ağda kuyruğa alınır, küçük paketle tekrar denenir. SMS yedeği ayrı karar (Bölüm 7).
 - **"Neden eski?" durumu:** eski konumun yanında nedeni: çevrim dışı (saatiyle), pil tasarrufu, konum izni kapalı. Nedeni gönderen telefon bilir, şifreli nabız mesajına eklenir. Hayalet modda neden gösterilmez.
 - **Zengin davet kartı:** davet linki WhatsApp ve Instagram'da önizlemeli açılır. Önizlemeyi o şirketlerin sunucuları çektiği için kişisel veri içermez (ad, fotoğraf yok); ad ve fotoğraf uygulamada çözülür.
@@ -435,6 +476,12 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 - **Önce Google Play:** 13 Kasım 2023'ten sonra açılan kişisel geliştirici hesabı, üretime çıkmadan önce en az 12 test kullanıcısıyla 14 gün kesintisiz kapalı test yapmak zorunda ([Google](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)). Hesap ve 12 kişilik test grubu Faz 10'dan önce hazırlanır (proje sahibi); bu grup ilk lansman grubunun çekirdeği olabilir. iOS yayını Apple üyeliğinden sonra.
 - **Deneme mağazaya taşınır:** gerçek ödemeye geçince 21 günlük deneme, Google Play'in kendi ücretsiz deneme teklifiyle verilir (Google hesabı başına bir kez); hesabı silip yeniden açarak yeni deneme alma riski böylece kapanır (QA 19 P5, ADR 0024).
 - **İleri uyumluluk:** telefon bütün sunucu cevaplarını yeni alanları atlayarak okusun; istekler katı kalsın. Böylece sunucuya alan eklenince kurulu APK'lar bozulmaz (32b0f2d'de çember ve üye kartı için yapıldı). Tanımadığı tür değerini (yeni istek ya da bildirim türü) de bozulmadan atlasın. Sunucu, yeni bir türü onu tanımayan eski sürüme (x-bargu-client seviyesi düşük) göndermesin (2c'de ebeveyn isteklerindeki "purchase" türüyle başladı). Şifreli profil içeriği de tanımadığı alanı atar (b85ac9d); tanımadığı içerik türünü alıcı yok sayar.
+- **Emülatörde duman testi** (2026-10-21'deki donmadan sonra): Jest, Reanimated worklet'lerini JS thread'de çalıştırdığı için UI thread hatalarını görmez; bc5f925'teki worklet olmayan fonksiyon çağrısı telefonu dondurdu. Her APK'dan önce bir Android emülatöründe kısa bir açılış ve harita testi (CI'da ya da yerelde). O zamana kadar `worklet-calls` testi bu hata türünü yakalar.
+- **Geliştirici araçları production paketinden derleme zamanında çıkar** (QA 25): bugün kapalı da olsa sürü denemesi, test satın alma ve kripto ölçümü kodu pakette duruyor; ölçüm katmanı gibi bayrakla tamamen dışarıda kalsın. Doğrulama `expo export --clear` ile.
+- **Dış tarama notları (GPT taraması, 2026-10-21; PM doğruladı):**
+  - `decode-uri-component` 0.2.2 (GHSA-vcc3-ghjq-m6fr, orta): expo-router'ın bağlantı ayrıştırmasıyla uygulamada çalışıyor. Bozuk bir davet bağlantısı uygulamayı dondurabilir. Gelen bağlantı ayrıştırılmadan önce süzülsün (`+native-intent`: uzunluk, bilinen yollar, bozuk yüzde kodlaması reddedilir). Expo ile uyumluysa yamalı sürüme geçilsin. Bir sonraki uygulama dilimine.
+  - `uuid` 7/8 (GHSA-w5hq-g745-h8pq, orta): yalnızca iOS proje araçlarında (xcode, @bacons/xcode), uygulamaya girmiyor; Expo güncellemesinde kendiliğinden kalkar.
+  - Kullanılmayan kod adayları (Knip): `memoryVaultForTests` gerçekten ölü; yalnızca dosya içinde kullanılan export'lar temizlensin. Toplu temizlik Faz 10'da, her aday elle doğrulanarak.
 - Jailbreak/root tespiti: sadece uyarı.
 - **DoD:** kritik/yüksek bulgu yok, restore testi başarılı.
 
