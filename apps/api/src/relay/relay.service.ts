@@ -34,6 +34,12 @@ export const RELAY_LIMITS = {
   placeEvents: { limit: 20, windowSeconds: 600 },
   /** "Güvendeyim" per sender and circle (docs/ADR/0029): a person says it now and then. */
   safes: { limit: 6, windowSeconds: 3600 },
+  /**
+   * "Neden eski?" (docs/ADR/0028) per device and circle. The phone tells a circle at most once per
+   * 45 seconds (a change, the 5-minute repeat, a retry), so two in a minute is its own rule and a
+   * third is room for the one that goes out when the connection returns.
+   */
+  states: { limit: 3, windowSeconds: 60 },
 } as const;
 
 /**
@@ -57,8 +63,15 @@ const statusKey = (circleId: string) => `status:${circleId}`;
 const profileKey = (circleId: string) => `profile:${circleId}`;
 /** Latest look message per member (the chosen cosmetics and their pass, docs/ADR/0025). */
 const lookKey = (circleId: string) => `look:${circleId}`;
+/**
+ * Latest `state` message per member ("Neden eski?", docs/ADR/0028): why their last location may be
+ * old. Only the newest is kept, for as long as the location it explains.
+ */
+const stateKey = (circleId: string) => `state:${circleId}`;
 /** Phones publish their profile again on every new epoch; this keeps it for quiet circles. */
 export const PROFILE_TTL_SECONDS = 30 * 24 * 3600;
+/** A reason explains a location, which is kept this long and no longer. */
+export const STATE_TTL_SECONDS = LOCATION_TTL_SECONDS;
 
 /** What the relay keeps per member: the location, and the status (emoji + text). */
 const STORES = {
@@ -81,6 +94,13 @@ const STORES = {
     event: 'look',
     gone: 'look.gone',
     limit: RELAY_LIMITS.statuses,
+  },
+  // Why the location is old: its own route and slot, nothing else may fill it.
+  state: {
+    key: stateKey,
+    event: 'state',
+    gone: 'state.gone',
+    limit: RELAY_LIMITS.states,
   },
 } as const;
 type Store = keyof typeof STORES;
@@ -165,8 +185,9 @@ export class RelayService {
     let accepted = 0;
     for (const envelope of envelopes) {
       const membership = memberships.get(envelope.circleId);
+      // Nobody keeps a paused circle open (docs/ADR/0024): what explains its live location waits too.
       const code =
-        store === 'loc' && membership !== undefined && !membership.open
+        (store === 'loc' || store === 'state') && membership !== undefined && !membership.open
           ? 'PAUSED'
           : await this.check(auth, envelope, membership, `${store}:${auth.deviceId}`, limit);
       if (code !== null) {
@@ -207,6 +228,21 @@ export class RelayService {
   /** The latest look message of every other member, in every circle the caller is active in. */
   looks(auth: AuthContext): Promise<MessageEnvelope[]> {
     return this.read('look', auth);
+  }
+
+  /**
+   * "Neden eski?" (docs/ADR/0028): why the caller's last location may be old, sealed for one
+   * circle. Only the newest is kept per member and circle. The relay sees ciphertext and a time;
+   * the phone decides who it is told to (ghost mode and each circle's sharing are settings it
+   * does not know), the relay only refuses non-members, a paused circle and too many.
+   */
+  publishState(auth: AuthContext, envelopes: MessageEnvelope[]): Promise<PublishReply> {
+    return this.store('state', auth, envelopes, STATE_TTL_SECONDS);
+  }
+
+  /** The latest `state` message of every other member, in every circle the caller is active in. */
+  states(auth: AuthContext): Promise<MessageEnvelope[]> {
+    return this.read('state', auth);
   }
 
   /** The latest location of every other member, in every circle the caller is active in. */
@@ -254,6 +290,10 @@ export class RelayService {
     const memberships = await this.memberships(auth.userId, circleIds);
     for (const [circleId, membership] of memberships) {
       await this.remove(store, circleId, auth.userId, membership.others);
+      // The reason explains the location that was just taken back: a circle the phone stopped
+      // sharing with is not to learn why it was old afterwards. (`loc.gone` already tells the
+      // other phones to drop both.)
+      if (store === 'loc') await this.redis.hDel(STORES.state.key(circleId), auth.userId);
     }
   }
 
@@ -414,6 +454,7 @@ export class RelayService {
     await this.remove('status', circleId, userId, others);
     await this.remove('profile', circleId, userId, others);
     await this.remove('look', circleId, userId, others);
+    await this.remove('state', circleId, userId, others);
   }
 
   private async remove(
@@ -433,6 +474,7 @@ export class RelayService {
       statusKey(circleId),
       profileKey(circleId),
       lookKey(circleId),
+      stateKey(circleId),
     ]);
   }
 

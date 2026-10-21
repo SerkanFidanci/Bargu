@@ -106,3 +106,12 @@ export const statusSnapshotSchema = z
 /** Live server → app messages for statuses (like `loc` / `loc.gone`). */
 export const statusEventSchema = z.object({ envelope: messageEnvelopeSchema }).strict();
 export const statusGoneEventSchema = z.object({ circleId: z.uuid(), userId: z.uuid() }).strict();
+
+/**
+ * "Neden eski?" (docs/ADR/0028): a member's latest `state` message per circle, on a route of its
+ * own like looks. Published with `locationPublishSchema` (POST /v1/states or the `state` socket
+ * message), read back as a snapshot after connecting, and pushed live as a `state` event; the server
+ * says `state.gone` when the member leaves the circle or stops sharing the location with it.
+ */
+export const stateEventSchema = z.object({ envelope: messageEnvelopeSchema }).strict();
+export const stateGoneEventSchema = z.object({ circleId: z.uuid(), userId: z.uuid() }).strict();

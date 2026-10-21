@@ -202,6 +202,8 @@ export {
   safeEventSchema,
   safeReplySchema,
   safeRequestSchema,
+  stateEventSchema,
+  stateGoneEventSchema,
   statusEventSchema,
   statusGoneEventSchema,
   statusPublishSchema,

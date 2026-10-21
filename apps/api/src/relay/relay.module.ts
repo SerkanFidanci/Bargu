@@ -8,6 +8,7 @@ import { RelayController } from './relay.controller.js';
 import { RelayGateway } from './relay.gateway.js';
 import { RelayService } from './relay.service.js';
 import { SafeController } from './safe.controller.js';
+import { StateController } from './state.controller.js';
 import { StatusController } from './status.controller.js';
 
 /**
@@ -23,6 +24,7 @@ import { StatusController } from './status.controller.js';
     SafeController,
     ProfileController,
     LookController,
+    StateController,
   ],
   providers: [RelayService, RelayGateway],
   exports: [RelayService],
