@@ -15,7 +15,7 @@ import { toast } from '@/ui/toast';
 
 import { backgroundLive } from '../location/background-live/slot';
 import { memoryStore } from '../location/test-support';
-import { rememberSafe, SAFE_FRESH_MS } from '../social/safe';
+import { rememberSafe, SAFE_AHEAD_MS, SAFE_FRESH_MS } from '../social/safe';
 import {
   loadSpots,
   openSpot,
@@ -341,6 +341,34 @@ describe('Güvendeyim from a member (docs/ADR/0029)', () => {
     const old = fromAyse(safe({ id: 'AAAAAAAAAAAAAAAAAAAAAQ', ts: NOW - SAFE_FRESH_MS - 1 }));
     expect(await showPush(old, NOW)).toBe('stale');
     expect(scheduled).toHaveBeenCalledTimes(1);
+  });
+
+  it('is taken when dated up to five minutes ahead and dropped, unseen, when dated further', async () => {
+    const ahead = (ts: number, id: string) => fromAyse(safe({ ts, id }));
+    expect(SAFE_AHEAD_MS).toBe(5 * 60_000);
+    // To the millisecond.
+    expect(await showPush(ahead(NOW + SAFE_AHEAD_MS, 'AAAAAAAAAAAAAAAAAAAAAA'), NOW)).toBe('shown');
+    expect(await showPush(ahead(NOW + SAFE_AHEAD_MS + 1, 'AAAAAAAAAAAAAAAAAAAAAQ'), NOW)).toBe(
+      'future',
+    );
+    expect(await showPush(ahead(NOW + 24 * 60 * 60_000, 'AAAAAAAAAAAAAAAAAAAAAg'), NOW)).toBe(
+      'future',
+    );
+    expect(scheduled).toHaveBeenCalledTimes(1);
+    appIs('active');
+    expect(await showPush(ahead(NOW + SAFE_AHEAD_MS + 1, 'AAAAAAAAAAAAAAAAAAAAAw'), NOW)).toBe(
+      'future',
+    );
+    expect(toasted).not.toHaveBeenCalled();
+    expect(toastNotice).not.toHaveBeenCalled();
+    // A message dropped as ahead is not remembered: the same id, dated right, is shown.
+    appIs('background');
+    expect(await showPush(ahead(NOW, 'AAAAAAAAAAAAAAAAAAAAAQ'), NOW)).toBe('shown');
+    // A day behind to the millisecond is still news, a millisecond more is not (as before).
+    expect(await showPush(ahead(NOW - SAFE_FRESH_MS, 'AAAAAAAAAAAAAAAAAAAAAw'), NOW)).toBe('shown');
+    expect(await showPush(ahead(NOW - SAFE_FRESH_MS - 1, 'AAAAAAAAAAAAAAAAAAAABA'), NOW)).toBe(
+      'stale',
+    );
   });
 
   it('is dropped without a word from a device this phone does not trust', async () => {

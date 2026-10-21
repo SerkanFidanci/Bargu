@@ -10,7 +10,7 @@ import { useAuth } from '../auth/auth-store';
 import { ensureSession } from '../live/live-session';
 import { backgroundLive } from '../location/background-live/slot';
 import { loadSharing, seenThere } from '../location/sharing';
-import { rememberSafe, SAFE_FRESH_MS } from '../social/safe';
+import { rememberSafe, SAFE_FRESH_MS, safeAge } from '../social/safe';
 import { keepSpot, showSpot } from '../social/safe-spot';
 import { vault } from '../storage/vault';
 import { isMuted, loadMutes } from './mutes';
@@ -34,7 +34,8 @@ const SEEN_KEY = 'push:seen:v1';
 const SEEN_KEEP = 50;
 
 /** `watch`: the silent signal of background live mode, which is never shown. */
-export type Shown = 'shown' | 'inApp' | 'muted' | 'stale' | 'duplicate' | 'refused' | 'watch';
+export type Shown =
+  'shown' | 'inApp' | 'muted' | 'stale' | 'future' | 'duplicate' | 'refused' | 'watch';
 
 /**
  * Opens a sealed notification on this phone and shows it in the user's words: from a member, only
@@ -65,6 +66,8 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
       ? SAFE_FRESH_MS
       : PUSH_FRESH_MS;
   if (now - opened.body.ts > fresh) return 'stale';
+  // Dated more than a few minutes ahead: a wrong clock, or made up. Not shown (docs/ADR/0029 §5).
+  if (opened.body.kind === 'safe' && safeAge(opened.body.ts, now) === 'ahead') return 'future';
   // The ephemeral key at the start of the box is fresh for every box: a good "seen" mark.
   const mark = sealed.slice(0, 48);
   const seen = z

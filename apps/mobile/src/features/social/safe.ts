@@ -35,6 +35,12 @@ import { keepSpot, type SafeSpot } from './safe-spot';
 export const SAFE_KEEP_MS = 24 * 60 * 60_000;
 /** A message older than this when it arrives is not shown (the notification service is a day too). */
 export const SAFE_FRESH_MS = 24 * 60 * 60_000;
+/**
+ * A message dated further ahead than this when it arrives is dropped: the sender's clock is wrong
+ * or it is made up (a few minutes of drift between two phones is fine). The same allowance as a
+ * server notice's.
+ */
+export const SAFE_AHEAD_MS = 5 * 60_000;
 /** The words carry the time once the message is older than this (it waited for a connection). */
 export const SAFE_LATE_MS = 5 * 60_000;
 /** How many ids of shown messages this phone keeps, to show each once. */
@@ -167,6 +173,16 @@ export function safeWords(input: { name: string; bat: number; ts: number; now: n
 }
 
 /**
+ * How old a message is for showing it: `ahead` when it is dated more than SAFE_AHEAD_MS in the
+ * future, `old` after a day, else `fresh`. At the limits themselves (5 minutes ahead, a day old) it
+ * is still fresh.
+ */
+export function safeAge(ts: number, now: number): 'fresh' | 'old' | 'ahead' {
+  if (ts - now > SAFE_AHEAD_MS) return 'ahead';
+  return now - ts > SAFE_FRESH_MS ? 'old' : 'fresh';
+}
+
+/**
  * Whether this message was not shown yet; it is remembered if so. A phone that gets both the
  * message and its notification (the server sends the notification only when the app is closed,
  * but a connection can drop in between) shows it once. The memory is of the circle, the sender AND
@@ -208,7 +224,7 @@ export function receiveSafe(input: {
   now: number;
 }): ReceivedSafe | null {
   const { store, circles, circleId, userId, safe, now } = input;
-  if (now - safe.ts > SAFE_FRESH_MS) return null;
+  if (safeAge(safe.ts, now) !== 'fresh') return null;
   const member = circles
     .find((circle) => circle.id === circleId && circle.myStatus === 'active')
     ?.members.find((candidate) => candidate.userId === userId && candidate.status === 'active');

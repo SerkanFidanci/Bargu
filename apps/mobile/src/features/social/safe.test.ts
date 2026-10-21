@@ -28,7 +28,9 @@ import {
   needsConfirm,
   receiveSafe,
   rememberSafe,
+  SAFE_AHEAD_MS,
   SAFE_FRESH_MS,
+  safeAge,
   SAFE_KEEP_MS,
   safeRows,
   safeWords,
@@ -639,6 +641,51 @@ describe('what the receiving phone writes', () => {
     expect(rememberSafe(store, circle.id, w.ayse.userId, id)).toBe(false);
     expect(rememberSafe(store, circle.id, mallory.userId, id)).toBe(false);
     expect(rememberSafe(store, circle.id, w.bora.userId, id)).toBe(true);
+  });
+
+  it('takes a message dated up to five minutes ahead and drops one dated further (a wrong clock, or made up)', () => {
+    const w = world();
+    const at = (ts: number, id: string) =>
+      receiveSafe({
+        store: memoryStore(),
+        circles: [w.home],
+        circleId: w.home.id,
+        userId: w.bora.userId,
+        safe: { kind: 'safe', id, lat: 41, lng: 29, acc: 8, bat: 45, ts },
+        now: NOW,
+      });
+    expect(SAFE_AHEAD_MS).toBe(5 * MIN);
+    // Boundaries, to the millisecond: ahead by five minutes is fine, a millisecond more is not.
+    expect(at(NOW + SAFE_AHEAD_MS, 'AAAAAAAAAAAAAAAAAAAAAA')).not.toBeNull();
+    expect(at(NOW + SAFE_AHEAD_MS + 1, 'AAAAAAAAAAAAAAAAAAAAAQ')).toBeNull();
+    expect(at(NOW + 24 * 60 * MIN, 'AAAAAAAAAAAAAAAAAAAAAg')).toBeNull();
+    // Behind: a day is fine, a millisecond more is too old.
+    expect(at(NOW - SAFE_FRESH_MS, 'AAAAAAAAAAAAAAAAAAAAAw')).not.toBeNull();
+    expect(at(NOW - SAFE_FRESH_MS - 1, 'AAAAAAAAAAAAAAAAAAAABA')).toBeNull();
+    expect(safeAge(NOW + SAFE_AHEAD_MS, NOW)).toBe('fresh');
+    expect(safeAge(NOW + SAFE_AHEAD_MS + 1, NOW)).toBe('ahead');
+    expect(safeAge(NOW - SAFE_FRESH_MS, NOW)).toBe('fresh');
+    expect(safeAge(NOW - SAFE_FRESH_MS - 1, NOW)).toBe('old');
+    // The ones dropped did not use up their ids (each had its own store here, so: not remembered).
+    const store = memoryStore();
+    const input = {
+      store,
+      circles: [w.home],
+      circleId: w.home.id,
+      userId: w.bora.userId,
+      now: NOW,
+    };
+    const safe: SafePayload = {
+      kind: 'safe',
+      id: 'AAAAAAAAAAAAAAAAAAAAAA',
+      lat: 41,
+      lng: 29,
+      acc: 8,
+      bat: 45,
+      ts: NOW,
+    };
+    expect(receiveSafe({ ...input, safe: { ...safe, ts: NOW + 10 * MIN } })).toBeNull();
+    expect(receiveSafe({ ...input, safe })).not.toBeNull();
   });
 
   it('shows nothing for a message that is too old, or from someone who is not in the circle', () => {
