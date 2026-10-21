@@ -8,6 +8,8 @@ export const HOME = '/';
 /**
  * The only screens a link from outside may open: an invite (bargu://i/…) and a guardian request
  * (bargu://g/…), each with a token of the one form the server makes. A bare bargu:// opens the app.
+ * When invites become https links (Android App Links, the rich invite card of Faz 9B), only
+ * https://<Bargu's own domain>/i/… and /g/… may be added here: other https links must still fail.
  */
 const SCREENS: ReadonlySet<string> = new Set(['i', 'g']);
 
