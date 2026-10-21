@@ -8,6 +8,8 @@ export interface PushMessage {
   token: string;
   /** The sealed notification (docs/PROTOCOL.md §7): the app opens it and words it itself. */
   sealed: string;
+  /** How long FCM may keep it for a phone that is off (default an hour). */
+  ttlSeconds?: number;
 }
 
 /** `sent`; `unregistered`: the token is dead (app removed, data cleared), forget it. */
@@ -55,7 +57,7 @@ export class FcmClient {
             token: message.token,
             data: { bargu: message.sealed },
             // Older than an hour is better told by the app itself when it opens.
-            android: { priority: 'HIGH', ttl: '3600s' },
+            android: { priority: 'HIGH', ttl: `${String(message.ttlSeconds ?? 3_600)}s` },
           },
         }),
         signal: AbortSignal.timeout(10_000),

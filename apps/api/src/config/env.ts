@@ -189,6 +189,16 @@ export const envSchema = z
         .regex(/^[A-Z0-9]{10}$/)
         .optional(),
     ),
+    /**
+     * Background live mode (docs/ADR/0028 step 3): `on` sends a silent `watch` notice to the
+     * members of a watched circle whose app is closed, so their phone can go live. Fail-closed:
+     * unset is off (staging's compose file turns it on).
+     */
+    WATCH_PUSH: z.enum(['on', 'off']).default('off'),
+    /** A recipient gets at most one `watch` notice this often (seconds), however many watch. */
+    WATCH_PUSH_MIN_SECONDS: z.coerce.number().int().min(1).max(3_600).default(90),
+    /** …and at most this many an hour. */
+    WATCH_PUSH_PER_HOUR: z.coerce.number().int().min(1).max(600).default(20),
     /** The app's bundle id (apps/mobile app.config.ts). */
     APNS_TOPIC: z
       .string()

@@ -135,6 +135,31 @@ describe('parseEnv', () => {
     expect(message).not.toContain('s3cret-pass');
   });
 
+  it('keeps the background live notice off unless turned on, with limits that can be set (ADR 0028)', () => {
+    expect(parseEnv(base)).toMatchObject({
+      WATCH_PUSH: 'off',
+      WATCH_PUSH_MIN_SECONDS: 90,
+      WATCH_PUSH_PER_HOUR: 20,
+    });
+    expect(parseEnv(production).WATCH_PUSH).toBe('off');
+    expect(
+      parseEnv({
+        ...base,
+        WATCH_PUSH: 'on',
+        WATCH_PUSH_MIN_SECONDS: '120',
+        WATCH_PUSH_PER_HOUR: '10',
+      }),
+    ).toMatchObject({ WATCH_PUSH: 'on', WATCH_PUSH_MIN_SECONDS: 120, WATCH_PUSH_PER_HOUR: 10 });
+    for (const bad of [
+      { WATCH_PUSH: 'yes' },
+      { WATCH_PUSH_MIN_SECONDS: '0' },
+      { WATCH_PUSH_PER_HOUR: '0' },
+      { WATCH_PUSH_PER_HOUR: 'many' },
+    ]) {
+      expect(() => parseEnv({ ...base, ...bad })).toThrow(InvalidEnvError);
+    }
+  });
+
   it('keeps test purchases off unless turned on, and never on in production (docs/ADR/0024)', () => {
     // Fail-closed: nothing set is off, wherever it runs.
     expect(billingTestOn(parseEnv(base))).toBe(false);

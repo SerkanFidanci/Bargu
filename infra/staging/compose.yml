@@ -53,6 +53,12 @@ x-app-env: &app-env
   DEVICE_ATTESTATION: optional
   # Test purchases (docs/ADR/0024 §6): off unless .env says BILLING_TEST=on; never in production.
   BILLING_TEST: ${BILLING_TEST:-off}
+  # Background live mode (docs/ADR/0028 step 3): staging sends the silent `watch` notice to members
+  # whose app is closed (the code's own default is off). Per recipient: one every
+  # WATCH_PUSH_MIN_SECONDS and WATCH_PUSH_PER_HOUR an hour.
+  WATCH_PUSH: ${WATCH_PUSH:-on}
+  WATCH_PUSH_MIN_SECONDS: ${WATCH_PUSH_MIN_SECONDS:-90}
+  WATCH_PUSH_PER_HOUR: ${WATCH_PUSH_PER_HOUR:-20}
   # The oldest app served (QA 19 P4): 0 serves all; raise it in .env to make old APKs update.
   MIN_CLIENT_LEVEL: ${MIN_CLIENT_LEVEL:-0}
   # Signs cosmetic passes (docs/ADR/0025): staging's own key, generated on the server into .env.

@@ -83,6 +83,15 @@ describe('push bodies', () => {
     }
   });
 
+  it('has a watch notice that names the circle and nobody else (docs/ADR/0028 step 3)', () => {
+    const body = { kind: 'notice', notice: 'watch', circleId: uuid, ts: 1 };
+    expect(pushBodySchema.parse(body)).toEqual(body);
+    // No watcher, device or signature can ride along.
+    for (const extra of [{ watcherId: uuid }, { userId: uuid }, { deviceId: uuid }, { sig: 'x' }]) {
+      expect(pushBodySchema.safeParse({ ...body, ...extra }).success).toBe(false);
+    }
+  });
+
   it('refuses unknown notices, events and fields', () => {
     expect(
       pushBodySchema.safeParse({ kind: 'notice', notice: 'hello', circleId: uuid, ts: 1 }).success,

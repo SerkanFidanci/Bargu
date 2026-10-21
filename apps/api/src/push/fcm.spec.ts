@@ -67,6 +67,16 @@ describe('FcmClient', () => {
     expect(fetchMock.mock.calls.filter(([u]) => u.includes('oauth2'))).toHaveLength(1);
   });
 
+  it('keeps a message for the time it is given (a watch signal is of no use late)', async () => {
+    let sent: { message: { android: unknown } } | undefined;
+    const { fcm } = client((body) => {
+      sent = body as typeof sent;
+      return json(200, {});
+    });
+    await fcm.send({ ...message, ttlSeconds: 120 });
+    expect(sent?.message.android).toEqual({ priority: 'HIGH', ttl: '120s' });
+  });
+
   it('reports a dead token, refuses a malformed message for good, and retries the rest', async () => {
     await expect(
       client(() =>

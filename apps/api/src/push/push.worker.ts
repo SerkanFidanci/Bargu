@@ -70,7 +70,7 @@ export class PushWorker implements OnApplicationBootstrap {
       // no longer uses: nothing to do.
       const sealed = target === null ? null : sealedFor(parsed.data, target);
       if (target === null || sealed === null) return { id: job.id, status: 'completed' };
-      const result = await this.send(target, sealed);
+      const result = await this.send(target, sealed, ttlOf(parsed.data));
       if (result === 'unregistered') await this.tokens.remove(target.userId, target.deviceId);
       return { id: job.id, status: 'completed' };
     } catch (error) {
@@ -81,7 +81,7 @@ export class PushWorker implements OnApplicationBootstrap {
     }
   }
 
-  private send(target: PushTarget, sealed: string): Promise<SendResult> {
+  private send(target: PushTarget, sealed: string, ttlSeconds?: number): Promise<SendResult> {
     if (target.platform === 'ios') {
       return this.apns === null
         ? Promise.resolve('sent')
@@ -89,13 +89,28 @@ export class PushWorker implements OnApplicationBootstrap {
     }
     return this.fcm === null
       ? Promise.resolve('sent')
-      : this.fcm.send({ token: target.token, sealed });
+      : this.fcm.send({
+          token: target.token,
+          sealed,
+          ...(ttlSeconds === undefined ? {} : { ttlSeconds }),
+        });
   }
+}
+
+/** A `watch` signal older than this is of no use: Google drops it instead of delivering it late. */
+export const WATCH_TTL_SECONDS = 120;
+
+/** How long Google may keep this job's message for a phone that is off (default: an hour). */
+export function ttlOf(job: PushJob): number | undefined {
+  return job.type === 'notice' && job.notice === 'watch' ? WATCH_TTL_SECONDS : undefined;
 }
 
 /** The sealed box for this target, or null when the job was meant for another device. */
 export function sealedFor(job: PushJob, target: PushTarget, now = Date.now()): string | null {
   if (job.type === 'sealed') return job.deviceId === target.deviceId ? job.sealed : null;
+  // The silent `watch` notice (docs/ADR/0028 step 3) is for Android only for now: an iPhone would
+  // show the placeholder text for it, and a signal nobody should see must not light a screen.
+  if (job.notice === 'watch' && target.platform !== 'android') return null;
   return sealPush({
     recipient: { deviceId: target.deviceId, dhKey: target.dhKey },
     sender: null,

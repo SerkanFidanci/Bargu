@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type DevicePushes, PUSH_NOTICES, type PushNotice, sealedPushSchema } from '@bargu/schemas';
 import { sql } from 'drizzle-orm';
-import type { PgBoss } from 'pg-boss';
+import type { PgBoss, SendOptions } from 'pg-boss';
 import { z } from 'zod';
 
 import { ENV } from '../config/config.module.js';
@@ -57,6 +57,9 @@ export async function currentDevices(
   );
 }
 
+/** A queued `watch` notice not picked up by then is dropped: a signal that late is of no use. */
+const WATCH_JOB_SECONDS = 60;
+
 /** The same news about the same circle reaches a phone at most once a minute. */
 export const PUSH_THROTTLE_SECONDS = 60;
 /**
@@ -72,7 +75,8 @@ export const GUARDIAN_NOTICES_PER_HOUR = 30;
 @Injectable()
 export class Notifier {
   private readonly logger = new Logger('Notifier');
-  private readonly enabled: boolean;
+  /** Whether any push service is configured (else nothing is queued). */
+  readonly enabled: boolean;
 
   constructor(
     @Inject(JOB_QUEUE) private readonly boss: PgBoss,
@@ -125,13 +129,31 @@ export class Notifier {
     }
   }
 
-  private async queue(job: PushJob, singletonKey: string | null): Promise<void> {
+  /**
+   * The silent `watch` notice (docs/ADR/0028 step 3): someone looks at this circle now. Its
+   * allowance is the caller's (WatchNotices); here it is sent once and never retried, since a
+   * signal that late is of no use (the phone would go live for nobody).
+   */
+  async notifyWatch(userId: string, circleId: string): Promise<void> {
+    await this.queue({ type: 'notice', userId, notice: 'watch', circleId }, null, {
+      retryLimit: 0,
+      retentionSeconds: WATCH_JOB_SECONDS,
+    });
+  }
+
+  private async queue(
+    job: PushJob,
+    singletonKey: string | null,
+    options: SendOptions = {},
+  ): Promise<void> {
     if (!this.enabled) return;
     try {
       await this.boss.send(
         QUEUES.push,
         job,
-        singletonKey === null ? {} : { singletonKey, singletonSeconds: PUSH_THROTTLE_SECONDS },
+        singletonKey === null
+          ? options
+          : { ...options, singletonKey, singletonSeconds: PUSH_THROTTLE_SECONDS },
       );
     } catch (error) {
       this.logger.warn(`push not queued: ${error instanceof Error ? error.name : 'unknown'}`);

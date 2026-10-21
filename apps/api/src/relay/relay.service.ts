@@ -12,6 +12,7 @@ import { DatabaseService } from '../infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { currentDevices, Notifier } from '../push/notifier.js';
+import { WatchNotices } from '../push/watch-notices.js';
 
 /** A location is kept 24 hours after it was sent, then it is gone (BARGU_PLAN §1: no history). */
 export const LOCATION_TTL_SECONDS = 24 * 3600;
@@ -121,6 +122,7 @@ export class RelayService {
     private readonly events: EventsService,
     private readonly limiter: RateLimiter,
     private readonly notifier: Notifier,
+    private readonly watchNotices: WatchNotices,
   ) {}
 
   publish(auth: AuthContext, envelopes: MessageEnvelope[]): Promise<PublishReply> {
@@ -319,6 +321,15 @@ export class RelayService {
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', limit.retryAfter);
     }
     this.events.emitLive(membership.others, 'watch', { circleId });
+    // Members whose app is closed get a silent notice of the same (docs/ADR/0028 step 3): it names
+    // the circle only, never the watcher, and each recipient has their own allowance.
+    if (this.watchNotices.enabled) {
+      const online = await this.events.online(membership.others);
+      await this.watchNotices.tell(
+        circleId,
+        membership.others.filter((userId) => !online.has(userId)),
+      );
+    }
   }
 
   /** A member is no longer in a circle (left, removed): their dot and status go away. */
