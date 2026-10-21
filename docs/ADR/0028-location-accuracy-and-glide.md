@@ -365,8 +365,14 @@ since, ts }`.
      sonuncuyu tutar; tekrar, alıcının "yenilenmeyen neden düşer" kuralını (aşağıda) mümkün kılar.
    - Bitince bir `none` ("temizle"); alıcı etiketi bırakır. Sonra sessiz.
    - Bir çembere en çok 45 saniyede bir (`STATE_GAP_MS`); sunucunun sınırı çember ve cihaz başına
-     dakikada 3'tür (aşağıda). Açılıp kapanan bir ayar buna yaklaşamaz, son hâli söylenir. Ulaşmayan
-     mesaj 60 saniye sonra, bağlantı dönünce hemen yeniden denenir.
+     dakikada 3'tür (aşağıda). Açılıp kapanan bir ayar buna yaklaşamaz, son hâli söylenir.
+   - **Ulaşmayan mesaj üstel geri çekilmeyle yeniden denenir** (QA-33 N-1): bir çember için 2 saniye,
+     sonra 4, 8, 16… en çok 5 dakika; art arda her başarısızlıkta bir basamak uzar, ulaşan bir
+     mesajdan sonra yine 2 saniyeden başlar (`retryDelay`). Beklenen süre bağlantı "döndü" olayında
+     da atlanmaz: gelip giden bir bağlantı her dönüşte istek yapmazdı, dakikada otuza yakın boş istek
+     yapardı (pil ve telsiz). Röleye hiç ulaşılamıyorsa bir turda yalnızca ilk çembere istek gider,
+     kalanı aynı bekleyişe girer. Zamanlayıcı bekleyişin sonunda yeniden dener; bağlantı döndü olayı
+     da aynı denetimle (bekleyiş bitmişse) yeniden dener.
    - **Sorgulama yoktur:** gönderme döngüsü ayar, izin, servis, pil tasarrufu, çember ve gelen konum
      olaylarıyla başlar; kalp atışı ve sessizlik için yalnızca bir sonraki iş anına kurulan tek bir
      zamanlayıcı vardır (CLAUDE.md "sorgulama yasak").
@@ -433,6 +439,19 @@ since, ts }`.
    ekranı gibi: arkadaşların senden gördüğü sana saklı değildir). Yalnızca neden gerçekten bir çembere
    söylenmişken (gönderim sürerken) görünür; hayalette, ulaşmayan mesajda ya da neden bitince yoktur.
    Bellekte tutulur (`useMyWhy`).
+
+   **Sessizce gizlenmenin yolu hayalet modudur** (QA-33 N-2): izni ya da telefonun konum servisini
+   kapatan biri arkadaşlarına "Konum izni kapalı" ya da "Konum alınamıyor" gittiğini beklemeyebilir.
+   Bu yüzden: (a) kendi kartında, neden `permission` ya da `nofix` iken, "Sessizce gizlenmek için
+   hayalet modu kullan." satırı kartın altındaki hayalet denetiminin üstünde durur; (b) konum izni
+   kartı (izin kapalı ya da geri alınmış) ve yeni konum servisi kartı ("Telefonunun konumu kapalı")
+   arkadaşların ne gördüğünü söyler ("Arkadaşların “Konum izni kapalı” görür. Sessizce gizlenmek için
+   hayalet modu kullan."; servis kartında “Konum alınamıyor”) ve "Hayalet modunu aç" düğmesi verir.
+   Düğme haritadaki hayalet düğmesiyle aynı yoldur (`turnGhostOn`: gizle + aynı bilgi satırı);
+   hayaleti kapatmanın onayı (kaç çemberin konum alacağı) olduğu gibi o düğmede kalır. İkisi de
+   yalnızca neden gerçekten bir çembere söylenirken çıkar (hiç konum paylaşmamış bir telefon için ya
+   da hayaletteyken yoktur); servis kartı izin kartıyla aynı sırayı paylaşır, ikisi aynı anda görünmez.
+
 8. **Eski uygulamalar:** `state` bilinmeyen bir tür. Eski `decryptMessage` onu `MALFORMED` diye reddeder
    (`payloadSchema` bilmiyor); eski uygulama `state` olayını ve `states` istemini zaten bilmez, hiç
    dinlemez. Alıcı her `BarguCryptoError`'ı sessizce `ignored` yapar: etiket yok, çökme yok, günlük
@@ -441,12 +460,19 @@ since, ts }`.
    kodunun birebir kopyası (`packages/crypto/test/legacy/message-82e9bf5.ts`) `legacy-app.spec.ts`'te
    yeni `state` mesajlarını açmaya çalışır.
 9. **Ayarlanacak sayılar** (telefonda ölçülecek, şimdilik tahmin): sessizlikten `nofix` için 3 dakika
-   (`NOFIX_AFTER_MS`), bir çembere en az 45 saniye (`STATE_GAP_MS`), ulaşmayan mesaj için 60 saniye
-   (`RETRY_MS`), sunucunun dakikada 3'ü, alıcının 10 dakikası (`STALE_AFTER_MS`; zaten gri pin
+   (`NOFIX_AFTER_MS`), bir çembere en az 45 saniye (`STATE_GAP_MS`), ulaşmayan mesaj için 2 saniyeden
+   5 dakikaya üstel bekleyiş (`RETRY_BASE_MS`, `RETRY_MAX_MS`), sunucunun dakikada 3'ü, alıcının 10 dakikası (`STALE_AFTER_MS`; zaten gri pin
    eşiği) ve 5 dakikalık kalp atışı. Hepsi tek yerde bir sabittir.
 10. **Bilinen sınır:** Android, izni geri alınan uygulamanın sürecini kapatır; "Konum izni kapalı"
     ancak kullanıcı uygulamayı yeniden açınca (izin o zaman okunur) gider. Ondan önce arkadaş "Çevrim
     dışı" görür; bu yanlış değildir, sadece daha az bilgi verir.
+
+11. **Kabul edilen risk (QA-33 N-3):** gerçek bir mesaj yanlış yoldan gelirse (ör. bir `state`, `bump`
+    yolundan) çözülür, tekrar penceresindeki yerini harcar ve rota kuralı yüzünden gösterilmez; aynı
+    zarf sonradan doğru yoldan gelirse "tekrar" diye reddedilir. Bunu yalnızca kötü niyetli bir sunucu
+    yapabilir (iyi niyetli sunucu mesajı hep kendi yolundan iletir) ve sunucu zaten herhangi bir mesajı
+    hiç iletmeyebilir; yani bu ona yeni bir güç vermez. Bir `state` için bedeli, bir sonraki kalp
+    atışına (en çok 5 dakika) kadar eski bir etikettir. Aynı risk Güvendeyim için ADR 0029'da yazılıdır.
 
 ### Sonuçlar
 

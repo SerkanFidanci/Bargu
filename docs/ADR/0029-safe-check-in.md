@@ -205,5 +205,10 @@ alıcıdadır:
   - Eski uygulamalı üye hiçbir şey görmez; gönderen bilmez.
   - Sunucu `safe` uyduramaz ve bir üye başkası adına gönderemez: zarf ve bildirim gönderen cihazın
     kimliğiyle imzalıdır.
+  - Yanlış yoldan gelen gerçek bir mesaj tekrar penceresindeki yerini harcar (QA-33 N-3): §10 1. kural
+    mesajı çözüldükten ve kayda geçtikten sonra düşürür; aynı zarf sonradan doğru yoldan gelirse
+    "tekrar" diye reddedilir. Bunu yalnızca kötü niyetli bir sunucu yapabilir (iyi niyetli sunucu mesajı
+    hep kendi yolundan iletir) ve sunucu zaten herhangi bir mesajı hiç iletmeyebilir, yani bu ona yeni
+    bir güç vermez. Kabul edilen risk; "Neden eski?" mesajı (`state`) için aynısı ADR 0028'de yazılıdır.
   - SMS yedeği bu ADR'de yok (BARGU_PLAN Bölüm 7, ayrı karar).
 - iOS eklentisi için ayrı bir iş kalır (bkz. 9).
