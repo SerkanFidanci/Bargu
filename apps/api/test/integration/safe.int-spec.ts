@@ -248,6 +248,7 @@ describe('Güvendeyim (docs/ADR/0029)', () => {
     const toAyse = collect<{ envelope: MessageEnvelope }>(ayseSocket, 'safe');
     const ayses = phone(ayse, circle);
     const message = ayses.safe();
+    const known = new Set((await guards()).map((guard) => guard.key));
 
     const reply = await sendSafe(ayse, message);
     expect(reply.statusCode).toBe(200);
@@ -270,7 +271,7 @@ describe('Güvendeyim (docs/ADR/0029)', () => {
 
     // All the server kept: one key, a hash, the value 1, a day to live. No id, user or circle in
     // it, no time, no content.
-    const kept = await guards();
+    const kept = (await guards()).filter((guard) => !known.has(guard.key));
     expect(kept).toHaveLength(1);
     expect(kept[0]?.key).toMatch(/^safe:[0-9a-f]{32}$/);
     expect(kept[0]?.value).toBe('1');

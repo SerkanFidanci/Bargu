@@ -60,6 +60,8 @@ jest.mock('@/features/home/sheets', () => ({ MeSheet: () => null }));
 jest.mock('@/features/circles/add-sheet', () => ({ AddSheet: () => null }));
 jest.mock('@/features/circles/circles-sheet', () => ({ CirclesSheet: () => null }));
 jest.mock('@/features/social/status-sheet', () => ({ StatusSheet: () => null }));
+jest.mock('@/features/social/safe-sheet', () => ({ SafeSheet: () => null }));
+jest.mock('@/features/home/safe-button', () => ({ SafeButton: () => null }));
 jest.mock('@/features/location/location-banner', () => ({ LocationBanner: () => null }));
 jest.mock('@/features/location/new-phone-card', () => ({ NewPhoneCard: () => null }));
 jest.mock('@/features/location/sharing-reminder-card', () => ({
