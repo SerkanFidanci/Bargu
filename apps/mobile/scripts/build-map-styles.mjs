@@ -20,12 +20,15 @@ const ATTRIBUTION = '© OpenStreetMap';
 const WORLD_SOURCE = 'world';
 const WORLD_MAXZOOM = 6;
 const WORLD_ID_PREFIX = 'world_';
-// Only what reads at a glance when zoomed out: land, water, borders, and the big names. Roads,
-// parks, buildings and pois would only add layers (and noise) at this level of detail.
+// Only what reads at a glance when zoomed out: land, water, borders, the big names, and at zoom 5-6
+// the motorways and major roads. Parks, buildings, pois and the rest of the roads would only add
+// layers (and noise) at this level of detail.
 const WORLD_LAYER_IDS = [
   'earth',
   'landcover',
   'water',
+  'roads_major',
+  'roads_highway',
   'boundaries_country',
   'boundaries',
   'water_label_ocean',
@@ -33,16 +36,59 @@ const WORLD_LAYER_IDS = [
   'places_locality',
   'places_country',
 ];
+// Roads: only from zoom 5 and only until zoom 7 (a layer's maxzoom is exclusive, so 5 to 6.99).
+// Past that the world file is overzoomed and its roads would be coarse, wobbly lines. They fade
+// out over zoom 6 to 7 instead of vanishing at once. Casings, links, bridges, tunnels, minor roads
+// and rail are not drawn. Major roads are 0 px wide below zoom 6 in the basemap's own style (it
+// leaves them to the next zoom levels), so they get a thin line of their own here; motorways keep
+// the basemap's width (about 0.5 px at zoom 5, 1.1 px at zoom 6). Colour: the road colour on the
+// dark land; on the light land, where roads are white (invisible at this width), the colour of the
+// road casings: a light grey that shows without getting loud.
+const WORLD_ROAD_MINZOOM = 5;
+const WORLD_ROAD_MAXZOOM = 7;
+const WORLD_ROAD_FADE = ['interpolate', ['linear'], ['zoom'], 6, 1, 7, 0];
+const WORLD_OVERRIDES = {
+  roads_major: {
+    paint: {
+      'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.3, 7, 0.7],
+      'line-opacity': WORLD_ROAD_FADE,
+    },
+    minzoom: WORLD_ROAD_MINZOOM,
+    maxzoom: WORLD_ROAD_MAXZOOM,
+  },
+  roads_highway: {
+    paint: { 'line-opacity': WORLD_ROAD_FADE },
+    minzoom: WORLD_ROAD_MINZOOM,
+    maxzoom: WORLD_ROAD_MAXZOOM,
+  },
+};
 
 /**
  * The world layers, in the basemap's own drawing order, under ids of their own. The basemap's
  * background is not repeated: the Turkey style draws it once, below everything.
  */
-function worldLayers(flavor) {
+function worldLayers(flavor, roadColors) {
   const wanted = new Set(WORLD_LAYER_IDS);
   const found = layers(WORLD_SOURCE, flavor, { lang: 'tr' })
     .filter((layer) => wanted.has(layer.id))
-    .map((layer) => ({ ...layer, id: `${WORLD_ID_PREFIX}${layer.id}` }));
+    .map((layer) => {
+      const { paint, ...rest } = WORLD_OVERRIDES[layer.id] ?? {};
+      const color = roadColors[layer.id];
+      return {
+        ...layer,
+        ...rest,
+        id: `${WORLD_ID_PREFIX}${layer.id}`,
+        ...(paint === undefined
+          ? {}
+          : {
+              paint: {
+                ...layer.paint,
+                ...paint,
+                ...(color === undefined ? {} : { 'line-color': color }),
+              },
+            }),
+      };
+    });
   if (found.length !== wanted.size) {
     throw new Error('@protomaps/basemaps no longer has every world layer; update WORLD_LAYER_IDS');
   }
@@ -158,6 +204,10 @@ for (const [name, flavor] of Object.entries(flavors)) {
   // The Turkey layers exactly as before: the background first (it paints everything), then the
   // world, then the rest of Turkey on top.
   const [background, ...turkey] = layers(SOURCE, flavor, { lang: 'tr' });
+  const roadColors =
+    name === 'light'
+      ? { roads_highway: flavor.highway_casing_early, roads_major: flavor.major_casing_early }
+      : { roads_highway: flavor.highway, roads_major: flavor.major };
   const style = {
     version: 8,
     name: `bargu-${name}`,
@@ -176,7 +226,7 @@ for (const [name, flavor] of Object.entries(flavors)) {
     },
     glyphs: `${MAP_URL}/fonts/{fontstack}/{range}.pbf`,
     sprite: `${MAP_URL}/sprites/v4/${name}`,
-    layers: [background, ...worldLayers(flavor), ...turkey],
+    layers: [background, ...worldLayers(flavor, roadColors), ...turkey],
   };
   const file = new URL(`../src/features/map/styles/${name}.json`, import.meta.url);
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed output files inside this repo (styles/<light|dark>.json)

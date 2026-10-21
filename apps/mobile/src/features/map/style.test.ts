@@ -14,6 +14,17 @@ function sourceOf(layer: Layer): string | undefined {
   return 'source' in layer ? layer.source : undefined;
 }
 
+/** The few layer fields the road checks read (a style layer as plain JSON). */
+interface RoadLayer {
+  id: string;
+  source?: string;
+  'source-layer'?: string;
+  minzoom?: number;
+  maxzoom?: number;
+  filter?: unknown;
+  paint?: Record<string, unknown>;
+}
+
 /** Font stacks and sprite icons a set of layers asks the map server for. */
 function assetsOf(layers: readonly Layer[]): string[] {
   const json = JSON.stringify(layers);
@@ -106,5 +117,35 @@ describe.each([
     const turkey = new Set(assetsOf(layers.filter((layer) => sourceOf(layer) === 'protomaps')));
     expect(world.length).toBeGreaterThan(0);
     for (const asset of world) expect(turkey.has(asset)).toBe(true);
+  });
+
+  it('draws only motorways and major roads in the world, at zoom 5 to 7, above the water', () => {
+    const layers = mapStyle(scheme, MAP_URL).layers as unknown as RoadLayer[];
+    const ids = layers.map((layer) => layer.id);
+    const roads = layers.filter(
+      (layer) => layer.source === 'world' && layer['source-layer'] === 'roads',
+    );
+    // Not casings, links, bridges, tunnels, minor roads or rail.
+    expect(roads.map((layer) => layer.id)).toEqual(['world_roads_major', 'world_roads_highway']);
+    const [major, highway] = roads;
+    expect(JSON.stringify(major?.filter)).toContain('"kind","major_road"');
+    expect(JSON.stringify(highway?.filter)).toContain('"kind","highway"');
+    for (const road of roads) {
+      expect(JSON.stringify(road.filter)).toContain('["!has","is_bridge"]');
+      expect(JSON.stringify(road.filter)).toContain('["!has","is_tunnel"]');
+      // A layer's maxzoom is exclusive: 7 means drawn up to zoom 6.99, never on the overzoomed
+      // (coarse) tiles beyond; it fades out over zoom 6 to 7.
+      expect(road.minzoom).toBe(5);
+      expect(road.maxzoom).toBe(7);
+      expect(JSON.stringify(road.paint?.['line-opacity'])).toBe(
+        '["interpolate",["linear"],["zoom"],6,1,7,0]',
+      );
+    }
+    // Above the world's water, below its borders and (as for every world layer) below Turkey.
+    expect(ids.indexOf('world_water')).toBeLessThan(ids.indexOf('world_roads_major'));
+    expect(ids.indexOf('world_roads_highway')).toBeLessThan(
+      ids.indexOf('world_boundaries_country'),
+    );
+    expect(ids.indexOf('world_roads_highway')).toBeLessThan(ids.indexOf('earth'));
   });
 });

@@ -61,6 +61,54 @@
       "paint": { "fill-color": "#2D4E73" }
     },
     {
+      "id": "world_roads_major",
+      "type": "line",
+      "source": "world",
+      "source-layer": "roads",
+      "filter": ["all", ["!has", "is_tunnel"], ["!has", "is_bridge"], ["==", "kind", "major_road"]],
+      "paint": {
+        "line-color": "#5A6277",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.3, 7, 0.7],
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 6, 1, 7, 0]
+      },
+      "minzoom": 5,
+      "maxzoom": 7
+    },
+    {
+      "id": "world_roads_highway",
+      "type": "line",
+      "source": "world",
+      "source-layer": "roads",
+      "filter": [
+        "all",
+        ["!has", "is_tunnel"],
+        ["!has", "is_bridge"],
+        ["==", "kind", "highway"],
+        ["!has", "is_link"]
+      ],
+      "paint": {
+        "line-color": "#6B7389",
+        "line-width": [
+          "interpolate",
+          ["exponential", 1.6],
+          ["zoom"],
+          3,
+          0,
+          6,
+          1.1,
+          12,
+          1.6,
+          15,
+          5,
+          18,
+          15
+        ],
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 6, 1, 7, 0]
+      },
+      "minzoom": 5,
+      "maxzoom": 7
+    },
+    {
       "id": "world_boundaries_country",
       "type": "line",
       "source": "world",

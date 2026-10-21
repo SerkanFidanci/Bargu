@@ -64,8 +64,11 @@ marka kararı (renk, yazı tipi) ve bazı kütüphane seçimleri burada netleşt
 - **Dünya katmanı** (sonradan eklendi): Türkiye dışında harita boş kalmasın diye aynı Protomaps
   yapısından `--maxzoom=6` ile kesilmiş ikinci bir dosya (`world.pmtiles`, yaklaşık 45 MB) stile
   ikinci kaynak olarak girer ve Türkiye katmanlarının **altında** çizilir (arka plan, dünya,
-  Türkiye). Yalnızca kara, su, sınırlar ve büyük yer adları var (`world_` önekli 9 katman); yol,
-  park, bina yok. Kaynak `maxzoom: 6` diyor, daha yakında MapLibre aynı karoyu büyütür. Türkiye
+  Türkiye). Yalnızca kara, su, sınırlar, büyük yer adları ve 5–7 yakınlaştırma arasında otoyollar
+  ile ana yollar var (`world_` önekli 11 katman; yol çizgisi 7'ye doğru solar ve 7'den sonra
+  çizilmez, çünkü büyütülmüş karoda yollar kaba ve dalgalı olur); park, bina, küçük yol yok.
+  Dosya boyutu değişmez, yollar karolarda zaten var. Kaynak `maxzoom: 6` diyor, daha yakında
+  MapLibre aynı karoyu büyütür. Türkiye
   katmanları öncekiyle birebir aynı (testle korunuyor). **Dosya sunucuda yoksa**: MapLibre Native
   (uygulamadaki sürüm Android 13.6.1; kaynak kodu bu etiketten okundu, iOS aynı C++ çekirdeğini
   kullanır) PMTiles başlığını isteyince 404 alır, `NotFound` hatasıyla kaynağı "yüklenemedi" diye
