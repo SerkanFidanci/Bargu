@@ -34,6 +34,7 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0026](0026-meetings-in-any-circle.md)               | Her çemberde buluşma, kendi görünümü ve ekranı, harita kısayolları ve sayaç                   | Kabul edildi                  |
 | [0027](0027-calm-mode-and-motion-budget.md)          | Sade mod ve animasyon bütçesi (pil, görünmeyen harita, hava)                                  | Kabul edildi                  |
 | [0028](0028-location-accuracy-and-glide.md)          | Konumun doğruluğu: ham konuma filtre, 1 sn sınırlı kayma, belirsizlik dairesi, ölçüm katmanı  | Kabul edildi (1. adım)        |
+| [0029](0029-safe-check-in.md)                        | Güvendeyim: tek dokunuşla iyiyim, konum ve pil; hep bedava, duraklamış çemberde de çalışır    | Kabul edildi                  |
 
 ## Şablon
 

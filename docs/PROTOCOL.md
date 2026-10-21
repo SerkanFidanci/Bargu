@@ -179,6 +179,19 @@ alıcı yok sayar:
 | `place`       | `id, name (≤40), emoji (≤16), lat, lng, radius (50–1000 m), ts` (ADR 0015)                |
 | `late`        | `meetAt, minutes (1–600), ts`: buluşmaya gecikme (ADR 0018)                               |
 | `look`        | `ring, frame` (kimlik ya da `null`), `pass` (geçiş belgesi ya da `null`), `ts` (ADR 0025) |
+| `safe`        | `id` (16 bayt, base64url), `lat, lng, acc, bat (0–100), ts`: Güvendeyim (ADR 0029)        |
+
+**Güvendeyim (ADR 0029).** `safe`, sunucuda tutulmayan, tek seferlik bir mesajdır; dürtme gibi
+`POST /v1/safe` ile (canlı bağlantı yok, yalnızca HTTP) gider ve çevrimiçi üyelere canlı `safe` olayı
+olarak iletilir. Gövde `{ id, envelope, pushes? }`: `id` zarfın içindeki `id` ile aynı, **açık** gider
+(rastgele 16 bayt, bir şey söylemez). Konum, **her çemberin kendi hassasiyetinde** (§7)
+kısaltılır; çember başına ayrı zarf ve ayrı `id` vardır. Sunucu isteğin gönderenin cihazıyla imzalı ve
+çemberin aktif üyesinden olduğunu (`verifyMessageEnvelope`, güncel epoch) denetler, içeriği göremez.
+Duraklamış çemberde çalışır, hak denetimi yoktur. Gönderen ve çember başına saatte 6. Aynı
+`(gönderen, çember, id)` 24 saat içinde ikinci kez gelirse sunucu `{ "ok": true }` der ve bir şey
+göndermez; yalnızca `pseudonym(EMAIL_LOOKUP_KEY, "safe-id", gönderen:çember:id)` özetini `1` değeriyle
+24 saat saklar. Cevap `{ "ok": true }` ya da `{ "refused": INVALID | NOT_MEMBER | EPOCH | RATE_LIMITED }`.
+Alıcı `id`'yi görüp bir kez gösterir (tekrar penceresi zarfı, `id` mesajı sayar).
 
 **Saklanan mesaj (yer).** Bir çemberin yeri, son kaydeden üyenin gönderen anahtarıyla şifrelenmiş
 `place` mesajı olarak sunucuda kalır. Üyeler onu yeni mesajlardan çok sonra tekrar açtığı için
@@ -259,6 +272,7 @@ sunucudan (imzalı): 0x02 ‖ len(kid)(1) ‖ kid ‖ issuedAt(8) ‖ id(16) ‖
 sunucudan (eski):   0x00 ‖ gövde      (haber anahtarı olmayan sunucu)
 gövde (JSON) = { kind: "place", circleId, placeId, event: "enter" | "exit", name, emoji, ts }
              | { kind: "bump", circleId, ts }
+             | { kind: "safe", circleId, id, bat, ts }       (ADR 0029: konum yok, ad yok, metin yok)
              | { kind: "late", circleId, minutes, ts }
              | { kind: "meeting", circleId, name, emoji, meetAt, ts }
              | { kind: "notice", notice, circleId, ts }
@@ -279,7 +293,8 @@ gövde (JSON) = { kind: "place", circleId, placeId, event: "enter" | "exit", nam
   uygulaması imzalı ve imzasız haberi denetlemeden açar. Eski uygulamalar imzalı haberi açamaz ve
   sessizce atar.)
 - Tazelik (`ts`) ve tekrar (kutunun geçici anahtarı; sunucu haberinde ayrıca `id`) alıcıda
-  denetlenir.
+  denetlenir. `safe` bildirimi 24 saat geçerlidir (öbürleri 1 saat; mesaj göndericinin bağlantısını
+  bekleyebilir) ve gövdesindeki `id` ile, aynı mesajın zarfı da gelmişse bir kez gösterilir.
 
 Base64url olarak gönderilir (en çok 1.100 karakter). Android'de data-only FCM ile arka plan görevi,
 iOS'ta bildirim eklentisi (yalnızca CryptoKit) açar; Google ve Apple yalnızca şifreli kutuyu, iOS'ta
