@@ -154,3 +154,113 @@ yayından önce kapatıldı ve her biri testle korunuyor:
 
 - İlk kez görülen bir üyenin anahtarı ilk görüşte güvenilir sayılır (TOFU, yukarıda) ve anahtar
   ona kendiliğinden gider; değişen bir anahtar ise kabul edilene ya da doğrulanana kadar bekler.
+
+## Ek (2026-10-22, zengin davet kartı: davet sayfası ve Android App Links)
+
+`bargu://i/<token>` bir mesajlaşma uygulamasında önizleme vermez, uygulaması olmayan kişi bir şey
+görmez. Bu ekle davet bağlantıları HTTPS olarak da açılır: `https://<davet sunucusu>/i/<token>`
+(arkadaş, çember, etkinlik) ve `/g/<token>` (ebeveyn isteği). Token'ın kendisi, 24 saat ve tek
+kullanım kuralları yukarıdaki gibi kalır.
+
+### Davet sayfası
+
+- API'de iki herkese açık adres: `GET /i/:token` ve `GET /g/:token` (giriş yok, `/hesap` gibi bir web
+  yolu). Kod: `apps/api/src/invite-page/`.
+- Open Graph ve Twitter etiketleri: başlık "Bargu'ya davet", genel bir açıklama ve **tek bir genel
+  görsel** (`GET /invite/card.png`, 1200×630, uygulama simgesindeki konum işareti; çizen betik
+  `scripts/build-invite-card.mjs`, yeni bağımlılık yok). Dil tarayıcının `Accept-Language` sırasına
+  göre Türkçe (varsayılan) ya da İngilizce.
+- Gövde: "Uygulamada aç" bağlantısı ve "Bargu yakında Google Play'de". **APK bağlantısı yok**: davet
+  bağlantıları elden ele gider, bir test APK'sı sayfadan dağıtılmaz.
+- "Uygulamada aç" bağlantısı sayfanın kendi adresine gider (boş `href`). Sayfa token'ı yazmaz,
+  yansıtmaz; aşağıdaki "aynı bayt" kuralı bunu gerektirir.
+
+### Kişisel veri yok
+
+Sayfada ve görselde ad, fotoğraf, çember adı (kişisel olabilir), üye sayısı, avatar ve davet eden
+yoktur; hiçbiri sayfaya hiç ulaşmaz, çünkü sayfa veritabanına bakmaz. Gerçek bir davet için (adı,
+fotoğrafı ve çember adı olan hesap) HTML, başlıklar ve görsel testte bu değerlerin hiçbirini
+taşımadığı doğrulanır.
+
+### Token'lar ayırt edilemez
+
+Geçerli, hiç var olmamış, süresi dolmuş, kullanılmış ve geri çekilmiş token için durum kodu,
+başlıklar ve gövde **bayt bayt aynıdır**. Sunucu token'a bakmaz: sayfa yalnızca sunucu adından, bir
+kez, başlangıçta üretilir ve veritabanına tek sorgu gitmez (testte havuza sorgu ya da bağlantı
+gelmediği gösterilir). Bu yüzden süre de aynıdır; hız sınırı için Redis çağrısı her token'da aynen
+vardır. Önizleme isteği (mesajlaşma uygulamasının sunucusu) tek kullanımlık bir daveti tüketmez.
+
+Sayfa yalnızca "token biçiminde (43 karakter, base64url) bir dize istendi" bilgisini verir; biçim
+zaten herkese açıktır. Başka biçim düz 404'tür (API'nin JSON hatası). Hata yanıtları (404, 429)
+sayfa başlıklarını taşımaz, sayfa gibi önbelleğe alınamaz: sayfanın başlıkları yalnızca başarılı
+yanıta eklenir.
+
+### Başlıklar ve hız sınırı
+
+- `noindex` (`<meta name="robots">` ve `X-Robots-Tag: noindex, nofollow`); önizleme sunucuları
+  etiketleri yine okur.
+- Katı CSP: `default-src 'none'`; tek izin sayfanın kendi satır içi stil sayfası, **özetiyle**
+  (`style-src 'sha256-…'`). Betik, yazı tipi, resim, çerçeve, form ve `<base>` yok; üçüncü taraf yok.
+- `Referrer-Policy: no-referrer` (adres bir sır taşır), `Vary: Accept-Language`, kısa önbellek
+  (`public, max-age=300`; görsel bir gün).
+- Ağ başına (IPv4 ya da IPv6 /64, anahtarlı takma ad) saatte 300 istek; aşılırsa 429, token ne
+  olursa olsun aynı. Cömert, çünkü mesajlaşma uygulamalarının önizleme sunucuları çok kişinin
+  bağlantısını birkaç adresten çeker; sıkıştığında bakılacak ilk ayar budur. Görsel sınıra girmez
+  (sabit baytlar).
+
+### Android App Links
+
+- `app.config.ts`: davet sunucusu verilmişse `https://<sunucu>/i/*` ve `/g/*` için `autoVerify`
+  niyet filtresi eklenir. Sunucu yapılandırmadan gelir (`EXPO_PUBLIC_INVITE_HOST`); biçimi yanlışsa
+  derleme durur.
+- API `/.well-known/assetlinks.json` sunar: paket adı (`ANDROID_PACKAGE`) ve uygulamanın imza
+  sertifikasının SHA-256 parmak izi ya da izleri (`ANDROID_CERT_SHA256`, virgülle). Parmak izi
+  **açık bilgidir** (her APK sertifikasını taşır). Ortam başına ayarlanır; Play'in imza anahtarı
+  Faz 10'da eklenir.
+- Preview ve yerel test build'lerinin imza parmak izi (`apksigner verify --print-certs`, EAS ve
+  `scripts/build-android-local.sh` aynı anahtarla imzalar):
+  `BC:B3:1B:94:9A:2D:4F:86:2E:BD:41:5C:6E:C4:28:C5:16:3D:A7:76:F1:4B:49:E1:40:A3:CE:AD:57:FB:84:42`.
+- iOS'ta `apple-app-site-association` zaten `/i/*` diyordu; `/g/*` eklendi (iOS derlenemiyor, sonra
+  denenecek).
+- Android doğrulaması bitene kadar (ya da kullanıcı "desteklenen bağlantıları aç" ayarını kapatmışsa)
+  bağlantı tarayıcıda, bu sayfada açılır. Bilinen sınır: Chrome, bir siteden aynı siteye giden
+  bağlantıyı uygulamaya devretmeyebilir; sayfadaki "Uygulamada aç" bağlantısı bu durumda bir şey
+  yapmayabilir. Asıl yol, bağlantıya mesajlaşma uygulamasından dokunmaktır. Gerekirse sayfaya,
+  adresi yalnızca adres çubuğundan okuyan ve özetiyle izinli küçük bir betik eklenebilir (HTML
+  baytları yine aynı kalır).
+
+### Yapılandırılabilir sunucu
+
+- Sunucu: `INVITE_HOST` (yalın bir DNS adı; şema, port, yol, büyük harf yok). Boşsa staging API'nin
+  kendi sunucusu. `APP_ENV=production`'da **zorunlu**: production'ın bağlantıları ve görseli
+  staging'e bakmasın. Görselin mutlak adresi bu değerden kurulur, `Host` başlığından değil (önbellek
+  zehirlenmesi olmasın).
+- Uygulama: `EXPO_PUBLIC_INVITE_HOST`, `eas.json`'da development ve preview için staging sunucusu,
+  production'da yok. İkisi aynı sunucuya ayarlı olmalıdır; niyet filtresi manifestte olduğu için
+  değişikliğin yeni bir build'e ihtiyacı vardır.
+- Kalıcı alan adı (K12) gelince bu iki değer değişir (passkey ayarları `WEBAUTHN_*` ayrıca); sayfa,
+  `assetlinks.json` ve süzgeç kodu aynı kalır.
+
+### Uygulamadaki süzgeç (`+native-intent`)
+
+`features/links/incoming-link.ts` dışarıdan gelen her bağlantıyı yönlendiriciden önce süzer. https
+bağlantısı **yalnızca** `https://<bu build'in davet sunucusu>/i/<token>` ya da `/g/<token>` ise
+geçer ve `bargu://` ile aynı ekranlara gider (token yine 43 karakterlik biçimle doğrulanır); geri
+kalan her şey ana ekrana düşer:
+
+- sunucu adı bütün olarak karşılaştırılır: başka sunucu, benzer sunucu (önek, sonek, alt alan adı,
+  üst alan adı, sondaki nokta), kullanıcı bilgisi (`@`; iki yanı da), port (443 dahil), IP, http;
+- `%` kodlama, sorgu, parça, ters eğik çizgi, boşluk ve sondaki eğik çizgi (sayfanın kendisi orada
+  404 verir), fazladan, eksik ya da `..` yol parçaları;
+- Unicode benzerleri (Kiril harfi, tam genişlikte nokta ve eğik çizgi, görünmez karakter) ve büyük
+  küçük harf çevrimi: yalnızca A–Z çevrilir (Kelvin işareti ASCII k'ya dönmesin).
+
+Davet sunucusu olmayan build'de (production, şimdilik) hiçbir https bağlantısı geçmez.
+
+### Bu adımın dışında kalan
+
+- Paylaşılan bağlantı ve QR hâlâ `bargu://i/<token>`: `Invite.link` ve `guardianLink` değişmedi.
+  Kartın bir mesajlaşma uygulamasında görünmesi için paylaşım metni https bağlantısını taşımalı;
+  bu QR'ın içeriğini, uygulamadaki tarayıcıyı ve eski uygulamaları etkiler, ayrı bir karardır.
+- `ANDROID_CERT_SHA256` hâlâ Play Integrity denetiminin de sertifika listesidir; preview
+  sertifikasını eklemek staging'de (`DEVICE_ATTESTATION=optional`) bir şey bozmaz.
