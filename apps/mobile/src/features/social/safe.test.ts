@@ -526,10 +526,10 @@ describe('the receiving phone, from the envelope to the handler', () => {
       now: () => NOW,
     });
 
-    expect(receiver.receive(request.envelope)).toBe('shown');
+    expect(receiver.receive(request.envelope, 'safe')).toBe('shown');
     expect(heard).toEqual([[w.home.id, w.ayse.userId, request.id, 45]]);
     // The server (or the network) hands the very same envelope over again: it is a replay.
-    expect(receiver.receive(request.envelope)).toBe('ignored');
+    expect(receiver.receive(request.envelope, 'safe')).toBe('ignored');
     expect(heard).toHaveLength(1);
     // A phone with no handler for it (an app that does not show these) just ignores it quietly.
     const quiet = createReceiver({
@@ -538,7 +538,7 @@ describe('the receiving phone, from the envelope to the handler', () => {
       store: () => memoryStore(),
       now: () => NOW,
     });
-    expect(quiet.receive(request.envelope)).toBe('shown');
+    expect(quiet.receive(request.envelope, 'safe')).toBe('shown');
   });
 });
 

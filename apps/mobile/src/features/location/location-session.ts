@@ -734,34 +734,39 @@ onLiveMessage((name, payload) => {
   });
 });
 
+/**
+ * What each live event may carry. The relay forwards any message through the poke, "Güvendeyim" and
+ * place routes (it cannot read them), and those skip the paused-circle check and the limits of the
+ * location route: so a message counts only as the kind its route is for (receive.ts Route).
+ */
 function handleLive(name: string, payload: unknown): void {
   if (name === 'loc') {
     const parsed = locEventSchema.safeParse(payload);
-    if (parsed.success) receiver.receive(parsed.data.envelope);
+    if (parsed.success) receiver.receive(parsed.data.envelope, 'loc');
   } else if (name === 'loc.gone') {
     const parsed = locGoneEventSchema.safeParse(payload);
     if (parsed.success) receiver.gone(parsed.data.circleId, parsed.data.userId);
   } else if (name === 'profile') {
     const parsed = statusEventSchema.safeParse(payload);
-    if (parsed.success) receiver.receive(parsed.data.envelope);
+    if (parsed.success) receiver.receive(parsed.data.envelope, 'profile');
   } else if (name === 'look') {
     const parsed = statusEventSchema.safeParse(payload);
-    if (parsed.success) receiver.receive(parsed.data.envelope);
+    if (parsed.success) receiver.receive(parsed.data.envelope, 'look');
   } else if (name === 'status') {
     const parsed = statusEventSchema.safeParse(payload);
-    if (parsed.success) receiver.receive(parsed.data.envelope);
+    if (parsed.success) receiver.receive(parsed.data.envelope, 'status');
   } else if (name === 'status.gone') {
     const parsed = statusGoneEventSchema.safeParse(payload);
     if (parsed.success) statusGone(parsed.data.circleId, parsed.data.userId);
   } else if (name === 'bump') {
     const parsed = bumpEventSchema.safeParse(payload);
-    if (parsed.success) receiver.receive(parsed.data.envelope);
+    if (parsed.success) receiver.receive(parsed.data.envelope, 'bump');
   } else if (name === 'safe') {
     const parsed = safeEventSchema.safeParse(payload);
-    if (parsed.success) receiver.receive(parsed.data.envelope);
+    if (parsed.success) receiver.receive(parsed.data.envelope, 'safe');
   } else if (name === 'place') {
     const parsed = placeEventSchema.safeParse(payload);
-    if (parsed.success) receiver.receive(parsed.data.envelope);
+    if (parsed.success) receiver.receive(parsed.data.envelope, 'place');
   } else if (name === 'history') {
     // Someone's new quarter hour is up: an open history screen of theirs fetches again.
     const parsed = historyEventSchema.safeParse(payload);
@@ -789,11 +794,11 @@ onOnline(() => {
       const snapshot = locationSnapshotSchema.safeParse(await liveRequest('locations'));
       if (snapshot.success) await receiver.receiveSnapshot(snapshot.data.envelopes);
       const statuses = statusSnapshotSchema.safeParse(await liveRequest('statuses'));
-      if (statuses.success) await receiver.receiveAll(statuses.data.envelopes);
+      if (statuses.success) await receiver.receiveAll(statuses.data.envelopes, 'status');
       const profiles = statusSnapshotSchema.safeParse(await liveRequest('profiles'));
-      if (profiles.success) await receiver.receiveAll(profiles.data.envelopes);
+      if (profiles.success) await receiver.receiveAll(profiles.data.envelopes, 'profile');
       const looks = statusSnapshotSchema.safeParse(await liveRequest('looks'));
-      if (looks.success) await receiver.receiveAll(looks.data.envelopes);
+      if (looks.success) await receiver.receiveAll(looks.data.envelopes, 'look');
     } catch {
       // The next connection asks again; live messages keep coming meanwhile.
     }

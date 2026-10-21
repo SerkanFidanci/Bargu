@@ -49,6 +49,30 @@ const LATE_WITHIN_MS = 10 * 60_000;
 
 export type Outcome = 'shown' | 'removed' | 'bumped' | 'waiting' | 'ignored';
 
+/**
+ * The live route a message came by, named after the relay's event (apps/api relay): the server
+ * cannot tell what a message is, so the phone binds the two. A message is shown only as the kind its
+ * route is for; any other (a location sent through the poke or "Güvendeyim" route, which skip the
+ * paused-circle check and the limits of the location route; a poke through the safe route) is
+ * dropped. A route that is not known (nothing says it) never shows a "Güvendeyim" (docs/ADR/0029 §8).
+ */
+export type Route = 'loc' | 'bump' | 'safe' | 'place' | 'status' | 'profile' | 'look';
+const ROUTE_KINDS: Readonly<Record<Route, readonly Payload['kind'][]>> = {
+  loc: ['loc', 'share_stop'],
+  bump: ['bump'],
+  safe: ['safe'],
+  place: ['place_enter', 'place_exit', 'late', 'arrived'],
+  status: ['status'],
+  profile: ['profile'],
+  look: ['look'],
+};
+
+/** Whether a message of this kind may come by this route. */
+export function kindFitsRoute(kind: Payload['kind'], route: Route | undefined): boolean {
+  if (route === undefined) return kind !== 'safe';
+  return ROUTE_KINDS[route].includes(kind);
+}
+
 export interface ReceiverDeps {
   keys: () => KeyStore;
   /** Circles as currently known (cache); a circle missing here is waited for. */
@@ -117,7 +141,7 @@ export function createReceiver({
   now = Date.now,
 }: ReceiverDeps) {
   let replay: ReplayGuard | null = null;
-  const waiting = new Map<string, MessageEnvelope>();
+  const waiting = new Map<string, { envelope: MessageEnvelope; route: Route | undefined }>();
   /** Locations that came in while a snapshot was being opened: that snapshot must not drop them. */
   const windows = new Set<Set<string>>();
   /** Counts sign-outs, so a batch being opened in slices stops when one happens. */
@@ -160,7 +184,7 @@ export function createReceiver({
     store().set(REPLAY_KEY, JSON.stringify(current.toJSON()));
   }
 
-  function receive(envelope: MessageEnvelope): Outcome {
+  function receive(envelope: MessageEnvelope, route?: Route): Outcome {
     const waitKey = `${envelope.circleId}:${envelope.senderDeviceId}`;
     const circle = circles().find((candidate) => candidate.id === envelope.circleId);
     const sender = circle?.members.find(
@@ -175,7 +199,7 @@ export function createReceiver({
     const device = sender?.device ?? null;
     if (circle === undefined || sender === undefined || device === null || senderKey === null) {
       // Keys or membership not here yet: keep the newest one per sender for the next sync.
-      waiting.set(waitKey, envelope);
+      waiting.set(waitKey, { envelope, route });
       return 'waiting';
     }
     waiting.delete(waitKey);
@@ -202,6 +226,8 @@ export function createReceiver({
         replay: replayGuard,
       });
       persistReplay(replayGuard);
+      // Opened and recorded, but not by this route: nothing of it is shown or done.
+      if (!kindFitsRoute(payload.kind, route)) return 'ignored';
       if (payload.kind === 'loc') {
         const shown = useLocations.getState()[entryKey(circle.id, sender.userId)]?.loc.ts;
         const late =
@@ -270,7 +296,7 @@ export function createReceiver({
    * Opens a batch a few at a time (SLICE), leaving the screen a moment between slices, so dozens
    * of messages after a start or a reconnection never hold the JavaScript thread for long.
    */
-  async function receiveAll(envelopes: readonly MessageEnvelope[]): Promise<void> {
+  async function receiveAll(envelopes: readonly MessageEnvelope[], route?: Route): Promise<void> {
     const started = run;
     for (let start = 0; start < envelopes.length; start += SLICE) {
       if (start > 0) {
@@ -279,7 +305,7 @@ export function createReceiver({
         if (run !== started) return;
       }
       timed('receive.slice', () => {
-        for (const envelope of envelopes.slice(start, start + SLICE)) receive(envelope);
+        for (const envelope of envelopes.slice(start, start + SLICE)) receive(envelope, route);
       });
     }
   }
@@ -309,7 +335,7 @@ export function createReceiver({
       const touched = new Set<string>();
       windows.add(touched);
       try {
-        await receiveAll(envelopes);
+        await receiveAll(envelopes, 'loc');
       } finally {
         windows.delete(touched);
       }
@@ -332,7 +358,7 @@ export function createReceiver({
 
     /** After key or membership sync: messages that waited for a sender key get another try. */
     retryWaiting(): void {
-      for (const envelope of [...waiting.values()]) receive(envelope);
+      for (const entry of [...waiting.values()]) receive(entry.envelope, entry.route);
     },
 
     /** The relay says a member's location is gone (left, removed, hidden). */
