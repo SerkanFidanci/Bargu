@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react-native';
 
-import { useNow } from './clock';
+import { MAX_TIMER_MS, timerAt, useNow } from './clock';
 import { DEFAULT_SHARING, useSharing } from './sharing';
 import { nextSharingEnd, useSharingEnd } from './sharing-end';
 
@@ -50,5 +50,42 @@ describe('the end of a timed share (QA 24 B-2)', () => {
     });
     expect(onEnd).toHaveBeenCalledTimes(2);
     expect(result.current).toBeGreaterThan(T + 40_000);
+  });
+
+  it('waits weeks for a share timed past the timer limit, without firing at once (QA 25)', async () => {
+    const month = 30 * 24 * 3_600_000;
+    useSharing.setState({ ghost: 'off', circles: { a: share(T + month) } });
+    const onEnd = jest.fn();
+    await renderHook(() => {
+      useSharingEnd(onEnd);
+    });
+    await act(() => {
+      jest.advanceTimersByTime(1_000);
+    });
+    expect(onEnd).not.toHaveBeenCalled();
+    await act(() => {
+      jest.advanceTimersByTime(month - 2_000);
+    });
+    expect(onEnd).not.toHaveBeenCalled();
+    await act(() => {
+      jest.advanceTimersByTime(1_002);
+    });
+    expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('timerAt reaches a moment beyond the limit in steps', () => {
+    const fn = jest.fn();
+    const at = T + MAX_TIMER_MS * 2 + 5;
+    timerAt(at, fn);
+    jest.advanceTimersByTime(MAX_TIMER_MS * 2);
+    expect(fn).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(5);
+    expect(fn).toHaveBeenCalledTimes(1);
+    const cancelled = jest.fn();
+    const cancel = timerAt(Date.now() + MAX_TIMER_MS + 10, cancelled);
+    jest.advanceTimersByTime(MAX_TIMER_MS);
+    cancel();
+    jest.advanceTimersByTime(100);
+    expect(cancelled).not.toHaveBeenCalled();
   });
 });

@@ -37,3 +37,27 @@ export function useNow(): number {
 export function catchUp(): void {
   clock.setState({ now: Date.now() });
 }
+
+/** The longest delay a JavaScript timer takes (about 24.8 days); a longer one fires at once. */
+export const MAX_TIMER_MS = 2 ** 31 - 1;
+
+/**
+ * Calls `fn` at `at` (Unix ms), however far ahead: a moment beyond the timer's limit is reached in
+ * steps of at most MAX_TIMER_MS (QA 25: a share timed past 24.8 days fired at once, again and
+ * again). Returns the cancel.
+ */
+export function timerAt(at: number, fn: () => void, now: () => number = Date.now): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const arm = () => {
+    const left = at - now();
+    if (left > MAX_TIMER_MS) {
+      timer = setTimeout(arm, MAX_TIMER_MS);
+      return;
+    }
+    timer = setTimeout(fn, Math.max(0, left));
+  };
+  arm();
+  return () => {
+    if (timer !== null) clearTimeout(timer);
+  };
+}
