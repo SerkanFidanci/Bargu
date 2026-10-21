@@ -468,8 +468,8 @@ Seviye 4: süs isteği, dünya haritası ve sahte haber 1. parça, APK (`c2754a1
 Sıra önemli:
 
 1. Seviye 4 APK'sını (`c2754a1`) bütün telefonlara kur (aşağıda); 46–55'e bak.
-2. Sonra sunucu betiği (tamamlandı, 9 adım), önce kuru, sonra gerçek. Kendi terminalinde, depo
-   klasöründe:
+2. Sonra sunucu betiği (tamamlandı, 9 adım), önce kuru, sonra gerçek. Önce depoyu güncelle
+   (`git pull`). Git Bash'te (önerilen), depo klasöründe:
 
    ```bash
    ssh bargu-server 'sh -s -- --dry-run' < infra/staging/apply-pending.sh
@@ -479,8 +479,19 @@ Sıra önemli:
    ssh bargu-server 'sh -s' < infra/staging/apply-pending.sh
    ```
 
+   PowerShell'den (QA 31'in satırı; `<` PowerShell'de çalışmadığı için cmd üzerinden):
+
+   ```powershell
+   cmd /c "ssh bargu-server ""sh -s -- --dry-run"" < infra\staging\apply-pending.sh"
+   ```
+
+   ```powershell
+   cmd /c "ssh bargu-server ""sh -s"" < infra\staging\apply-pending.sh"
+   ```
+
    Seviyeyi 4 yapar, arka planda canlı konumu açar, dünya haritasını ve sunucu haberi anahtarını
-   kurar. Sonra kodlama oturumuna "çalıştırdım" yaz.
+   kurar. nginx adımı hata verirse yalnız nginx geri alınır, diğer adımlar uygulanmış kalır;
+   betiği yeniden çalıştırmak güvenli. Sonra kodlama oturumuna "çalıştırdım" yaz.
 
 3. Kodlama oturumu anahtarın açık kısmını uygulamaya koyar ve seviye 5 APK'sını çıkarır; onu da
    bütün telefonlara kur.
@@ -493,6 +504,9 @@ Sıra önemli:
    ```bash
    ssh bargu-server 'sh -s -- --min-level 5' < infra/staging/apply-pending.sh
    ```
+
+   PowerShell'den: `cmd /c "ssh bargu-server ""sh -s -- --min-level 5 --dry-run"" < infra\staging\apply-pending.sh"`,
+   sonra aynısı `--dry-run` olmadan.
 
 - Arka planda canlı konum denemesi (iki telefon, komuttan sonra):
   1. A telefonu (izlenen): bildirimler açık, çembere tam konum, ayar açık, pil %20 üstü, pil
