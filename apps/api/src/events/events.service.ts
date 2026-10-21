@@ -2,8 +2,10 @@ import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common
 import {
   type DeliveredEvent,
   deliveredEventSchema,
+  type LiveEvent,
   type ResumeReply,
   type ServerEvent,
+  STREAM_EVENT,
 } from '@bargu/schemas';
 import { z } from 'zod';
 import type { Server, Socket } from 'socket.io';
@@ -71,15 +73,16 @@ export class EventsService implements OnModuleDestroy {
 
   /**
    * Pushes a live message to users' connected phones, without storing it: for things where only
-   * the latest matters (locations) and that phones catch up on by asking for a snapshot.
+   * the latest matters (locations) and that phones catch up on by asking for a snapshot. The name
+   * is one of LIVE_EVENTS (packages/schemas), so the app's contract test knows every message.
    */
-  emitLive(userIds: Iterable<string>, name: string, payload: unknown): void {
+  emitLive(userIds: Iterable<string>, name: LiveEvent, payload: unknown): void {
     const rooms = [...new Set(userIds)].map(userRoom);
     if (rooms.length > 0) this.server?.to(rooms).emit(name, payload);
   }
 
   /** A live message to every connected phone (things that are the same for everyone). */
-  emitAll(name: string, payload: unknown): void {
+  emitAll(name: LiveEvent, payload: unknown): void {
     this.server?.emit(name, payload);
   }
 
@@ -135,7 +138,7 @@ export class EventsService implements OnModuleDestroy {
     const parsed = liveSchema.safeParse(JSON.parse(message));
     if (!parsed.success) return;
     for (const { userId, delivered } of parsed.data.deliveries) {
-      this.server?.to(userRoom(userId)).emit('event', delivered);
+      this.server?.to(userRoom(userId)).emit(STREAM_EVENT, delivered);
     }
   }
 

@@ -1,6 +1,12 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { pseudonym, verifyMessageEnvelope } from '@bargu/crypto';
-import type { BumpReply, DevicePushes, MessageEnvelope, PublishReply } from '@bargu/schemas';
+import type {
+  BumpReply,
+  DevicePushes,
+  LiveEvent,
+  MessageEnvelope,
+  PublishReply,
+} from '@bargu/schemas';
 import { messageEnvelopeSchema, RELAY_REFUSALS } from '@bargu/schemas';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
@@ -73,7 +79,11 @@ export const PROFILE_TTL_SECONDS = 30 * 24 * 3600;
 /** A reason explains a location, which is kept this long and no longer. */
 export const STATE_TTL_SECONDS = LOCATION_TTL_SECONDS;
 
-/** What the relay keeps per member: the location, and the status (emoji + text). */
+/**
+ * What the relay keeps per member: the location, the status (emoji + text), the profile, the look
+ * and the reason a location is old. Each is pushed live under `event` and `gone`, which are names
+ * from LIVE_EVENTS (packages/schemas): the app's contract test covers every one of them.
+ */
 const STORES = {
   loc: { key: locationKey, event: 'loc', gone: 'loc.gone', limit: RELAY_LIMITS.publishes },
   status: {
@@ -102,7 +112,10 @@ const STORES = {
     gone: 'state.gone',
     limit: RELAY_LIMITS.states,
   },
-} as const;
+} as const satisfies Record<
+  string,
+  { key: (circleId: string) => string; event: LiveEvent; gone: LiveEvent; limit: Limit }
+>;
 type Store = keyof typeof STORES;
 
 /**
@@ -332,7 +345,7 @@ export class RelayService {
     auth: AuthContext,
     envelope: MessageEnvelope,
     pushes: DevicePushes,
-    event: string,
+    event: LiveEvent,
     limitKey: string,
     limit: Limit,
   ): Promise<BumpReply> {
@@ -358,7 +371,7 @@ export class RelayService {
     envelope: MessageEnvelope,
     membership: Membership,
     pushes: DevicePushes,
-    event: string,
+    event: LiveEvent,
   ): Promise<void> {
     this.events.emitLive(membership.others, event, { envelope });
     if (pushes.length === 0) return;
