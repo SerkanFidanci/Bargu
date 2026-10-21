@@ -72,8 +72,15 @@ function box(x: number, y: number, width: number, height: number, r = 0): string
   ].join(' ');
 }
 
-/** Degrees as a hanging bar turns: forward (to the right) is a negative rotation. */
-const turn = (forward: number) => `${String(-forward)}deg`;
+/**
+ * Degrees as a hanging bar turns: forward (to the right) is a negative rotation. A worklet: the
+ * animated styles call it on the UI thread, where a plain function throws on every frame (the
+ * freeze of bc5f925).
+ */
+function turn(forward: number): string {
+  'worklet';
+  return `${String(-forward)}deg`;
+}
 
 /**
  * Someone walking or running, the way the owner approved it (2026-10-21): their shirt in their own
