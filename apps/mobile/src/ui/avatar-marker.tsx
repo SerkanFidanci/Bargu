@@ -349,7 +349,7 @@ export function AvatarMarker({
         </Animated.View>
       </Animated.View>
       {stale ? (
-        <View style={[styles.age, { backgroundColor: colors.surfaceRaised }]}>
+        <View testID="marker-age" style={[styles.age, { backgroundColor: colors.surfaceRaised }]}>
           <Text variant="caption" color="textMuted" allowFontScaling={false}>
             {hours === null
               ? t('ui.marker.age', { minutes: staleMinutes })

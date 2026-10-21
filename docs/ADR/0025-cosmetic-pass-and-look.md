@@ -99,3 +99,80 @@ her paket için len ‖ paket` (paketler sıralı ve tekil, en çok 6; kimlikler
   açısından bir şey açmaz (süs yalnızca görünüştür). Anahtar değiştirilir, eski `kid` uygulamadan
   çıkar.
 - Eski uygulamalar `look` mesajını yok sayar; süsleri görmezler, bozulmazlar.
+
+## Ek (2026-10-21, Faz 9B dilim 3b: süsler haritadaki pinde)
+
+- Durum: PM onayı bekliyor.
+- İlgili: [ADR 0008](0008-design-system-and-map.md) (pin ve kendi pinin),
+  [ADR 0027](0027-calm-mode-and-motion-budget.md) (sade mod).
+
+**Neden:** Kişiler artık çıkartma ve ada olarak değil, pin olarak çiziliyor (mor halka, kuyruk, konum
+noktası). Süsler pinin üstüne taşındı. Geçiş belgesi, görünüm mesajının mantığı, anahtarlar, sunucunun
+bilgisi ve 15–17 kuralı değişmedi; yalnızca adlar, çizim ve hareket sınırı değişti.
+
+### Paketler (§4'ün yerine)
+
+- **"Halka desenleri"** (`rings`, ₺29,99): pinin halkasının üstüne çizgili, puantiyeli, renk geçişli,
+  parıltılı.
+- **"Pin çerçeveleri"** (`frames`, ₺29,99): pinin çevresine holografik, altın, neon, kesik çizgi.
+- Ürünler `cosmetic:rings` ve `cosmetic:frames`. Hiçbir paket satılmadığı için göç yok; veritabanı her
+  `cosmetic:<paket>` ürününü kabul eder. Belgedeki paket kimlikleri de bunlardır (sıralı: `frames`,
+  `rings`).
+- Görünüm mesajının alanları `island`/`edge` iken `ring`/`frame` oldu (hiçbir sürüm göndermedi).
+  Mesajın şekli, 512 baytlık dolgusu ve en büyük hâlinin testi aynı.
+
+### Nerede çizilir
+
+- Halka deseni pinin kendi halkasının üstüne, çerçeve halkanın dışına (2 px boşluk, 3 px kalınlık)
+  çizilir; ikisi de SVG'dir ve dokunmayı, ekran okuyucuyu ve düzeni etkilemez. Ölçüler `cosmeticFx`
+  tokenlarındadır.
+- Kendi pinin, arkadaşların pinleri ve "Görünüm ve harita"daki önizleme aynı bileşeni kullanır.
+- **Ortak pinde** (iki ya da daha çok kişi bir arada, `ClusterBubble`) süs çizilmez: ortak halka
+  kimsenin değildir. Ayrılınca herkesin süsü yine görünür.
+- Eski bir konumda pin gri olur; süs de soluk ve durağan çizilir.
+- **Ad ve yaş yazısı** pinin altındaki kendi zeminli hapta durur; süs yalnızca halka ve çerçeveyle
+  sınırlıdır ve yazının üstüne gelmez. Her süs için açık ve koyu temada testle denenir.
+
+### Hareket
+
+- Hareketli stiller: **parıltılı** (halka), **holografik** ve **neon** (çerçeve). Reanimated
+  worklet'leriyle ve `cosmeticFx` hareket tokenlarıyla çizilir; JS thread'de animasyon yok.
+  Worklet'in çağırdığı her işlev `'worklet'` taşır (`worklet-calls.test.ts` kaynağı okuyarak
+  denetler).
+- Yalnızca sade mod "tam"da hareket eder. "Az" ve "kapalı"da, sistemin "Hareketi azalt" ayarında,
+  pil tasarrufunda ve %20'nin altında (şarj olmuyorsa) durur (`useEffects`, ADR 0027 §2). Harita
+  görünmüyorsa da çalışmaz. Durağan stiller (çizgili, puantiyeli, renk geçişli, altın, kesik çizgi)
+  hiç kare istemez.
+- **Aynı anda en çok 3 pin** süsünü oynatır (`cosmeticFx.maxAnimated`); fazlası durağan çizilir.
+  Önce kullanıcının kendi pini, sonra ilk isteyenler.
+- Ölçüm: `look-frames.test.tsx` ADR 0027'nin kare sayımını süsler için yapar ("tam"da hareketliler
+  kare ister; durağanlar ve sade moddakiler 0).
+
+### Ekran, satın alma, yenileme
+
+- "Ben > Görünüm ve harita > Pin süsleri": kendi pininde önizleme, iki paket, her paketten bir stil.
+  Alınmamış paketin stili önizlemede denenir; kaydedilmez ve gönderilmez. Satın alınca denenen stil
+  seçilir ve çemberlere gider.
+- Satın alma, test satın almanın açık olduğu yerde test satın almadır ("TEST — gerçek ödeme yok");
+  başka yerde "yakında". 15–17'de düğme "Ebeveynime sor" olur ve yine
+  `POST /v1/billing/test/purchase` çağrılır.
+- **Bilinen eksik:** sunucu 15–17'nin paket isteğini henüz açmıyor, `403 GUARDIAN_APPROVAL` döner
+  (ADR 0024: "dilim 3'e kadar reddedilir, istek açılmaz"). Uygulama bunu hata saymaz, "bu paket için
+  ebeveyn onayı gerekiyor" der. Ebeveyn tarafı (`guardian_requests`'e `cosmetic:` ürünü, ebeveyn
+  görünümü, onayda satın alma) ayrı bir sunucu işidir.
+- Belge şu durumlarda yenilenir (§1'deki "yarısından azı kaldıysa" koşuluna ek): uygulama
+  açılırken, `plan.changed`'de, bağlantı geri gelince, plan belgenin adlandırmadığı bir paket
+  gösterince ve satın almadan hemen sonra. Paket satın almak `plan.changed` yollamadığı için son
+  ikisi gerekir. Hepsi olaydır; yoklama yok.
+- Görünüm, profilin gittiği her durumda gider (§3): çemberin epoch'u, üyeleri ya da okuyabilen
+  (güvenilen) telefonları değiştiğinde; yani yeni üye, yeni epoch, yeni cihaz, güven onayından
+  (TOFU) sonra. Telefon her çember için en son ne gönderdiğini epoch, seçim, belge ve okuyan
+  telefonların parmak izinden bir işaretle tutar.
+
+### Sonuçlar
+
+- Gören telefon hâlâ yalnızca imzası güvendiği anahtarla doğru, süresi geçmemiş, gönderenin kendi
+  hesabına ait ve seçilen stili belgedeki bir pakete ait olan görünümü gösterir; yoksa varsayılan
+  görünüm çıkar, hata gösterilmez.
+- Staging'e yeni şemalar dağıtılana kadar eski sunucu `cosmetic:rings` satın almasını reddeder; bu
+  yüzden dağıtım, uygulamanın denenmesinden önce yapılmalıdır.

@@ -54,6 +54,7 @@ export const lookColors = {
   gold: ['#FBE38A', '#C9961A', '#F6D55C', '#A9780F'],
   goldRim: '#7A5A0C',
   neon: '#00F0FF',
+  neonRim: '#0E7490',
   sparkle: '#FFFFFF',
 } as const;
 

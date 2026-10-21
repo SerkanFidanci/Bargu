@@ -27,9 +27,8 @@ import {
 } from './look-styles';
 
 /** How far the drawing reaches beyond the pin's circle: the frame, its gap and the neon glow. */
-const GLOW_GROW = Math.max(...cosmeticFx.glow.map((glow) => glow.grow));
-const REACH =
-  cosmeticFx.frame.gap + cosmeticFx.frame.width / 2 + (cosmeticFx.frame.width * GLOW_GROW) / 2;
+const GLOW_REACH = Math.max(...cosmeticFx.glow.map((glow) => glow.reach));
+const REACH = cosmeticFx.frame.gap + cosmeticFx.frame.width + GLOW_REACH;
 
 export interface PinLookProps {
   look: Look;
@@ -335,21 +334,34 @@ function NeonFrame({ size, box, moving }: PartProps) {
     <View testID="pin-look-frame-neon" style={styles.fill}>
       <Animated.View style={[styles.fill, breathing]}>
         <Svg width={box} height={box} style={styles.fill}>
-          {cosmeticFx.glow.map((glow) => (
-            <Circle
-              key={glow.grow}
-              cx={center}
-              cy={center}
-              r={radius}
-              stroke={lookColors.neon}
-              strokeOpacity={glow.opacity}
-              strokeWidth={cosmeticFx.frame.width * glow.grow}
-              fill="none"
-            />
-          ))}
+          {cosmeticFx.glow.map((glow) => {
+            // From the pin's edge outwards: the glow never reaches over the pin itself.
+            const width = cosmeticFx.frame.gap + cosmeticFx.frame.width + glow.reach;
+            return (
+              <Circle
+                key={glow.reach}
+                cx={center}
+                cy={center}
+                r={size / 2 + width / 2}
+                stroke={lookColors.neon}
+                strokeOpacity={glow.opacity}
+                strokeWidth={width}
+                fill="none"
+              />
+            );
+          })}
         </Svg>
       </Animated.View>
       <Svg width={box} height={box} style={styles.fill}>
+        {/* A darker line under the bright one, so that it also shows on a light map. */}
+        <Circle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke={lookColors.neonRim}
+          strokeWidth={cosmeticFx.frame.width + 1}
+          fill="none"
+        />
         <Circle
           cx={center}
           cy={center}

@@ -231,7 +231,8 @@ async function refresh(force: boolean): Promise<void> {
   const { choice, pass } = useMyLook.getState();
   if (!force && !passDue(pass, Date.now(), ownedPacks())) return;
   const next = await fetchPass();
-  if (next?.issuedAt === pass?.issuedAt && next?.expiresAt === pass?.expiresAt) return;
+  // The signature covers all of the pass: the same one, nothing to change or tell.
+  if (next?.sig === pass?.sig) return;
   if (next === null) vault().delete(PASS_KEY);
   else vault().set(PASS_KEY, JSON.stringify(next));
   setMine(choice, next);

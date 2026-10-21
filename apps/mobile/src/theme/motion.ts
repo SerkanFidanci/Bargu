@@ -233,13 +233,13 @@ export const cosmeticFx = {
   /** Segments of the striped ring, dots of the dotted ring, sparkles on the sparkling one. */
   stripes: 24,
   dots: 12,
-  sparkles: { count: 8, size: 7 },
+  sparkles: { count: 8, size: 5 },
   /** The dashed frame: the dash and the gap between dashes. */
   dash: { length: 6, gap: 4 },
-  /** The glow around a neon frame: how much wider than the frame, and how faint, each. */
+  /** The glow of a neon frame, outwards from the pin: how far past the frame it reaches, how faint. */
   glow: [
-    { grow: 3, opacity: 0.3 },
-    { grow: 6, opacity: 0.14 },
+    { reach: 3, opacity: 0.3 },
+    { reach: 6, opacity: 0.14 },
   ],
   /** An old location shows its look this faint. */
   staleOpacity: 0.45,
