@@ -90,7 +90,8 @@ EXPO_PUBLIC_DEV_TOOLS === '1'` koşuluyla içe aktarır. Expo bu değeri sürüm
   pakette var. Production'da kalan: boş bir dinleyici kancası (`probe.current = null`), boş bir yuva
   ve menü satırının metin anahtarı.
 - Ölçümler yalnızca bellekte; sunucuya, log'a, diske gitmez. Katmana hiçbir koordinat verilmez:
-  yalnızca zamanlar, doğruluklar, kaynaklar ve sayılar (testli).
+  yalnızca zamanlar, doğruluklar, kaynaklar ve sayılar (testli). Tek istisna: arka planda canlı
+  modun sayaçları önizlemede telefonun kasasında kalır (aşağıda, 3. adım Ek'i, Karar 7).
 - Ben > geliştirici bölümünden "Geliştirici: ölçüm katmanı" ile açılır; kısa Türkçe etiketler.
 - Gösterdikleri: bu telefonun örnek aralığı (servis / canlı), gecikme, doğruluk, gönderim aralığı ve
   modu, filtrenin attıkları (eski, bayat, zayıf, sıçrama), kapalı alanda gönderilenler; her arkadaş
@@ -138,8 +139,11 @@ GPS de yalnız uygulama öndeyken açılır. Arka plandaki arkadaş bu yüzden 5
    "Yeni bir bildirimin var" yer tutucusuyla ekranı yakardı (iOS sonra).
 2. **Sunucu hız sınırı (alıcı başına, kaç kişi izlerse izlesin):** en çok 90 sn'de 1 ve saatte 20
    haber. İkisi de ortam ayarıyla değişir: `WATCH_PUSH_MIN_SECONDS` (90) ve `WATCH_PUSH_PER_HOUR`
-   (20). Saatlik sınır sabit bir saatlik penceredir. İzleyen başına bugünkü sınır (30 sn'de 2)
-   aynen sürer. FCM haberi en çok 2 dakika tutar ve yeniden denemez; 2 dakikadan eski haber
+   (20). Saatlik sınır **kayan** bir penceredir (PM, 2026-10-21): her alıcı için son haberlerin
+   zamanı Redis'te tutulur ve tek adımda bakılır; son haber 90 sn'den yakınsa ya da son bir saatte
+   zaten 20 haber varsa yeni haber verilmez, reddedilen hiçbir şey kaydetmez. Sabit bir saat
+   penceresi kenarında yaklaşık 40 habere izin verirdi; kayan pencerede hiçbir saat 20'yi geçmez
+   (gerçek Redis'te zamanı oynatarak testli). İzleyen başına bugünkü sınır (30 sn'de 2) aynen sürer. FCM haberi en çok 2 dakika tutar ve yeniden denemez; 2 dakikadan eski haber
    telefonda atılır: geç gelen sinyal kimse için pencere açmasın.
 3. **Telefon:** arka plan görevi haberi açar. Aşağıdaki durdurucuların hiçbiri yoksa telefon 2 dk
    (`LIVE_MS`) canlı moda geçer: saniyede bir konum, gönderim bugünkü canlı kurala göre (en sık
@@ -152,8 +156,9 @@ GPS de yalnız uygulama öndeyken açılır. Arka plandaki arkadaş bu yüzden 5
    - bu çemberle yalnızca kaba (mahalle ya da şehir) paylaşım, ya da hiç paylaşım yok;
    - bu çemberle zamanlı paylaşımın süresi dolmuş;
    - çember duraklı (kimse ödemiyor, ADR 0024): **asla**;
-   - pil tasarrufu açık;
-   - pil %20'nin altında;
+   - pil tasarrufu açık (şarjda da durdurur);
+   - pil %20'nin altında **ve telefon şarjda değil** (PM, 2026-10-21): şarj olan ya da dolu telefonda
+     bu durdurucu geçerli değildir;
    - telefonun kendi sınırı: **kayan her saatte en çok 15 dakika** arka plan canlı modu (sabit;
      sunucu ne yollarsa yollasın). İki dakikalık pencereler bir saatte 7 kez açılabilir; sekizincisi
      beklemek zorunda;
@@ -163,8 +168,12 @@ GPS de yalnız uygulama öndeyken açılır. Arka plandaki arkadaş bu yüzden 5
 4. **Ayar:** Konum ayarlarında "Arka planda canlı konum" (pil notuyla). 18+ için varsayılan açık.
    Kullanıcıya bir kez açıklama kartı çıkar: "Biri haritada sana bakarken konumun birkaç dakika daha
    sık gider; pil biraz daha harcanır. Ayarlardan kapatabilirsin." (İngilizcesi de var.) Kart
-   haritada, uygulama bu özellik açıkken ilk açıldığında görünür; ayarı açan kullanıcı açıklamayı
-   zaten görmüştür, kart sonra çıkmaz. Ayar yalnız bu telefonda, şifreli kasada durur.
+   haritada, uygulama bu özellik açıkken ilk açıldığında görünür; "Tamam" ile kapanır; ayarı açan
+   kullanıcı açıklamayı zaten görmüştür, kart sonra çıkmaz. Kart haritadaki öbür kartlarla aynı
+   sırada bekler (PM, 2026-10-21): konum izni, yeniden kurulum seçimi, bildirim sorusu, haftalık
+   "kim görüyor" hatırlatması; aynı anda yalnız biri görünür, en sonda bu gelir, öndeki kapanınca
+   sıradaki çıkar (`features/location/map-cards.ts`, gerçek kartlarla testli). Ayar yalnız bu
+   telefonda, şifreli kasada durur.
 5. **15–17:** varsayılan **kapalı**; yalnız gencin kendisi açabilir. Ebeveyn uzaktan açamaz; ayar
    ebeveyn araçlarında (ADR 0023 §5) gösterilmez ve taşınmaz (ebeveyn ayarları: yeni insanlar için
    onay ve günlük süre; ikisi de değişmedi, testle kilitli). Gerekçe: çocuklar için varsayılan her
@@ -176,7 +185,11 @@ GPS de yalnız uygulama öndeyken açılır. Arka plandaki arkadaş bu yüzden 5
    uygulama yalnızca haberle uyanıp hiçbir şey yapmadan döner.
 7. **Ölçüm katmanı (yalnızca önizleme, §6):** alınan `watch` haberi sayısı, açılan arka plan canlı
    dakikası ve reddedilenler neden diye: ayar, hayalet, paylaşım yok, kaba, süre bitti, duraklı,
-   pil tasarrufu, pil az, sınır, sistem. Yalnızca bellekte; konum ya da çember kimliği yoktur.
+   pil tasarrufu, pil az, sınır, sistem. Konum ya da çember kimliği yoktur: yalnız sayılar.
+   Sayaçlar önizlemede, telefon denemesi için (PM, 2026-10-21) bu telefonun şifreli kasasında kalıcıdır:
+   uygulama kapansa da kaybolmazlar; sunucuya ya da başka yere gitmezler ve çıkışta kasayla silinirler.
+   Ölçüm katmanının geri kalanı §6'daki gibi bellekte kalır. Ölçüm katmanını yalnız geliştirme ve
+   önizleme paketleri yüklediği için production'da sayaç da yoktur.
 8. **Bayrak:** telefon tarafı şimdilik yalnız önizleme (ve geliştirme) paketinde: `EXPO_PUBLIC_BG_LIVE=1`
    (`eas.json` development ve preview). Production paketinde özelliğin kodu yoktur, ayar satırı ve
    kart da yoktur; gelen `watch` haberi atılır. Doğrulandı: bayraksız `expo export` paketinde
@@ -216,6 +229,29 @@ B'deki gecikme (ölçüm katmanı), `watch` haberi sayısı, açılan dakika, re
 "sistem": Android arka plana konum verdi mi, FCM öncelik düşürdü mü). Sonuç ve pil etkisi PM'e; son
 onaydan sonra production'a açılır.
 
+### PM'in cevapları (2026-10-21)
+
+Uygulama sonrası açık sorulara PM'in cevabı; hangisi yapıldı, hangisi sonraya kaldı:
+
+1. **Saatlik sunucu sınırı:** kayan pencere (ya da jeton kovası) olsun, pencere kenarında ~40'lık
+   patlama olmasın. 90 sn en az aralık ve iki ortam ayarı aynen kalır. **Yapıldı** (Karar 2).
+2. **Şarjdaki telefon:** şarj olurken "pil %20'nin altı" durdurucusu geçerli değil; pil tasarrufu
+   yine durdurur. **Yapıldı** (Karar 3).
+3. **Sayaçlar:** yalnız önizleme paketlerinde telefonda kalıcı (kasada, sunucuya hiç gitmez);
+   production'da bellekte kalır, yani orada ölçüm katmanı olmadığı için sayaç da yoktur.
+   **Yapıldı** (Karar 7).
+4. **Açıklama kartı** (18+, ilk açılış, haritada, kapatılabilir) başka bir ilk açılış kartıyla üst
+   üste binmez; haritadaki kartlar sıraya girer, aynı anda biri görünür. **Yapıldı** (Karar 4).
+5. **Telefon denemesinde "sistem" reddi çıkarsa** sıradaki adım: küçük bir yerel Expo modülü
+   (Kotlin), çalışan servisin konum isteğini yeni servis başlatmadan günceller. Yeni izin, Play
+   beyanı ve yeni bağımlılık gerekmez. O da olmazsa arka planda 5 sn'lik ritimde kalınır.
+   **Şimdi yapılmadı**; yalnız deneme sonucu gösterirse yazılır.
+6. **`ACCESS_BACKGROUND_LOCATION`** ayrı bir ürün kararıdır, sahibine aittir; bu işin parçası değil
+   (uygulama hâlâ yalnızca "kullanırken" izni ister, ADR 0011).
+7. **Hep açık 1 sn'lik konum servisi** reddedildi (pil).
+8. **iOS sessiz bildirimi** (`content-available`) iOS dilimine ait; bu işte yapılmaz. Sunucu o güne
+   kadar `watch` haberini iPhone'a göndermez.
+
 ### Sonuçlar
 
 - Arka plandaki arkadaş, birisi bakarken yaklaşık saniyede bir gelir; kimse bakmıyorsa 5 sn'de bir.
@@ -223,11 +259,12 @@ onaydan sonra production'a açılır.
   (THREAT_MODEL).
 - Pil: telefon başına en çok saatte 15 dakika ek canlı mod; ayardan kapatılabilir.
 - Testler: sunucu (haber yalnız çevrimdışı üyenin güncel cihazına gider; izleyene, duraklı çembere,
-  yabancıya gitmez; açılan kutuda yalnız tür ve çember var; alıcı başına 90 sn ve saatlik sınır, iki
-  izleyenle; `WATCH_PUSH` kapalıyken hiç), şema, FCM süresi, iOS'a gitmeme; telefon (her durdurucu,
-  süre bitince normal ritim, sayaçlar, saatlik sınır, 15–17 varsayılanı ve ebeveyn araçlarında
-  olmaması, tek seferlik kart, bilinmeyen haber türünün sessizce atılması, `watch` haberinin hiç
-  gösterilmemesi).
+  yabancıya gitmez; açılan kutuda yalnız tür ve çember var; alıcı başına 90 sn ve kayan saatlik
+  sınır, iki izleyenle ve üç saatlik sürekli bakışta; `WATCH_PUSH` kapalıyken hiç), şema, FCM
+  süresi, iOS'a gitmeme; telefon (her durdurucu, şarjdaki düşük pil, süre bitince normal ritim,
+  sayaçlar ve önizlemede kalıcılıkları, saatlik sınır, 15–17 varsayılanı ve ebeveyn araçlarında
+  olmaması, tek seferlik kart ve kartların sırası, bilinmeyen haber türünün sessizce atılması,
+  `watch` haberinin hiç gösterilmemesi).
 
 ## Sonraki adımlar
 
