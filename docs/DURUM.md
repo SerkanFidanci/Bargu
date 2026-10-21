@@ -175,53 +175,10 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
   tren (230) ya da uçak (320) olur ve sahibin konumunun çevresinde döner (250 m – 2 km). Hareket
   yönü artık çemberin yönünde (v12'de 90° yanlıştı).
 
-### Test arkadaşı v14, "Deniz" (bekliyor, 2026-10-21)
+### Test arkadaşı Deniz
 
-Sahibin isteği: bot, İstanbul'da yaşayan biri gibi davranan ve bir dil modelinin (EVREN) yönettiği
-bir test arkadaşı olacak. Sahip "önce projeye odaklanalım" dedi; iş güvenli bir yerde durdu.
-
-- Yapılan: botun kodu TypeScript'e taşındı (`tools/test-friend`, v13 ile aynı davranış), ayrı dalda
-  `worktree-agent-a18b6198871923d2e` (`cda2ad0`, `190254e`). Ana dala girmedi. Tam iş tanımı o
-  dalda `tools/test-friend/BRIEF.md`.
-- Yarım: birim testleri (paket testsiz CI'ı kırar, dal bu yüzden birleştirilmez), yerler, gerçek
-  yolların çıkarılması, hayat kipi, kurulum, ADR 0029.
-- Kişi (taslak, sahip henüz onaylamadı): Deniz, 27 (önce "Elif" diye tasarlandı; sahip adı değiştirdi: uydurma, cinsiyetsiz); Kadıköy Caferağa'da kiralık ev; Levent'te uydurma
-  bir şirkette UX tasarımcısı; beyaz Renault Clio (uydurma plaka, durum yazısında görünmez); spor
-  salonu, market, kuaför; Ataşehir'de ailesi; hafta sonu Büyükada ya da Belgrad Ormanı. Evi, işi,
-  spor salonu, market, benzinlik, kafe, aile evi ve otopark sahiple ortak çemberde kayıtlı yer olur;
-  varış ve ayrılış bildirimleri gerçek gelir.
-- Model: EVREN, OpenAI uyumlu (`https://evren-llmapi.ssyz.org.tr/v1`; resmi belgeden
-  doğrulanamadı, bir habere göre 1 Kasım 2026'ya kadar ücretsiz). Günde en çok 150 çağrı (env'den).
-  Model yalnız JSON döner, zod ile denetlenir. Koordinat seçemez, yalnız listedeki yer, ulaşım ve
-  durum yazısı. Hata, zaman aşımı ya da tavan dolunca kurallı gün planı.
-- Gizlilik: modele hiçbir gerçek kullanıcının konumu, adı ya da çözülmüş içeriği gitmez. Olaylar
-  tür ve takma adla gider ("Arkadaş 1 seni dürttü"). İstem ve cevap loglanmaz. Model çember, davet
-  ya da arkadaşlık kuramaz.
-- Yollar: OpenStreetMap'ten bir kez çıkarılıp sadeleştirilmiş (5–10 m), ODbL atıflı küçük bir dosya;
-  çalışırken yönlendirme servisi yok. Dışarıya yalnız Bargu API'si, EVREN ve api.open-meteo.com
-  (kodda izin listesi).
-- Çalışacağı yer: staging sunucusu (sahip, 2026-10-21; evdeki bilgisayar kararının yerine). Yük
-  küçük: bugünkü bot ~170 MB bellek ve ~%2 işlemci kullanıyor; sunucuda 4 çekirdek ve 6 GB boş
-  bellek var; model EVREN'de çalışır. Botun kendi köprü ağı olur, port açılmaz, rastamen'e
-  dokunulmaz, önce yedek alınır. Kurulum sunucu değişikliği olduğu için sahibin doğrudan onayıyla.
-  Tek Docker imajı ve tek betik; gerekirse bilgisayarda da yalnız ayar dosyalarıyla çalışır (şirket
-  ağında FortiGate staging adresini araya girip imzaladığı için orada BT muafiyeti gerekir).
-- Anahtar: sahip sunucuda kendi terminalinde gizli girişle botun ayar dosyasına yazar (`chmod 600`).
-  Sohbete, depoya ve loga girmez.
-- Bot durursa (sunucu yeniden başlarsa) Deniz yoktur; açılınca aradaki süre hesaplanır, tek konum
-  sıçraması ve en çok bir model çağrısı olur.
-- Sıra (PM): arka planda canlı konum ve süsler (3b) bittikten sonra ya da düşük öncelikte; önce
-  testler, sonra yerler ve yollar, sonra hayat kipi.
-- ADR 0029 kuralı (yazılacak): Deniz yalnız sahibin test arkadaşıdır. Gerçek kullanıcılara asla
-  gerçek bir insan gibi gösterilmez, ürüne ve mağaza sürümüne girmez. Kapalı testten önce bot test
-  kullanıcılarının çemberlerinden çıkarılır (Faz 10).
-- Sonraki dilim: hafıza akışı, gece düşünme ve sabah planı, ruh hali, kendiliğinden ve hız sınırlı
-  dürtme ya da buluşma, "Arkadaş 1" ile ilişki hafızası. Hayat durumu ve hafıza dosyaları buna
-  göre genişletilebilir kurulacak.
-- Devam ederken bakılacaklar: açık OSRM sunucusu yalnız araba profili sunuyor olabilir (yürüme ve
-  bisiklet için başka sunucu gerekebilir, denenmedi); vapurla işe gidişte Beşiktaş iskelesi ile ofis
-  arası bağlantı eksik; yol dosyasının çalışırken nereden okunacağı.
-- Staging'deki eski bot (v13, tur kipi) yerinde kalır.
+Deniz ayrı, deneysel bir proje; Bargu'ya bağlı değil. Bargu'ya yalnız bir test kullanıcısı olarak
+API'den bağlanır.
 
 ### Kalan açıklar
 
@@ -237,7 +194,7 @@ bir test arkadaşı olacak. Sahip "önce projeye odaklanalım" dedi; iş güvenl
 5. Süs: 3b yapılmadan hiçbir süs görünmez; staging'de paket test için satın alınabilir.
    Kabul edilen risk: iadeden sonra değiştirilmiş bir uygulama en çok 30 gün eski belgeyle süs
    gösterebilir.
-6. Çalışan test botunun kodu ana dalda değil (sunucuda; TypeScript'e taşınmış hâli ayrı dalda, yukarıda). Betik
+6. Test botunun (v13) kodu depoda değil, yalnız sunucuda. Betik
    sunucunun `/tmp` klasöründen bağlı (sunucu yeniden başlarsa bot kalkmaz) ve bot 24 saat sonra
    kendiliğinden durur (22 Ekim ~17:27).
 7. `event-cleanups` entegrasyon testi makine çok yüklüyken bir kez kırıldı (QA 20), tekrar
