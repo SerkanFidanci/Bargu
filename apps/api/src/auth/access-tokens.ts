@@ -11,7 +11,7 @@ import {
 import { ApiError } from '../common/api-error.js';
 import { AuthKeys } from './auth-keys.js';
 
-export const ACCESS_TOKEN_TTL_SECONDS = 10 * 60;
+const ACCESS_TOKEN_TTL_SECONDS = 10 * 60;
 const ISSUER = 'bargu-api';
 const AUDIENCE = 'bargu-app';
 const ALGORITHM = 'EdDSA';

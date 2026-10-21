@@ -43,7 +43,7 @@ export function opensBelow(origin: ScreenPoint, topInset: number): boolean {
   return origin.y - RADIAL_RADIUS - touchTarget < topInset;
 }
 
-export function radialAngles(below: boolean): readonly number[] {
+function radialAngles(below: boolean): readonly number[] {
   return below ? ANGLES_ABOVE.map((angle) => -angle) : ANGLES_ABOVE;
 }
 

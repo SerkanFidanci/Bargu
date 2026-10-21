@@ -80,22 +80,3 @@ export async function destroyVault(): Promise<void> {
   store = null;
   await SecureStore.deleteItemAsync(STORAGE_KEY, OPTIONS);
 }
-
-/** Tests: a plain in-memory store. */
-export function memoryVaultForTests(): KeyValueStore {
-  const data = new Map<string, string>();
-  store = {
-    get: (key) => data.get(key),
-    set: (key, value) => {
-      data.set(key, value);
-    },
-    delete: (key) => {
-      data.delete(key);
-    },
-    keys: () => [...data.keys()],
-    clear: () => {
-      data.clear();
-    },
-  };
-  return store;
-}

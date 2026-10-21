@@ -20,7 +20,7 @@ const FACES = {
 type Family = keyof typeof FACES;
 type Weight<F extends Family> = keyof (typeof FACES)[F];
 
-export function font<F extends Family>(family: F, weight: Weight<F>): TextStyle {
+function font<F extends Family>(family: F, weight: Weight<F>): TextStyle {
   if (Platform.OS === 'ios') {
     return { fontFamily: (FACES[family] as Record<Weight<F>, string>)[weight] };
   }

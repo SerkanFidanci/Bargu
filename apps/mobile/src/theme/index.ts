@@ -21,7 +21,7 @@ export {
   typingDebounceMs,
   weatherFx,
 } from './motion';
-export { font, typography, type TypographyVariant } from './typography';
+export { typography, type TypographyVariant } from './typography';
 
 export type ColorScheme = 'light' | 'dark';
 

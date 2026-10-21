@@ -33,7 +33,7 @@ const HOUR_MS = 3600_000;
  * A meeting's end as kept: up to the next full hour (docs/ADR/0026 §2, QA 22), so what the server
  * holds says its time within an hour only (today's apps round it themselves before sending).
  */
-export function fullHourAfter(at: number): number {
+function fullHourAfter(at: number): number {
   return Math.ceil(at / HOUR_MS) * HOUR_MS;
 }
 

@@ -46,7 +46,7 @@ const PLUS = new Set(['trial', 'plus_month', 'plus_year']);
  * Whether a row gives Bargu+ at `now` (the same rule as app.plus_active, migrations/0030): a test
  * row only where test purchases are on.
  */
-export function plusLive(row: Row, now: number, testCounts: boolean): boolean {
+function plusLive(row: Row, now: number, testCounts: boolean): boolean {
   if (!PLUS.has(row.product)) return false;
   if (row.source === 'test' && !testCounts) return false;
   if (row.state === 'grace') return (row.graceUntil?.getTime() ?? 0) > now;
