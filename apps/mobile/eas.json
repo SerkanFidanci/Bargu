@@ -17,7 +17,8 @@
         "EXPO_PUBLIC_DEV_TOOLS": "1",
         "EXPO_PUBLIC_TEST_BILLING": "1",
         "EXPO_PUBLIC_BG_LIVE": "1",
-        "EXPO_PUBLIC_INVITE_HOST": "api.46-62-162-70.sslip.io"
+        "EXPO_PUBLIC_INVITE_HOST": "api.46-62-162-70.sslip.io",
+        "EXPO_PUBLIC_NOTICE_KEYS": "dev-n1:qfYcX5aecY9IExYOJZ6aaoZh8Wan9o2mHq67kT_FkOg"
       },
       "android": {
         "buildType": "apk"
@@ -33,7 +34,8 @@
         "EXPO_PUBLIC_TEST_BILLING": "1",
         "EXPO_PUBLIC_COSMETIC_KEYS": "stg-1:mwQvYUsDWMETNhiYMFXRSHkwR47YHPC6l27Deu3Sgtw",
         "EXPO_PUBLIC_BG_LIVE": "1",
-        "EXPO_PUBLIC_INVITE_HOST": "api.46-62-162-70.sslip.io"
+        "EXPO_PUBLIC_INVITE_HOST": "api.46-62-162-70.sslip.io",
+        "EXPO_PUBLIC_NOTICE_KEYS": "stg-n1:PLACEHOLDER-fill-in-from-/opt/bargu/staging/notice-public-key.txt"
       },
       "android": {
         "buildType": "apk"
@@ -44,6 +46,9 @@
       "distribution": "store",
       "environment": "production",
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_NOTICE_KEYS": ""
+      },
       "android": {
         "buildType": "app-bundle"
       }
