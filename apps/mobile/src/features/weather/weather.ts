@@ -43,6 +43,26 @@ export function weatherAt(
   snapshot: WeatherSnapshot,
   point: { lat: number; lng: number },
 ): WeatherHere | null {
+  const index = weatherCellAt(snapshot, point);
+  return index === null ? null : weatherOfCell(snapshot, index);
+}
+
+/** The weather of one cell of the grid (see weatherCellAt), or null for an empty one. */
+export function weatherOfCell(snapshot: WeatherSnapshot, index: number): WeatherHere | null {
+  const cell = snapshot.cells[index];
+  if (cell === undefined || cell === null) return null;
+  const [code, day, temperature, cloud, , wind] = cell;
+  return { ...kindOf(code, cloud), day: day === 1, temperature, wind };
+}
+
+/**
+ * Which cell of the grid is nearest a point, as its index; null outside the grid. A number, so a
+ * screen can follow it without being redrawn for every metre the phone moves within one cell.
+ */
+export function weatherCellAt(
+  snapshot: WeatherSnapshot,
+  point: { lat: number; lng: number },
+): number | null {
   const { south, west, step, rows, cols } = snapshot.grid;
   const row = Math.round((point.lat - south) / step);
   const col = Math.round((point.lng - west) / step);
@@ -54,11 +74,7 @@ export function weatherAt(
   ) {
     return null;
   }
-  const index = Math.min(Math.max(row, 0), rows - 1) * cols + Math.min(Math.max(col, 0), cols - 1);
-  const cell = snapshot.cells[index];
-  if (cell === undefined || cell === null) return null;
-  const [code, day, temperature, cloud, , wind] = cell;
-  return { ...kindOf(code, cloud), day: day === 1, temperature, wind };
+  return Math.min(Math.max(row, 0), rows - 1) * cols + Math.min(Math.max(col, 0), cols - 1);
 }
 
 /** A weather snapshot from the server, or null when there is none (or it is malformed). */

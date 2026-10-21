@@ -21,6 +21,7 @@ import { useNow } from '@/features/location/clock';
 import { useMyFix } from '@/features/location/engine';
 import { LocationBanner } from '@/features/location/location-banner';
 import { useMapOpen } from '@/features/location/map-open';
+import { useFirstPosition, useMyCell } from '@/features/location/my-position';
 import { useLocationPermission } from '@/features/location/tracker';
 import { NewPhoneCard } from '@/features/location/new-phone-card';
 import { SwarmLayer, SwarmPanel } from '@/features/dev/swarm-panel';
@@ -75,7 +76,10 @@ export default function HomeScreen() {
   const celebrated = useCelebration((state) => state.done);
   const myUserId = useAuth((state) => state.userId);
   const sharing = useSharing();
-  const myFix = useMyFix((state) => state.fix);
+  // Not the position itself: with the map open it comes every second, and this screen (the map,
+  // the sheets, everything on it) was drawn again for each one. What it needs of it is below.
+  const focus = useFirstPosition();
+  const cell = useMyCell();
   const now = useNow();
   const map = useRef<BarguMapHandle>(null);
   const people = usePeopleUi(map, circleList.data ?? [], insets.top, () => {
@@ -98,6 +102,9 @@ export default function HomeScreen() {
   ]);
   // The shortcuts at the right edge (docs/ADR/0026 §8): out of the way while a person's card is open.
   const [view, setView] = useState<{ center: LngLat; zoom: number } | null>(null);
+  // Whether the map looks away from this phone: a yes or no, so the position's every-second
+  // changes redraw this screen only when the answer changes.
+  const away = useMyFix((state) => view !== null && isAway(view.center, view.zoom, state.fix));
   // Nothing moves while the map is not seen (another page over it, the app in the background);
   // a touch or a move wakes the weather for a while (docs/ADR/0027).
   const onScreen = useOnScreen();
@@ -129,7 +136,6 @@ export default function HomeScreen() {
   // Kept with the square it was found for: moved on to another, the old name no longer shows, and
   // none at all where the map names nothing (QA 24 B-3).
   const [found, setFound] = useState<{ cell: string; name: string } | null>(null);
-  const cell = myFix === null ? null : `${myFix.lng.toFixed(2)}:${myFix.lat.toFixed(2)}`;
   const [lookups, setLookups] = useState(0);
   useEffect(() => {
     if (cell === null) return;
@@ -180,7 +186,7 @@ export default function HomeScreen() {
             top: insets.top + PILL_HEIGHT,
             bottom: insets.bottom + DOCK_HEIGHT,
           }}
-          focus={myFix === null ? null : [myFix.lng, myFix.lat]}
+          focus={focus}
           onSettle={(settled) => {
             setView(settled);
             setWake((count) => count + 1);
@@ -244,9 +250,10 @@ export default function HomeScreen() {
         {cardOpen ? null : (
           <MapShortcuts
             circles={circleList.data ?? []}
-            away={view !== null && isAway(view.center, view.zoom, myFix)}
+            away={away}
             onRecenter={() => {
-              if (myFix !== null) map.current?.focusOn([myFix.lng, myFix.lat], 0);
+              const fix = useMyFix.getState().fix;
+              if (fix !== null) map.current?.focusOn([fix.lng, fix.lat], 0);
             }}
             meeting={onChip}
             me={myUserId}

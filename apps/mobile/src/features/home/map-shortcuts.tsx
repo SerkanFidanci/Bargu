@@ -83,22 +83,25 @@ export function MapShortcuts({
   useEffect(() => {
     sprang = true;
   }, []);
-  const fix = useMyFix((state) => state.fix);
   const said = useArrived((state) =>
     meeting === null || me === null
       ? false
       : state[`${meeting.circle.id}:${me}`]?.meetAt === meeting.meetAt,
   );
-  const here =
-    meeting !== null &&
-    hereDue({
-      meetAt: meeting.meetAt,
-      place: meeting.place,
-      fix,
-      now,
-      said,
-      paused: meeting.circle.paused === true,
-    });
+  // A yes or no from the position, which comes every second with the map open: the shortcuts are
+  // drawn again only when the answer changes.
+  const here = useMyFix(
+    (state) =>
+      meeting !== null &&
+      hereDue({
+        meetAt: meeting.meetAt,
+        place: meeting.place,
+        fix: state.fix,
+        now,
+        said,
+        paused: meeting.circle.paused === true,
+      }),
+  );
   // The first time: a springy entrance one after another; later a calm fade; none when "off".
   const entering = (index: number) =>
     level === 'off'

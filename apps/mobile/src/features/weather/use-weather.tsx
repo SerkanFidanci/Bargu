@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -9,7 +10,14 @@ import { Text } from '@/ui/text';
 import { api, onSignedOut } from '../auth/auth-store';
 import { onLiveMessage, onOnline } from '../live/live-session';
 import { useMyFix } from '../location/engine';
-import { parseSnapshot, useWeather, type WeatherHere, weatherAt, weatherEmoji } from './weather';
+import {
+  parseSnapshot,
+  useWeather,
+  type WeatherHere,
+  weatherCellAt,
+  weatherEmoji,
+  weatherOfCell,
+} from './weather';
 
 /** Fetches the shared weather grid (the same for everyone; no location in the request). */
 async function load(): Promise<void> {
@@ -32,9 +40,15 @@ onSignedOut(() => {
 /** The weather where this phone is, looked up on the phone from the shared grid. */
 export function useWeatherHere(): WeatherHere | null {
   const snapshot = useWeather((state) => state.snapshot);
-  const fix = useMyFix((state) => state.fix);
-  if (snapshot === null || fix === null) return null;
-  return weatherAt(snapshot, fix);
+  // The cell, a number: the phone's position changes every second with the map open, the cell
+  // hardly ever, and the map screen (and the weather drawing under it) is redrawn only with it.
+  const cell = useMyFix((state) =>
+    snapshot === null || state.fix === null ? null : weatherCellAt(snapshot, state.fix),
+  );
+  return useMemo(
+    () => (snapshot === null || cell === null ? null : weatherOfCell(snapshot, cell)),
+    [snapshot, cell],
+  );
 }
 
 /**
