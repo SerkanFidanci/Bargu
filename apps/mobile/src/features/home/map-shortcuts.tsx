@@ -32,6 +32,7 @@ import { PressableScale } from '@/ui/pressable-scale';
 import { toast } from '@/ui/toast';
 
 import { useMyFix } from '../location/engine';
+import { turnGhostOn } from '../location/ghost-now';
 import { sayArrived, updateSharing } from '../location/location-session';
 import { sharedCircles, useSharing } from '../location/sharing';
 import type { Place } from '../places/place-model';
@@ -282,8 +283,7 @@ function GhostButton({
             turnOff();
             return;
           }
-          updateSharing((current) => ({ ...current, ghost: 'hide' }));
-          toast.info(t('map.shortcuts.ghostOnToast'));
+          turnGhostOn();
         }}
       />
     </Animated.View>

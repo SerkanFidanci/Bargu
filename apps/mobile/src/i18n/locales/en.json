@@ -646,6 +646,12 @@
       "settings": "Open Settings",
       "later": "Not now"
     },
+    "services": {
+      "title": "Your phone's location is off",
+      "body": "Location services are off, so your location is not updating. Turn them on in Settings to carry on sharing."
+    },
+    "ghostHint": "Your friends see “{{what}}”. To hide quietly, use ghost mode.",
+    "ghostNow": "Turn on ghost mode",
     "sharing": {
       "title": "Your location",
       "toggle": "{{name}} can see your location",
@@ -793,6 +799,7 @@
       "nobody": "Your location goes to nobody right now",
       "seers": "Seeing your location: {{count}}",
       "seenAs": "Your friends see you like this: {{what}}",
+      "seenAsGhost": "To hide quietly, use ghost mode.",
       "whoSees": "Who sees me",
       "status": "Status",
       "settings": "Settings"

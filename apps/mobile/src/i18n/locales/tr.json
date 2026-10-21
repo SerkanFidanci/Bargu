@@ -646,6 +646,12 @@
       "settings": "Ayarları aç",
       "later": "Şimdi değil"
     },
+    "services": {
+      "title": "Telefonunun konumu kapalı",
+      "body": "Konum servisi kapalı olduğu için konumun güncellenmiyor. Ayarlardan açarsan paylaşım sürer."
+    },
+    "ghostHint": "Arkadaşların “{{what}}” görür. Sessizce gizlenmek için hayalet modu kullan.",
+    "ghostNow": "Hayalet modunu aç",
     "sharing": {
       "title": "Konumun",
       "toggle": "{{name}} konumunu görsün",
@@ -793,6 +799,7 @@
       "nobody": "Konumun şu an kimseye gitmiyor",
       "seers": "Konumunu görenler: {{count}}",
       "seenAs": "Arkadaşların seni şöyle görüyor: {{what}}",
+      "seenAsGhost": "Sessizce gizlenmek için hayalet modu kullan.",
       "whoSees": "Kimler görüyor",
       "status": "Durum",
       "settings": "Ayarlar"

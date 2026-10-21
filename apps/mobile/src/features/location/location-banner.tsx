@@ -1,4 +1,4 @@
-import { MapPinOff, WifiOff } from 'lucide-react-native';
+import { Ghost, MapPinOff, WifiOff } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, StyleSheet, View } from 'react-native';
@@ -11,8 +11,11 @@ import { Pill } from '@/ui/pill';
 import { Text } from '@/ui/text';
 
 import { useConnection } from '../live/live-session';
+import { turnGhostOn } from './ghost-now';
 import { useMapCardTurn } from './map-cards';
-import { requestLocationPermission, useLocationPermission } from './tracker';
+import { useSharing } from './sharing';
+import { requestLocationPermission, useLocationPermission, useLocationServices } from './tracker';
+import { useMyWhy, type Why } from './why';
 
 /** A connection that comes back this fast is not worth a line on screen (no flicker on open). */
 export const CONNECTING_GRACE_MS = 2_000;
@@ -35,9 +38,35 @@ function useConnecting(): boolean {
 }
 
 /**
+ * What friends see because of this, and the quiet way to hide instead (QA-33 N-2, docs/ADR/0028):
+ * turning the location permission or the location services off tells the circles "Konum izni
+ * kapalı" or "Konum alınamıyor" (and since when). Someone who wanted to hide may not expect that;
+ * ghost mode is the way to disappear without a word, and it is one tap here.
+ */
+function GhostHint({ what }: { what: Why }) {
+  const { t } = useTranslation();
+  return (
+    <View testID="ghost-hint" style={styles.hint}>
+      <Text variant="footnote" color="textMuted">
+        {t('location.ghostHint', { what: t(`ui.marker.why.${what}`) })}
+      </Text>
+      <Button
+        testID="ghost-hint-on"
+        variant="secondary"
+        icon={Ghost}
+        label={t('location.ghostNow')}
+        onPress={turnGhostOn}
+      />
+    </View>
+  );
+}
+
+/**
  * Under "who sees me": what keeps the map from being current. Without the location permission a
- * card says why it matters and asks (or points to the settings once refused); while the live
- * connection is down, a quiet "Connecting…" line (it reconnects on its own, BARGU_PLAN §3.4).
+ * card says why it matters and asks (or points to the settings once refused); with the phone's
+ * location services off, a card says so; while the live connection is down, a quiet
+ * "Connecting…" line (it reconnects on its own, BARGU_PLAN §3.4). The first two also say what the
+ * circles are being told because of it, with ghost mode one tap away.
  */
 export function LocationBanner() {
   const { t } = useTranslation();
@@ -48,8 +77,44 @@ export function LocationBanner() {
   // "Şimdi değil": asked again the next time the app starts.
   const [later, setLater] = useState(false);
   const asking = (permission === 'undetermined' && !later) || permission === 'blocked';
+  // What the circles are being told about this phone's location right now (a ghost tells none).
+  const told = useMyWhy((state) => state.current);
+  const ghostOff = useSharing((state) => state.ghost === 'off');
+  const servicesOff = useLocationServices((state) => state.state) === 'off';
+  // The services are off and the circles hear of it; with no permission that card comes first.
+  const services = !asking && permission === 'granted' && servicesOff && told?.why === 'nofix';
   // The first card on the map: the others wait for it (map-cards.ts).
-  const turn = useMapCardTurn('locationPermission', asking);
+  const turn = useMapCardTurn('locationPermission', asking || services);
+
+  if (services) {
+    if (!turn) return null;
+    return (
+      <Animated.View
+        entering={motion.enterDown}
+        testID="location-services"
+        style={[
+          styles.card,
+          { backgroundColor: colors.surfaceRaised, boxShadow: elevation.floating },
+        ]}
+      >
+        <View style={styles.head}>
+          <MapPinOff color={colors.primary} size={22} strokeWidth={2.25} />
+          <View style={styles.text}>
+            <Text variant="bodyStrong">{t('location.services.title')}</Text>
+            <Text variant="footnote" color="textMuted">
+              {t('location.services.body')}
+            </Text>
+          </View>
+        </View>
+        {ghostOff ? <GhostHint what="nofix" /> : null}
+        <Button
+          testID="location-services-settings"
+          label={t('location.permission.settings')}
+          onPress={() => void Linking.openSettings()}
+        />
+      </Animated.View>
+    );
+  }
 
   if (asking) {
     if (!turn) return null;
@@ -72,6 +137,7 @@ export function LocationBanner() {
             </Text>
           </View>
         </View>
+        {ghostOff && told?.why === 'permission' ? <GhostHint what="permission" /> : null}
         {blocked ? (
           <Button
             label={t('location.permission.settings')}
@@ -121,5 +187,6 @@ const styles = StyleSheet.create({
   half: { flex: 1 },
   card: { gap: space.md, padding: space.lg, borderRadius: radius.lg, alignSelf: 'stretch' },
   head: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start' },
+  hint: { gap: space.sm },
   text: { flex: 1, gap: space.xxs },
 });

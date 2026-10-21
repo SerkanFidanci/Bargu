@@ -6,6 +6,7 @@ import {
   BatteryLow,
   BatteryMedium,
   Eye,
+  Ghost,
   History,
   Settings,
   Smile,
@@ -115,6 +116,10 @@ export function MyCard({
             })}
           />
         )}
+        {/* Turning the permission or the services off is not a quiet way to hide: the quiet way is ghost mode (below). */}
+        {sendingWhy?.why === 'permission' || sendingWhy?.why === 'nofix' ? (
+          <Fact testID="my-why-ghost" icon={Ghost} text={t('map.myCard.seenAsGhost')} muted />
+        ) : null}
         {/* The battery as this phone reads it (−1 where it cannot: then not said). */}
         {level < 0 ? null : (
           <Fact

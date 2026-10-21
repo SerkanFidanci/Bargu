@@ -164,6 +164,51 @@ describe('what the friends are told about why the location is old ("Neden eski?"
     });
     expect(screen.queryByTestId('my-why')).toBeNull();
   });
+
+  it.each([
+    ['permission', 'Konum izni kapalı'],
+    ['nofix', 'Konum alınamıyor'],
+  ] as const)(
+    'says what friends see for %s, and that ghost mode is the quiet way to hide',
+    async (why, text) => {
+      mockCircles = [withFriend];
+      useMyWhy.setState({ current: { why, since: new Date(2026, 9, 1, 14, 20).getTime() } }, true);
+      await render(
+        <MyCard me={me} from={{ x: 0, y: 0 }} onHeight={jest.fn()} onStatus={jest.fn()} />,
+      );
+      expect(
+        screen.getByText(`Arkadaşların seni şöyle görüyor: ${text} · 14:20'den beri`),
+      ).toBeTruthy();
+      expect(screen.getByText('Sessizce gizlenmek için hayalet modu kullan.')).toBeTruthy();
+      // The ghost control it points to is on the same card.
+      expect(screen.getByTestId('ghost-mode')).toBeTruthy();
+    },
+  );
+
+  it('gives no ghost hint for battery saver, which is not a way of hiding', async () => {
+    mockCircles = [withFriend];
+    useMyWhy.setState({ current: { why: 'saver', since: Date.now() } }, true);
+    await render(
+      <MyCard me={me} from={{ x: 0, y: 0 }} onHeight={jest.fn()} onStatus={jest.fn()} />,
+    );
+    expect(screen.getByTestId('my-why')).toBeTruthy();
+    expect(screen.queryByTestId('my-why-ghost')).toBeNull();
+  });
+
+  it('says the hint in English too', async () => {
+    await i18n.changeLanguage('en');
+    useMyWhy.setState({ current: { why: 'permission', since: Date.now() } }, true);
+    const view = await render(
+      <MyCard me={me} from={{ x: 0, y: 0 }} onHeight={jest.fn()} onStatus={jest.fn()} />,
+    );
+    try {
+      expect(screen.getByText('To hide quietly, use ghost mode.')).toBeTruthy();
+    } finally {
+      // Off the screen first: a language change under a mounted screen is an update outside act().
+      await view.unmount();
+      await i18n.changeLanguage('tr');
+    }
+  });
 });
 
 // QA 27 B-1: the line on who sees the user said "Konumunu görenler: N" with no permission, or before

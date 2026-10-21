@@ -43,6 +43,7 @@ jest.mock('./tracker', () => {
   const useLocationPermission = create(() => ({ state: 'undetermined' }));
   return {
     useLocationPermission,
+    useLocationServices: create(() => ({ state: 'on' })),
     // Allowing it answers the question.
     requestLocationPermission: jest.fn(() => {
       useLocationPermission.setState({ state: 'granted' });
