@@ -1,17 +1,24 @@
 #!/bin/sh
 # Staging's server notice signing key (QA-28 B-1, docs/ADR/0016 Ek), made ON the server, once.
-# Run as root by apply-pending.sh; safe to run again (a key that is there is kept as it is).
+# Run as root by apply-pending.sh, which holds the write guard (QA-30 L-3); safe to run again (a key
+# that is there is kept as it is).
 #
-#   sh notice-key.sh             adds NOTICE_SIGNING_KEY and NOTICE_SIGNING_KID=stg-n1 to .env when
+#   (from apply-pending.sh)      adds NOTICE_SIGNING_KEY and NOTICE_SIGNING_KID=stg-n1 to .env when
 #                                the key is missing, and writes the public key for the app build
-#   sh notice-key.sh --dry-run   says what it would do and writes nothing
+#   sh notice-key.sh --dry-run   says what it would do and writes nothing (also fine alone)
+#
+# Every write goes through guard() and the safe_* writers that apply-pending.sh defines before it
+# runs this text (they refuse any path outside /opt/bargu/staging, and a target that is itself a
+# symlink). This file has no guard of its own: run alone, a real run is refused before it writes
+# anything.
 #
 # The 32-byte seed comes from openssl's random generator. It lives only in this shell's memory and
-# in .env (0600, deploy:deploy, after a backup), and is never printed, logged or put on a command
-# line (printf is a shell builtin). Only the public half leaves, as `stg-n1:<base64url>`, in
-# notice-public-key.txt (0644) for EXPO_PUBLIC_NOTICE_KEYS in apps/mobile/eas.json. Writes only
-# under /opt/bargu/staging. The API and the worker read the key on their next start (restarting
-# them is the caller's); the worker's start log then shows the same public key line.
+# in .env (0600, deploy:deploy, after a backup that is 0600 too, QA-30 L-2), and is never printed,
+# logged or put on a command line (printf is a shell builtin). Only the public half leaves, as
+# `stg-n1:<base64url>`, in notice-public-key.txt (0644) for EXPO_PUBLIC_NOTICE_KEYS in
+# apps/mobile/eas.json. Writes only under /opt/bargu/staging. The API and the worker read the key on
+# their next start (restarting them is the caller's); the worker's start log then shows the same
+# public key line.
 set -eu
 umask 077
 
@@ -38,6 +45,14 @@ case "${1:-}" in
     exit 64
     ;;
 esac
+
+# A real run needs the caller's guard; without it nothing is written.
+if [ "$dry_run" -eq 0 ]; then
+  for writer in guard safe_cp safe_mv safe_perms safe_like safe_awk_to; do
+    command -v "$writer" >/dev/null 2>&1 ||
+      fail "yazma koruması yok ($writer): gerçek çalıştırma apply-pending.sh içinden yapılır; tek başına yalnızca --dry-run çalışır, hiçbir şey yazılmadı"
+  done
+fi
 
 [ -f "$ENV_FILE" ] || fail "$ENV_FILE yok"
 command -v openssl >/dev/null 2>&1 || fail "openssl yok"
@@ -82,13 +97,21 @@ else
   kid=$KID
   # Checked before anything is written: openssl must make a public key of it.
   public_of "$seed" >/dev/null || fail "açık anahtar çıkarılamadı; hiçbir şey yazılmadı"
+  # The backup holds the same secrets as .env: 0600 whatever the mode of the original was.
   backup="$ENV_FILE.bak-$(date +%Y%m%d%H%M%S)"
-  cp -p "$ENV_FILE" "$backup"
-  sed -i '/^NOTICE_SIGNING_KEY=/d; /^NOTICE_SIGNING_KID=/d' "$ENV_FILE"
-  [ -z "$(tail -c 1 "$ENV_FILE")" ] || printf '\n' >>"$ENV_FILE"
-  printf 'NOTICE_SIGNING_KEY=%s\nNOTICE_SIGNING_KID=%s\n' "$seed" "$kid" >>"$ENV_FILE"
-  chown deploy:deploy "$ENV_FILE"
-  chmod 0600 "$ENV_FILE"
+  safe_cp "$ENV_FILE" "$backup"
+  safe_perms deploy:deploy 0600 "$backup"
+  # The new .env is written beside it and moved over it (guard() checks every path); the seed goes
+  # through printf, a shell builtin, so it is on no command line.
+  env_new="$ENV_FILE.new.$$"
+  guard "$env_new"
+  {
+    grep -v -e '^NOTICE_SIGNING_KEY=' -e '^NOTICE_SIGNING_KID=' "$ENV_FILE" || true
+    printf 'NOTICE_SIGNING_KEY=%s\nNOTICE_SIGNING_KID=%s\n' "$seed" "$kid"
+  } >"$GUARDED"
+  safe_like "$ENV_FILE" "$env_new"
+  safe_mv "$env_new" "$ENV_FILE"
+  safe_perms deploy:deploy 0600 "$ENV_FILE"
   say "NOTICE_SIGNING_KEY üretildi ve .env'e eklendi ($kid); yedek: $backup"
 fi
 
@@ -98,9 +121,11 @@ if [ -n "$seed" ]; then
   if [ "$dry_run" -eq 1 ]; then
     say "$PUBLIC_FILE yazılacak: $kid:$public"
   else
-    printf '%s:%s\n' "$kid" "$public" >"$PUBLIC_FILE.tmp"
-    chmod 0644 "$PUBLIC_FILE.tmp"
-    mv -f "$PUBLIC_FILE.tmp" "$PUBLIC_FILE"
+    public_new="$PUBLIC_FILE.tmp"
+    guard "$public_new"
+    printf '%s:%s\n' "$kid" "$public" >"$GUARDED"
+    safe_perms root:root 0644 "$public_new"
+    safe_mv "$public_new" "$PUBLIC_FILE"
     say "açık anahtar $PUBLIC_FILE dosyasında: $kid:$public"
   fi
 else
@@ -115,10 +140,21 @@ if [ -f "$COMPOSE_FILE" ] && ! grep -q '^  NOTICE_SIGNING_KEY:' "$COMPOSE_FILE";
   elif [ "$dry_run" -eq 1 ]; then
     say "compose.yml'e NOTICE_SIGNING_KEY ve NOTICE_SIGNING_KID satırları eklenecek"
   else
-    cp -p "$COMPOSE_FILE" "$COMPOSE_FILE.bak-$(date +%Y%m%d%H%M%S)"
-    sed -i '/^  ENTITLEMENT_SIGNING_KID:/a\  NOTICE_SIGNING_KEY: ${NOTICE_SIGNING_KEY:-}\n  NOTICE_SIGNING_KID: ${NOTICE_SIGNING_KID:-}' "$COMPOSE_FILE"
-    chown deploy:deploy "$COMPOSE_FILE"
-    chmod 0640 "$COMPOSE_FILE"
+    compose_backup="$COMPOSE_FILE.bak-$(date +%Y%m%d%H%M%S)"
+    safe_cp "$COMPOSE_FILE" "$compose_backup"
+    safe_perms deploy:deploy 0640 "$compose_backup"
+    compose_new="$COMPOSE_FILE.new.$$"
+    # shellcheck disable=SC2016 # the ${...} below is compose.yml text, not for the shell to expand
+    safe_awk_to "$compose_new" '
+      { print }
+      /^  ENTITLEMENT_SIGNING_KID:/ {
+        print "  NOTICE_SIGNING_KEY: ${NOTICE_SIGNING_KEY:-}"
+        print "  NOTICE_SIGNING_KID: ${NOTICE_SIGNING_KID:-}"
+      }
+    ' "$COMPOSE_FILE"
+    safe_like "$COMPOSE_FILE" "$compose_new"
+    safe_mv "$compose_new" "$COMPOSE_FILE"
+    safe_perms deploy:deploy 0640 "$COMPOSE_FILE"
     say "compose.yml NOTICE_SIGNING_KEY ve NOTICE_SIGNING_KID'i geçiriyor"
   fi
 fi

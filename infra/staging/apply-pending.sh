@@ -46,9 +46,13 @@
 #   - It never prints secrets: .env is only edited, never shown; the container check shows nothing
 #     but MIN_CLIENT_LEVEL, WATCH_PUSH* and NOTICE_SIGNING_KID (a key id, not a secret) lines; of
 #     the notice key only its public half is ever shown.
-#   - The notice key step runs notice-key.sh as a child, whose writes do not go through guard().
-#     So the script first refuses (before calling it) when any path it writes is a symlink, and
-#     it keeps only the child's own "notice-key: ..." lines.
+#   - The notice key step runs the embedded notice-key.sh in a subshell, so ITS writes go through
+#     the same guard() and safe_* writers (QA-30 L-3; notice-key.sh has no guard of its own and
+#     refuses a real run without them). Before calling it the script also refuses, with a clearer
+#     message, when a path it writes is a symlink, and it keeps only the child's own
+#     "notice-key: ..." lines (and the guard's refusals).
+#   - Every backup that holds secrets (the .env ones, ours and notice-key.sh's) is 0600 and owned
+#     by deploy (QA-30 L-2).
 #   - --dry-run changes nothing: no backup, no write, no download, no restart.
 #   - If the new files do not pass `docker compose config`, or the services do not come up, the
 #     backups are put back; so is the nginx site file if `nginx -t` fails (no reload then).
@@ -478,23 +482,31 @@ step_validate() {
 
 # infra/staging/notice-key.sh, byte for byte. It is here because the owner runs ONE script, which
 # cannot fetch a second file; `sh apply-pending.sh --check-notice-key` (run from the repo) says
-# whether this copy still equals the file. It is run as a child of its own (see run_notice_key).
+# whether this copy still equals the file. It runs in a subshell of this script (see
+# run_notice_key), so it uses this script's guard() and safe_* writers.
 notice_key_script() {
   cat <<'NOTICE_KEY_SCRIPT_END'
 #!/bin/sh
 # Staging's server notice signing key (QA-28 B-1, docs/ADR/0016 Ek), made ON the server, once.
-# Run as root by apply-pending.sh; safe to run again (a key that is there is kept as it is).
+# Run as root by apply-pending.sh, which holds the write guard (QA-30 L-3); safe to run again (a key
+# that is there is kept as it is).
 #
-#   sh notice-key.sh             adds NOTICE_SIGNING_KEY and NOTICE_SIGNING_KID=stg-n1 to .env when
+#   (from apply-pending.sh)      adds NOTICE_SIGNING_KEY and NOTICE_SIGNING_KID=stg-n1 to .env when
 #                                the key is missing, and writes the public key for the app build
-#   sh notice-key.sh --dry-run   says what it would do and writes nothing
+#   sh notice-key.sh --dry-run   says what it would do and writes nothing (also fine alone)
+#
+# Every write goes through guard() and the safe_* writers that apply-pending.sh defines before it
+# runs this text (they refuse any path outside /opt/bargu/staging, and a target that is itself a
+# symlink). This file has no guard of its own: run alone, a real run is refused before it writes
+# anything.
 #
 # The 32-byte seed comes from openssl's random generator. It lives only in this shell's memory and
-# in .env (0600, deploy:deploy, after a backup), and is never printed, logged or put on a command
-# line (printf is a shell builtin). Only the public half leaves, as `stg-n1:<base64url>`, in
-# notice-public-key.txt (0644) for EXPO_PUBLIC_NOTICE_KEYS in apps/mobile/eas.json. Writes only
-# under /opt/bargu/staging. The API and the worker read the key on their next start (restarting
-# them is the caller's); the worker's start log then shows the same public key line.
+# in .env (0600, deploy:deploy, after a backup that is 0600 too, QA-30 L-2), and is never printed,
+# logged or put on a command line (printf is a shell builtin). Only the public half leaves, as
+# `stg-n1:<base64url>`, in notice-public-key.txt (0644) for EXPO_PUBLIC_NOTICE_KEYS in
+# apps/mobile/eas.json. Writes only under /opt/bargu/staging. The API and the worker read the key on
+# their next start (restarting them is the caller's); the worker's start log then shows the same
+# public key line.
 set -eu
 umask 077
 
@@ -521,6 +533,14 @@ case "${1:-}" in
     exit 64
     ;;
 esac
+
+# A real run needs the caller's guard; without it nothing is written.
+if [ "$dry_run" -eq 0 ]; then
+  for writer in guard safe_cp safe_mv safe_perms safe_like safe_awk_to; do
+    command -v "$writer" >/dev/null 2>&1 ||
+      fail "yazma koruması yok ($writer): gerçek çalıştırma apply-pending.sh içinden yapılır; tek başına yalnızca --dry-run çalışır, hiçbir şey yazılmadı"
+  done
+fi
 
 [ -f "$ENV_FILE" ] || fail "$ENV_FILE yok"
 command -v openssl >/dev/null 2>&1 || fail "openssl yok"
@@ -565,13 +585,21 @@ else
   kid=$KID
   # Checked before anything is written: openssl must make a public key of it.
   public_of "$seed" >/dev/null || fail "açık anahtar çıkarılamadı; hiçbir şey yazılmadı"
+  # The backup holds the same secrets as .env: 0600 whatever the mode of the original was.
   backup="$ENV_FILE.bak-$(date +%Y%m%d%H%M%S)"
-  cp -p "$ENV_FILE" "$backup"
-  sed -i '/^NOTICE_SIGNING_KEY=/d; /^NOTICE_SIGNING_KID=/d' "$ENV_FILE"
-  [ -z "$(tail -c 1 "$ENV_FILE")" ] || printf '\n' >>"$ENV_FILE"
-  printf 'NOTICE_SIGNING_KEY=%s\nNOTICE_SIGNING_KID=%s\n' "$seed" "$kid" >>"$ENV_FILE"
-  chown deploy:deploy "$ENV_FILE"
-  chmod 0600 "$ENV_FILE"
+  safe_cp "$ENV_FILE" "$backup"
+  safe_perms deploy:deploy 0600 "$backup"
+  # The new .env is written beside it and moved over it (guard() checks every path); the seed goes
+  # through printf, a shell builtin, so it is on no command line.
+  env_new="$ENV_FILE.new.$$"
+  guard "$env_new"
+  {
+    grep -v -e '^NOTICE_SIGNING_KEY=' -e '^NOTICE_SIGNING_KID=' "$ENV_FILE" || true
+    printf 'NOTICE_SIGNING_KEY=%s\nNOTICE_SIGNING_KID=%s\n' "$seed" "$kid"
+  } >"$GUARDED"
+  safe_like "$ENV_FILE" "$env_new"
+  safe_mv "$env_new" "$ENV_FILE"
+  safe_perms deploy:deploy 0600 "$ENV_FILE"
   say "NOTICE_SIGNING_KEY üretildi ve .env'e eklendi ($kid); yedek: $backup"
 fi
 
@@ -581,9 +609,11 @@ if [ -n "$seed" ]; then
   if [ "$dry_run" -eq 1 ]; then
     say "$PUBLIC_FILE yazılacak: $kid:$public"
   else
-    printf '%s:%s\n' "$kid" "$public" >"$PUBLIC_FILE.tmp"
-    chmod 0644 "$PUBLIC_FILE.tmp"
-    mv -f "$PUBLIC_FILE.tmp" "$PUBLIC_FILE"
+    public_new="$PUBLIC_FILE.tmp"
+    guard "$public_new"
+    printf '%s:%s\n' "$kid" "$public" >"$GUARDED"
+    safe_perms root:root 0644 "$public_new"
+    safe_mv "$public_new" "$PUBLIC_FILE"
     say "açık anahtar $PUBLIC_FILE dosyasında: $kid:$public"
   fi
 else
@@ -598,10 +628,21 @@ if [ -f "$COMPOSE_FILE" ] && ! grep -q '^  NOTICE_SIGNING_KEY:' "$COMPOSE_FILE";
   elif [ "$dry_run" -eq 1 ]; then
     say "compose.yml'e NOTICE_SIGNING_KEY ve NOTICE_SIGNING_KID satırları eklenecek"
   else
-    cp -p "$COMPOSE_FILE" "$COMPOSE_FILE.bak-$(date +%Y%m%d%H%M%S)"
-    sed -i '/^  ENTITLEMENT_SIGNING_KID:/a\  NOTICE_SIGNING_KEY: ${NOTICE_SIGNING_KEY:-}\n  NOTICE_SIGNING_KID: ${NOTICE_SIGNING_KID:-}' "$COMPOSE_FILE"
-    chown deploy:deploy "$COMPOSE_FILE"
-    chmod 0640 "$COMPOSE_FILE"
+    compose_backup="$COMPOSE_FILE.bak-$(date +%Y%m%d%H%M%S)"
+    safe_cp "$COMPOSE_FILE" "$compose_backup"
+    safe_perms deploy:deploy 0640 "$compose_backup"
+    compose_new="$COMPOSE_FILE.new.$$"
+    # shellcheck disable=SC2016 # the ${...} below is compose.yml text, not for the shell to expand
+    safe_awk_to "$compose_new" '
+      { print }
+      /^  ENTITLEMENT_SIGNING_KID:/ {
+        print "  NOTICE_SIGNING_KEY: ${NOTICE_SIGNING_KEY:-}"
+        print "  NOTICE_SIGNING_KID: ${NOTICE_SIGNING_KID:-}"
+      }
+    ' "$COMPOSE_FILE"
+    safe_like "$COMPOSE_FILE" "$compose_new"
+    safe_mv "$compose_new" "$COMPOSE_FILE"
+    safe_perms deploy:deploy 0640 "$COMPOSE_FILE"
     say "compose.yml NOTICE_SIGNING_KEY ve NOTICE_SIGNING_KID'i geçiriyor"
   fi
 fi
@@ -615,16 +656,19 @@ NOTICE_KEY_SCRIPT_END
 }
 
 # Runs the embedded notice-key.sh with the given arguments (--dry-run, or none) and keeps its
-# answer in NOTICE_OUT, only the lines it prefixes with "notice-key: " (anything else, an openssl
-# complaint say, is dropped, so nothing unforeseen can reach the screen). Its script text is an
-# argument of sh -c, so its stdin is /dev/null and no command of it can eat our script.
+# answer in NOTICE_OUT: only the lines it prefixes with "notice-key: " and the guard's own refusals
+# ("HATA: "); anything else, an openssl complaint say, is dropped, so nothing unforeseen can reach
+# the screen. The text is eval'ed in a command substitution, i.e. a subshell of this script: it has
+# guard(), the safe_* writers and DRY_RUN (so in a dry run even a stray write dies), its `exit`
+# ends only the subshell, its stdin is /dev/null, and it sets its own `set -eu` (errexit is
+# switched off around the call only so that nothing here is a "tested" context, which would
+# silence the child's own -e).
 run_notice_key() {
-  if NOTICE_OUT=$(sh -c "$(notice_key_script)" notice-key.sh "$@" </dev/null 2>&1); then
-    notice_rc=0
-  else
-    notice_rc=$?
-  fi
-  NOTICE_OUT=$(printf '%s\n' "$NOTICE_OUT" | grep '^notice-key: ' || true)
+  set +e
+  NOTICE_OUT=$(eval "$(notice_key_script)" </dev/null 2>&1)
+  notice_rc=$?
+  set -e
+  NOTICE_OUT=$(printf '%s\n' "$NOTICE_OUT" | grep -E '^(notice-key: |HATA: )' || true)
   return "$notice_rc"
 }
 
@@ -634,9 +678,10 @@ show_notice_out() {
 
 step_notice() {
   step "4/9" "Sunucu haberlerinin imza anahtarı: NOTICE_SIGNING_KEY (.env), compose satırları, açık anahtar dosyası"
-  # The child's writes do not go through guard(): refuse here, before calling it, when any path it
-  # writes is a symlink (.env and compose.yml were checked in preflight; the backups it makes are
-  # new files named with the time, so no link may sit under that name either).
+  # The child's writes go through guard() too (it would stop at a symlink); still, refuse here,
+  # before calling it and with a clearer message, when any path it writes is a symlink (.env and
+  # compose.yml were checked in preflight; the backups it makes are new files named with the time,
+  # so no link may sit under that name either).
   for target in "$NOTICE_PUBLIC" "$NOTICE_PUBLIC.tmp" "$ENV_FILE".bak-* "$COMPOSE_FILE".bak-*; do
     if [ -L "$target" ]; then
       problem "$target bir kısayol (symlink); notice-key.sh oraya yazmasın diye çağrılmadı"
@@ -694,7 +739,8 @@ step_notice() {
     return 0
   fi
   NOTICE_CHANGED=true
-  # Its backups copy the mode of what they copy; the .env one holds secrets: private in any case.
+  # notice-key.sh makes its own backups private now; this also sets the ones that older versions of
+  # it (or older runs) left: a .env backup holds the same secrets as .env, private in any case.
   for kept in "$ENV_FILE".bak-*; do
     if [ -f "$kept" ]; then safe_perms "$OWNER" 0600 "$kept"; fi
   done

@@ -113,8 +113,12 @@ Adımlar (`N` = `--min-level`):
    hiçbir şey yazılmaz. Anahtar yeni eklendiyse 8. adım api ve worker'ı yeniden başlatır, sunucu
    imzalamaya başlar. `notice-key.sh` betiğin İÇİNDE gömülüdür (tek betik çalıştırılıyor);
    depodan `sh infra/staging/apply-pending.sh --check-notice-key` gömülü kopyanın dosyayla aynı
-   olup olmadığını söyler (`notice-key.sh` değişirse kopya yenilenmeli). Onun yazdığı yollar koruma
-   fonksiyonundan geçmediği için, betik onu çağırmadan önce o yollardan biri kısayol (symlink) ise
+   olup olmadığını söyler (`notice-key.sh` değişirse kopya yenilenmeli). `notice-key.sh`'in bütün
+   yazmaları `apply-pending.sh`'in koruma fonksiyonundan (`guard()`, yazılan dosyanın kendisi bir
+   kısayol ise reddeder) ve `safe_*` yazıcılarından geçer; kendi koruması yoktur, tek başına gerçek
+   çalıştırma yazmadan reddedilir (`sh notice-key.sh --dry-run` tek başına çalışır). Yedekleri
+   (`.env.bak-…`, içinde sırlar var) her zaman 0600 `deploy:deploy`, `compose.yml` yedekleri 0640.
+   Betik ayrıca onu çağırmadan önce, yazacağı yollardan biri kısayolsa daha açık bir mesajla
    reddeder.
 5. Sahip ve izinler düzeltilir: `deploy:deploy`, `.env` 0600, `compose.yml` 0640.
 6. Düşük ayrıntılı dünya haritası indirilir: `/srv/bargu-map/public/tiles/world.pmtiles` (Protomaps
@@ -149,9 +153,10 @@ Güvenlik: script **sadece** `/opt/bargu/staging` ve `/srv/bargu-map` içine yaz
 kurulu Bargu nginx site dosyası, **tam yol eşleşmesiyle** (ön ek değil; `/etc/nginx` altında başka
 hiçbir dosya yazılamaz). Her yazma tek bir koruma fonksiyonundan geçer, dışarıdaki yol Türkçe
 hatayla reddedilir; **hedef dosyanın kendisi bir kısayol (symlink) ise de reddedilir** (içinden
-yazılsa ya da `chown`/`chmod` edilse dışarıdaki dosya değişirdi). Sunucudaki diğer projeye
-(rastamen) dokunmaz. Yeniden başlatma başarısız olursa yedekler geri yüklenir. Eski yedekler
-silinmez.
+yazılsa ya da `chown`/`chmod` edilse dışarıdaki dosya değişirdi). Sırlar içeren her yedek (`.env`
+yedekleri; betiğin ve `notice-key.sh`'in aldıkları) 0600 ve `deploy` sahipli olur. Sunucudaki diğer
+projeye (rastamen) dokunmaz. Yeniden başlatma başarısız olursa yedekler geri yüklenir. Eski
+yedekler silinmez.
 
 ## Günlük işler
 
