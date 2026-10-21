@@ -80,6 +80,8 @@ describe('arrivals sent by this phone', () => {
         emoji: '🏫',
         ts: NOW,
       },
+      // Only the server's notices carry a server signature (QA-28 B-1).
+      serverSignature: null,
     });
   });
 });
