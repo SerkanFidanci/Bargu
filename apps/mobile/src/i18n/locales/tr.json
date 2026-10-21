@@ -839,6 +839,7 @@
     "sent": "İyiyim gönderildi ✓",
     "queued": "Bağlantı yok. Mesajın bağlantı gelince bir kez gidecek.",
     "limited": "Çok sık gönderdin. Biraz sonra tekrar dene.",
+    "partlyLimited": "Bir kısmı gitti; bazı çemberlere çok sık gönderdiğin için gitmedi.",
     "noLocation": "Konumun alınamadı. Konum iznini ve GPS'i kontrol et.",
     "failed": "Gönderilemedi. Tekrar dene.",
     "confirmTitle": "Konumun bu kez paylaşılacak",

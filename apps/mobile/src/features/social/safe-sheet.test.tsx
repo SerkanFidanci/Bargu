@@ -157,6 +157,21 @@ describe('the Güvendeyim sheet (docs/ADR/0029)', () => {
       message: expect.stringContaining('Çok sık') as string,
     });
 
+    // Some went and some did not: said so, not "sent".
+    mockTell.mockResolvedValue({ status: 'sent', sent: 1, waiting: 0, limited: 1 });
+    await fireEvent.press(screen.getByTestId('safe-send'));
+    expect(toastNow()).toMatchObject({
+      tone: 'error',
+      message: expect.stringContaining('Bir kısmı gitti') as string,
+    });
+
+    // None went and none is limited (the server refused them): never "sent", and the sheet stays.
+    onClose.mockClear();
+    mockTell.mockResolvedValue({ status: 'sent', sent: 0, waiting: 0, limited: 0 });
+    await fireEvent.press(screen.getByTestId('safe-send'));
+    expect(toastNow()).toMatchObject({ tone: 'error', message: 'Gönderilemedi. Tekrar dene.' });
+    expect(onClose).not.toHaveBeenCalled();
+
     // A failure nobody expected.
     mockTell.mockRejectedValue(new Error('boom'));
     await fireEvent.press(screen.getByTestId('safe-send'));

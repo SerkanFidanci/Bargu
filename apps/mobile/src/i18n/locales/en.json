@@ -839,6 +839,7 @@
     "sent": "Sent: you are safe ✓",
     "queued": "No connection. Your message will go once when you are online.",
     "limited": "You sent too many. Try again in a little while.",
+    "partlyLimited": "Some went; some circles got none because you sent too many.",
     "noLocation": "Could not get your location. Check location permission and GPS.",
     "failed": "Could not send. Try again.",
     "confirmTitle": "Your location will be shared this once",

@@ -34,8 +34,13 @@ function say(report: SafeReport, t: TFunction): boolean {
     toast.info(t('safe.queued'));
     return true;
   }
-  if (report.sent === 0 && report.limited > 0) {
-    toast.error(t('safe.limited'));
+  if (report.sent === 0) {
+    // None went and none waits: the server took no more of them for now, or refused them.
+    toast.error(t(report.limited > 0 ? 'safe.limited' : 'safe.failed'));
+    return report.limited > 0;
+  }
+  if (report.limited > 0) {
+    toast.error(t('safe.partlyLimited'));
     return true;
   }
   feedback('success');
