@@ -163,8 +163,8 @@ describe('encryptMessage / decryptMessage', () => {
       // The largest look (docs/ADR/0025): every id at its longest, as many packs as a pass names.
       {
         kind: 'look',
-        island: 'z'.repeat(16),
-        edge: 'z'.repeat(16),
+        ring: 'z'.repeat(16),
+        frame: 'z'.repeat(16),
         pass: {
           v: 1,
           kid: 'k'.repeat(16),

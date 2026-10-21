@@ -2,22 +2,23 @@ import { z } from 'zod';
 
 /**
  * Cosmetic packs (docs/ADR/0025, ADR 0024 §7): looks only, nothing works differently with them.
- * Each pack is bought once for good (`cosmetic:<pack>`) and gives these looks.
+ * Each pack is bought once for good (`cosmetic:<pack>`) and gives these looks. They are drawn on
+ * the map pin (ADR 0025 addendum of 2026-10-21): a pattern on its ring, a frame around it.
  */
 export const COSMETIC_PACKS = {
-  /** "Ada desenleri": the island under the sticker. */
-  islands: ['stripes', 'dots', 'gradient', 'sparkle'],
-  /** "Çıkartma kenarları": the sticker's die-cut edge. */
-  edges: ['holo', 'gold', 'neon', 'dashed'],
+  /** "Halka desenleri": patterns on the pin's ring. */
+  rings: ['stripes', 'dots', 'gradient', 'sparkle'],
+  /** "Pin çerçeveleri": frames around the pin. */
+  frames: ['holo', 'gold', 'neon', 'dashed'],
 } as const;
 export type CosmeticPack = keyof typeof COSMETIC_PACKS;
 /** The packs as products (an entitlement's `product`): only these can be bought. */
 export const COSMETIC_PRODUCTS = [
-  'cosmetic:islands',
-  'cosmetic:edges',
+  'cosmetic:rings',
+  'cosmetic:frames',
 ] as const satisfies readonly `cosmetic:${CosmeticPack}`[];
-export type IslandPattern = (typeof COSMETIC_PACKS.islands)[number];
-export type EdgeStyle = (typeof COSMETIC_PACKS.edges)[number];
+export type RingPattern = (typeof COSMETIC_PACKS.rings)[number];
+export type FrameStyle = (typeof COSMETIC_PACKS.frames)[number];
 
 /**
  * A pass names at most this many packs: with the look it has to fit one 512-byte message

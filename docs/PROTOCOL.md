@@ -167,18 +167,18 @@ Zod ayrık birleşimi (`kind`), bilinmeyen alan reddedilir ([`packages/schemas`]
 `profile` ve `look` bilinmeyen alanı atar (ADR 0024 §10), bilinmeyen tür `MALFORMED` olur ve
 alıcı yok sayar:
 
-| `kind`        | Alanlar                                                                                    |
-| ------------- | ------------------------------------------------------------------------------------------ |
-| `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, since?, eta?, ts` (ADR 0018)                 |
-| `bump`        | `ts`                                                                                       |
-| `place_enter` | `placeId, ts`                                                                              |
-| `place_exit`  | `placeId, ts`                                                                              |
-| `share_stop`  | `ts`                                                                                       |
-| `status`      | `emoji? (≤16), text? (≤80), expiresAt, ts`                                                 |
-| `profile`     | `photo` (`{ id, key }` ya da `null`), `ts` (ADR 0014)                                      |
-| `place`       | `id, name (≤40), emoji (≤16), lat, lng, radius (50–1000 m), ts` (ADR 0015)                 |
-| `late`        | `meetAt, minutes (1–600), ts`: buluşmaya gecikme (ADR 0018)                                |
-| `look`        | `island, edge` (kimlik ya da `null`), `pass` (geçiş belgesi ya da `null`), `ts` (ADR 0025) |
+| `kind`        | Alanlar                                                                                   |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, since?, eta?, ts` (ADR 0018)                |
+| `bump`        | `ts`                                                                                      |
+| `place_enter` | `placeId, ts`                                                                             |
+| `place_exit`  | `placeId, ts`                                                                             |
+| `share_stop`  | `ts`                                                                                      |
+| `status`      | `emoji? (≤16), text? (≤80), expiresAt, ts`                                                |
+| `profile`     | `photo` (`{ id, key }` ya da `null`), `ts` (ADR 0014)                                     |
+| `place`       | `id, name (≤40), emoji (≤16), lat, lng, radius (50–1000 m), ts` (ADR 0015)                |
+| `late`        | `meetAt, minutes (1–600), ts`: buluşmaya gecikme (ADR 0018)                               |
+| `look`        | `ring, frame` (kimlik ya da `null`), `pass` (geçiş belgesi ya da `null`), `ts` (ADR 0025) |
 
 **Saklanan mesaj (yer).** Bir çemberin yeri, son kaydeden üyenin gönderen anahtarıyla şifrelenmiş
 `place` mesajı olarak sunucuda kalır. Üyeler onu yeni mesajlardan çok sonra tekrar açtığı için

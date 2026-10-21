@@ -21,7 +21,7 @@ const pass = (overrides: Partial<Parameters<typeof issueCosmeticPass>[0]> = {}) 
     secretKey: staging,
     kid: 'stg-1',
     userId: alice,
-    packs: ['islands', 'edges'],
+    packs: ['rings', 'frames'],
     issuedAt: NOW,
     expiresAt: NOW + 30 * DAY,
     ...overrides,
@@ -32,11 +32,11 @@ const check = (value: unknown, userId = alice, now = NOW + DAY) =>
 describe('cosmetic pass (docs/ADR/0025)', () => {
   it('holds when signed by a trusted key, for its account, in time', () => {
     const given = pass();
-    expect(given.packs).toEqual(['edges', 'islands']);
+    expect(given.packs).toEqual(['frames', 'rings']);
     expect(Object.keys(given).sort()).toEqual(
       ['expiresAt', 'issuedAt', 'kid', 'packs', 'sig', 'userId', 'v'].sort(),
     );
-    expect(check(given)).toEqual(new Set(['edges', 'islands']));
+    expect(check(given)).toEqual(new Set(['frames', 'rings']));
   });
 
   it('does not hold signed by another key, even under a trusted kid', () => {
@@ -52,10 +52,10 @@ describe('cosmetic pass (docs/ADR/0025)', () => {
   });
 
   it('gives only the packs it names, and none added afterwards', () => {
-    const given = pass({ packs: ['islands'] });
-    expect(check(given)?.has('edges')).toBe(false);
-    expect(check({ ...given, packs: ['edges', 'islands'] })).toBeNull();
-    expect(check({ ...given, packs: ['islands', 'islands'] })).toBeNull();
+    const given = pass({ packs: ['rings'] });
+    expect(check(given)?.has('frames')).toBe(false);
+    expect(check({ ...given, packs: ['frames', 'rings'] })).toBeNull();
+    expect(check({ ...given, packs: ['rings', 'rings'] })).toBeNull();
   });
 
   it('does not hold under a kid this app does not know (production trusts no staging key)', () => {

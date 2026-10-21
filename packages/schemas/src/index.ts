@@ -316,6 +316,6 @@ export {
   cosmeticPassReplySchema,
   type CosmeticPassReply,
   cosmeticPassSchema,
-  type EdgeStyle,
-  type IslandPattern,
+  type FrameStyle,
+  type RingPattern,
 } from './cosmetics.js';
