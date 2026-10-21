@@ -8,6 +8,10 @@
 #
 # Options (after `sh -s --`):
 #   --dry-run          only list what would happen
+#   --min-level N      MIN_CLIENT_LEVEL to set, an integer from 3 to 9 (default 4, the app's
+#                      CLIENT_LEVEL); later e.g. `sh -s -- --min-level 5 --dry-run`, then without
+#                      --dry-run: every other step then says "zaten yapılmış"
+#   --allow-lower      lowering the level (reopening old apps) is refused unless this is given
 #   --check-notice-key (run from the repo, as a file) is the copy of notice-key.sh in here still
 #                      the same as infra/staging/notice-key.sh?
 #
@@ -15,7 +19,7 @@
 # nothing left to do; running it twice changes nothing the second time):
 #   0. warns first (the very first line): the phones must have the new APK before this runs
 #   1. timestamped backup of .env and compose.yml (only when one of them is about to change)
-#   2. .env: MIN_CLIENT_LEVEL=4 (slice 3c raised the app's CLIENT_LEVEL to 4)
+#   2. .env: MIN_CLIENT_LEVEL=N (4: slice 3c raised the app's CLIENT_LEVEL to 4)
 #   3. compose.yml: the three WATCH_PUSH lines after BILLING_TEST (as in infra/staging/compose.yml)
 #   4. the server's notice signing key (infra/staging/notice-key.sh, embedded below because the
 #      owner runs ONE script): key in .env, its two lines in compose.yml, the public half in
@@ -76,12 +80,13 @@ NGINX_BAK="$STACK_DIR/bargu-staging.nginx.bak"
 # The key notice-key.sh makes (its public half, for the app build, is written next to .env).
 NOTICE_PUBLIC="$STACK_DIR/notice-public-key.txt"
 
-WANT_LEVEL=4
+WANT_LEVEL=4 # --min-level N changes it (3 to 9)
 WORLD_MAXZOOM=6
 WORLD_FRESH_MINUTES=10080 # 7 days
 OWNER=deploy:deploy
 
 DRY_RUN=false
+ALLOW_LOWER=false
 CHECK_EMBED=false
 STARTED=false
 BACKUP_STAMP=""
@@ -354,6 +359,17 @@ preflight() {
     fi
   done
 
+  # A lower level reopens old app versions: never silently.
+  now=$(env_level_now)
+  case "$now" in
+    yok | "sayı değil") ;;
+    *)
+      if [ "$WANT_LEVEL" -lt "$now" ] && ! $ALLOW_LOWER; then
+        die "MIN_CLIENT_LEVEL şu an $now, istenen $WANT_LEVEL bundan düşük: bu, eski uygulama sürümlerini yeniden açar ve sessizce yapılmaz. Bilerek istiyorsan --allow-lower ekle. Hiçbir şey değiştirilmedi."
+      fi
+      ;;
+  esac
+
   if env_is_done; then NEED_ENV=false; else NEED_ENV=true; fi
   if notice_has_key && notice_compose_ok && notice_public_ok; then NEED_NOTICE=false; else NEED_NOTICE=true; fi
   if compose_is_done; then
@@ -390,14 +406,19 @@ step_backup() {
 }
 
 step_env() {
-  step "2/9" ".env: MIN_CLIENT_LEVEL=$WANT_LEVEL (daha eski uygulama sürümleri güncelleme ister)"
+  step "2/9" ".env: MIN_CLIENT_LEVEL=$WANT_LEVEL (seviye $WANT_LEVEL'den eski uygulama sürümleri güncelleme ister)"
   if ! $NEED_ENV; then
     note "zaten yapılmış: MIN_CLIENT_LEVEL=$WANT_LEVEL"
     return 0
   fi
   before=$(env_level_now)
+  lowering=""
+  case "$before" in
+    yok | "sayı değil") ;;
+    *) if [ "$WANT_LEVEL" -lt "$before" ]; then lowering=" (--allow-lower: seviye DÜŞÜRÜLÜYOR, eski sürümler yeniden açılır)"; fi ;;
+  esac
   if $DRY_RUN; then
-    note "yapılacak: değer şu an '$before', $WANT_LEVEL yapılacak (satır varsa değiştirilir, yoksa eklenir; başka satıra dokunulmaz)"
+    note "yapılacak: değer şu an '$before', $WANT_LEVEL yapılacak$lowering (satır varsa değiştirilir, yoksa eklenir; başka satıra dokunulmaz)"
     return 0
   fi
   tmp="$ENV_FILE.new.$$"
@@ -411,7 +432,7 @@ step_env() {
   fi
   safe_like "$ENV_FILE" "$tmp"
   safe_mv "$tmp" "$ENV_FILE"
-  note "yapıldı: MIN_CLIENT_LEVEL=$WANT_LEVEL (önceki değer: $before)"
+  note "yapıldı: MIN_CLIENT_LEVEL=$WANT_LEVEL (önceki değer: $before)$lowering"
 }
 
 step_compose() {
@@ -1054,7 +1075,7 @@ step_check() {
 
 usage() { # message
   say "$1" >&2
-  say "Kullanım: sh -s [-- [--dry-run]] < apply-pending.sh" >&2
+  say "Kullanım: sh -s [-- [--dry-run] [--min-level N] [--allow-lower]] < apply-pending.sh   (N: 3 ile 9 arası tam sayı, varsayılan 4)" >&2
   exit 64
 }
 
@@ -1062,11 +1083,22 @@ main() {
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --dry-run) DRY_RUN=true ;;
+      --allow-lower) ALLOW_LOWER=true ;;
       --check-notice-key) CHECK_EMBED=true ;;
+      --min-level)
+        if [ "$#" -lt 2 ]; then usage "--min-level bir değer ister."; fi
+        WANT_LEVEL=$2
+        shift
+        ;;
+      --min-level=*) WANT_LEVEL=${1#--min-level=} ;;
       *) usage "Bilinmeyen seçenek: $1" ;;
     esac
     shift
   done
+  case "$WANT_LEVEL" in
+    [3-9]) ;;
+    *) usage "--min-level yalnızca 3 ile 9 arası bir tam sayı olabilir (verilen: '$WANT_LEVEL')." ;;
+  esac
 
   if $CHECK_EMBED; then
     # Run from the repo as a file: is the notice-key.sh inside this script the file beside it?

@@ -79,16 +79,29 @@ ssh bargu-server 'sh -s -- --dry-run' < infra/staging/apply-pending.sh   # sadec
 ssh bargu-server 'sh -s' < infra/staging/apply-pending.sh                # uygular
 ```
 
+İstenen en düşük uygulama seviyesi `--min-level N` ile verilir (3 ile 9 arası tam sayı, varsayılan
+4). Sonradan örneğin 5'e çıkarmak için aynı iki satır, araya `--min-level 5` konarak çalıştırılır;
+diğer bütün adımlar o zaman "zaten yapılmış" der:
+
+```bash
+ssh bargu-server 'sh -s -- --min-level 5 --dry-run' < infra/staging/apply-pending.sh
+ssh bargu-server 'sh -s -- --min-level 5' < infra/staging/apply-pending.sh
+```
+
+Seviyeyi **düşürmek** (eski uygulama sürümlerini yeniden açmak) sessizce yapılmaz: mevcut
+değerden küçük bir `N` Türkçe bir mesajla reddedilir; bilerek yapılacaksa `--allow-lower`
+eklenir. İlk uyarı satırı seçilen `N`'yi yazar.
+
 [`apply-pending.sh`](../staging/apply-pending.sh) her adımı Türkçe yazar, yapılmış olanı
 "zaten yapılmış" diye geçer (ikinci çalıştırma hiçbir şeyi değiştirmez). **İlk satırı bir
 uyarıdır** (kuru çalıştırmada da, gerçekte de): "Önce bütün telefonlara yeni APK'yı (seviye 4) kur;
 bu betik eski sürümleri kapatır." Betik telefonların sürümünü bilemez; APK'lar kurulmadan çalıştırma.
-Adımlar:
+Adımlar (`N` = `--min-level`):
 
 1. `.env` ve `compose.yml` tarih damgalı yedeklenir (`.env.bak-…`, `compose.yml.bak-…`; sadece bir
    şey değişecekse; `notice-key.sh` kendi yedeğini ayrıca alır).
-2. `.env` içinde `MIN_CLIENT_LEVEL=4` yapılır (seviye 4'ten eski uygulama sürümleri güncelleme
-   ister).
+2. `.env` içinde `MIN_CLIENT_LEVEL=N` yapılır (varsayılan 4; seviye N'den eski uygulama sürümleri
+   güncelleme ister).
 3. `compose.yml` içinde `BILLING_TEST` satırından sonra üç `WATCH_PUSH*` satırı eklenir (arka plan
    canlı modu); sonra `docker compose config` ile doğrulanır, bozuksa yedekler geri konur.
 4. Sunucu haberlerinin imza anahtarı ([`notice-key.sh`](../staging/notice-key.sh), QA-28 B-1,
