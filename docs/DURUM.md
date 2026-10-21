@@ -175,7 +175,7 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
   tren (230) ya da uçak (320) olur ve sahibin konumunun çevresinde döner (250 m – 2 km). Hareket
   yönü artık çemberin yönünde (v12'de 90° yanlıştı).
 
-### Test arkadaşı v14, "Elif" (bekliyor, 2026-10-21)
+### Test arkadaşı v14, "Deniz" (bekliyor, 2026-10-21)
 
 Sahibin isteği: bot, İstanbul'da yaşayan biri gibi davranan ve bir dil modelinin (EVREN) yönettiği
 bir test arkadaşı olacak. Sahip "önce projeye odaklanalım" dedi; iş güvenli bir yerde durdu.
@@ -185,7 +185,7 @@ bir test arkadaşı olacak. Sahip "önce projeye odaklanalım" dedi; iş güvenl
   dalda `tools/test-friend/BRIEF.md`.
 - Yarım: birim testleri (paket testsiz CI'ı kırar, dal bu yüzden birleştirilmez), yerler, gerçek
   yolların çıkarılması, hayat kipi, kurulum, ADR 0029.
-- Kişi (taslak, sahip henüz onaylamadı): Elif, 27; Kadıköy Caferağa'da kiralık ev; Levent'te uydurma
+- Kişi (taslak, sahip henüz onaylamadı): Deniz, 27 (önce "Elif" diye tasarlandı; sahip adı değiştirdi: uydurma, cinsiyetsiz); Kadıköy Caferağa'da kiralık ev; Levent'te uydurma
   bir şirkette UX tasarımcısı; beyaz Renault Clio (uydurma plaka, durum yazısında görünmez); spor
   salonu, market, kuaför; Ataşehir'de ailesi; hafta sonu Büyükada ya da Belgrad Ormanı. Evi, işi,
   spor salonu, market, benzinlik, kafe, aile evi ve otopark sahiple ortak çemberde kayıtlı yer olur;
@@ -200,14 +200,19 @@ bir test arkadaşı olacak. Sahip "önce projeye odaklanalım" dedi; iş güvenl
 - Yollar: OpenStreetMap'ten bir kez çıkarılıp sadeleştirilmiş (5–10 m), ODbL atıflı küçük bir dosya;
   çalışırken yönlendirme servisi yok. Dışarıya yalnız Bargu API'si, EVREN ve api.open-meteo.com
   (kodda izin listesi).
-- Çalışacağı yer: sahibin evdeki bilgisayarı. Tek Docker imajı ve tek betik; şirket bilgisayarı ya
-  da sunucu da yalnız ayar dosyalarıyla olur. Şirket ağında FortiGate staging adresini araya girip
-  kendi sertifikasıyla imzalıyor: orada BT muafiyeti ya da kök sertifika gerekir; doğrulama kapatılmaz.
-- Anahtar: sahip kendi bilgisayarında gizli girişle `%USERPROFILE%\.bargu\test-friend.env` dosyasına
-  yazar (yalnız kendisine açık). Sohbete, depoya ve loga girmez.
-- Bilgisayar kapalıyken Elif yoktur; uyanınca aradaki süre hesaplanır, tek konum sıçraması ve en çok
-  bir model çağrısı olur.
-- ADR 0029 kuralı (yazılacak): Elif yalnız sahibin test arkadaşıdır. Gerçek kullanıcılara asla
+- Çalışacağı yer: staging sunucusu (sahip, 2026-10-21; evdeki bilgisayar kararının yerine). Yük
+  küçük: bugünkü bot ~170 MB bellek ve ~%2 işlemci kullanıyor; sunucuda 4 çekirdek ve 6 GB boş
+  bellek var; model EVREN'de çalışır. Botun kendi köprü ağı olur, port açılmaz, rastamen'e
+  dokunulmaz, önce yedek alınır. Kurulum sunucu değişikliği olduğu için sahibin doğrudan onayıyla.
+  Tek Docker imajı ve tek betik; gerekirse bilgisayarda da yalnız ayar dosyalarıyla çalışır (şirket
+  ağında FortiGate staging adresini araya girip imzaladığı için orada BT muafiyeti gerekir).
+- Anahtar: sahip sunucuda kendi terminalinde gizli girişle botun ayar dosyasına yazar (`chmod 600`).
+  Sohbete, depoya ve loga girmez.
+- Bot durursa (sunucu yeniden başlarsa) Deniz yoktur; açılınca aradaki süre hesaplanır, tek konum
+  sıçraması ve en çok bir model çağrısı olur.
+- Sıra (PM): arka planda canlı konum ve süsler (3b) bittikten sonra ya da düşük öncelikte; önce
+  testler, sonra yerler ve yollar, sonra hayat kipi.
+- ADR 0029 kuralı (yazılacak): Deniz yalnız sahibin test arkadaşıdır. Gerçek kullanıcılara asla
   gerçek bir insan gibi gösterilmez, ürüne ve mağaza sürümüne girmez. Kapalı testten önce bot test
   kullanıcılarının çemberlerinden çıkarılır (Faz 10).
 - Sonraki dilim: hafıza akışı, gece düşünme ve sabah planı, ruh hali, kendiliğinden ve hız sınırlı
