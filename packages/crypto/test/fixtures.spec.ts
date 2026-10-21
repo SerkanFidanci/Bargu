@@ -1,6 +1,8 @@
 // Cross-implementation fixtures: deterministic outputs of this implementation that the Swift
 // (CryptoKit) tests in packages/crypto/swift must open and verify byte-for-byte.
 // Regenerate after an intentional protocol change: UPDATE_FIXTURES=1 pnpm --filter @bargu/crypto test
+// Each fixture's randomness comes from its name (fixtureRandom), so adding an entry, such as a new
+// notice kind, changes no existing one: a changed entry means the protocol changed.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -13,6 +15,7 @@ import { concatBytes, toBase64url, utf8Decode, utf8Encode } from '../src/encodin
 import { exportDeviceKeyBundle, verifyDeviceKeyBundle } from '../src/keys.js';
 import { decryptMessage, encryptMessageWith } from '../src/message.js';
 import { ReplayGuard } from '../src/replay.js';
+import { hkdfSha256 } from '../src/primitives.js';
 import { openPush, sealPushWith } from '../src/push.js';
 import { openSealed, sealForDeviceWith } from '../src/sealed.js';
 import { safetyNumber } from '../src/safety-number.js';
@@ -27,9 +30,48 @@ import { ids, locationPayload, publicKeysOf, testDevice } from './helpers.js';
 
 const fixturePath = fileURLToPath(new URL('../fixtures/protocol-v1.json', import.meta.url));
 
+/** TEST-ONLY seed of the fixtures' randomness. */
+const FIXTURE_SEED = utf8Encode('bargu/v1 cross-implementation fixtures, TEST ONLY');
+
+/**
+ * A fixture's randomness (ephemeral keys, salts, notice ids) from its name alone, never from its
+ * place in a list: HKDF-SHA256 over a fixed seed with info "fixture/<kind>/<name>".
+ */
+function fixtureRandom(kind: string, name: string, length: number): Uint8Array {
+  return hkdfSha256(FIXTURE_SEED, new Uint8Array(0), utf8Encode(`fixture/${kind}/${name}`), length);
+}
+
 /** TEST-ONLY server notice key (docs/ADR/0016 Ek): fixed, so the vectors are reproducible. */
 const noticeSigner = { secretKey: new Uint8Array(32).fill(0x0c), kid: 'test-n1' };
 const NOTICE_TS = 1_791_880_000_000;
+const noticeBody = (notice: string) => ({
+  kind: 'notice',
+  notice,
+  circleId: ids.circle,
+  ts: NOTICE_TS,
+});
+
+/**
+ * One signed notice of every kind given, sealed for Bob, each named by its kind. Sealed with the
+ * same calls sealPush makes (signServerNotice, then the sealed box) so a kind the schema does not
+ * know yet can be listed too.
+ */
+function serverNoticeEntries(bob: ReturnType<typeof testDevice>, kinds: readonly string[]) {
+  return kinds.map((notice) => ({
+    notice,
+    sealed: sealForDeviceWith(
+      bob.dh.publicKey,
+      signServerNotice({
+        signer: noticeSigner,
+        recipientDeviceId: bob.deviceId,
+        body: utf8Encode(JSON.stringify(noticeBody(notice))),
+        issuedAt: NOTICE_TS,
+        id: fixtureRandom('serverNotices', `${notice}/id`, 16),
+      }),
+      fixtureRandom('serverNotices', `${notice}/ephemeral`, 32),
+    ),
+  }));
+}
 
 /**
  * Signed server notices (QA-28 B-1): a genuine one, one of every kind, and what a member can forge
@@ -44,11 +86,11 @@ function noticeFixtures(bob: ReturnType<typeof testDevice>, alice: ReturnType<ty
     ts: NOTICE_TS,
   } as const;
   const json = utf8Encode(JSON.stringify(body));
-  const id = new Uint8Array(16).fill(0x0e);
+  const id = fixtureRandom('serverNotice', 'id', 16);
   const signed = (signer: typeof noticeSigner, deviceId = bob.deviceId, bytes = json) =>
     signServerNotice({ signer, recipientDeviceId: deviceId, body: bytes, issuedAt: NOTICE_TS, id });
-  const toBob = (inner: Uint8Array, fill: number) =>
-    sealForDeviceWith(bob.dh.publicKey, inner, new Uint8Array(32).fill(fill));
+  const toBob = (inner: Uint8Array, name: string) =>
+    sealForDeviceWith(bob.dh.publicKey, inner, fixtureRandom('forgedNotices', name, 32));
   const genuine = signed(noticeSigner);
   const changed = utf8Encode(JSON.stringify({ ...body, notice: 'memberJoined' }));
   return {
@@ -61,7 +103,7 @@ function noticeFixtures(bob: ReturnType<typeof testDevice>, alice: ReturnType<ty
       recipient: 'bob',
       sealed: sealPushWith(
         { recipient, sender: null, body, signer: noticeSigner },
-        new Uint8Array(32).fill(0x0d),
+        fixtureRandom('serverNotice', 'ephemeral', 32),
         id,
       ),
       body: JSON.stringify(body),
@@ -69,24 +111,20 @@ function noticeFixtures(bob: ReturnType<typeof testDevice>, alice: ReturnType<ty
       id: toBase64url(id),
       issuedAt: NOTICE_TS,
     },
-    serverNotices: PUSH_NOTICES.map((notice, index) => ({
-      notice,
-      sealed: sealPushWith(
-        { recipient, sender: null, body: { ...body, notice }, signer: noticeSigner },
-        new Uint8Array(32).fill(0x20 + index),
-        new Uint8Array(16).fill(0x40 + index),
-      ),
-    })),
+    serverNotices: serverNoticeEntries(bob, PUSH_NOTICES),
     // Each sealed for Bob; none may be accepted as the server's.
     forgedNotices: {
-      unsigned: toBob(concatBytes(Uint8Array.of(0), json), 0x10),
-      wrongKey: toBob(signed({ ...noticeSigner, secretKey: new Uint8Array(32).fill(0x0f) }), 0x11),
-      unknownKid: toBob(signed({ ...noticeSigner, kid: 'test-n2' }), 0x12),
+      unsigned: toBob(concatBytes(Uint8Array.of(0), json), 'unsigned'),
+      wrongKey: toBob(
+        signed({ ...noticeSigner, secretKey: new Uint8Array(32).fill(0x0f) }),
+        'wrongKey',
+      ),
+      unknownKid: toBob(signed({ ...noticeSigner, kid: 'test-n2' }), 'unknownKid'),
       // A genuine notice Alice received, sealed again for Bob.
-      otherRecipient: toBob(signed(noticeSigner, alice.deviceId), 0x13),
+      otherRecipient: toBob(signed(noticeSigner, alice.deviceId), 'otherRecipient'),
       bodyChanged: toBob(
         concatBytes(genuine.subarray(0, genuine.length - json.length), changed),
-        0x14,
+        'bodyChanged',
       ),
     },
   };
@@ -103,17 +141,17 @@ function buildFixtures() {
   };
   const distribution = createSenderKeyDistributionWith(
     { senderKey, sender: alice, recipient: publicKeysOf(bob) },
-    new Uint8Array(32).fill(0x07),
+    fixtureRandom('senderKeyDistribution', 'ephemeral', 32),
   );
   const { envelope } = encryptMessageWith(
     { state: { senderKey, nextSeq: 5 }, sender: alice, payload: locationPayload },
-    new Uint8Array(16).fill(0x11),
+    fixtureRandom('message', 'salt', 16),
   );
   const pushPlaintext = JSON.stringify({ circleId: ids.circle, envelope });
   const sealed = sealForDeviceWith(
     bob.dh.publicKey,
     utf8Encode(pushPlaintext),
-    new Uint8Array(32).fill(0x09),
+    fixtureRandom('sealedPush', 'ephemeral', 32),
   );
   // Notifications (docs/PROTOCOL.md §7): what the iOS extension opens.
   const recipient = { deviceId: bob.deviceId, dhKey: bob.dh.publicKey };
@@ -126,7 +164,7 @@ function buildFixtures() {
     emoji: '🏠',
     ts: 1_791_880_000_000,
   } as const;
-  const noticeBody = {
+  const unsignedNotice = {
     kind: 'notice',
     notice: 'circleInvite',
     circleId: ids.circle,
@@ -135,12 +173,12 @@ function buildFixtures() {
   // The notice id is only used by signed server notices.
   const signedPush = sealPushWith(
     { recipient, sender: alice, body: placeBody },
-    new Uint8Array(32).fill(0x0a),
+    fixtureRandom('signedPush', 'ephemeral', 32),
     new Uint8Array(16),
   );
   const noticePush = sealPushWith(
-    { recipient, sender: null, body: noticeBody },
-    new Uint8Array(32).fill(0x0b),
+    { recipient, sender: null, body: unsignedNotice },
+    fixtureRandom('noticePush', 'ephemeral', 32),
     new Uint8Array(16),
   );
   const number = safetyNumber(
@@ -180,7 +218,7 @@ function buildFixtures() {
       sealed: signedPush,
       body: JSON.stringify(placeBody),
     },
-    noticePush: { recipient: 'bob', sealed: noticePush, body: JSON.stringify(noticeBody) },
+    noticePush: { recipient: 'bob', sealed: noticePush, body: JSON.stringify(unsignedNotice) },
     ...noticeFixtures(bob, alice),
     safetyNumber: {
       alice: { userId: ids.aliceUser, identityKey: bytesToHex(alice.identity.publicKey) },
@@ -242,6 +280,24 @@ describe('cross-implementation fixtures', () => {
       body: pushBodySchema.parse(JSON.parse(fixtures.noticePush.body)),
       serverSignature: null,
     });
+  });
+
+  it('take their randomness from their names: a new notice kind changes no other entry', () => {
+    const bob = testDevice(ids.bobDevice, 3);
+    const kinds: readonly string[] = PUSH_NOTICES;
+    // A kind inserted in the middle and one at the end, as a future slice would add them.
+    const longer = [...kinds.slice(0, 3), 'aNewKind', ...kinds.slice(3), 'zLastKind'];
+    const known = new Set(kinds);
+    const again = serverNoticeEntries(bob, longer).filter((entry) => known.has(entry.notice));
+    expect(again).toEqual(fixtures.serverNotices);
+    expect(again.map((entry) => entry.notice)).toEqual(kinds);
+    // Different names, different randomness; the same name, the same bytes.
+    expect(fixtureRandom('serverNotices', 'watch/id', 16)).toEqual(
+      fixtureRandom('serverNotices', 'watch/id', 16),
+    );
+    expect(fixtureRandom('serverNotices', 'watch/id', 16)).not.toEqual(
+      fixtureRandom('serverNotices', 'memberJoined/id', 16),
+    );
   });
 
   it('hold for signed server notices: the genuine ones verify, every forgery is dropped', () => {

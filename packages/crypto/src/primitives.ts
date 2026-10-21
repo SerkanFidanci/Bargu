@@ -56,6 +56,16 @@ export interface KeyAndNonce {
   nonce: Uint8Array;
 }
 
+/** HKDF-SHA256 (RFC 5869): `length` bytes from `ikm`, bound to `salt` and `info`. */
+export function hkdfSha256(
+  ikm: Uint8Array,
+  salt: Uint8Array,
+  info: Uint8Array,
+  length: number,
+): Uint8Array {
+  return hkdf(sha256, ikm, salt, info, length);
+}
+
 /** HKDF-SHA256 (RFC 5869) expanded to a ChaCha20-Poly1305 key and nonce. */
 export function deriveKeyAndNonce(
   ikm: Uint8Array,
@@ -63,8 +73,7 @@ export function deriveKeyAndNonce(
   label: Label,
   context: Uint8Array,
 ): KeyAndNonce {
-  const okm = hkdf(
-    sha256,
+  const okm = hkdfSha256(
     ikm,
     salt,
     concatBytes(labelBytes(label), context),
