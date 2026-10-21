@@ -13,6 +13,7 @@ import {
   placeEventSchema,
   type PublishReply,
   publishReplySchema,
+  safeEventSchema,
   statusEventSchema,
   statusGoneEventSchema,
   statusSnapshotSchema,
@@ -69,6 +70,7 @@ import {
 import { queryClient } from '../query-client';
 import { publishProfile, receivedProfile, resetPhotos, restorePhotos } from '../profile/photo';
 import { receivePoke } from '../social/poke';
+import { receivedSafe, safeCheckIns } from '../social/safe-session';
 import {
   pruneStatuses,
   receivedStatus,
@@ -684,6 +686,8 @@ const receiver = createReceiver({
     if (Date.now() - arrived.ts > PLACE_EVENT_FRESH_MS) return;
     useArrived.setState({ [`${circleId}:${userId}`]: arrived });
   },
+  // Someone says they are safe: a line with who and the battery, once (docs/ADR/0029).
+  onSafe: receivedSafe,
   onBump: (circleId, userId, ts) => {
     const name = receivePoke(circleId, userId, ts);
     if (name === null || isMuted(loadMuteSettings(), { kind: 'bump' }, userId)) return;
@@ -707,6 +711,7 @@ function restoreNow(): void {
     planSharingReminder();
     shareSeenWithExtension(loadSharingSettings());
     watchSharingEnd();
+    safeCheckIns.restore();
   }
   if (isVaultOpen() && vault().get(SHARING_REVIEW_KEY) === '1') {
     useSharingReview.setState({ pending: true });
@@ -751,6 +756,9 @@ function handleLive(name: string, payload: unknown): void {
   } else if (name === 'bump') {
     const parsed = bumpEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope);
+  } else if (name === 'safe') {
+    const parsed = safeEventSchema.safeParse(payload);
+    if (parsed.success) receiver.receive(parsed.data.envelope);
   } else if (name === 'place') {
     const parsed = placeEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope);
@@ -792,6 +800,8 @@ onOnline(() => {
   })();
   void locationEngine.flush();
   void history.flush().catch(() => undefined);
+  // A "Güvendeyim" that waited for the connection goes now, once (docs/ADR/0029).
+  void safeCheckIns.flush().catch(() => undefined);
 });
 
 // Keys arrived or trust changed: messages that waited for them get another try.

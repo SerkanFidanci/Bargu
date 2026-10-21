@@ -77,6 +77,7 @@ export const safeRequestSchema = z
     pushes: devicePushesSchema.optional(),
   })
   .strict();
+export type SafeRequest = z.infer<typeof safeRequestSchema>;
 export const safeReplySchema = bumpReplySchema;
 export const safeEventSchema = z.object({ envelope: messageEnvelopeSchema }).strict();
 

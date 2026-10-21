@@ -11,6 +11,8 @@ export const LIVE_MESSAGES = [
   'loc.gone',
   'watch',
   'bump',
+  // "Güvendeyim" (docs/ADR/0029)
+  'safe',
   'status',
   'status.gone',
   'weather',

@@ -7,6 +7,7 @@ type ArrivedPayload = Extract<Payload, { kind: 'arrived' }>;
 type LookPayload = Extract<Payload, { kind: 'look' }>;
 type PlaceEventPayload = Extract<Payload, { kind: 'place_enter' | 'place_exit' }>;
 type LatePayload = Extract<Payload, { kind: 'late' }>;
+type SafePayload = Extract<Payload, { kind: 'safe' }>;
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -67,6 +68,8 @@ export interface ReceiverDeps {
   onLate?: (circleId: string, userId: string, late: LatePayload) => void;
   /** A member says they are at the circle's meeting ("Geldim", docs/ADR/0026 §5). */
   onArrived?: (circleId: string, userId: string, arrived: ArrivedPayload) => void;
+  /** A member told the circle they are safe ("Güvendeyim", docs/ADR/0029). */
+  onSafe?: (circleId: string, userId: string, safe: SafePayload) => void;
   /** A moment for the screen between two slices of a batch (a frame); the default is a timer. */
   pause?: () => Promise<void>;
   now?: () => number;
@@ -109,6 +112,7 @@ export function createReceiver({
   onPlace,
   onLate,
   onArrived,
+  onSafe,
   pause = () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
   now = Date.now,
 }: ReceiverDeps) {
@@ -244,6 +248,10 @@ export function createReceiver({
       }
       if (payload.kind === 'arrived') {
         onArrived?.(circle.id, sender.userId, payload);
+        return 'shown';
+      }
+      if (payload.kind === 'safe') {
+        onSafe?.(circle.id, sender.userId, payload);
         return 'shown';
       }
       return 'ignored';

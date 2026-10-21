@@ -120,6 +120,29 @@ export async function lastKnownFix(): Promise<Fix | null> {
 }
 
 /**
+ * One position now, for a single message ("Güvendeyim", docs/ADR/0029) when the engine has none
+ * fresh: null when there is none within `timeoutMs` (no permission, no signal, location off).
+ */
+export async function currentFix(timeoutMs: number): Promise<Fix | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const location = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => {
+          resolve(null);
+        }, timeoutMs);
+      }),
+    ]);
+    return location === null ? null : fixOf(location);
+  } catch {
+    return null;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
  * Live mode: GPS once a second on top of the location service, for as long as someone watches.
  * Returns the stop function. While the app is open this is the app's live mode; in the
  * background (docs/ADR/0028 step 3) it is what a `watch` notice opens for two minutes: the

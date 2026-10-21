@@ -1,14 +1,24 @@
-import { generateDeviceKeys, randomUuid, sealForDevice, sealPush } from '@bargu/crypto';
+import {
+  generateDeviceKeys,
+  randomUuid,
+  sealForDevice,
+  sealPush,
+  toBase64url,
+} from '@bargu/crypto';
 import type { PushBody } from '@bargu/schemas';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { AppState } from 'react-native';
 
+import i18n from '@/i18n';
 import { toast } from '@/ui/toast';
 
 import { backgroundLive } from '../location/background-live/slot';
 import { memoryStore } from '../location/test-support';
+import { rememberSafe, SAFE_FRESH_MS } from '../social/safe';
 import { PUSH_FRESH_MS, showPush, WATCH_FRESH_MS } from './background-push';
+import { saveMutes } from './mutes';
+import { type PushContacts, saveContacts } from './push-contacts';
 
 const mockDevice = generateDeviceKeys(randomUuid());
 const mockStore = memoryStore();
@@ -202,5 +212,104 @@ describe('the watch notice of background live mode (docs/ADR/0028 step 3)', () =
       ts: NOW - PUSH_FRESH_MS - 1,
     });
     expect(await showPush(old, NOW)).toBe('stale');
+  });
+});
+
+describe('Güvendeyim from a member (docs/ADR/0029)', () => {
+  const ayse = generateDeviceKeys(randomUuid());
+  const ayseUserId = randomUuid();
+  const contacts: PushContacts = {
+    devices: {
+      [ayse.deviceId]: {
+        userId: ayseUserId,
+        name: 'Ayşe',
+        identityKey: toBase64url(ayse.identity.publicKey),
+      },
+    },
+    circles: { [circleId]: { name: 'Aile' } },
+    recipients: {},
+  };
+  const messageId = 'AAAAAAAAAAAAAAAAAAAAAA';
+  const safe = (overrides: Partial<Extract<PushBody, { kind: 'safe' }>> = {}): PushBody => ({
+    kind: 'safe',
+    circleId,
+    id: messageId,
+    bat: 45,
+    ts: NOW,
+    ...overrides,
+  });
+  /** A box Ayşe's phone sealed for this phone. */
+  const fromAyse = (body: PushBody) => sealPush({ recipient, sender: ayse, body });
+
+  beforeAll(async () => {
+    await i18n.changeLanguage('tr');
+  });
+  beforeEach(() => {
+    saveContacts(mockStore, contacts);
+  });
+
+  it('is worded by this phone from who it trusts: the name, that she is safe, the battery', async () => {
+    const sealed = fromAyse(safe());
+    expect(await showPush(sealed, NOW + 60_000)).toBe('shown');
+    expect(scheduled).toHaveBeenCalledTimes(1);
+    expect(scheduled).toHaveBeenCalledWith({
+      content: { title: 'Aile', body: 'Ayşe: İyiyim ✓ · %45', data: { circleId } },
+      trigger: { channelId: 'social' },
+    });
+    // The text is on this phone only: the box says no name and no words.
+    expect(sealed).not.toMatch(/Ayşe|iyiyim/i);
+  });
+
+  it('is a line in the open app instead of a banner', async () => {
+    appIs('active');
+    expect(await showPush(fromAyse(safe()), NOW + 60_000)).toBe('inApp');
+    expect(toasted).toHaveBeenCalledWith('Ayşe: İyiyim ✓ · %45');
+    expect(scheduled).not.toHaveBeenCalled();
+  });
+
+  it('is not muted with the pokes of the same person: a safety message is not to be missed', async () => {
+    saveMutes(mockStore, {
+      people: { [ayseUserId]: { places: true, pokes: true } },
+      places: {},
+    });
+    expect(await showPush(fromAyse({ kind: 'bump', circleId, ts: NOW }), NOW)).toBe('muted');
+    expect(await showPush(fromAyse(safe()), NOW)).toBe('shown');
+  });
+
+  it('is shown once, by its id, in whatever box: the message itself may have come first', async () => {
+    expect(await showPush(fromAyse(safe()), NOW)).toBe('shown');
+    // A second box of the same message (another ephemeral key, so not the same box).
+    expect(await showPush(fromAyse(safe()), NOW)).toBe('duplicate');
+    // The open app showed the message first: the notification stays quiet.
+    const other = 'AAAAAAAAAAAAAAAAAAAAAQ';
+    expect(rememberSafe(mockStore, other)).toBe(true);
+    expect(await showPush(fromAyse(safe({ id: other })), NOW)).toBe('duplicate');
+    expect(scheduled).toHaveBeenCalledTimes(1);
+  });
+
+  it('is still news after hours (it waited for her connection), with the time, and old after a day', async () => {
+    const waited = fromAyse(safe({ ts: NOW - 3 * 60 * 60_000 }));
+    expect(await showPush(waited, NOW)).toBe('shown');
+    expect(scheduled).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.objectContaining({
+          body: expect.stringMatching(/^Ayşe: İyiyim ✓ · %45 · \d{2}[:.]\d{2}$/) as string,
+        }) as unknown,
+      }),
+    );
+    const old = fromAyse(safe({ id: 'AAAAAAAAAAAAAAAAAAAAAQ', ts: NOW - SAFE_FRESH_MS - 1 }));
+    expect(await showPush(old, NOW)).toBe('stale');
+    expect(scheduled).toHaveBeenCalledTimes(1);
+  });
+
+  it('is dropped without a word from a device this phone does not trust', async () => {
+    const stranger = generateDeviceKeys(randomUuid());
+    const forged = sealPush({ recipient, sender: stranger, body: safe() });
+    for (const state of ['background', 'active'] as const) {
+      appIs(state);
+      expect(await showPush(forged, NOW)).toBe('refused');
+    }
+    expect(scheduled).not.toHaveBeenCalled();
+    expect(toasted).not.toHaveBeenCalled();
   });
 });

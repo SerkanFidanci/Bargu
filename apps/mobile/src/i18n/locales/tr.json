@@ -214,7 +214,9 @@
       "seersGhost": "Hayalet açık: kimse görmüyor",
       "seersNone": "Şu an kimse görmüyor",
       "seersCount": "Görenler: {{count}}",
-      "lookDetail": "Harita: {{map}} · Efektler: {{effects}}"
+      "lookDetail": "Harita: {{map}} · Efektler: {{effects}}",
+      "safe": "Güvendeyim",
+      "safeDetail": "Seçtiğin çemberlere iyi olduğunu söyle"
     }
   },
   "ui": {
@@ -576,6 +578,8 @@
     "arrived": "{{name}} vardı",
     "left": "{{name}} ayrıldı",
     "poked": "{{name}} seni dürttü 👋",
+    "safe": "{{name}}: İyiyim ✓ · %{{bat}}",
+    "safeAt": "{{name}}: İyiyim ✓ · %{{bat}} · {{time}}",
     "notice": {
       "friendRequest": "Yeni bir arkadaşlık isteğin var",
       "friendAccepted": "Arkadaşlık isteğin kabul edildi",
@@ -769,7 +773,8 @@
       "ghostOffConfirm": "Paylaş",
       "meet": "Buluşma başlat",
       "here": "Geldim ({{place}})",
-      "shared": "Konumun paylaşılıyor."
+      "shared": "Konumun paylaşılıyor.",
+      "safe": "Güvendeyim: seçtiğin çemberlere iyi olduğunu söyle"
     },
     "myCard": {
       "you": "Sen",
@@ -820,6 +825,25 @@
     "hours": "{{hours}} sa",
     "save": "Paylaş",
     "clear": "Durumu kaldır"
+  },
+  "safe": {
+    "title": "Güvendeyim",
+    "intro": "Seçtiğin çemberlere bir kez haber ver: iyisin, neredesin ve pilin ne kadar. Şifreli gider.",
+    "coarse": "yaklaşık konum",
+    "unshared": "konum şu an paylaşılmıyor",
+    "send": "İyiyim, gönder",
+    "sendCount": "İyiyim, gönder ({{count}})",
+    "none": "Henüz haber verebileceğin bir çember yok.",
+    "pick": "Haber vermek için en az bir çember seç.",
+    "waiting": "Bağlantı gelince gidecek mesaj: {{count}}",
+    "sent": "İyiyim gönderildi ✓",
+    "queued": "Bağlantı yok. Mesajın bağlantı gelince bir kez gidecek.",
+    "limited": "Çok sık gönderdin. Biraz sonra tekrar dene.",
+    "noLocation": "Konumun alınamadı. Konum iznini ve GPS'i kontrol et.",
+    "failed": "Gönderilemedi. Tekrar dene.",
+    "confirmTitle": "Konumun bu kez paylaşılacak",
+    "confirmBody": "Seçtiğin çemberlerin bir kısmı şu an konumunu görmüyor. Konumun yalnızca bu mesajda gider; hayalet modun ve paylaşım ayarların olduğu gibi kalır.",
+    "confirmSend": "Gönder"
   },
   "weather": {
     "label": "Bulunduğun yerde hava: {{kind}}, {{temperature}} derece",

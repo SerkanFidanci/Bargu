@@ -366,7 +366,7 @@ function Ring({
 }
 
 /** A round shortcut: 48 pt, raised with a hairline, or filled when on; an effect drawn behind it. */
-function RoundButton({
+export function RoundButton({
   icon: Icon,
   label,
   onPress,

@@ -87,7 +87,9 @@ beforeEach(() => {
 
 describe('the Me sheet, one row per part (the owner, 2026-10-21)', () => {
   it('lists the parts as rows, "Konum ve gizlilik" first right under the profile', async () => {
-    await render(withQueries(<MeSheet me={me} onClose={jest.fn()} onStatus={jest.fn()} />));
+    await render(
+      withQueries(<MeSheet me={me} onClose={jest.fn()} onStatus={jest.fn()} onSafe={jest.fn()} />),
+    );
     const labels = screen
       .getAllByRole('button')
       .map((node) => String((node.props as { accessibilityLabel?: string }).accessibilityLabel))
@@ -111,7 +113,9 @@ describe('the Me sheet, one row per part (the owner, 2026-10-21)', () => {
 
   it('opens each part on its own screen and comes back to the sheet afterwards', async () => {
     const onClose = jest.fn();
-    await render(withQueries(<MeSheet me={me} onClose={onClose} onStatus={jest.fn()} />));
+    await render(
+      withQueries(<MeSheet me={me} onClose={onClose} onStatus={jest.fn()} onSafe={jest.fn()} />),
+    );
     for (const [row, path] of [
       ['me-location', '/settings/location'],
       ['me-notifications', '/notifications'],
@@ -126,6 +130,23 @@ describe('the Me sheet, one row per part (the owner, 2026-10-21)', () => {
       expect(takeReturn()).toBe('me');
     }
     expect(onClose).toHaveBeenCalledTimes(6);
+  });
+
+  it('has "Güvendeyim" in the safety group at the top, one tap from the sheet (docs/ADR/0029)', async () => {
+    const onSafe = jest.fn();
+    await render(
+      withQueries(<MeSheet me={me} onClose={jest.fn()} onStatus={jest.fn()} onSafe={onSafe} />),
+    );
+    const safe = screen.getByTestId('me-safe');
+    expect(screen.getByText('Güvendeyim')).toBeTruthy();
+    // Before "Konum ve gizlilik": the safety rows are not to be missed.
+    const order = screen
+      .getAllByRole('button')
+      .map((node) => (node.props as { testID?: string }).testID);
+    expect(order.indexOf('me-safe')).toBeGreaterThanOrEqual(0);
+    expect(order.indexOf('me-safe')).toBeLessThan(order.indexOf('me-location'));
+    await fireEvent.press(safe);
+    expect(onSafe).toHaveBeenCalledTimes(1);
   });
 });
 

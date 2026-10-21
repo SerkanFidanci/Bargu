@@ -207,6 +207,7 @@ export {
   type BumpReply,
   type LocationPublish,
   type PublishReply,
+  type SafeRequest,
   type StatusPublish,
 } from './locations.js';
 export { type WeatherSnapshot, weatherEventSchema, weatherSnapshotSchema } from './weather.js';

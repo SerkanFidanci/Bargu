@@ -3,6 +3,7 @@ import type { PushBody } from '@bargu/schemas';
 import i18n from '@/i18n';
 
 import type { SeenThere } from '../location/sharing';
+import { safeWords } from '../social/safe';
 
 import { MEETINGS_CHANNEL, PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
 import type { PushContacts } from './push-contacts';
@@ -43,6 +44,8 @@ export function pushText(
   contacts: PushContacts,
   /** What a circle sees of this phone: live location, history (Faz 9, docs/ADR/0019). */
   seenIn: (circleId: string) => SeenThere = () => ({ location: false, history: false }),
+  /** The time the words are for ("Güvendeyim" says when it came late). */
+  now: number = Date.now(),
 ): ShownPush | null {
   if (body.kind === 'notice') {
     // The silent signal of background live mode (docs/ADR/0028 step 3) has no words, ever.
@@ -96,6 +99,17 @@ export function pushText(
     return {
       title: 'Bargu',
       body: i18n.t('notifications.poked', { name: sender.name }),
+      circleId: body.circleId,
+      channel: SOCIAL_CHANNEL,
+      fromUserId: sender.userId,
+    };
+  }
+  if (body.kind === 'safe') {
+    // "Güvendeyim" (docs/ADR/0029): who, from what this phone knows of them, and the battery.
+    const circle = contacts.circles[body.circleId]?.name;
+    return {
+      title: circle ?? 'Bargu',
+      body: safeWords({ name: sender.name, bat: body.bat, ts: body.ts, now }),
       circleId: body.circleId,
       channel: SOCIAL_CHANNEL,
       fromUserId: sender.userId,

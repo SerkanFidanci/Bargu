@@ -214,7 +214,9 @@
       "seersGhost": "Ghost on: nobody sees it",
       "seersNone": "Nobody sees it right now",
       "seersCount": "Seen by: {{count}}",
-      "lookDetail": "Map: {{map}} · Effects: {{effects}}"
+      "lookDetail": "Map: {{map}} · Effects: {{effects}}",
+      "safe": "I'm safe",
+      "safeDetail": "Tell the circles you pick that you are okay"
     }
   },
   "ui": {
@@ -576,6 +578,8 @@
     "arrived": "{{name}} arrived",
     "left": "{{name}} left",
     "poked": "{{name}} poked you 👋",
+    "safe": "{{name}}: I'm safe ✓ · {{bat}}%",
+    "safeAt": "{{name}}: I'm safe ✓ · {{bat}}% · {{time}}",
     "notice": {
       "friendRequest": "You have a new friend request",
       "friendAccepted": "Your friend request was accepted",
@@ -769,7 +773,8 @@
       "ghostOffConfirm": "Share",
       "meet": "Start a meeting",
       "here": "I'm here ({{place}})",
-      "shared": "Your location is being shared."
+      "shared": "Your location is being shared.",
+      "safe": "I'm safe: tell the circles you pick that you are okay"
     },
     "myCard": {
       "you": "You",
@@ -820,6 +825,25 @@
     "hours": "{{hours}} h",
     "save": "Share",
     "clear": "Remove status"
+  },
+  "safe": {
+    "title": "I'm safe",
+    "intro": "Tell the circles you pick, once: you are okay, where you are and your battery. It goes encrypted.",
+    "coarse": "approximate location",
+    "unshared": "location not shared right now",
+    "send": "I'm safe, send",
+    "sendCount": "I'm safe, send ({{count}})",
+    "none": "You have no circle to tell yet.",
+    "pick": "Pick at least one circle to tell.",
+    "waiting": "Messages that will go when you are online: {{count}}",
+    "sent": "Sent: you are safe ✓",
+    "queued": "No connection. Your message will go once when you are online.",
+    "limited": "You sent too many. Try again in a little while.",
+    "noLocation": "Could not get your location. Check location permission and GPS.",
+    "failed": "Could not send. Try again.",
+    "confirmTitle": "Your location will be shared this once",
+    "confirmBody": "Some of the circles you picked do not see your location right now. It goes only in this message; your ghost mode and sharing settings stay as they are.",
+    "confirmSend": "Send"
   },
   "weather": {
     "label": "Weather where you are: {{kind}}, {{temperature}} degrees",

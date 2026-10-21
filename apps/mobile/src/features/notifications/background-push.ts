@@ -10,6 +10,7 @@ import { useAuth } from '../auth/auth-store';
 import { ensureSession } from '../live/live-session';
 import { backgroundLive } from '../location/background-live/slot';
 import { loadSharing, seenThere } from '../location/sharing';
+import { rememberSafe, SAFE_FRESH_MS } from '../social/safe';
 import { vault } from '../storage/vault';
 import { isMuted, loadMutes } from './mutes';
 import { identityOf, loadContacts } from './push-contacts';
@@ -56,7 +57,13 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
     return 'refused';
   }
   const watched = opened.body.kind === 'notice' && opened.body.notice === 'watch';
-  if (now - opened.body.ts > (watched ? WATCH_FRESH_MS : PUSH_FRESH_MS)) return 'stale';
+  // A "Güvendeyim" may have waited for its sender's connection (docs/ADR/0029): it is still news.
+  const fresh = watched
+    ? WATCH_FRESH_MS
+    : opened.body.kind === 'safe'
+      ? SAFE_FRESH_MS
+      : PUSH_FRESH_MS;
+  if (now - opened.body.ts > fresh) return 'stale';
   // The ephemeral key at the start of the box is fresh for every box: a good "seen" mark.
   const mark = sealed.slice(0, 48);
   const seen = z
@@ -75,14 +82,22 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
   }
 
   const sharing = loadSharing(store);
-  const shown = pushText(opened.body, opened.senderDeviceId, contacts, (circleId) =>
-    seenThere(sharing, circleId, now),
+  const shown = pushText(
+    opened.body,
+    opened.senderDeviceId,
+    contacts,
+    (circleId) => seenThere(sharing, circleId, now),
+    now,
   );
   if (shown === null) return 'refused';
   const { body } = opened;
+  // The message itself may have reached the open app first (or the other way round): once.
+  if (body.kind === 'safe' && !rememberSafe(store, body.id)) return 'duplicate';
   if (
     shown.fromUserId !== null &&
+    // Never muted: a person's "I'm safe" is not a poke, and a safety message is not to be missed.
     body.kind !== 'notice' &&
+    body.kind !== 'safe' &&
     isMuted(
       loadMutes(store),
       body.kind === 'place'

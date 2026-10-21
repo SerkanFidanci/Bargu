@@ -10,6 +10,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { MapShortcuts } from '@/features/home/map-shortcuts';
 import { MeetingChip } from '@/features/home/meeting-chip';
+import { SafeButton } from '@/features/home/safe-button';
 import { SeersPill, sharingNow } from '@/features/home/seers-pill';
 import { isAway, nextMeeting } from '@/features/home/shortcuts-model';
 import { useOnScreen } from '@/features/home/use-on-screen';
@@ -42,6 +43,7 @@ import { meetingPoints } from '@/features/plan/meeting-points';
 import { MeetingPointsLayer } from '@/features/plan/meeting-points-layer';
 import { MeSheet } from '@/features/home/sheets';
 import { takeReturn } from '@/features/home/sheet-return';
+import { SafeSheet } from '@/features/social/safe-sheet';
 import { StatusSheet } from '@/features/social/status-sheet';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
 import { usePeopleUi } from '@/features/map/people-ui';
@@ -71,6 +73,7 @@ export default function HomeScreen() {
   const add = useRef<SheetRef>(null);
   const meSheet = useRef<SheetRef>(null);
   const statusSheet = useRef<SheetRef>(null);
+  const safeSheet = useRef<SheetRef>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [meOpen, setMeOpen] = useState(false);
   const motion = useMotion();
@@ -256,21 +259,28 @@ export default function HomeScreen() {
           />
         </Animated.View>
         {cardOpen ? null : (
-          <MapShortcuts
-            circles={circleList.data ?? []}
-            away={away}
-            onRecenter={() => {
-              const fix = useMyFix.getState().fix;
-              if (fix !== null) map.current?.focusOn([fix.lng, fix.lat], 0);
-            }}
-            meeting={onChip}
-            me={myUserId}
-            now={now}
-            bottom={insets.bottom + DOCK_HEIGHT + space.md}
-            shared={
-              sharingNow({ ghost: sharing.ghost, seers: seers.length, permission }) === 'shared'
-            }
-          />
+          <>
+            <MapShortcuts
+              circles={circleList.data ?? []}
+              away={away}
+              onRecenter={() => {
+                const fix = useMyFix.getState().fix;
+                if (fix !== null) map.current?.focusOn([fix.lng, fix.lat], 0);
+              }}
+              meeting={onChip}
+              me={myUserId}
+              now={now}
+              bottom={insets.bottom + DOCK_HEIGHT + space.md}
+              shared={
+                sharingNow({ ghost: sharing.ghost, seers: seers.length, permission }) === 'shared'
+              }
+            />
+            {/* "Güvendeyim", one tap away on the left (docs/ADR/0029); above the map credit. */}
+            <SafeButton
+              bottom={insets.bottom + DOCK_HEIGHT + space.md + space.xxl}
+              onPress={() => safeSheet.current?.present()}
+            />
+          </>
         )}
         {people.overlay}
         {devOverlay}
@@ -301,8 +311,13 @@ export default function HomeScreen() {
             meSheet.current?.dismiss();
             statusSheet.current?.present();
           }}
+          onSafe={() => {
+            meSheet.current?.dismiss();
+            safeSheet.current?.present();
+          }}
         />
         <StatusSheet ref={statusSheet} onClose={() => statusSheet.current?.dismiss()} />
+        <SafeSheet ref={safeSheet} onClose={() => safeSheet.current?.dismiss()} />
         {celebrating ? <Confetti onDone={celebrated} /> : null}
       </View>
     </EffectsPaused.Provider>

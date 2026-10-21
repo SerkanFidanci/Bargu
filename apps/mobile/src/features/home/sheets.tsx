@@ -2,6 +2,7 @@ import type { Me } from '@bargu/schemas';
 import { router } from 'expo-router';
 import {
   Bell,
+  HandHeart,
   Info,
   LogOut,
   Palette,
@@ -55,8 +56,8 @@ type MeScreen =
  */
 export const MeSheet = forwardRef<
   SheetRef,
-  { me: Me; onClose: () => void; onStatus: () => void; onDismiss?: () => void }
->(function MeSheet({ me, onClose, onStatus, onDismiss }, ref) {
+  { me: Me; onClose: () => void; onStatus: () => void; onSafe: () => void; onDismiss?: () => void }
+>(function MeSheet({ me, onClose, onStatus, onSafe, onDismiss }, ref) {
   const { t } = useTranslation();
   const push = usePushState((state) => state.state);
   const myStatus = useMyStatus((state) => state.status);
@@ -133,6 +134,13 @@ export const MeSheet = forwardRef<
         />
       </SettingsGroup>
       <SettingsGroup>
+        <SettingsRow
+          testID="me-safe"
+          icon={HandHeart}
+          label={t('sheets.me.safe')}
+          detail={t('sheets.me.safeDetail')}
+          onPress={onSafe}
+        />
         <SettingsRow
           testID="me-location"
           icon={ShieldHalf}
