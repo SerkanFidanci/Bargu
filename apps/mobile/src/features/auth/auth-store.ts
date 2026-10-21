@@ -16,6 +16,7 @@ import { env } from '@/config/env';
 import { resolveLanguage } from '@/i18n';
 
 import { answeredBand } from '../account/age-answer';
+import { forgetCheckedBundles } from '../keys/bundle-cache';
 import { upgradeRequired } from '../update/upgrade-required';
 import { createApiClient } from './api-client';
 import { createDeviceKeys, deleteDeviceKeys, loadDeviceKeys } from './device-key-store';
@@ -70,8 +71,15 @@ export async function sessionRevoked(): Promise<void> {
   await sessions.set(null);
 }
 
+/**
+ * Every way a session ends on this phone comes through here: signing out, deleting the account
+ * (which signs out), the server closing the session or replacing the device. Nothing of the
+ * account stays in memory (the checked device bundles of the people it knew included, QA 27 B-4);
+ * the other pieces do the same through `onSignedOut`.
+ */
 async function endLocally(): Promise<void> {
   useAuth.setState({ status: 'signedOut', device: null, userId: null });
+  forgetCheckedBundles();
   await deleteDeviceKeys();
   for (const listener of signedOutListeners) listener();
 }

@@ -1,5 +1,23 @@
-import { randomUuid, verifyRequestSignature } from '@bargu/crypto';
+import {
+  exportDeviceKeyBundle,
+  generateDeviceKeys,
+  randomUuid,
+  verifyRequestSignature,
+} from '@bargu/crypto';
 import type { Session } from '@bargu/schemas';
+
+// How many times a device bundle is really checked (keys/bundle-cache.ts remembers the answers).
+const bundleChecks = { count: 0 };
+jest.mock('@bargu/crypto', () => {
+  const actual = jest.requireActual<typeof import('@bargu/crypto')>('@bargu/crypto');
+  return {
+    ...actual,
+    verifyDeviceKeyBundle: (...args: Parameters<typeof actual.verifyDeviceKeyBundle>) => {
+      bundleChecks.count += 1;
+      return actual.verifyDeviceKeyBundle(...args);
+    },
+  };
+});
 
 const mockStore = new Map<string, string>();
 jest.mock('expo-secure-store', () => ({
@@ -18,7 +36,9 @@ jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
 }));
 
+import { deleteAccount } from '../account/account-api';
 import { useAgeAnswer } from '../account/age-answer';
+import { forgetCheckedBundles, verifiedBundle } from '../keys/bundle-cache';
 import {
   api,
   bootstrapAuth,
@@ -173,5 +193,53 @@ describe('sign-out', () => {
     await expect(api.authed('/v1/me')).rejects.toMatchObject({ code: 'DEVICE_REVOKED' });
     expect(useAuth.getState().status).toBe('signedOut');
     expect(await loadDeviceKeys()).toBeNull();
+  });
+
+  // QA 27 B-4: bundle-cache.ts said sign-out empties it, and nothing called it. The cache holds
+  // the checked keys of every phone this account heard from; none of that outlives the session.
+  describe('the checked device bundles', () => {
+    /** Whether a bundle checked while signed in is checked again now (the cache is empty). */
+    function checkedAgain(bundle: ReturnType<typeof exportDeviceKeyBundle>): boolean {
+      bundleChecks.count = 0;
+      verifiedBundle(bundle);
+      return bundleChecks.count === 1;
+    }
+
+    const ends: [string, () => Promise<void>][] = [
+      ['sign-out', () => signOut()],
+      [
+        'account deletion (deleted on the server, then signed out)',
+        async () => {
+          handler = () => ({ status: 200, body: {} });
+          await deleteAccount();
+          await signOut();
+        },
+      ],
+      [
+        'a session the server ended',
+        async () => {
+          handler = (path) =>
+            path === '/v1/auth/refresh'
+              ? { status: 401, body: { statusCode: 401, error: 'x', code: 'DEVICE_REVOKED' } }
+              : { status: 401, body: { statusCode: 401, error: 'x', code: 'TOKEN_EXPIRED' } };
+          await expect(api.authed('/v1/me')).rejects.toMatchObject({ code: 'DEVICE_REVOKED' });
+        },
+      ],
+    ];
+
+    it.each(ends)('are forgotten at %s', async (_name, end) => {
+      await signedIn();
+      forgetCheckedBundles();
+      const bundle = exportDeviceKeyBundle(generateDeviceKeys(randomUuid()));
+      verifiedBundle(bundle);
+      // While signed in the answer is remembered: no second check.
+      expect(checkedAgain(bundle)).toBe(false);
+
+      await end();
+      expect(useAuth.getState().status).toBe('signedOut');
+
+      // After the session ended the cache is empty: the same bundle is checked again.
+      expect(checkedAgain(bundle)).toBe(true);
+    });
   });
 });

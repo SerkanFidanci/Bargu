@@ -30,7 +30,10 @@ export function verifiedBundle(bundle: DeviceKeyBundle): DevicePublicKeys {
   return keys;
 }
 
-/** Sign-out and tests: nothing of one account carries over. */
+/**
+ * Nothing of one account carries over. Called when a session ends on this phone (auth-store's
+ * `endLocally`: sign-out, account deletion, a session the server closed), and by tests.
+ */
 export function forgetCheckedBundles(): void {
   checked.clear();
 }
