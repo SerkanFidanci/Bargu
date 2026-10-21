@@ -219,7 +219,10 @@
         "walking": "walking",
         "running": "running",
         "cycling": "cycling",
-        "driving": "in a vehicle"
+        "driving": "in a vehicle",
+        "racing": "in a fast car",
+        "train": "on a train",
+        "plane": "on a plane"
       },
       "detail": {
         "short": {

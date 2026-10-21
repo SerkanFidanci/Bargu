@@ -97,6 +97,9 @@ const ACTIVITIES: MarkerActivity[] = [
   'running',
   'cycling',
   'driving',
+  'racing',
+  'train',
+  'plane',
 ];
 const people = (news: number): ReactElement => (
   <>

@@ -171,3 +171,41 @@ onayladı (sunucu değişmez, dilim 3b'den önce).
   bulunduğu yaklaşık 1 km'lik kareyle saklanır; başka bir kareye geçilince eski ad görünmez.
 - **Kontrast (QA 24):** koyu temada mor simge ile açık mor zemini (`primarySoft` `#28214F`) 3:1'in,
   açık temada hata rengi (`danger` `#CC2A1E`) yüzey üstünde 4,5:1'in üstünde; ikisi de testte.
+
+## Ek (2026-10-21, proje sahibinin isteği: gerçekçi hareket çizimleri)
+
+Sahip yürüyen, koşan ve araçtaki kişilerin çizimini daha gerçekçi istedi. Araba 120 km/sa'i geçince
+yarış arabasına dönsün, sürat animasyonu çıksın dedi. Önizlemeyi beğendi ("güzel beğendim"). PM'in
+korkulukları:
+
+- **Çizimler (`ui/activity-glyph.tsx`):**
+  - Yürüyen ve koşan insanın dizi ve dirseği bükülür; koşan öne eğilir ve bir an iki ayağı da
+    havadadır.
+  - Gövde her adımda iner kalkar; alttaki ayak hep yerdedir (`activity-glyph-pose.ts`, testli).
+  - Bisikletlinin ayağı pedalda kalır, diz önde.
+  - Arabanın tekerlekleri hıza göre döner, çok hızlıyken jant bulanıklaşır, yol çizgileri hızla
+    akar.
+  - Şehir içinde (70 km/sa altı) egzoz dumanı, yolda hava çizgileri.
+  - Gömlek, araba, trenin şeridi ve uçağın kuyruğu kişinin kendi renginde.
+- **Eşikler (`activityFx.speeds`):**
+  - 120 km/sa'ten yarış arabası ve düz hız çizgileri;
+  - 200 km/sa'ten hızlı tren;
+  - 300 km/sa'ten uçak.
+  - Telefon trende mi uçakta mı bilemez; hızdan tahmin edilir.
+- **Korkuluklar (PM):**
+  - Yarış arabası, tren ve uçak yalnızca hız bilgisiyle gelir. Hız da yalnızca "Hızımı göster"
+    açıkken ve konum tam paylaşılırken gönderilir; hız yoksa çizim yok.
+  - Kişinin kendi pininde de hız gösterilmiyorsa en fazla araba çizilir.
+  - Hız kutlanmaz: ses, konfeti, rozet yok. Pinin arkasındaki noktaların yerinde düz çizgiler var.
+  - Sade moda uyar (ADR 0027): "az"da her yeni konumda bir tur, "kapalı"da hareketsiz. Boştaki kare
+    testi (`idle-frames.test.tsx`) yeni çizimleri de kapsıyor: "az" ve "kapalı"da 0 kare.
+- **Rozet:**
+  - Yaya için yuvarlak (34 px).
+  - Tekerlek, ray ve kanat için geniş (54 × 33 px), dairenin sağına uzanır.
+  - Ortak pinde yer olmadığından hep yuvarlak.
+- **Nasıl çiziliyor:**
+  - İnsanlar eklemli View çubukları, tek dönüşlerle.
+  - Araç gövdeleri bir kez çizilen sabit SVG'ler (react-native-svg, bağımlılık zaten vardı).
+  - Tekerlek, yol, duman, hava, bulut ve hız çizgileri UI thread'de dönen ya da kayan View'lar.
+  - Her hareket pinin kendi döngüsünden okunur ve döngünün sonunda başa sarar; JS thread'de hiçbir
+    şey çizilmez.

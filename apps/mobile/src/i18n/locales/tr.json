@@ -219,7 +219,10 @@
         "walking": "yürüyor",
         "running": "koşuyor",
         "cycling": "bisiklette",
-        "driving": "araçta"
+        "driving": "araçta",
+        "racing": "hızlı araçta",
+        "train": "trende",
+        "plane": "uçakta"
       },
       "detail": {
         "short": {

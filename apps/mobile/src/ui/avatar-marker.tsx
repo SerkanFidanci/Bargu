@@ -16,6 +16,7 @@ import Animated, {
 import {
   activityFx,
   ambient,
+  avatarPalette,
   avatarSize,
   elevation,
   pinFx,
@@ -26,7 +27,7 @@ import {
 import { type EffectLevel, repeatFinite, useEffects } from '@/theme/effects';
 
 import { Avatar } from './avatar';
-import { ActivityGlyph, GLYPH } from './activity-glyph';
+import { ActivityGlyph, BADGE_ROUND, BADGE_WIDE, wideGlyph } from './activity-glyph';
 import { gaitPose, leanSideOf } from './gait';
 import { Text } from './text';
 
@@ -45,6 +46,8 @@ export interface AvatarMarkerProps {
   activity?: MarkerActivity | undefined;
   /** Degrees from north while moving: they lean that way and the badge faces it. */
   heading?: number | null | undefined;
+  /** m/s, when their location carries it: a vehicle's wheels and road go with it. */
+  speed?: number | null | undefined;
   /**
    * In a pin shared with others (features/map/cluster-bubble.tsx): only the avatar and its signs;
    * the shared pin draws the ring, the tail and the dot on the position.
@@ -57,7 +60,16 @@ export interface AvatarMarkerProps {
 }
 
 /** What someone seems to be doing (features/map/activity.ts decides). */
-export type MarkerActivity = 'still' | 'settled' | 'walking' | 'running' | 'cycling' | 'driving';
+export type MarkerActivity =
+  | 'still'
+  | 'settled'
+  | 'walking'
+  | 'running'
+  | 'cycling'
+  | 'driving'
+  | 'racing'
+  | 'train'
+  | 'plane';
 
 /** The line under someone (features/map/motion-detail.ts decides). */
 export type MarkerDetail =
@@ -109,6 +121,9 @@ function periodOf(activity: MarkerActivity): number | null {
     case 'cycling':
       return activityFx.bike.periodMs;
     case 'driving':
+    case 'racing':
+    case 'train':
+    case 'plane':
       return activityFx.drive.periodMs;
     case 'settled':
       return activityFx.settled.rippleMs;
@@ -122,6 +137,8 @@ export const PIN_CIRCLE = avatarSize.md + pinFx.ring * 2;
 /** From the top of the circle to the dot on the person's exact position. */
 export const PIN_HEIGHT = PIN_CIRCLE + pinFx.tail;
 const BADGE = space.lg;
+/** The drawing inside the activity badge keeps this far from its edge (px). */
+const BADGE_INSET = 1;
 
 /** A there-and-back loop (breathing, a pulse): as useCycle, once per new location when reduced. */
 function useLoop(active: boolean, duration: number, level: EffectLevel, news: number | undefined) {
@@ -161,6 +178,7 @@ export function AvatarMarker({
   userId,
   activity = 'still',
   heading,
+  speed,
   framed = false,
   detail,
   news,
@@ -181,7 +199,7 @@ export function AvatarMarker({
     transform: [{ translateY: -breath.get() * pinFx.float.lift }],
   }));
   const leanSide = leanSideOf(heading);
-  // Walking and running: a real gait (gait.ts); a bike sways; a car hums.
+  // Walking and running: a real gait (gait.ts); a bike sways; a vehicle hums.
   const motion = useAnimatedStyle(() => {
     let pose = { x: 0, y: 0, rotate: 0, scaleX: 1, scaleY: 1 };
     if (doing === 'walking' || doing === 'running') {
@@ -193,8 +211,9 @@ export function AvatarMarker({
     } else if (doing === 'cycling') {
       const wave = Math.sin(cycle.get() * 2 * Math.PI);
       pose = { ...pose, x: wave * activityFx.bike.sway, rotate: wave * activityFx.bike.tilt };
-    } else if (doing === 'driving') {
-      pose = { ...pose, y: Math.sin(cycle.get() * 2 * Math.PI) * activityFx.drive.lift };
+    } else if (moving) {
+      const hum = Math.sin(cycle.get() * 2 * Math.PI * activityFx.drive.bobs);
+      pose = { ...pose, y: hum * activityFx.drive.lift };
     }
     return {
       transform: [
@@ -237,6 +256,8 @@ export function AvatarMarker({
     .join(', ');
   // Drawn figures face east by default; west-bound people get them mirrored.
   const facing: 1 | -1 = leanSide < -0.2 ? -1 : 1;
+  // Wheels, rails and wings get a wide badge, except in a shared pin (no room beside a neighbour).
+  const wide = !framed && doing !== 'still' && wideGlyph(doing);
 
   return (
     <View accessible accessibilityLabel={label} style={styles.container}>
@@ -267,10 +288,19 @@ export function AvatarMarker({
               <View
                 style={[
                   styles.activity,
+                  wide ? styles.activityWide : null,
                   { backgroundColor: colors.surfaceRaised, boxShadow: elevation.raised },
                 ]}
               >
-                <ActivityGlyph activity={doing} phase={cycle} facing={facing} />
+                <ActivityGlyph
+                  activity={doing}
+                  phase={cycle}
+                  facing={facing}
+                  speed={speed}
+                  paint={avatarPalette[avatar?.color ?? 0] ?? colors.primary}
+                  width={(wide ? BADGE_WIDE.width : BADGE_ROUND) - BADGE_INSET * 2}
+                  height={(wide ? BADGE_WIDE.height : BADGE_ROUND) - BADGE_INSET * 2}
+                />
               </View>
             )}
             {lowBattery && !charging && !stale ? (
@@ -373,14 +403,21 @@ const styles = StyleSheet.create({
   // The activity drawing sits on the circle's upper corner, big enough to read its motion.
   activity: {
     position: 'absolute',
-    right: -GLYPH / 2,
-    top: -GLYPH / 2 + space.xs,
-    width: GLYPH + space.xs,
-    height: GLYPH + space.xs,
+    right: -BADGE_ROUND / 2 + space.xxs,
+    top: -BADGE_ROUND / 2 + space.xs + space.xxs,
+    width: BADGE_ROUND,
+    height: BADGE_ROUND,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  // A vehicle's badge reaches out to the right of the circle, as in the approved preview.
+  activityWide: {
+    right: -(BADGE_WIDE.width - BADGE_ROUND / 2 - space.xxs),
+    top: -BADGE_WIDE.height / 2 + space.xxs,
+    width: BADGE_WIDE.width,
+    height: BADGE_WIDE.height,
   },
   lowBattery: {
     position: 'absolute',

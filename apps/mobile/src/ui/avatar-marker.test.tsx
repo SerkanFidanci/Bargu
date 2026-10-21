@@ -28,6 +28,34 @@ describe('the line under someone on the map (proje sahibi 2026-10-16)', () => {
   });
 });
 
+describe('what someone is doing, drawn (the owner, 2026-10-21)', () => {
+  beforeAll(async () => {
+    await i18n.changeLanguage('tr');
+  });
+
+  it.each([
+    ['walking', 'yürüyor'],
+    ['cycling', 'bisiklette'],
+    ['driving', 'araçta'],
+    ['racing', 'hızlı araçta'],
+    ['train', 'trende'],
+    ['plane', 'uçakta'],
+  ] as const)('draws %s and reads it out as "%s"', async (activity, said) => {
+    await render(<AvatarMarker name="Ayşe" avatar={null} activity={activity} speed={30} />);
+    expect(screen.getByTestId(`activity-${activity}`)).toBeTruthy();
+    expect(screen.getByLabelText(`Ayşe, canlı konum, ${said}`)).toBeTruthy();
+  });
+
+  it('draws nothing for someone still, or whose location is old', async () => {
+    const { rerender } = await render(<AvatarMarker name="Ayşe" avatar={null} />);
+    expect(screen.queryByTestId(/^activity-/)).toBeNull();
+    await rerender(
+      <AvatarMarker name="Ayşe" avatar={null} activity="racing" speed={40} staleMinutes={30} />,
+    );
+    expect(screen.queryByTestId(/^activity-/)).toBeNull();
+  });
+});
+
 describe('a person as a pin (the owner, 2026-10-18)', () => {
   beforeAll(async () => {
     await i18n.changeLanguage('tr');

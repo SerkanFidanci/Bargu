@@ -84,6 +84,49 @@ export const darkColors: ColorTokens = {
 };
 
 /**
+ * The activity drawings' own colours (ui/activity-glyph.tsx, the owner's approved preview of
+ * 2026-10-21): what changes with the theme, then what a car or a plane is made of in any light.
+ */
+export interface DrawingColors {
+  /** Road dashes, smoke, air and speed lines. */
+  mark: string;
+  glass: string;
+  tire: string;
+  rim: string;
+  sky: string;
+  cloud: string;
+}
+export const drawingColors: Record<'light' | 'dark', DrawingColors> = {
+  light: {
+    mark: '#B7B4CA',
+    glass: '#2B3550',
+    tire: '#1B1A26',
+    rim: '#C9CCD6',
+    sky: '#E3EEFF',
+    cloud: '#FFFFFF',
+  },
+  dark: {
+    mark: '#4A456F',
+    glass: '#0E1428',
+    tire: '#0C0B16',
+    rim: '#A9ACC0',
+    sky: '#1B2552',
+    cloud: '#3A4170',
+  },
+};
+export const drawingParts = {
+  headlight: '#FFF3C4',
+  brakeLight: '#E5484D',
+  visor: '#FFB020',
+  shine: '#FFFFFF',
+  shadow: '#000000',
+  hull: '#F4F5FA',
+  wing: '#B6BAC8',
+  engine: '#8E93A6',
+  tailplane: '#C9CCD6',
+} as const;
+
+/**
  * Avatar palette, indexed by the profile's `avatar.color` (packages/schemas AVATAR_COLORS). White
  * initials stay readable on each one, on the map in both themes.
  */

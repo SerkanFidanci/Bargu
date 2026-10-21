@@ -5,6 +5,7 @@ import { memberName } from '../circles/names';
 import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
 import { bestPerPerson, type ReceivedLocation, useLocations } from '../location/receive';
+import { speedShown, useSharing } from '../location/sharing';
 import { usePokes } from '../social/poke';
 import { statusOf, useMyStatus, useStatuses } from '../social/status';
 import { StatusBubble } from '../social/status-sheet';
@@ -78,6 +79,8 @@ export function PeopleLayer({
   const now = useNow();
   const zoom = useMapZoom((state) => state.zoom);
   const mySince = useMyFix((state) => state.since);
+  // This phone's own pin shows a fast car, a train or a plane only while its speed is shown.
+  const fastShown = useSharing((state) => speedShown(state));
   const members: PersonOnMap[] = bestPerPerson(locations).flatMap((entry) => {
     const card = cardOf(circles, entry.userId);
     return card === undefined
@@ -119,7 +122,7 @@ export function PeopleLayer({
           activity:
             myFix === null
               ? undefined
-              : activityOf(myFix.spd, mySince === null ? 0 : myFix.ts - mySince),
+              : activityOf(myFix.spd, mySince === null ? 0 : myFix.ts - mySince, fastShown),
           name: me.displayName ?? '?',
           avatar: me.avatar,
           heading: myFix?.hdg,

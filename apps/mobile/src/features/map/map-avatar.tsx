@@ -27,6 +27,16 @@ const TRAIL = {
 const DOT = space.md;
 /** The first dot's opacity, and how much of it fades over the trail. */
 const TRAIL_OPACITY = { first: 0.55, fade: 0.45 } as const;
+/**
+ * A fast car, a train or a plane leaves plain lines behind instead of dots (the owner's approved
+ * preview): their side offset, length and opacity (px). Nothing more: speed is not celebrated.
+ */
+const STREAKS = [
+  { side: -5, length: 18, opacity: 0.5 },
+  { side: 0, length: 26, opacity: 0.42 },
+  { side: 5, length: 14, opacity: 0.34 },
+] as const;
+const STREAK_WIDTH = 2;
 /** Room around the position for the longest trail, and above it for the pin. */
 const REACH = DOT + TRAIL[3].dots * TRAIL[3].gap;
 const BOX = 2 * Math.max(REACH, PIN_HEIGHT + space.xl);
@@ -91,7 +101,9 @@ export function MapAvatar({
   const heading = staleMinutes === undefined ? hdg : null;
   // On foot: footprints; on wheels: the fading trail that grows with speed.
   const gait = activity === 'walking' ? 'walk' : activity === 'running' ? 'run' : null;
-  const level = heading !== null && heading !== undefined && gait === null ? trailLevel(spd) : 0;
+  const fast = activity === 'racing' || activity === 'train' || activity === 'plane';
+  const level =
+    heading !== null && heading !== undefined && gait === null && !fast ? trailLevel(spd) : 0;
   const { colors } = useTheme();
   const color = avatarPalette[avatar?.color ?? 0] ?? colors.primary;
   const pin = (
@@ -104,6 +116,7 @@ export function MapAvatar({
       userId={userId}
       activity={activity}
       heading={hdg}
+      speed={spd}
       detail={detail}
       news={news}
     />
@@ -138,6 +151,30 @@ export function MapAvatar({
               />
             );
           })}
+        </View>
+      )}
+      {!fast || heading === null || heading === undefined ? null : (
+        <View
+          pointerEvents="none"
+          style={[styles.trail, { transform: [{ rotate: `${String(hdg ?? 0)}deg` }] }]}
+        >
+          {STREAKS.map((streak) => (
+            <View
+              key={streak.side}
+              style={[
+                styles.dot,
+                {
+                  width: STREAK_WIDTH,
+                  height: streak.length,
+                  borderRadius: STREAK_WIDTH / 2,
+                  backgroundColor: color,
+                  opacity: streak.opacity,
+                  top: CENTER + DOT,
+                  left: CENTER + streak.side - STREAK_WIDTH / 2,
+                },
+              ]}
+            />
+          ))}
         </View>
       )}
       {burst === null || burst === undefined ? null : (

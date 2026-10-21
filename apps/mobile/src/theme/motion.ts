@@ -137,8 +137,20 @@ export const meetFx = { particles: 28, durationMs: 1_400, reach: 72, size: 5 } a
  * in px, angles in degrees.
  */
 export const activityFx = {
-  /** From these speeds (m/s): walking, running, cycling, driving. */
-  speeds: { walk: 0.8, run: 2.2, bike: 4.2, drive: 8 },
+  /**
+   * From these speeds (m/s): walking, running, cycling, driving; then a fast car (120 km/h), a
+   * high-speed train (200 km/h) and a plane (300 km/h). Only a sender who shows their speed, at the
+   * exact location, carries one (the owner, 2026-10-21, with the PM's guardrails).
+   */
+  speeds: {
+    walk: 0.8,
+    run: 2.2,
+    bike: 4.2,
+    drive: 8,
+    race: 120 / 3.6,
+    train: 200 / 3.6,
+    plane: 300 / 3.6,
+  },
   /** Within this many metres for this long counts as staying in one place. */
   stay: { radiusM: 100, settledMin: 30 },
   /**
@@ -164,7 +176,24 @@ export const activityFx = {
   /** The shadow under a walking or running pin: smaller and lighter while it is in the air. */
   shadow: { width: 22, height: 6, opacity: 0.6, shrink: 0.35 },
   bike: { periodMs: 760, tilt: 7, sway: 1.5 },
-  drive: { periodMs: 140, lift: 0.8 },
+  /**
+   * In a vehicle (car, fast car, train, plane): one cycle a second. The pin hums `bobs` times a
+   * cycle; the wheels turn about `turnsPerKmh` × the speed in km/h times a second (1 to
+   * `maxTurns`), too fast to see the spokes from `blurTurns`; the road passes `dashesPerKmh` ×
+   * the speed dashes a second. Below `smokeBelow` (m/s, in town) smoke drifts back, from there
+   * the air streams past.
+   */
+  drive: {
+    periodMs: 1_000,
+    lift: 0.8,
+    bobs: 3,
+    turnsPerKmh: 1 / 22,
+    maxTurns: 9,
+    blurTurns: 4,
+    dashesPerKmh: 1 / 20,
+    maxDashes: 10,
+    smokeBelow: 70 / 3.6,
+  },
   settled: { rippleMs: 3_200, scale: 1.9, opacity: 0.35 },
 } as const;
 
