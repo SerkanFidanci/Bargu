@@ -679,7 +679,7 @@
     "backgroundLive": {
       "title": "Arka planda canlı konum",
       "battery": "Biri haritada sana bakarken konumun, uygulama kapalıyken de birkaç dakika sık gider. Pil biraz daha harcanır.",
-      "explain": "Yalnızca tam konumunu paylaştığın çemberler için çalışır; hayalet modunda, kaba konumda, pil tasarrufunda ya da pil %20'nin altındayken çalışmaz. Saatte en çok 15 dakika sürer.",
+      "explain": "Yalnızca tam konumunu paylaştığın çemberler için çalışır; hayalet modunda, kaba konumda ya da pil tasarrufunda çalışmaz; pil %20'nin altındayken de çalışmaz, şarjdaysan çalışır. Saatte en çok 15 dakika sürer.",
       "card": {
         "title": "Arka planda canlı konum açık",
         "body": "Biri haritada sana bakarken konumun birkaç dakika daha sık gider; pil biraz daha harcanır. Ayarlardan kapatabilirsin.",

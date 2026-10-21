@@ -61,11 +61,18 @@ export interface BatteryInput {
   saver: boolean;
   /** 0-100; negative or not a number when the platform does not know (then it is not a stop). */
   level: number;
+  /** On the charger (charging or full): a low battery is no reason to hold back then. */
+  charging: boolean;
 }
 
-/** The stops that depend on the battery. */
+/**
+ * The stops that depend on the battery: battery saver always stops it; under 20 % stops it unless
+ * the phone is charging (the PM, 2026-10-21: a phone on the charger has no battery to spare).
+ */
 export function batteryRefusal(battery: BatteryInput): BackgroundLiveRefusal | null {
   if (battery.saver) return 'batterySaver';
-  if (battery.level >= 0 && battery.level < LOW_BATTERY_PERCENT) return 'batteryLow';
+  if (!battery.charging && battery.level >= 0 && battery.level < LOW_BATTERY_PERCENT) {
+    return 'batteryLow';
+  }
   return null;
 }

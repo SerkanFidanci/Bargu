@@ -60,11 +60,20 @@ describe('when a phone goes live in the background (docs/ADR/0028 step 3)', () =
   });
 
   it('never on battery saver, nor below 20 %; an unknown level is not a stop', () => {
+    const unplugged = { saver: false, charging: false };
     expect(LOW_BATTERY_PERCENT).toBe(20);
-    expect(batteryRefusal({ saver: false, level: 100 })).toBeNull();
-    expect(batteryRefusal({ saver: false, level: 20 })).toBeNull();
-    expect(batteryRefusal({ saver: false, level: 19.9 })).toBe('batteryLow');
-    expect(batteryRefusal({ saver: true, level: 90 })).toBe('batterySaver');
-    expect(batteryRefusal({ saver: false, level: -1 })).toBeNull();
+    expect(batteryRefusal({ ...unplugged, level: 100 })).toBeNull();
+    expect(batteryRefusal({ ...unplugged, level: 20 })).toBeNull();
+    expect(batteryRefusal({ ...unplugged, level: 19.9 })).toBe('batteryLow');
+    expect(batteryRefusal({ ...unplugged, saver: true, level: 90 })).toBe('batterySaver');
+    expect(batteryRefusal({ ...unplugged, level: -1 })).toBeNull();
+  });
+
+  it('does not hold back a low battery that is on the charger, but battery saver still stops it', () => {
+    const charging = { saver: false, charging: true };
+    expect(batteryRefusal({ ...charging, level: 5 })).toBeNull();
+    expect(batteryRefusal({ ...charging, level: 19.9 })).toBeNull();
+    expect(batteryRefusal({ ...charging, saver: true, level: 5 })).toBe('batterySaver');
+    expect(batteryRefusal({ ...charging, saver: true, level: 90 })).toBe('batterySaver');
   });
 });

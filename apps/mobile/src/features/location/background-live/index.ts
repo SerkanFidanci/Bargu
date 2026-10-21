@@ -1,4 +1,3 @@
-import * as Battery from 'expo-battery';
 import { createElement } from 'react';
 import { AppState } from 'react-native';
 
@@ -13,6 +12,7 @@ import {
 } from '../location-session';
 import { isSharingWith } from '../sharing';
 import { trackingStarted, watchLive } from '../tracker';
+import { readBattery } from './battery';
 import { BackgroundLiveCard } from './card';
 import { BackgroundLiveRow } from './row';
 import { createBackgroundLive } from './session';
@@ -27,14 +27,7 @@ const session = createBackgroundLive({
   settings: loadSharingSettings,
   circles: sendCircles,
   store: vault,
-  battery: async () => {
-    const [saver, state] = await Promise.all([
-      Battery.isLowPowerModeEnabledAsync(),
-      Battery.getPowerStateAsync(),
-    ]);
-    // The platform reports a negative level when it does not know: then it is not a stop.
-    return { saver, level: state.batteryLevel < 0 ? -1 : state.batteryLevel * 100 };
-  },
+  battery: readBattery,
   appActive: () => AppState.currentState === 'active',
   // The notice reached an open app (the live connection was a moment late): the same as the live
   // `watch` event (location-session.ts), for a circle this phone shares with.

@@ -679,7 +679,7 @@
     "backgroundLive": {
       "title": "Live location in the background",
       "battery": "While someone looks at you on the map, your location is sent often for a few minutes, even with the app closed. It uses a bit more battery.",
-      "explain": "It only works for circles that get your exact location, and not in ghost mode, with a coarse location, with battery saver on, or below 20% battery. It lasts 15 minutes an hour at most.",
+      "explain": "It only works for circles that get your exact location, and not in ghost mode, with a coarse location or with battery saver on; it also stays off below 20% battery unless you are charging. It lasts 15 minutes an hour at most.",
       "card": {
         "title": "Live location in the background is on",
         "body": "While someone looks at you on the map, your location is sent more often for a few minutes; it uses a bit more battery. You can turn it off in settings.",

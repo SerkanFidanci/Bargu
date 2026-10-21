@@ -23,7 +23,7 @@ function setup() {
   const state = {
     settings: adult,
     circles: [open] as SendCircle[],
-    battery: { saver: false, level: 80 } as BatteryInput,
+    battery: { saver: false, level: 80, charging: false } as BatteryInput,
     active: false,
     service: true,
     watchFails: false,
@@ -194,12 +194,17 @@ describe('background live mode (docs/ADR/0028 step 3)', () => {
       [
         'battery saver is on',
         'batterySaver',
-        (t) => (t.state.battery = { saver: true, level: 90 }),
+        (t) => (t.state.battery = { saver: true, level: 90, charging: false }),
       ],
       [
-        'the battery is under 20 %',
+        'battery saver is on, even on the charger',
+        'batterySaver',
+        (t) => (t.state.battery = { saver: true, level: 8, charging: true }),
+      ],
+      [
+        'the battery is under 20 % and the phone is not charging',
         'batteryLow',
-        (t) => (t.state.battery = { saver: false, level: 19 }),
+        (t) => (t.state.battery = { saver: false, level: 19, charging: false }),
       ],
       [
         'the allowance is used up',
@@ -220,6 +225,18 @@ describe('background live mode (docs/ADR/0028 step 3)', () => {
       expect(refused(t.heard)).toEqual([reason]);
       expect(t.heard[0]).toEqual({ kind: 'notice' });
     });
+  });
+
+  it('goes live on a low battery while it is charging (the PM, 2026-10-21)', async () => {
+    const t = setup();
+    t.state.battery = { saver: false, level: 6, charging: true };
+    expect(await t.session.notice(id)).toBe('opened');
+    expect(t.watch).toHaveBeenCalledTimes(1);
+    expect(refused(t.heard)).toEqual([]);
+    // Taken off the charger, the next notice is refused again.
+    t.session.end();
+    t.state.battery = { saver: false, level: 6, charging: false };
+    expect(await t.session.notice(id)).toBe('batteryLow');
   });
 
   it('counts a notice for a circle this phone is not in', async () => {
