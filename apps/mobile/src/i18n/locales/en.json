@@ -580,6 +580,8 @@
     "poked": "{{name}} poked you 👋",
     "safe": "{{name}}: I'm safe ✓ · {{bat}}%",
     "safeAt": "{{name}}: I'm safe ✓ · {{bat}}% · {{time}}",
+    "safeFolded": "{{name}}: {{count}} more messages saying they are safe, not shown one by one because they came too often",
+    "safeQuietChannel": "I'm safe (quiet summary)",
     "notice": {
       "friendRequest": "You have a new friend request",
       "friendAccepted": "Your friend request was accepted",

@@ -15,7 +15,7 @@ import { toast } from '@/ui/toast';
 
 import { backgroundLive } from '../location/background-live/slot';
 import { memoryStore } from '../location/test-support';
-import { rememberSafe, SAFE_AHEAD_MS, SAFE_FRESH_MS } from '../social/safe';
+import { admitSafe, rememberSafe, SAFE_AHEAD_MS, SAFE_FRESH_MS } from '../social/safe';
 import {
   loadSpots,
   openSpot,
@@ -26,6 +26,7 @@ import {
   useSafeSpot,
 } from '../social/safe-spot';
 import { PUSH_FRESH_MS, showPush, WATCH_FRESH_MS } from './background-push';
+import { SAFE_QUIET_CHANNEL } from './channels';
 import { saveMutes } from './mutes';
 import { safeOfResponse } from './push';
 import { type PushContacts, saveContacts } from './push-contacts';
@@ -369,6 +370,113 @@ describe('Güvendeyim from a member (docs/ADR/0029)', () => {
     expect(await showPush(ahead(NOW - SAFE_FRESH_MS - 1, 'AAAAAAAAAAAAAAAAAAAABA'), NOW)).toBe(
       'stale',
     );
+  });
+
+  describe('past six an hour from one person in one circle (QA-32 F-1)', () => {
+    /** Ten distinct messages: the id's last character is one of the four a canonical id may end in. */
+    const idOf = (n: number) => `${'A'.repeat(19)}${String(n).padStart(2, '0')}A`;
+    const at = (n: number) => NOW + n * 1_000;
+    /** A message with a place, to see which places are kept. */
+    const placed = (n: number) => safe({ id: idOf(n), lat: 41, lng: 29, acc: 8 });
+
+    it('shows six, then sums the rest up in one quiet notification that is renewed, with no sound and no vibration', async () => {
+      for (let n = 0; n < 6; n += 1) {
+        expect(await showPush(fromAyse(placed(n)), at(n))).toBe('shown');
+      }
+      expect(scheduled).toHaveBeenCalledTimes(6);
+
+      expect(await showPush(fromAyse(placed(6)), at(6))).toBe('folded');
+      expect(await showPush(fromAyse(placed(7)), at(7))).toBe('folded');
+      expect(scheduled).toHaveBeenCalledTimes(8);
+      const first = scheduled.mock.calls[6] as [Record<string, unknown>];
+      const second = scheduled.mock.calls[7] as [Record<string, unknown>];
+      // The same notification replaced, on the channel without sound or vibration, silent.
+      expect(first[0].identifier).toBe(`safe-folded:${circleId}:${ayseUserId}`);
+      expect(second[0].identifier).toBe(first[0].identifier);
+      expect(first[0].trigger).toEqual({ channelId: SAFE_QUIET_CHANNEL });
+      expect(first[0].content).toMatchObject({
+        title: 'Aile',
+        sound: false,
+        data: { circleId },
+        body: 'Ayşe: 1 iyiyim mesajı daha geldi, çok sık olduğu için tek tek gösterilmiyor',
+      });
+      expect(second[0].content).toMatchObject({
+        body: 'Ayşe: 2 iyiyim mesajı daha geldi, çok sık olduğu için tek tek gösterilmiyor',
+      });
+      // The ones shown loudly have the loud channel and no `identifier` to replace.
+      const loud = scheduled.mock.calls[0] as [Record<string, unknown>];
+      expect(loud[0].trigger).toEqual({ channelId: 'social' });
+      // Nothing of a folded message is kept: no place on the phone.
+      expect(loadSpots(mockStore, at(8)).map((spot) => spot.id)).toEqual([
+        idOf(0),
+        idOf(1),
+        idOf(2),
+        idOf(3),
+        idOf(4),
+        idOf(5),
+      ]);
+    });
+
+    it('is one plain line in the open app, once, with no haptic', async () => {
+      appIs('active');
+      for (let n = 0; n < 6; n += 1) {
+        await showPush(fromAyse(safe({ id: idOf(n) })), at(n));
+      }
+      toasted.mockClear();
+      toastNotice.mockClear();
+      expect(await showPush(fromAyse(safe({ id: idOf(6) })), at(6))).toBe('folded');
+      expect(await showPush(fromAyse(safe({ id: idOf(7) })), at(7))).toBe('folded');
+      expect(await showPush(fromAyse(safe({ id: idOf(8) })), at(8))).toBe('folded');
+      // `info` is the line without a haptic (only a `success` one vibrates); `notice` is the tap-able
+      // one of a message that is shown.
+      expect(toasted).toHaveBeenCalledTimes(1);
+      expect(toasted).toHaveBeenCalledWith(
+        'Ayşe: 1 iyiyim mesajı daha geldi, çok sık olduğu için tek tek gösterilmiyor',
+      );
+      expect(toastNotice).not.toHaveBeenCalled();
+      expect(scheduled).not.toHaveBeenCalled();
+    });
+
+    it('counts the open app and the notification together, and each person and circle on their own', async () => {
+      // Six came live (the open app showed them)...
+      for (let n = 0; n < 6; n += 1) admitSafe(mockStore, circleId, ayseUserId, at(n));
+      // ...the seventh, by notification, is folded.
+      expect(await showPush(fromAyse(safe({ id: idOf(6) })), at(6))).toBe('folded');
+      // Another circle of hers, and another person in this one, have their own six.
+      expect(await showPush(fromAyse(safe({ id: idOf(7), circleId: randomUuid() })), at(7))).toBe(
+        'shown',
+      );
+      const carol = generateDeviceKeys(randomUuid());
+      saveContacts(mockStore, {
+        ...contacts,
+        devices: {
+          ...contacts.devices,
+          [carol.deviceId]: {
+            userId: randomUuid(),
+            name: 'Cem',
+            identityKey: toBase64url(carol.identity.publicKey),
+          },
+        },
+      });
+      expect(
+        await showPush(sealPush({ recipient, sender: carol, body: safe({ id: idOf(8) }) }), at(8)),
+      ).toBe('shown');
+    });
+
+    it('lets one through again an hour after the first was shown, and is not a mute', async () => {
+      saveMutes(mockStore, {
+        people: { [ayseUserId]: { places: true, pokes: true } },
+        places: {},
+      });
+      for (let n = 0; n < 6; n += 1) {
+        expect(await showPush(fromAyse(safe({ id: idOf(n) })), at(n))).toBe('shown');
+      }
+      expect(await showPush(fromAyse(safe({ id: idOf(6) })), at(6))).toBe('folded');
+      const hour = 60 * 60_000;
+      expect(await showPush(fromAyse(safe({ id: idOf(7), ts: at(7) + hour })), at(0) + hour)).toBe(
+        'shown',
+      );
+    });
   });
 
   it('is dropped without a word from a device this phone does not trust', async () => {

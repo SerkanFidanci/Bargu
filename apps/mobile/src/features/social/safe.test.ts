@@ -28,17 +28,21 @@ import {
   needsConfirm,
   receiveSafe,
   rememberSafe,
+  admitSafe,
   SAFE_AHEAD_MS,
+  SAFE_RATE_KEY,
+  SAFE_SHOWN_PER_HOUR,
   SAFE_FRESH_MS,
   safeAge,
   SAFE_KEEP_MS,
   safeRows,
   safeWords,
 } from './safe';
-import { spotOf } from './safe-spot';
+import { loadSpots, spotOf } from './safe-spot';
 
 const NOW = 1_800_000_000_000;
 const MIN = 60_000;
+const HOUR = 60 * MIN;
 
 /** The sharing choices of a circle: its precision, shared or not. */
 const sharingOf = (circle: Circle, change: Partial<CircleSharing>): SharingSettings => ({
@@ -591,7 +595,7 @@ describe('what the receiving phone writes', () => {
       bat: 45,
       ts: NOW,
     };
-    expect(receiveSafe(input)).toEqual({ text: 'Test: İyiyim ✓ · %45', spot });
+    expect(receiveSafe(input)).toEqual({ kind: 'shown', text: 'Test: İyiyim ✓ · %45', spot });
     // The place is kept on the phone (a tap on the line shows it) and nowhere else.
     expect(spotOf(store, safe.id, NOW + MIN)).toEqual(spot);
     // The same message again: the open app and the notification, or a repeat from the server.
@@ -686,6 +690,86 @@ describe('what the receiving phone writes', () => {
     };
     expect(receiveSafe({ ...input, safe: { ...safe, ts: NOW + 10 * MIN } })).toBeNull();
     expect(receiveSafe({ ...input, safe })).not.toBeNull();
+  });
+
+  it('shows six an hour from one sender in one circle and folds the rest, counting only what it saw (QA-32 F-1)', () => {
+    const store = memoryStore();
+    const circleA = '0190f7a4-0000-7000-8000-00000000000a';
+    const circleB = '0190f7a4-0000-7000-8000-00000000000b';
+    const mallory = '0190f7a4-0000-7000-8000-0000000000aa';
+    const bora = '0190f7a4-0000-7000-8000-0000000000bb';
+    expect(SAFE_SHOWN_PER_HOUR).toBe(6);
+    for (let n = 0; n < 6; n += 1) {
+      expect(admitSafe(store, circleA, mallory, NOW + n * 1_000)).toEqual({ show: true });
+    }
+    // The seventh and on are folded, and the line says how many there are by now.
+    expect(admitSafe(store, circleA, mallory, NOW + 10_000)).toEqual({ show: false, folded: 1 });
+    expect(admitSafe(store, circleA, mallory, NOW + 11_000)).toEqual({ show: false, folded: 2 });
+    // Another sender, or the same sender in another circle, has an hour of their own.
+    expect(admitSafe(store, circleA, bora, NOW + 12_000)).toEqual({ show: true });
+    expect(admitSafe(store, circleB, mallory, NOW + 12_000)).toEqual({ show: true });
+    // A rolling hour: the first one's slot is free an hour after it was shown, not before.
+    expect(admitSafe(store, circleA, mallory, NOW + HOUR - 1)).toEqual({ show: false, folded: 3 });
+    expect(admitSafe(store, circleA, mallory, NOW + HOUR)).toEqual({ show: true });
+    // ...and those folded long ago are forgotten: the count starts afresh.
+    expect(admitSafe(store, circleA, mallory, NOW + 2 * HOUR + 1)).toEqual({ show: true });
+    // What is kept is times by person and circle, nothing of any message.
+    const entries = Object.values(
+      JSON.parse(store.get(SAFE_RATE_KEY) ?? '{}') as Record<
+        string,
+        { shown: number[]; folded: number[] }
+      >,
+    );
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries) {
+      expect(Object.keys(entry).sort()).toEqual(['folded', 'shown']);
+      expect([...entry.shown, ...entry.folded].every((time) => typeof time === 'number')).toBe(
+        true,
+      );
+    }
+    // A damaged copy starts afresh rather than failing a safety message.
+    store.set(SAFE_RATE_KEY, '{"x": 1}');
+    expect(admitSafe(store, circleA, mallory, NOW)).toEqual({ show: true });
+  });
+
+  it('shows the first six of a person live and sums the rest up in one line, with no place kept', () => {
+    const w = world();
+    const store = memoryStore();
+    const ids = Array.from({ length: 10 }, (_, n) => `${'A'.repeat(20)}${String(n)}A`);
+    const results = ids.map((id, n) =>
+      receiveSafe({
+        store,
+        circles: [w.home],
+        circleId: w.home.id,
+        userId: w.bora.userId,
+        safe: { kind: 'safe', id, lat: 41 + n, lng: 29, acc: 8, bat: 45, ts: NOW },
+        now: NOW + MIN,
+      }),
+    );
+    expect(results.slice(0, 6).map((result) => result?.kind)).toEqual(Array(6).fill('shown'));
+    expect(results.slice(6).map((result) => result?.kind)).toEqual(Array(4).fill('folded'));
+    // One line for the first folded one, then none: the rest only change the count.
+    expect(
+      results.slice(6).map((result) => (result?.kind === 'folded' ? result.first : null)),
+    ).toEqual([true, false, false, false]);
+    const folded = results[9];
+    expect(folded).toMatchObject({
+      kind: 'folded',
+      text: 'Test: 4 iyiyim mesajı daha geldi, çok sık olduğu için tek tek gösterilmiyor',
+    });
+    // The six shown have their places; the folded ones have none kept.
+    expect(loadSpots(store, NOW + MIN).map((spot) => spot.lat)).toEqual([41, 42, 43, 44, 45, 46]);
+    // A repeat of a folded one is still a repeat: not counted twice.
+    expect(
+      receiveSafe({
+        store,
+        circles: [w.home],
+        circleId: w.home.id,
+        userId: w.bora.userId,
+        safe: { kind: 'safe', id: ids[9] ?? '', lat: 50, lng: 29, acc: 8, bat: 45, ts: NOW },
+        now: NOW + MIN,
+      }),
+    ).toBeNull();
   });
 
   it('shows nothing for a message that is too old, or from someone who is not in the circle', () => {

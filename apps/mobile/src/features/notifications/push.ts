@@ -9,6 +9,7 @@ import {
   PRIVACY_CHANNEL,
   SOCIAL_CHANNEL,
   ACCOUNT_CHANNEL,
+  SAFE_QUIET_CHANNEL,
 } from './channels';
 
 export { SOCIAL_CHANNEL };
@@ -43,6 +44,8 @@ export interface PushRegistration {
   meetingsChannelName: string;
   privacyChannelName: string;
   accountChannelName: string;
+  /** The quiet summary of "Güvendeyim" messages past the hourly limit (docs/ADR/0029 §5). */
+  safeQuietChannelName: string;
   /** Show the system question now (the user tapped "Bildirimleri aç"); else only check. */
   ask: boolean;
 }
@@ -59,6 +62,7 @@ export async function enablePush({
   meetingsChannelName,
   privacyChannelName,
   accountChannelName,
+  safeQuietChannelName,
   ask,
 }: PushRegistration): Promise<PushState> {
   if (Platform.OS === 'android') {
@@ -81,6 +85,13 @@ export async function enablePush({
     await Notifications.setNotificationChannelAsync(ACCOUNT_CHANNEL, {
       name: accountChannelName,
       importance: Notifications.AndroidImportance.DEFAULT,
+    });
+    // Low importance: shown in the shade, never a sound, never a vibration.
+    await Notifications.setNotificationChannelAsync(SAFE_QUIET_CHANNEL, {
+      name: safeQuietChannelName,
+      importance: Notifications.AndroidImportance.LOW,
+      sound: null,
+      enableVibrate: false,
     });
   }
   let permission = await Notifications.getPermissionsAsync();

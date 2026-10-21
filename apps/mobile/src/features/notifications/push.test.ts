@@ -1,3 +1,6 @@
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+
 import { enablePush, usePushState } from './push';
 
 interface Permission {
@@ -11,7 +14,7 @@ const mockToken = jest.fn<Promise<{ type: string; data: unknown }>, []>();
 jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
   setNotificationChannelAsync: jest.fn(() => Promise.resolve(null)),
-  AndroidImportance: { HIGH: 4 },
+  AndroidImportance: { HIGH: 4, DEFAULT: 3, LOW: 2 },
   getPermissionsAsync: () => mockGetPermissions(),
   requestPermissionsAsync: () => mockRequestPermissions(),
   getDevicePushTokenAsync: () => mockToken(),
@@ -26,6 +29,7 @@ const run = (ask = true) =>
     meetingsChannelName: 'Buluşmalar',
     privacyChannelName: 'Gizlilik hatırlatmaları',
     accountChannelName: 'Hesap ve Bargu+',
+    safeQuietChannelName: 'Güvendeyim (sessiz özet)',
     ask,
   });
 
@@ -65,6 +69,28 @@ describe('enablePush', () => {
     expect(mockRequestPermissions).not.toHaveBeenCalled();
     expect(register).not.toHaveBeenCalled();
     expect(usePushState.getState().state).toBe('denied');
+  });
+
+  it('makes the quiet channel of "Güvendeyim" summaries without sound or vibration (Android)', async () => {
+    mockGetPermissions.mockResolvedValue({ granted: true, canAskAgain: true });
+    const was = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+    try {
+      await run();
+    } finally {
+      Object.defineProperty(Platform, 'OS', { value: was, configurable: true });
+    }
+    expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledWith('safe-quiet', {
+      name: 'Güvendeyim (sessiz özet)',
+      importance: 2,
+      sound: null,
+      enableVibrate: false,
+    });
+    // The loud channel of friends and circles is the one that makes a noise.
+    expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledWith('social', {
+      name: 'Arkadaşlar ve çemberler',
+      importance: 4,
+    });
   });
 
   it('keeps working without a push service in the build (in-app notices only)', async () => {

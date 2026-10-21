@@ -10,9 +10,10 @@ import { useAuth } from '../auth/auth-store';
 import { ensureSession } from '../live/live-session';
 import { backgroundLive } from '../location/background-live/slot';
 import { loadSharing, seenThere } from '../location/sharing';
-import { rememberSafe, SAFE_FRESH_MS, safeAge } from '../social/safe';
+import { admitSafe, rememberSafe, SAFE_FRESH_MS, safeAge, safeFoldedWords } from '../social/safe';
 import { keepSpot, showSpot } from '../social/safe-spot';
 import { vault } from '../storage/vault';
+import { SAFE_QUIET_CHANNEL } from './channels';
 import { isMuted, loadMutes } from './mutes';
 import { identityOf, loadContacts } from './push-contacts';
 import { sealedOf } from './push-payload';
@@ -35,7 +36,7 @@ const SEEN_KEEP = 50;
 
 /** `watch`: the silent signal of background live mode, which is never shown. */
 export type Shown =
-  'shown' | 'inApp' | 'muted' | 'stale' | 'future' | 'duplicate' | 'refused' | 'watch';
+  'shown' | 'inApp' | 'muted' | 'stale' | 'future' | 'folded' | 'duplicate' | 'refused' | 'watch';
 
 /**
  * Opens a sealed notification on this phone and shows it in the user's words: from a member, only
@@ -102,6 +103,33 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
     !rememberSafe(store, body.circleId, shown.fromUserId, body.id)
   ) {
     return 'duplicate';
+  }
+  // More than six an hour from one person in one circle: one quiet line sums up the rest. The
+  // route cannot be told from a push (it would be metadata Google and Apple see), so this is the
+  // limit on a poke sent as a "Güvendeyim" too (QA-32 F-1).
+  if (body.kind === 'safe' && shown.fromUserId !== null) {
+    const admission = admitSafe(store, body.circleId, shown.fromUserId, now);
+    if (!admission.show) {
+      const summary = safeFoldedWords({ name: shown.fromName ?? '', count: admission.folded });
+      if (AppState.currentState === 'active') {
+        // A plain line, once: no haptic, no sound.
+        if (admission.folded === 1) toast.info(summary);
+        return 'folded';
+      }
+      // One notification for the person and circle, renewed as more come, on a channel without
+      // sound or vibration: neither the first nor an update makes a noise.
+      await Notifications.scheduleNotificationAsync({
+        identifier: `safe-folded:${body.circleId}:${shown.fromUserId}`,
+        content: {
+          title: shown.title,
+          body: summary,
+          data: { circleId: body.circleId },
+          sound: false,
+        },
+        trigger: { channelId: SAFE_QUIET_CHANNEL },
+      });
+      return 'folded';
+    }
   }
   // Where they are, if the notification carries it: kept on this phone for a day (the vault is
   // encrypted), and nowhere else. Tapping the notification, or the line in the open app, shows it.

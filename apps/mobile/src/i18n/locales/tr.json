@@ -580,6 +580,8 @@
     "poked": "{{name}} seni dürttü 👋",
     "safe": "{{name}}: İyiyim ✓ · %{{bat}}",
     "safeAt": "{{name}}: İyiyim ✓ · %{{bat}} · {{time}}",
+    "safeFolded": "{{name}}: {{count}} iyiyim mesajı daha geldi, çok sık olduğu için tek tek gösterilmiyor",
+    "safeQuietChannel": "Güvendeyim (sessiz özet)",
     "notice": {
       "friendRequest": "Yeni bir arkadaşlık isteğin var",
       "friendAccepted": "Arkadaşlık isteğin kabul edildi",

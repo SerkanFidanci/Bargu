@@ -17,6 +17,8 @@ export interface ShownPush {
   channel: typeof SOCIAL_CHANNEL | typeof PLACES_CHANNEL | typeof MEETINGS_CHANNEL;
   /** Who it is about (for muting); null for the server's notices. */
   fromUserId: string | null;
+  /** Their name as this phone knows it ("Güvendeyim" counts and sums up messages by person). */
+  fromName?: string;
   /** Tapping opens this screen instead of the circle (guardian notices name a link). */
   route?: 'guardians';
   /**
@@ -119,6 +121,7 @@ export function pushText(
       circleId: body.circleId,
       channel: SOCIAL_CHANNEL,
       fromUserId: sender.userId,
+      fromName: sender.name,
       // From a phone before the place was in the notification, there is only the words.
       ...(body.lat === undefined || body.lng === undefined || body.acc === undefined
         ? {}

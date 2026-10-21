@@ -99,6 +99,12 @@ export function receivedSafe(circleId: string, userId: string, safe: SafePayload
     now: Date.now(),
   });
   if (shown === null) return;
+  if (shown.kind === 'folded') {
+    // Past six an hour from this person here: one plain line for the first, no vibration (a
+    // plain line has none), and nothing for the rest. QA-32 F-1.
+    if (shown.first) toast.info(shown.text);
+    return;
+  }
   feedback('success');
   toast.notice(shown.text, 'success', () => {
     showSpot(shown.spot);

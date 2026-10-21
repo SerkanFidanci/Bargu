@@ -43,6 +43,15 @@ export const SAFE_FRESH_MS = 24 * 60 * 60_000;
 export const SAFE_AHEAD_MS = 5 * 60_000;
 /** The words carry the time once the message is older than this (it waited for a connection). */
 export const SAFE_LATE_MS = 5 * 60_000;
+/**
+ * At most this many messages of one sender in one circle are shown in a rolling hour; the rest are
+ * folded into one quiet line (QA-32 F-1). The server allows six an hour on its own route, but it
+ * cannot tell a message from a poke, and a safety message is never muted: the phone is the limit.
+ */
+export const SAFE_SHOWN_PER_HOUR = 6;
+const RATE_WINDOW_MS = 60 * 60_000;
+/** The most senders whose count is kept at once. */
+const RATE_KEEP = 200;
 /** How many ids of shown messages this phone keeps, to show each once. */
 const SEEN_KEEP = 100;
 /** How many outcomes of sent messages are kept in memory for the report of a tap. */
@@ -54,6 +63,8 @@ const OUT_PREFIX = 'safe:out:';
 export const SAFE_CHOICE_KEY = 'safe:choice:v1';
 /** The messages shown, newest last, each as `circle:sender:id`. */
 export const SAFE_SEEN_KEY = 'safe:seen:v1';
+/** When messages were shown or folded, per `circle:sender`, for the last hour. */
+export const SAFE_RATE_KEY = 'safe:rate:v1';
 
 /** A message waiting to be sent: its inputs, the location already at the circle's precision. */
 const queuedSchema = z
@@ -172,6 +183,51 @@ export function safeWords(input: { name: string; bat: number; ts: number; now: n
   return i18n.t('notifications.safeAt', { name, bat, time });
 }
 
+/** The summary of messages not shown one by one: "Ayşe: 3 more, not shown one by one". */
+export function safeFoldedWords(input: { name: string; count: number }): string {
+  return i18n.t('notifications.safeFolded', input);
+}
+
+const rateSchema = z.record(
+  z.string(),
+  z.object({ shown: z.array(z.number()), folded: z.array(z.number()) }).strict(),
+);
+
+/** A message that may be shown, or one folded into the quiet line (`folded` counts them all). */
+export type Admission = { show: true } | { show: false; folded: number };
+
+/**
+ * Whether one more message from this sender in this circle is shown (the first SAFE_SHOWN_PER_HOUR
+ * in a rolling hour) or folded. Only what the phone itself saw is counted, by arrival time, so a
+ * wrong clock on the sender's side changes nothing. The same count serves a message that comes live
+ * and a notification: whichever way it came. What is kept is times and counts, nothing of a message.
+ */
+export function admitSafe(
+  store: KeyValueStore,
+  circleId: string,
+  userId: string,
+  now: number,
+): Admission {
+  const raw = store.get(SAFE_RATE_KEY);
+  const parsed = rateSchema.safeParse(raw === undefined ? {} : JSON.parse(raw));
+  const recent = (times: readonly number[]) => times.filter((time) => now - time < RATE_WINDOW_MS);
+  const key = `${circleId}:${userId}`;
+  const all = Object.entries(parsed.success ? parsed.data : {}).map(
+    ([name, entry]) =>
+      [name, { shown: recent(entry.shown), folded: recent(entry.folded) }] as const,
+  );
+  const others = all
+    .filter(([name, entry]) => name !== key && entry.shown.length + entry.folded.length > 0)
+    .slice(-(RATE_KEEP - 1));
+  const mine = all.find(([name]) => name === key)?.[1] ?? { shown: [], folded: [] };
+  const show = mine.shown.length < SAFE_SHOWN_PER_HOUR;
+  const next = show
+    ? { shown: [...mine.shown, now], folded: mine.folded }
+    : { shown: mine.shown, folded: [...mine.folded, now] };
+  store.set(SAFE_RATE_KEY, JSON.stringify(Object.fromEntries([...others, [key, next]])));
+  return show ? { show: true } : { show: false, folded: next.folded.length };
+}
+
 /**
  * How old a message is for showing it: `ahead` when it is dated more than SAFE_AHEAD_MS in the
  * future, `old` after a day, else `fresh`. At the limits themselves (5 minutes ahead, a day old) it
@@ -207,13 +263,14 @@ export function rememberSafe(
 }
 
 /**
- * What the open app shows of a message that came live, or null (too old, repeated, unknown): the
- * words, and the place, which is also kept for a day like one from a notification (safe-spot.ts).
+ * What the open app shows of a message that came live, or null (too old, dated ahead, repeated,
+ * unknown): the words, and the place, which is also kept for a day like one from a notification
+ * (safe-spot.ts). Past the hourly limit it is `folded`: no place, no sound, no vibration, and a
+ * line only for the first one of the hour (`first`): "3 more, not shown one by one".
  */
-export interface ReceivedSafe {
-  text: string;
-  spot: SafeSpot;
-}
+export type ReceivedSafe =
+  | { kind: 'shown'; text: string; spot: SafeSpot }
+  | { kind: 'folded'; text: string; first: boolean };
 
 export function receiveSafe(input: {
   store: KeyValueStore;
@@ -231,6 +288,14 @@ export function receiveSafe(input: {
   if (member === undefined) return null;
   if (!rememberSafe(store, circleId, userId, safe.id)) return null;
   const name = memberName(member);
+  const admission = admitSafe(store, circleId, userId, now);
+  if (!admission.show) {
+    return {
+      kind: 'folded',
+      text: safeFoldedWords({ name, count: admission.folded }),
+      first: admission.folded === 1,
+    };
+  }
   const spot: SafeSpot = {
     id: safe.id,
     circleId,
@@ -242,7 +307,7 @@ export function receiveSafe(input: {
     ts: safe.ts,
   };
   keepSpot(store, spot, now);
-  return { text: safeWords({ name, bat: safe.bat, ts: safe.ts, now }), spot };
+  return { kind: 'shown', text: safeWords({ name, bat: safe.bat, ts: safe.ts, now }), spot };
 }
 
 // ---- Sending -------------------------------------------------------------------------------
