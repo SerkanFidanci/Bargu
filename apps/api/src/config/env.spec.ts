@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { billingTestOn, InvalidEnvError, parseEnv } from './env.js';
+import {
+  billingTestOn,
+  InvalidEnvError,
+  inviteHostOf,
+  parseEnv,
+  STAGING_INVITE_HOST,
+} from './env.js';
 
 const key = (fill: string) => fill.repeat(43);
 const base = {
@@ -24,6 +30,7 @@ const production = {
   IOS_APP_ID: 'ABCDE12345.app.bargu',
   ANDROID_CERT_SHA256: 'ab'.repeat(32),
   PLAY_INTEGRITY_SERVICE_ACCOUNT: 'e30=',
+  INVITE_HOST: 'invite.bargu.test',
 };
 
 describe('parseEnv', () => {
@@ -92,6 +99,17 @@ describe('parseEnv', () => {
       { ...production, WEBAUTHN_ORIGINS: 'http://localhost:8081' },
     ],
     ['production with test purchases on', { ...production, BILLING_TEST: 'on' }],
+    // The staging host is only a fallback outside production.
+    ['production without an invite host', { ...production, INVITE_HOST: undefined }],
+    ['an invite host with a scheme', { ...base, INVITE_HOST: 'https://invite.bargu.test' }],
+    ['an invite host with a path', { ...base, INVITE_HOST: 'invite.bargu.test/i' }],
+    ['an invite host with a port', { ...base, INVITE_HOST: 'invite.bargu.test:8443' }],
+    ['an invite host with user info', { ...base, INVITE_HOST: 'me@invite.bargu.test' }],
+    ['an invite host in upper case', { ...base, INVITE_HOST: 'Invite.Bargu.test' }],
+    ['an invite host of one label', { ...base, INVITE_HOST: 'localhost' }],
+    ['an invite host with an empty label', { ...base, INVITE_HOST: 'invite..bargu.test' }],
+    ['an invite host with a trailing dot', { ...base, INVITE_HOST: 'invite.bargu.test.' }],
+    ['an invite host with a space', { ...base, INVITE_HOST: 'invite.bargu.test ' }],
     // docs/ADR/0025: a signing key without its id (or the reverse) would sign passes no app knows.
     ['a signing key without its id', { ...base, ENTITLEMENT_SIGNING_KEY: 'q'.repeat(43) }],
     ['a signing key id without the key', { ...base, ENTITLEMENT_SIGNING_KID: 'stg-1' }],
@@ -190,6 +208,15 @@ describe('parseEnv', () => {
     ]) {
       expect(() => parseEnv({ ...base, ...bad })).toThrow(InvalidEnvError);
     }
+  });
+
+  it('serves invite links on the configured host, else on the staging API host (docs/ADR/0009 Ek)', () => {
+    expect(inviteHostOf(parseEnv(base))).toBe(STAGING_INVITE_HOST);
+    expect(inviteHostOf(parseEnv({ ...base, INVITE_HOST: '' }))).toBe(STAGING_INVITE_HOST);
+    expect(inviteHostOf(parseEnv({ ...base, INVITE_HOST: 'invite.bargu.test' }))).toBe(
+      'invite.bargu.test',
+    );
+    expect(inviteHostOf(parseEnv(production))).toBe('invite.bargu.test');
   });
 
   it('keeps test purchases off unless turned on, and never on in production (docs/ADR/0024)', () => {

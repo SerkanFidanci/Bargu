@@ -47,6 +47,9 @@ x-app-env: &app-env
   WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?}
   WEBAUTHN_ORIGINS: ${WEBAUTHN_ORIGINS:?}
   ANDROID_CERT_SHA256: ${ANDROID_CERT_SHA256:-}
+  # The host invite links open on (docs/ADR/0009 Ek): the invite page, the card image and the
+  # Android App Links check (assetlinks.json above). Empty: this API's own staging host.
+  INVITE_HOST: ${INVITE_HOST:-}
   # Push notifications (docs/ADR/0010): set with `bargu-set-push`; empty means off.
   FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:-}
   # Store accounts (Apple, Google Play) do not exist yet; production requires attestation.

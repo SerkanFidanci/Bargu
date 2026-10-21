@@ -22,6 +22,9 @@ export const CLIENT_LIMITS = {
   webRevoke: 10,
   webDelete: 10,
   webUnlock: 10,
+  // The invite page (docs/ADR/0009 Ek, 2026-10-22). Generous, because link previews are fetched by
+  // the messaging apps' servers: many people's previews come from a handful of addresses.
+  invitePage: 300,
 } as const;
 
 /**

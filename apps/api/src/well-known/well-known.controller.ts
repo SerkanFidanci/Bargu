@@ -6,7 +6,11 @@ import type { Env } from '../config/env.js';
 
 /**
  * Domain association files: passkeys and links work only when the domain vouches for the app
- * (Android Digital Asset Links, Apple associated domains).
+ * (Android Digital Asset Links, Apple associated domains). `assetlinks.json` names the app by its
+ * package and the SHA-256 of its signing certificate(s) (ANDROID_CERT_SHA256, one per build
+ * channel: a preview build's, later Play's): both are public. Android checks it for the invite
+ * host (`autoVerify` in apps/mobile/app.config.ts) before it opens https invite links in the app.
+ * Empty where no certificate is set: the host then vouches for nothing.
  */
 @Controller('.well-known')
 @Public()
@@ -40,7 +44,10 @@ export class WellKnownController {
     if (appId === undefined) throw new NotFoundException();
     return {
       webcredentials: { apps: [appId] },
-      applinks: { details: [{ appIDs: [appId], components: [{ '/': '/i/*' }] }] },
+      // The paths of the invite page (invite-page.controller.ts): an invite and a guardian request.
+      applinks: {
+        details: [{ appIDs: [appId], components: [{ '/': '/i/*' }, { '/': '/g/*' }] }],
+      },
     };
   }
 }

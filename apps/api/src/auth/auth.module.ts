@@ -10,6 +10,7 @@ import {
 } from '../devices/attestation/attestation.service.js';
 import { DeviceLifecycle } from '../devices/device-lifecycle.js';
 import { DeviceRegistry } from '../devices/device-registry.js';
+import { InvitePageController } from '../invite-page/invite-page.controller.js';
 import { WellKnownController } from '../well-known/well-known.controller.js';
 import { AccessTokens } from './access-tokens.js';
 import { AuthContexts } from './auth-contexts.js';
@@ -25,7 +26,7 @@ import { WebAccountController } from './web-account.controller.js';
 import { WebAccountService } from './web-account.service.js';
 
 @Module({
-  controllers: [AuthController, WellKnownController, WebAccountController],
+  controllers: [AuthController, WellKnownController, WebAccountController, InvitePageController],
   providers: [
     AccessTokens,
     AuthContexts,

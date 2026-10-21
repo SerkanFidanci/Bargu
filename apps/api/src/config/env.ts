@@ -51,6 +51,27 @@ const webOrigin = z.string().refine((value) => {
   return (url.protocol === 'https:' || local) && url.origin === value;
 }, 'expected an https origin');
 
+/**
+ * A bare DNS host name (no scheme, port, path or user info), lower case: the host invite links
+ * are served on (docs/ADR/0009 Ek, 2026-10-22). At least two labels, so a single word such as
+ * `localhost` is no invite host; the label rules are those of a DNS name.
+ */
+const isHostLabel = (label: string): boolean =>
+  label.length <= 63 &&
+  /^[a-z0-9-]+$/.test(label) &&
+  !label.startsWith('-') &&
+  !label.endsWith('-');
+const inviteHost = z
+  .string()
+  .max(253)
+  .refine((value) => {
+    const labels = value.split('.');
+    return labels.length >= 2 && labels.every(isHostLabel);
+  }, 'expected a lower-case host name such as invite.example.com (no scheme, port or path)');
+
+/** The staging API's own host: where invite links point until the permanent domain exists (K12). */
+export const STAGING_INVITE_HOST = 'api.46-62-162-70.sslip.io';
+
 /** Java-style package name: lower-case segments separated by dots, at least two segments. */
 const PACKAGE_SEGMENT = /^[a-z][a-z0-9_]*$/;
 const androidPackage = z
@@ -104,6 +125,14 @@ export const envSchema = z
      * web origin of the passkeys (on staging the API's own host).
      */
     WEB_ORIGIN: webOrigin.optional(),
+    /**
+     * The host invite links are opened on (https://<host>/i/<token>, /g/<token>): the page that
+     * shows the card in messaging apps, the Android App Links and the card image's address. Without
+     * it, the staging API's host (inviteHostOf); production must name its own. The permanent
+     * domain (K12) replaces it. The apps are built for one host too (EXPO_PUBLIC_INVITE_HOST).
+     * Empty is unset (compose passes `${VAR:-}`).
+     */
+    INVITE_HOST: z.preprocess((value) => (value === '' ? undefined : value), inviteHost.optional()),
 
     /**
      * Test purchases (docs/ADR/0024 §6): only `on` lets accounts buy Bargu+ with no payment.
@@ -307,6 +336,8 @@ export const envSchema = z
       'must not contain http origins',
     );
     need(env.BILLING_TEST !== 'on', 'BILLING_TEST', 'must not be on in production');
+    // The staging host is no fallback for production: its links and card would point at staging.
+    need(env.INVITE_HOST !== undefined, 'INVITE_HOST', 'is required in production');
     need(
       env.WEB_ORIGIN === undefined || env.WEB_ORIGIN.startsWith('https://'),
       'WEB_ORIGIN',
@@ -324,6 +355,11 @@ export function billingTestOn(env: Pick<Env, 'BILLING_TEST' | 'APP_ENV'>): boole
 /** Where links in emails point: the account web page's origin, if one is known. */
 export function webOriginOf(env: Pick<Env, 'WEB_ORIGIN' | 'WEBAUTHN_ORIGINS'>): string | null {
   return env.WEB_ORIGIN ?? env.WEBAUTHN_ORIGINS.find((origin) => origin.startsWith('http')) ?? null;
+}
+
+/** The host invite links are served on: the configured one, else the staging API's own. */
+export function inviteHostOf(env: Pick<Env, 'INVITE_HOST'>): string {
+  return env.INVITE_HOST ?? STAGING_INVITE_HOST;
 }
 
 export class InvalidEnvError extends Error {
