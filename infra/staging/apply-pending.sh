@@ -865,6 +865,7 @@ step_nginx() {
     note "yapılacak: dosyada iki küçük değişiklik: üstüne bir 'map \$status \$bargu_map_cache_control' bloğu, /map/ içindeki Cache-Control satırı bu değişkeni kullanacak"
     note "yapılacak: 'nginx -t' (bütün yapılandırma); hata verirse yedek geri konur ve reload yapılmaz"
     note "yapılacak: 'systemctl reload nginx' (diğer siteler kesintisiz çalışmaya devam eder)"
+    note "bilgi: nginx adımı hata verirse yalnız nginx geri alınır; .env, compose.yml, imza anahtarı ve servislerin yeniden başlatılması uygulanmış kalır, betiği yeniden çalıştırmak güvenlidir"
     return 0
   fi
   if ! nginx_check; then
@@ -923,6 +924,9 @@ step_nginx() {
     problem "yedek geri yüklendikten sonra da 'nginx -t' hata veriyor (başka bir ayar olabilir); nginx hâlâ eski ayarla çalışıyor, reload yapılmadı:"
     nginx_show_out
   fi
+  # Only nginx is rolled back: .env, compose.yml, the key and the restart of the services (the steps
+  # around this one) stay as they are. Running the script again is safe; say so.
+  problem "nginx geri alındı; diğer adımlar uygulandı, betiği yeniden çalıştırabilirsin."
   NGINX_FAILED=true
 }
 

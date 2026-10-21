@@ -140,8 +140,12 @@ Adımlar (`N` = `--min-level`):
    (`/etc/nginx/sites-available/bargu-staging`) iki küçük metin değişikliğiyle düzenlenir, yedeği
    `/opt/bargu/staging/bargu-staging.nginx.bak-…` olur. **Bu nginx başka sitelere de hizmet
    veriyor** (rastamen): önce `nginx -t` bütün yapılandırmayı denetler, bozuksa yedek geri konur ve
-   reload yapılmaz; sonra yalnız `systemctl reload nginx` (asla restart). Aynı değişiklik
-   `setup-nginx.sh` ile yeni kurulumlara da gelir (şablon güncellendi).
+   reload yapılmaz; sonra yalnız `systemctl reload nginx` (asla restart). **Bu adım hata verirse
+   yalnız nginx geri alınır**: `.env`, `compose.yml`, imza anahtarı ve servislerin yeniden
+   başlatılması uygulanmış kalır ("nginx geri alındı; diğer adımlar uygulandı, betiği yeniden
+   çalıştırabilirsin."); kuru çalıştırma bunu önceden bir satırla söyler. Betiği yeniden
+   çalıştırmak güvenlidir. Aynı değişiklik `setup-nginx.sh` ile yeni kurulumlara da gelir (şablon
+   güncellendi).
 8. `docker compose up -d --wait worker api` (sadece yeni ayarlarla çalışmıyorlarsa; yeni imza
    anahtarı da bunlardan biridir).
 9. Son kontrol: api konteynerindeki `MIN_CLIENT_LEVEL`, `WATCH_PUSH*` ve `NOTICE_SIGNING_KID`
