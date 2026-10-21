@@ -111,11 +111,11 @@ export function createLocationEngine(deps: EngineDeps) {
     return new Set(parsed.success ? parsed.data : []);
   }
 
-  function setPublished(ids: Set<string>): void {
-    const before = published().size;
+  /** `hadAny`: whether any circle held a location of this phone before `ids` were changed. */
+  function setPublished(ids: Set<string>, hadAny: boolean): void {
     deps.store().set(PUBLISHED_KEY, JSON.stringify([...ids]));
     // Whether any circle holds a location of this phone is what a reason for it hangs on.
-    if ((before === 0) !== (ids.size === 0)) deps.settled?.();
+    if (hadAny !== ids.size > 0) deps.settled?.();
   }
 
   /** Circles holding this phone's location that should not any more (a frozen ghost keeps all). */
@@ -130,8 +130,9 @@ export function createLocationEngine(deps: EngineDeps) {
     if (drop.length === 0) return;
     await deps.withdraw(drop);
     const held = published();
+    const hadAny = held.size > 0;
     for (const id of drop) held.delete(id);
-    setPublished(held);
+    setPublished(held, hadAny);
   }
 
   /** Sends one fix to every shared circle; false when it has to wait (offline, server error). */
@@ -176,8 +177,9 @@ export function createLocationEngine(deps: EngineDeps) {
     last = { fix, sentAt: at };
     probe.current?.sent({ at, live: live() });
     const held = published();
+    const hadAny = held.size > 0;
     for (const circle of circles) if (!refused.has(circle.id)) held.add(circle.id);
-    setPublished(held);
+    setPublished(held, hadAny);
     if (outdated.length > 0) deps.outdated?.(outdated);
     return true;
   }
