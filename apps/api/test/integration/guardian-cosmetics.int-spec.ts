@@ -78,6 +78,25 @@ const answer = (parent: Person, link: string, request: GuardianRequest, yes: boo
     'POST',
     `/v1/guardians/${link}/requests/${request.id}/${yes ? 'approve' : 'decline'}`,
   );
+/** The worker's round that ends what is due (docs/ADR/0023 §4, §5). */
+const sweeper = () =>
+  new GuardianSweeper(
+    test.app.get(DatabaseService),
+    test.app.get(EventsService),
+    test.app.get<RedisClient>(REDIS),
+  );
+/** Makes a child's waiting requests of a kind 8 days old, so that the next round drops them. */
+const agedRequests = (child: Person, kind: 'purchase' | 'cosmetic') =>
+  test.admin.query(
+    `UPDATE app.guardian_requests SET created_at = now() - interval '8 days'
+      WHERE child_id = $1 AND kind = $2`,
+    [child.userId, kind],
+  );
+/** Everyone a kind of event was published to, over all calls. */
+const heard = (published: { mock: { calls: unknown[][] } }, type: string): string[] =>
+  published.mock.calls.flatMap(([users, event]) =>
+    (event as { type: string }).type === type ? [...(users as Iterable<string>)] : [],
+  );
 const stored = async (child: Person) =>
   (
     await test.admin.query<{ kind: string; product: string }>(
@@ -377,34 +396,92 @@ describe('a 15-17 account asks a parent for a cosmetic pack (docs/ADR/0025 §6, 
     expect(await kinds(CLIENT_LEVEL)).toEqual(['cosmetic', 'purchase']);
   });
 
-  it('drops the request when nobody answers in 7 days, and the child stops waiting', async () => {
+  it('drops a pack request nobody answers in 7 days: the parent’s open view and the child’s plan hear it', async () => {
     const { teen, parent, link } = await family();
     await buy(teen, 'cosmetic:rings');
     await buy(teen, 'plus_year');
-    await test.admin.query(
-      `UPDATE app.guardian_requests SET created_at = now() - interval '8 days'
-        WHERE child_id = $1 AND kind = 'cosmetic'`,
-      [teen.userId],
-    );
+    await agedRequests(teen, 'cosmetic');
     const told = vi.spyOn(test.app.get(EventsService), 'publish');
-    const sweeper = new GuardianSweeper(
-      test.app.get(DatabaseService),
-      test.app.get(EventsService),
-      test.app.get<RedisClient>(REDIS),
+    expect(await sweeper().sweep()).toBeGreaterThanOrEqual(1);
+    // The parent's view re-reads (it still shows the request), the child's too; the child's plan,
+    // which says what waits, is read again on every phone of theirs.
+    expect(heard(told, 'guardians.changed')).toEqual(
+      expect.arrayContaining([teen.userId, parent.userId]),
     );
-    expect(await sweeper.sweep()).toBeGreaterThanOrEqual(1);
-    // The child's view and plan are read again on every phone of theirs.
-    expect(told).toHaveBeenCalledWith(expect.arrayContaining([teen.userId]), {
-      type: 'plan.changed',
-    });
-    expect(told).toHaveBeenCalledWith(expect.arrayContaining([teen.userId]), {
-      type: 'guardians.changed',
-    });
+    expect(heard(told, 'plan.changed')).toContain(teen.userId);
+    expect(heard(told, 'plan.changed')).not.toContain(parent.userId);
     expect(await planOf(teen)).toMatchObject({
       pendingCosmetics: [],
       pendingPurchase: 'plus_year',
     });
     expect((await requestsOf(parent, link)).map((request) => request.kind)).toEqual(['purchase']);
+    told.mockRestore();
+  });
+
+  it('does the same for a Bargu+ request nobody answers in 7 days', async () => {
+    const { teen, parent, link } = await family();
+    await buy(teen, 'plus_month');
+    await buy(teen, 'cosmetic:frames');
+    await agedRequests(teen, 'purchase');
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+    expect(await sweeper().sweep()).toBeGreaterThanOrEqual(1);
+    expect(heard(told, 'guardians.changed')).toEqual(
+      expect.arrayContaining([teen.userId, parent.userId]),
+    );
+    expect(heard(told, 'plan.changed')).toContain(teen.userId);
+    expect(await planOf(teen)).toMatchObject({
+      pendingPurchase: null,
+      pendingCosmetics: ['frames'],
+    });
+    expect((await requestsOf(parent, link)).map((request) => request.pack)).toEqual(['frames']);
+    told.mockRestore();
+  });
+
+  it('tells the parents of every request that runs out, the child’s plan only when it was a purchase or a pack', async () => {
+    const { teen, parent } = await family();
+    // A request of another kind (a friend the child asked for) and no plan involved.
+    await test.admin.query(
+      `INSERT INTO app.guardian_requests (child_id, kind, username, created_at)
+       VALUES ($1, 'friend', 'someone.else', now() - interval '8 days')`,
+      [teen.userId],
+    );
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+    expect(await sweeper().sweep()).toBeGreaterThanOrEqual(1);
+    expect(heard(told, 'guardians.changed')).toEqual(
+      expect.arrayContaining([teen.userId, parent.userId]),
+    );
+    expect(heard(told, 'plan.changed')).not.toContain(teen.userId);
+    told.mockRestore();
+  });
+
+  it('tells nobody twice: what ran out is gone at the next round', async () => {
+    const { teen, parent } = await family();
+    await buy(teen, 'cosmetic:rings');
+    await agedRequests(teen, 'cosmetic');
+    await sweeper().sweep();
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+    await sweeper().sweep();
+    expect(heard(told, 'guardians.changed')).not.toContain(parent.userId);
+    expect(heard(told, 'plan.changed')).not.toContain(teen.userId);
+    told.mockRestore();
+  });
+
+  it('tells the child’s plan when the worker ends the link and its waiting requests go with it', async () => {
+    const { teen, parent, link } = await family();
+    await buy(teen, 'cosmetic:rings');
+    await buy(teen, 'plus_month');
+    await as(test, teen, 'POST', `/v1/guardians/${link}/end`);
+    await test.admin.query(
+      `UPDATE app.guardian_links SET end_requested_at = now() - interval '8 days' WHERE id = $1`,
+      [link],
+    );
+    const told = vi.spyOn(test.app.get(EventsService), 'publish');
+    expect(await sweeper().sweep()).toBeGreaterThanOrEqual(1);
+    expect(heard(told, 'guardians.changed')).toEqual(
+      expect.arrayContaining([teen.userId, parent.userId]),
+    );
+    expect(heard(told, 'plan.changed')).toContain(teen.userId);
+    expect(await planOf(teen)).toMatchObject({ pendingCosmetics: [], pendingPurchase: null });
     told.mockRestore();
   });
 
