@@ -38,6 +38,13 @@ export const locPayloadSchema = z
   })
   .strict();
 
+/**
+ * A random id of 16 bytes in base64url (22 characters, canonical: the last character carries no
+ * stray bits). A "Güvendeyim" message is named by one, so a repeat of it can be told from a new
+ * message (docs/ADR/0029).
+ */
+export const safeIdSchema = z.string().regex(/^[A-Za-z0-9_-]{21}[AQgw]$/);
+
 export const bumpPayloadSchema = z.object({ kind: z.literal('bump'), ts: timestamp }).strict();
 
 export const placeEnterPayloadSchema = z
@@ -204,6 +211,29 @@ export const votePayloadSchema = z
   .strict();
 export type VotePayload = z.infer<typeof votePayloadSchema>;
 
+/**
+ * "Güvendeyim" (docs/ADR/0029): the sender says they are safe, with where they are and how much
+ * battery they have. Sent once to each circle the sender chose, with the location at THAT circle's
+ * precision (applyPrecision: a coarse circle gets the coarse cell). It is a message of its own,
+ * not a live location: nothing follows it, and a ghost stays a ghost. `id` is random and names the
+ * message; the server remembers a hash of it for a day to drop a repeat, the receivers remember it
+ * to show it once.
+ */
+export const safePayloadSchema = z
+  .object({
+    kind: z.literal('safe'),
+    id: safeIdSchema,
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    /** Accuracy radius in metres. */
+    acc: z.number().nonnegative().max(1_000_000),
+    /** Battery percentage. */
+    bat: z.number().int().min(0).max(100),
+    ts: timestamp,
+  })
+  .strict();
+export type SafePayload = z.infer<typeof safePayloadSchema>;
+
 /** "I will be about this late" to the meeting at `meetAt` (sent once per estimate, not stored). */
 export const latePayloadSchema = z
   .object({
@@ -251,6 +281,7 @@ export const payloadSchema = z.discriminatedUnion('kind', [
   latePayloadSchema,
   lookPayloadSchema,
   arrivedPayloadSchema,
+  safePayloadSchema,
 ]);
 
 /**

@@ -2,6 +2,10 @@
 // commit 028ab2e (the Faz 9B and QA 27 APKs), verbatim but for the import paths, which point at
 // today's building blocks (sealed box, padding, encoding, primitives: unchanged since 028ab2e, only
 // added to). legacy-app.spec.ts runs it against the new signed notices (QA-28 B-1).
+//
+// One addition to the verbatim code: the body schema is a parameter (`openPushWith`), so a test can
+// give it the schema of that time, a union without the kinds added since (Güvendeyim, ADR 0029).
+// `openPush` is the verbatim function with today's schema.
 import { pushBodySchema, type PushBody } from '@bargu/schemas';
 
 import { ID_BYTES, KEY_BYTES, LABELS, SIGNATURE_BYTES } from '../../src/constants.js';
@@ -16,6 +20,11 @@ import { BarguCryptoError } from '../../src/errors.js';
 import type { DeviceKeys } from '../../src/keys.js';
 import { randomBytes, signWithLabel, verifyWithLabel } from '../../src/primitives.js';
 import { openSealed, sealForDeviceWith } from '../../src/sealed.js';
+
+/** What the opening code asks of a body schema: today's `pushBodySchema`, or a past one. */
+export interface BodySchema {
+  safeParse(value: unknown): { success: true; data: PushBody } | { success: false };
+}
 
 /** First byte of a push's inner plaintext: who stands behind it. */
 const FROM_SERVER = 0x00;
@@ -100,6 +109,18 @@ export function openPush(input: {
   sealed: string;
   senderIdentityKey: (deviceId: string) => Uint8Array | null;
 }): OpenedPush {
+  return openPushWith(pushBodySchema, input);
+}
+
+/** `openPush` with the body schema of a given time. */
+export function openPushWith(
+  schema: BodySchema,
+  input: {
+    recipient: DeviceKeys;
+    sealed: string;
+    senderIdentityKey: (deviceId: string) => Uint8Array | null;
+  },
+): OpenedPush {
   const inner = openSealed(input.recipient, input.sealed);
   let senderDeviceId: string | null = null;
   let json: Uint8Array;
@@ -127,7 +148,7 @@ export function openPush(input: {
     if (error instanceof BarguCryptoError) throw error;
     throw new BarguCryptoError('MALFORMED', 'push body is not valid JSON');
   }
-  const body = pushBodySchema.safeParse(parsed);
+  const body = schema.safeParse(parsed);
   if (!body.success || (senderDeviceId === null) !== (body.data.kind === 'notice')) {
     throw new BarguCryptoError('MALFORMED', 'invalid push body');
   }

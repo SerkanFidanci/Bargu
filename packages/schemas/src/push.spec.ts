@@ -7,6 +7,10 @@ import {
   payloadSchema,
   placePutSchema,
   pushBodySchema,
+  safeIdSchema,
+  safePayloadSchema,
+  safeReplySchema,
+  safeRequestSchema,
   serverEventSchema,
 } from './index.js';
 
@@ -148,5 +152,82 @@ describe('profile messages', () => {
       photo,
       ts: 1,
     });
+  });
+});
+
+describe('Güvendeyim (docs/ADR/0029)', () => {
+  // 16 bytes of base64url: 22 characters, the last one carrying no stray bits.
+  const id = 'AAAAAAAAAAAAAAAAAAAAAA';
+  const safe = {
+    kind: 'safe',
+    id,
+    lat: 41.0082,
+    lng: 28.9784,
+    acc: 12,
+    bat: 45,
+    ts: 1_791_880_000_000,
+  };
+
+  it('is a message kind of its own, strict, with a location and the battery', () => {
+    expect(payloadSchema.parse(safe)).toEqual(safe);
+    expect(safePayloadSchema.parse(safe)).toEqual(safe);
+    for (const bad of [
+      { ...safe, lat: 91 },
+      { ...safe, lng: -181 },
+      { ...safe, bat: 101 },
+      { ...safe, bat: 45.5 },
+      { ...safe, acc: -1 },
+      { ...safe, spd: 1 },
+      { ...safe, extra: true },
+      { ...safe, id: undefined },
+    ]) {
+      expect(payloadSchema.safeParse(bad).success).toBe(false);
+    }
+  });
+
+  it('names a message by 16 random bytes in canonical base64url, nothing else', () => {
+    expect(safeIdSchema.safeParse(id).success).toBe(true);
+    expect(safeIdSchema.safeParse('AAAAAAAAAAAAAAAAAAAAAQ').success).toBe(true);
+    for (const bad of [
+      '',
+      'A'.repeat(21),
+      'A'.repeat(23),
+      'AAAAAAAAAAAAAAAAAAAAAB', // stray bits in the last character
+      'AAAAAAAAAAAAAAAAAAAAA+',
+      'AAAAAAAAAAAAAAAAAAAAA=',
+    ]) {
+      expect(safeIdSchema.safeParse(bad).success).toBe(false);
+    }
+  });
+
+  it('is asked for with the id in the clear next to the sealed message and its notifications', () => {
+    expect(safeRequestSchema.parse({ id, envelope })).toEqual({ id, envelope });
+    expect(safeRequestSchema.parse({ id, envelope, pushes: [] }).pushes).toEqual([]);
+    for (const bad of [
+      { envelope },
+      { id, envelope, extra: 1 },
+      { id: 'short', envelope },
+      { id, envelope: { ...envelope, ct: b64(10) } },
+    ]) {
+      expect(safeRequestSchema.safeParse(bad).success).toBe(false);
+    }
+    expect(safeReplySchema.parse({ ok: true })).toEqual({ ok: true });
+    expect(safeReplySchema.parse({ refused: 'RATE_LIMITED' })).toEqual({ refused: 'RATE_LIMITED' });
+    expect(safeReplySchema.safeParse({ refused: 'WHATEVER' }).success).toBe(false);
+  });
+
+  it('has a notification body with the battery but no location, no name, no text', () => {
+    const body = { kind: 'safe', circleId: uuid, id, bat: 45, ts: 1 };
+    expect(pushBodySchema.parse(body)).toEqual(body);
+    for (const bad of [
+      { ...body, lat: 41 },
+      { ...body, lng: 29 },
+      { ...body, name: 'Ayşe' },
+      { ...body, bat: 120 },
+      { ...body, id: 'x' },
+      { kind: 'safe', circleId: uuid, bat: 45, ts: 1 },
+    ]) {
+      expect(pushBodySchema.safeParse(bad).success).toBe(false);
+    }
   });
 });

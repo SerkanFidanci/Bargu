@@ -15,6 +15,8 @@ export {
   latePayloadSchema,
   lookPayloadSchema,
   arrivedPayloadSchema,
+  safeIdSchema,
+  safePayloadSchema,
   MAX_POLL_OPTIONS,
   PLACE_NAME_MAX,
   PLACE_RADIUS_M,
@@ -24,6 +26,7 @@ export {
   type PlacePayload,
   type PlanPayload,
   type PollPayload,
+  type SafePayload,
   type VotePayload,
 } from './payload.js';
 export {
@@ -192,6 +195,9 @@ export {
   MIN_STATUS_SECONDS,
   publishReplySchema,
   RELAY_REFUSALS,
+  safeEventSchema,
+  safeReplySchema,
+  safeRequestSchema,
   statusEventSchema,
   statusGoneEventSchema,
   statusPublishSchema,

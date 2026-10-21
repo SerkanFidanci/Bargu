@@ -76,6 +76,17 @@ export function generateRequestNonce(): string {
   return toBase64url(randomBytes(REQUEST_NONCE_BYTES));
 }
 
+/** Bytes of a message id (a "Güvendeyim" message's, docs/ADR/0029). */
+export const MESSAGE_ID_BYTES = 16;
+
+/**
+ * A random message id: 16 bytes in base64url (22 characters, the form `safeIdSchema` accepts). It
+ * names one message so that a repeat of it can be told from a new one; it is not a secret.
+ */
+export function generateMessageId(): string {
+  return toBase64url(randomBytes(MESSAGE_ID_BYTES));
+}
+
 /** Ed25519 signature by the device identity key, base64url (header `x-bargu-sig`). */
 export function signRequest(identitySecretKey: Uint8Array, request: RequestToSign): string {
   return toBase64url(

@@ -56,6 +56,7 @@ export {
   deriveWebCode,
   deriveWebUnlockToken,
   emailLookupKey,
+  generateMessageId,
   generateRequestNonce,
   generateToken,
   hashToken,

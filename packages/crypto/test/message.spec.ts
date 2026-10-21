@@ -160,6 +160,16 @@ describe('encryptMessage / decryptMessage', () => {
         ],
         ts: maxTs,
       },
+      // Güvendeyim (docs/ADR/0029): the widest numbers, the longest id.
+      {
+        kind: 'safe',
+        id: 'z'.repeat(21) + 'A',
+        lat: -longest,
+        lng: -longest,
+        acc: longest,
+        bat: 100,
+        ts: maxTs,
+      },
       // The largest look (docs/ADR/0025): every id at its longest, as many packs as a pass names.
       {
         kind: 'look',

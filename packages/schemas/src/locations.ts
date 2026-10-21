@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { messageEnvelopeSchema } from './envelope.js';
+import { safeIdSchema } from './payload.js';
 import { devicePushesSchema } from './push.js';
 
 /**
@@ -61,6 +62,23 @@ export const bumpReplySchema = z
   .or(z.object({ refused: z.enum(RELAY_REFUSALS) }).strict());
 export type BumpReply = z.infer<typeof bumpReplySchema>;
 export const bumpEventSchema = z.object({ envelope: messageEnvelopeSchema }).strict();
+
+/**
+ * "Güvendeyim" (docs/ADR/0029): one encrypted `safe` message to one circle, forwarded at once to the
+ * members who are online and never stored; the others get the sealed notification the sender's
+ * phone prepared for their device. `id` is the message's own id, sent in the clear (it is random
+ * and says nothing): the server keeps a hash of it for a day and answers a repeat as already done.
+ * Works in a paused circle and needs no plan.
+ */
+export const safeRequestSchema = z
+  .object({
+    id: safeIdSchema,
+    envelope: messageEnvelopeSchema,
+    pushes: devicePushesSchema.optional(),
+  })
+  .strict();
+export const safeReplySchema = bumpReplySchema;
+export const safeEventSchema = z.object({ envelope: messageEnvelopeSchema }).strict();
 
 /** A status (emoji and short text) lasts at most a day (BARGU_PLAN §4.3). */
 export const MAX_STATUS_SECONDS = 24 * 3600;

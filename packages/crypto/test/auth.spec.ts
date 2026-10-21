@@ -1,5 +1,6 @@
 import { createHash, createHmac } from 'node:crypto';
 
+import { safeIdSchema } from '@bargu/schemas';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
@@ -9,6 +10,7 @@ import {
   deriveWebCode,
   deriveWebUnlockToken,
   emailLookupKey,
+  generateMessageId,
   generateRequestNonce,
   generateToken,
   hashToken,
@@ -120,6 +122,13 @@ describe('request signatures', () => {
   it('use fresh 16-byte nonces', () => {
     expect(fromBase64url(generateRequestNonce())).toHaveLength(16);
     expect(generateRequestNonce()).not.toBe(generateRequestNonce());
+  });
+
+  it('use fresh 16-byte message ids that the schema accepts (docs/ADR/0029)', () => {
+    const id = generateMessageId();
+    expect(fromBase64url(id)).toHaveLength(16);
+    expect(safeIdSchema.safeParse(id).success).toBe(true);
+    expect(generateMessageId()).not.toBe(id);
   });
 });
 

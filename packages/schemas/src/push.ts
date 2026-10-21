@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { messageEnvelopeSchema } from './envelope.js';
-import { placeEmojiSchema, placeNameSchema, timestamp } from './payload.js';
+import { placeEmojiSchema, placeNameSchema, safeIdSchema, timestamp } from './payload.js';
 import { MAX_CIRCLE_MEMBERS } from './circles.js';
 
 /** News the server itself announces (it knows them anyway); the app words them in its language. */
@@ -35,8 +35,8 @@ export type PushNotice = (typeof PUSH_NOTICES)[number];
 
 /**
  * What a notification says, sealed for one device (docs/PROTOCOL.md §7, docs/ADR/0016): Google
- * and Apple carry only ciphertext. `place` and `bump` are signed by the member's phone that sent
- * them; `notice` comes from the server and only ever names a kind and a circle.
+ * and Apple carry only ciphertext. `place`, `bump`, `late`, `meeting` and `safe` are signed by the
+ * member's phone that sent them; `notice` comes from the server and only ever names a kind and a circle.
  */
 export const pushBodySchema = z.discriminatedUnion('kind', [
   z
@@ -52,6 +52,18 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
     })
     .strict(),
   z.object({ kind: z.literal('bump'), circleId: z.uuid(), ts: timestamp }).strict(),
+  // "Güvendeyim" (docs/ADR/0029): the receiving phone writes "Ali: İyiyim ✓ · %45" from it. No
+  // location: that travels only in the encrypted message. `id` is the message's own, so a phone
+  // that gets both the message and this shows it once. `ts` is when the sender tapped.
+  z
+    .object({
+      kind: z.literal('safe'),
+      circleId: z.uuid(),
+      id: safeIdSchema,
+      bat: z.number().int().min(0).max(100),
+      ts: timestamp,
+    })
+    .strict(),
   /** "Ali will be about 10 minutes late" to the event's meeting (docs/ADR/0018). */
   z
     .object({
