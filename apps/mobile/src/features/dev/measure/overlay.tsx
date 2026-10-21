@@ -12,7 +12,14 @@ import { memberName } from '../../circles/names';
 import { nativeCryptoSelfTestMs } from '../../../platform/native-crypto';
 import { useFrameMeter } from '../frame-meter';
 import { STALL_MS } from './stalls';
-import { median, restoreBackgroundLive, type Series, useMeasures, useStalls } from './store';
+import {
+  median,
+  resetBackgroundLive,
+  restoreBackgroundLive,
+  type Series,
+  useMeasures,
+  useStalls,
+} from './store';
 import { startStallWatch } from './watch';
 
 /** Frame rate measured in windows this long, one after another, while the overlay is open. */
@@ -144,6 +151,16 @@ function Panel() {
         }),
       )}
       {line(t('dev.measure.backgroundRefused', measures.backgroundLive.refused))}
+      <Pressable
+        accessibilityRole="button"
+        testID="background-reset"
+        hitSlop={space.sm}
+        onPress={resetBackgroundLive}
+      >
+        <Text variant="caption" color="primary">
+          {t('dev.measure.backgroundReset')}
+        </Text>
+      </Pressable>
 
       <Text variant="caption" style={styles.section}>
         {t('dev.measure.friends')}

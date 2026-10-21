@@ -332,6 +332,7 @@
       "background": "Live location in the background",
       "backgroundOpened": "Notices {{notices}} · opened {{opened}} ({{minutes}} min)",
       "backgroundRefused": "Refused: setting {{setting}} · ghost {{ghost}} · not shared {{notShared}} · coarse {{coarse}} · expired {{expired}} · paused {{paused}} · saver {{batterySaver}} · low battery {{batteryLow}} · cap {{cap}} · system {{os}}",
+      "backgroundReset": "Reset the counters",
       "friends": "Friends",
       "noFriends": "No location yet",
       "friend": "{{name}}: delay {{delay}} · gap {{gap}} · ±{{acc}} m · late {{late}}",

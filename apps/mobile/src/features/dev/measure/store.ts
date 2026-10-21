@@ -233,6 +233,17 @@ export function restoreBackgroundLive(): void {
   }));
 }
 
+/**
+ * The owner's "30 minutes watched, 30 not" trial (the PM, 2026-10-21): starts the counters from
+ * zero, in memory and on the phone.
+ */
+export function resetBackgroundLive(): void {
+  restored = true;
+  useMeasures.setState({ backgroundLive: emptyBackgroundLive() });
+  const store = backgroundLiveStore.current?.() ?? null;
+  if (store !== null) saveBackgroundLive(store, emptyBackgroundLive());
+}
+
 /** Sign-out: the memory forgets (the vault is wiped by the sign-out itself). */
 export function forgetBackgroundLive(): void {
   restored = false;

@@ -10,6 +10,7 @@ import {
   median,
   received,
   recorder,
+  resetBackgroundLive,
   restoreBackgroundLive,
   sampled,
   sent,
@@ -174,6 +175,24 @@ describe('the measurement overlay keeps (docs/ADR/0028)', () => {
       // Read once per run: another look does not add them again.
       restoreBackgroundLive();
       expect(useMeasures.getState().backgroundLive.notices).toBe(6);
+    });
+
+    it('starts again from zero on "Sayaçları sıfırla", in memory and on the phone', () => {
+      const kept = memoryStore();
+      kept.set(KEY, JSON.stringify({ ...emptyBackgroundLive(), notices: 7, opened: 3 }));
+      backgroundLiveStore.current = () => kept;
+      restoreBackgroundLive();
+      recorder.backgroundLive({ kind: 'notice' });
+      expect(useMeasures.getState().backgroundLive.notices).toBe(8);
+
+      resetBackgroundLive();
+      expect(useMeasures.getState().backgroundLive).toEqual(emptyBackgroundLive());
+      expect(loadBackgroundLive(kept)).toEqual(emptyBackgroundLive());
+      // A later look does not bring the old numbers back, and counting goes on from zero.
+      restoreBackgroundLive();
+      recorder.backgroundLive({ kind: 'notice' });
+      expect(useMeasures.getState().backgroundLive.notices).toBe(1);
+      expect(loadBackgroundLive(kept).notices).toBe(1);
     });
 
     it('stays in memory only without a store (nothing is written), and ignores a damaged copy', () => {

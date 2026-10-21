@@ -332,6 +332,7 @@
       "background": "Arka planda canlı konum",
       "backgroundOpened": "Haber {{notices}} · açılan {{opened}} ({{minutes}} dk)",
       "backgroundRefused": "Red: ayar {{setting}} · hayalet {{ghost}} · paylaşım yok {{notShared}} · kaba {{coarse}} · süre bitti {{expired}} · duraklı {{paused}} · pil tasarrufu {{batterySaver}} · pil az {{batteryLow}} · sınır {{cap}} · sistem {{os}}",
+      "backgroundReset": "Sayaçları sıfırla",
       "friends": "Arkadaşlar",
       "noFriends": "Henüz konum gelmedi",
       "friend": "{{name}}: gecikme {{delay}} · aralık {{gap}} · ±{{acc}} m · geç {{late}}",
