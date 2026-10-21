@@ -113,7 +113,10 @@ Adımlar (`N` = `--min-level`):
    hiçbir şey yazılmaz. Anahtar yeni eklendiyse 8. adım api ve worker'ı yeniden başlatır, sunucu
    imzalamaya başlar. `notice-key.sh` betiğin İÇİNDE gömülüdür (tek betik çalıştırılıyor);
    depodan `sh infra/staging/apply-pending.sh --check-notice-key` gömülü kopyanın dosyayla aynı
-   olup olmadığını söyler (`notice-key.sh` değişirse kopya yenilenmeli). `notice-key.sh`'in bütün
+   olup olmadığını söyler (`notice-key.sh` değişirse kopya yenilenmeli). Bu kontrolü CI zorlar:
+   `pnpm check:chars` (CI'ın ve `scripts/ci-linux.sh`'ın zaten çalıştırdığı adım)
+   `scripts/check-embedded-copies.mjs`'i çalıştırır, iki dosyadan biri commit'e girerken pre-commit
+   de çalıştırır; kopya eskiyse kırmızı olur. `notice-key.sh`'in bütün
    yazmaları `apply-pending.sh`'in koruma fonksiyonundan (`guard()`, yazılan dosyanın kendisi bir
    kısayol ise reddeder) ve `safe_*` yazıcılarından geçer; kendi koruması yoktur, tek başına gerçek
    çalıştırma yazmadan reddedilir (`sh notice-key.sh --dry-run` tek başına çalışır). Yedekleri

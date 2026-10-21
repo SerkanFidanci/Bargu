@@ -30,7 +30,8 @@
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
     "prepare": "husky",
     "test:integration": "turbo run test:integration",
-    "check:chars": "node scripts/check-invisible-chars.mjs"
+    "check:chars": "node scripts/check-invisible-chars.mjs && node scripts/check-embedded-copies.mjs",
+    "check:embedded": "node scripts/check-embedded-copies.mjs"
   },
   "devDependencies": {
     "@bargu/config": "workspace:*",
