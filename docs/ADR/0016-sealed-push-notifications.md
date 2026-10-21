@@ -100,7 +100,8 @@ ebeveyn bildirimi gösterilebiliyordu.
     - Bir anahtar iki profilde birden olamaz (test `eas.json`'ı okur).
   - imza doğru ve bu cihaz için;
   - taze: `watch` en çok 2 dakika (FCM ömrüyle aynı), öteki haberler 1 saat (bugünkü kural); ileri
-    tarihli haber en çok 5 dakika ileride olabilir, daha ilerisi düşer (PM: saati biraz geri bir
+    tarihli haber en çok 5 dakika ileride olabilir, daha ilerisi düşer; tazelik her zaman haberin
+    kendi tarihinden sayılır, ileri tarihli haber de `issuedAt` + pencerede düşer (QA-30 L-1) (PM: saati biraz geri bir
     telefon haberleri almaya devam eder);
   - id daha önce görülmemiş.
   - Başka her şey, imzasız haberler dahil, **sessizce** düşer: hata yok, bildirim yok, satır yok,

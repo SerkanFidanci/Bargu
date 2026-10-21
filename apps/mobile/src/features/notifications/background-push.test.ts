@@ -223,6 +223,21 @@ describe('server notices are the server’s only when it signed them (QA-28 B-1)
     },
   );
 
+  it.each(['watch', 'circleInvite'] as const)(
+    'ages a %s dated 4 minutes ahead from its own date: taken until then plus its window (QA-30 L-1)',
+    async (kind) => {
+      const window = kind === 'watch' ? WATCH_FRESH_MS : PUSH_FRESH_MS;
+      const taken = kind === 'watch' ? 'watch' : 'shown';
+      const issuedAt = NOW + 4 * 60_000;
+      // Each box is a new notice (new id): what matters is only when it arrives.
+      expect(await showPush(fromServer(body(kind, issuedAt)), NOW)).toBe(taken);
+      expect(await showPush(fromServer(body(kind, issuedAt)), issuedAt + window)).toBe(taken);
+      expect(await showPush(fromServer(body(kind, issuedAt)), issuedAt + window + 1)).toBe('stale');
+      // 6 minutes ahead: dropped.
+      expect(await showPush(fromServer(body(kind, NOW + 6 * 60_000)), NOW)).toBe('refused');
+    },
+  );
+
   it('takes no notice at all in a build that trusts no notice key', async () => {
     mockNoticeKeys = new Map();
     expect(await showPush(fromServer(body('circleInvite')), NOW)).toBe('refused');

@@ -326,6 +326,16 @@ final class FixtureTests: XCTestCase {
     XCTAssertFalse(fresh(now + BarguProtocol.noticeMaxFutureMs + 1))
     XCTAssertTrue(fresh(now - hour))
     XCTAssertFalse(fresh(now - hour - 1))
+    // QA-30 L-1: a notice dated ahead ages from its own date, for any window.
+    for window: UInt64 in [2 * 60_000, hour] {
+      let ahead = ServerNoticeStamp(kid: "test-n1", id: "a", issuedAt: now + 4 * 60_000)
+      XCTAssertTrue(BarguProtocol.isFresh(ahead, nowMs: now, maxAgeMs: window))
+      XCTAssertTrue(BarguProtocol.isFresh(ahead, nowMs: ahead.issuedAt + window, maxAgeMs: window))
+      XCTAssertFalse(
+        BarguProtocol.isFresh(ahead, nowMs: ahead.issuedAt + window + 1, maxAgeMs: window))
+      let tooFar = ServerNoticeStamp(kid: "test-n1", id: "b", issuedAt: now + 6 * 60_000)
+      XCTAssertFalse(BarguProtocol.isFresh(tooFar, nowMs: now, maxAgeMs: window))
+    }
   }
 
   func testSeenNoticesKeepIdsUntilTheyExpire() {

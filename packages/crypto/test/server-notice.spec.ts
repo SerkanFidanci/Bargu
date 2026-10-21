@@ -136,6 +136,23 @@ describe('signed server notices (QA-28 B-1, docs/ADR/0016 Ek)', () => {
     },
   );
 
+  it.each(['watch', 'circleInvite'] as const)(
+    'ages a %s dated ahead from its own date, not from when it arrived (QA-30 L-1)',
+    (kind) => {
+      const window = kind === 'watch' ? 2 * MINUTE : HOUR;
+      const check = (issuedAt: number, now: number) =>
+        verifyServerNotice(open(genuine(kind, issuedAt)), { keys, now, maxAgeMs: window });
+      // 4 minutes ahead: taken now, and until its own date plus its window, never after.
+      const issuedAt = NOW + 4 * MINUTE;
+      expect(check(issuedAt, NOW)).not.toBeNull();
+      expect(check(issuedAt, issuedAt + window)).not.toBeNull();
+      expect(check(issuedAt, issuedAt + window + 1)).toBeNull();
+      expect(check(issuedAt, NOW + 365 * 24 * HOUR)).toBeNull();
+      // 6 minutes ahead: not taken at all.
+      expect(check(NOW + 6 * MINUTE, NOW)).toBeNull();
+    },
+  );
+
   it('opens a box only for its device: Carol cannot even read a notice sealed for Bob', () => {
     expect(codeOf(() => open(genuine('watch'), carol))).toBe('DECRYPT_FAILED');
   });
