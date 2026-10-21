@@ -5,6 +5,7 @@
 # 2. Turkey extract of the Protomaps daily basemap (one PMTiles file, read by the app with range
 #    requests). Daily builds are kept for 7 days, so the date defaults to today (UTC).
 # 3. Label fonts and icons from protomaps/basemaps-assets at a pinned commit (OFL / BSD licences).
+# The low-detail world file (world.pmtiles, zoom 0-6) is added by infra/staging/apply-pending.sh.
 # Additive: writes only /srv/bargu-map (outside /opt/bargu, which holds secrets and stays closed to
 # nginx). nginx serves /srv/bargu-map/public at /map/ (infra/staging/nginx/bargu-staging.conf).
 # Files are swapped in atomically when complete.

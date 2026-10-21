@@ -69,6 +69,38 @@ yeni sürüm sağlıklı olmazsa önceki digest'e geri döner.
 
 Kontrol: `curl https://<domain>/health/live` → `{"status":"ok"}`.
 
+## Bekleyen değişiklikleri uygula (`apply-pending.sh`)
+
+Kodlama oturumu paylaşımlı sunucuya dokunamaz; bekleyen sunucu değişikliklerini tek bir script
+yapar. **Sunucu sahibi kendi terminalinden çalıştırır**, önce kuru çalıştırma, sonra gerçek:
+
+```bash
+ssh bargu-server 'sh -s -- --dry-run' < infra/staging/apply-pending.sh   # sadece listeler, hiçbir şey değiştirmez
+ssh bargu-server 'sh -s' < infra/staging/apply-pending.sh                # uygular
+```
+
+[`apply-pending.sh`](../staging/apply-pending.sh) her adımı Türkçe yazar, yapılmış olanı
+"zaten yapılmış" diye geçer (ikinci çalıştırma hiçbir şeyi değiştirmez). Adımlar:
+
+1. `.env` ve `compose.yml` tarih damgalı yedeklenir (`.env.bak-…`, `compose.yml.bak-…`; sadece bir
+   şey değişecekse).
+2. `.env` içinde `MIN_CLIENT_LEVEL=3` yapılır (eski uygulama sürümleri güncelleme ister).
+3. `compose.yml` içinde `BILLING_TEST` satırından sonra üç `WATCH_PUSH*` satırı eklenir (arka plan
+   canlı modu); sonra `docker compose config` ile doğrulanır, bozuksa yedekler geri konur.
+4. Sahip ve izinler düzeltilir: `deploy:deploy`, `.env` 0600, `compose.yml` 0640.
+5. Düşük ayrıntılı dünya haritası indirilir: `/srv/bargu-map/public/tiles/world.pmtiles` (Protomaps
+   günlük yapısı, yakınlaştırma 0-6, yaklaşık 45 MB; bugünün yapısı yoksa dünkü; 7 günden yeniyse
+   atlanır). Dosya yokken uygulama haritası bugünkü gibi çalışır
+   ([ADR 0008](../../docs/ADR/0008-design-system-and-map.md)).
+6. `docker compose up -d --wait worker api` (sadece yeni ayarlarla çalışmıyorlarsa).
+7. Son kontrol: api konteynerindeki `MIN_CLIENT_LEVEL` ve `WATCH_PUSH*` değerleri (başka hiçbir
+   değer ve gizli bilgi yazılmaz), `/health/live` ve `world.pmtiles` boyutu.
+
+Güvenlik: script **sadece** `/opt/bargu/staging` ve `/srv/bargu-map` içine yazar (her yazma tek bir
+koruma fonksiyonundan geçer, dışarıdaki yol Türkçe hatayla reddedilir); sunucudaki diğer projeye
+(rastamen) dokunmaz. Yeniden başlatma başarısız olursa yedekler geri yüklenir. Eski yedekler
+silinmez.
+
 ## Günlük işler
 
 ```bash
