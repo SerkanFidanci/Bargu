@@ -1,9 +1,10 @@
-import type { Me } from '@bargu/schemas';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import type { Circle, Me, MemberCard } from '@bargu/schemas';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import i18n from '@/i18n';
 
 import { DEFAULT_SHARING, useSharing } from '../location/sharing';
+import { type LocationPermission, useLocationPermission } from '../location/tracker';
 import { MyCard } from './my-card';
 
 // Native modules jest does not have on Linux (CI), though Windows resolves them.
@@ -48,7 +49,8 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('../storage/vault', () => ({ isVaultOpen: () => false }));
 jest.mock('../location/location-session', () => ({ updateSharing: jest.fn() }));
-jest.mock('../circles/queries', () => ({ useCircles: () => ({ data: [] }) }));
+let mockCircles: Circle[] = [];
+jest.mock('../circles/queries', () => ({ useCircles: () => ({ data: mockCircles }) }));
 // The card needs only two numbers from the people layer, not the map markers behind them.
 jest.mock('./people-layer', () => ({ LOW_BATTERY: 15, staleMinutes: () => undefined }));
 const mockClose = jest.fn();
@@ -71,10 +73,36 @@ const me: Me = {
 beforeAll(async () => {
   await i18n.changeLanguage('tr');
 });
+const member = (userId: string, name: string): MemberCard => ({
+  userId,
+  role: 'member',
+  status: 'active',
+  username: name.toLowerCase(),
+  displayName: name,
+  avatar: null,
+  device: null,
+});
+/** A circle this user is in with a friend: with sharing on (the default), the friend sees them. */
+const withFriend: Circle = {
+  id: '0190f7a4-1111-7111-8111-0000000000c1',
+  kind: 'pair',
+  name: null,
+  epoch: 1,
+  epochStartedAt: 0,
+  myRole: 'owner',
+  myStatus: 'active',
+  members: [member(me.userId, 'Seko'), member('0190f7a4-1111-7111-8111-000000000003', 'Deniz')],
+};
+const setPermission = (state: LocationPermission) => {
+  useLocationPermission.setState({ state });
+};
+
 beforeEach(() => {
   mockPush.mockClear();
   mockClose.mockClear();
+  mockCircles = [];
   useSharing.setState(DEFAULT_SHARING, true);
+  setPermission('granted');
 });
 
 describe('the user’s own card (the owner, 2026-10-21)', () => {
@@ -106,6 +134,71 @@ describe('the user’s own card (the owner, 2026-10-21)', () => {
     await render(
       <MyCard me={me} from={{ x: 0, y: 0 }} onHeight={jest.fn()} onStatus={jest.fn()} />,
     );
+    expect(screen.getByText('Hayalet açık: konumun kimseye gitmiyor')).toBeTruthy();
+  });
+});
+
+// QA 27 B-1: the line on who sees the user said "Konumunu görenler: N" with no permission, or before
+// it was known, while the pill on the map (sharingNow) said otherwise. The circle list is NOT empty
+// here, so the path that used to count people is the one exercised.
+describe('who the card says sees the location (QA 27 B-1)', () => {
+  const renderCard = async () => {
+    await render(
+      <MyCard me={me} from={{ x: 0, y: 0 }} onHeight={jest.fn()} onStatus={jest.fn()} />,
+    );
+  };
+
+  it('counts the people who see it while the location permission is granted', async () => {
+    mockCircles = [withFriend];
+    await renderCard();
+    expect(screen.getByText('Konumunu görenler: 1')).toBeTruthy();
+  });
+
+  it.each(['blocked', 'undetermined'] as const)(
+    'says there is no permission, not a count, when it is %s',
+    async (state) => {
+      mockCircles = [withFriend];
+      setPermission(state);
+      await renderCard();
+      expect(screen.getByText('Konum izni yok: konumun gönderilmiyor')).toBeTruthy();
+      expect(screen.queryByText(/Konumunu görenler/)).toBeNull();
+    },
+  );
+
+  it('says it is checking, not a count, while the permission is not known yet', async () => {
+    mockCircles = [withFriend];
+    setPermission('unknown');
+    await renderCard();
+    expect(screen.getByText('Kontrol ediliyor…')).toBeTruthy();
+    expect(screen.queryByText(/Konumunu görenler/)).toBeNull();
+  });
+
+  it('follows the permission as it changes, with no new circle or position', async () => {
+    mockCircles = [withFriend];
+    setPermission('unknown');
+    await renderCard();
+    expect(screen.getByText('Kontrol ediliyor…')).toBeTruthy();
+    await act(() => {
+      setPermission('granted');
+    });
+    expect(screen.getByText('Konumunu görenler: 1')).toBeTruthy();
+    await act(() => {
+      setPermission('blocked');
+    });
+    expect(screen.getByText('Konum izni yok: konumun gönderilmiyor')).toBeTruthy();
+  });
+
+  it('keeps saying nobody, whatever the permission, as the pill does', async () => {
+    setPermission('blocked');
+    await renderCard();
+    expect(screen.getByText('Konumun şu an kimseye gitmiyor')).toBeTruthy();
+  });
+
+  it('keeps saying the ghost is on, whatever the permission, as the pill does', async () => {
+    mockCircles = [withFriend];
+    setPermission('blocked');
+    useSharing.setState({ ...DEFAULT_SHARING, ghost: 'freeze' }, true);
+    await renderCard();
     expect(screen.getByText('Hayalet açık: konumun kimseye gitmiyor')).toBeTruthy();
   });
 });

@@ -18,10 +18,12 @@ import { ActionTile } from '@/ui/action-tile';
 import { Text } from '@/ui/text';
 
 import { useCircles } from '../circles/queries';
+import { sharingNow } from '../home/seers-pill';
 import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
 import { seersOf, useSharing } from '../location/sharing';
 import { GhostControl } from '../location/sharing-card';
+import { useLocationPermission } from '../location/tracker';
 import { useMyStatus } from '../social/status';
 import { LOW_BATTERY, staleMinutes } from './people-layer';
 import { CardFrame, Fact } from './person-card';
@@ -50,7 +52,20 @@ export function MyCard({
   const sharing = useSharing();
   const fix = useMyFix((state) => state.fix);
   const status = useMyStatus((state) => state.status);
+  const permission = useLocationPermission((state) => state.state);
   const seers = seersOf(useCircles().data ?? [], sharing, me.userId, now).length;
+  // What the location is doing now, worked out as the pill on the map works it out (sharingNow):
+  // a count of "who sees you" with no permission, or before it is known, would say what is not so
+  // (QA 27 B-1, a sibling of QA 24 B-1).
+  const going = sharingNow({ ghost: sharing.ghost, seers, permission });
+  const seersText =
+    going === 'hidden' || going === 'frozen'
+      ? t('map.myCard.ghost')
+      : going === 'nobody'
+        ? t('map.myCard.nobody')
+        : going === 'shared'
+          ? t('map.myCard.seers', { count: seers })
+          : t(`main.seers.now.${going}`);
   const level = Math.round(useBatteryLevel() * 100);
   const charging = useBatteryState() === BatteryState.CHARGING;
   const minutes = fix === null ? undefined : staleMinutes(fix.ts, now);
@@ -84,16 +99,7 @@ export function MyCard({
         </View>
       )}
       <View style={styles.facts}>
-        <Fact
-          icon={Eye}
-          text={
-            sharing.ghost !== 'off'
-              ? t('map.myCard.ghost')
-              : seers === 0
-                ? t('map.myCard.nobody')
-                : t('map.myCard.seers', { count: seers })
-          }
-        />
+        <Fact icon={Eye} text={seersText} />
         {/* The battery as this phone reads it (−1 where it cannot: then not said). */}
         {level < 0 ? null : (
           <Fact
