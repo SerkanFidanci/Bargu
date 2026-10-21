@@ -295,9 +295,37 @@ describe('Güvendeyim from a member (docs/ADR/0029)', () => {
     expect(await showPush(fromAyse(safe()), NOW)).toBe('duplicate');
     // The open app showed the message first: the notification stays quiet.
     const other = 'AAAAAAAAAAAAAAAAAAAAAQ';
-    expect(rememberSafe(mockStore, other)).toBe(true);
+    expect(rememberSafe(mockStore, circleId, ayseUserId, other)).toBe(true);
     expect(await showPush(fromAyse(safe({ id: other })), NOW)).toBe('duplicate');
     expect(scheduled).toHaveBeenCalledTimes(1);
+  });
+
+  it('is the same message only from the same sender in the same circle: another member cannot use up its id (QA-32 F-2)', async () => {
+    const carol = generateDeviceKeys(randomUuid());
+    const carolUserId = randomUuid();
+    saveContacts(mockStore, {
+      ...contacts,
+      devices: {
+        ...contacts.devices,
+        [carol.deviceId]: {
+          userId: carolUserId,
+          name: 'Cem',
+          identityKey: toBase64url(carol.identity.publicKey),
+        },
+      },
+    });
+    // Cem sends the id first...
+    expect(await showPush(sealPush({ recipient, sender: carol, body: safe() }), NOW)).toBe('shown');
+    // ...Ayşe's own message with that id is still hers: shown. A repeat of either is not.
+    expect(await showPush(fromAyse(safe()), NOW)).toBe('shown');
+    expect(await showPush(fromAyse(safe()), NOW)).toBe('duplicate');
+    expect(await showPush(sealPush({ recipient, sender: carol, body: safe() }), NOW)).toBe(
+      'duplicate',
+    );
+    // The same sender and id in another circle of theirs is another message.
+    const other = randomUuid();
+    expect(await showPush(fromAyse(safe({ circleId: other })), NOW)).toBe('shown');
+    expect(scheduled).toHaveBeenCalledTimes(3);
   });
 
   it('is still news after hours (it waited for her connection), with the time, and old after a day', async () => {

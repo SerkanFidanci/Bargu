@@ -46,7 +46,7 @@ const FATES_KEEP = 50;
 const OUT_PREFIX = 'safe:out:';
 /** The circles ticked last time. */
 export const SAFE_CHOICE_KEY = 'safe:choice:v1';
-/** Ids of the messages shown, newest last. */
+/** The messages shown, newest last, each as `circle:sender:id`. */
 export const SAFE_SEEN_KEY = 'safe:seen:v1';
 
 /** A message waiting to be sent: its inputs, the location already at the circle's precision. */
@@ -167,18 +167,26 @@ export function safeWords(input: { name: string; bat: number; ts: number; now: n
 }
 
 /**
- * Whether this message id was not shown yet; it is remembered if so. A phone that gets both the
+ * Whether this message was not shown yet; it is remembered if so. A phone that gets both the
  * message and its notification (the server sends the notification only when the app is closed,
- * but a connection can drop in between) shows it once.
+ * but a connection can drop in between) shows it once. The memory is of the circle, the sender AND
+ * the id: a member who sends an id first cannot make the real message with that id look repeated
+ * (QA-32 F-2). A message is the same one only from the same sender in the same circle.
  */
-export function rememberSafe(store: KeyValueStore, id: string): boolean {
+export function rememberSafe(
+  store: KeyValueStore,
+  circleId: string,
+  userId: string,
+  id: string,
+): boolean {
+  const key = `${circleId}:${userId}:${id}`;
   const raw = store.get(SAFE_SEEN_KEY);
   const seen = z
     .array(z.string())
     .catch([])
     .parse(raw === undefined ? [] : JSON.parse(raw));
-  if (seen.includes(id)) return false;
-  store.set(SAFE_SEEN_KEY, JSON.stringify([...seen, id].slice(-SEEN_KEEP)));
+  if (seen.includes(key)) return false;
+  store.set(SAFE_SEEN_KEY, JSON.stringify([...seen, key].slice(-SEEN_KEEP)));
   return true;
 }
 
@@ -205,7 +213,7 @@ export function receiveSafe(input: {
     .find((circle) => circle.id === circleId && circle.myStatus === 'active')
     ?.members.find((candidate) => candidate.userId === userId && candidate.status === 'active');
   if (member === undefined) return null;
-  if (!rememberSafe(store, safe.id)) return null;
+  if (!rememberSafe(store, circleId, userId, safe.id)) return null;
   const name = memberName(member);
   const spot: SafeSpot = {
     id: safe.id,

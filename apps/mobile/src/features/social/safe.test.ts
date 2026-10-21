@@ -594,11 +594,51 @@ describe('what the receiving phone writes', () => {
     expect(spotOf(store, safe.id, NOW + MIN)).toEqual(spot);
     // The same message again: the open app and the notification, or a repeat from the server.
     expect(receiveSafe(input)).toBeNull();
-    expect(rememberSafe(store, safe.id)).toBe(false);
+    expect(rememberSafe(store, w.home.id, w.bora.userId, safe.id)).toBe(false);
     // Another message is another.
     expect(
       receiveSafe({ ...input, safe: { ...safe, id: 'AAAAAAAAAAAAAAAAAAAAAQ' } }),
     ).not.toBeNull();
+  });
+
+  it('remembers a message by its circle, its sender and its id: nobody else can use up the id (QA-32 F-2)', () => {
+    const w = world();
+    const mallory = somebody();
+    const circle = circleOf([w.ayse, w.bora, mallory], { name: 'Üçlü' });
+    const store = memoryStore();
+    const safe = (id: string): SafePayload => ({
+      kind: 'safe',
+      id,
+      lat: 41,
+      lng: 29,
+      acc: 8,
+      bat: 45,
+      ts: NOW,
+    });
+    const from = (who: Person, id: string, inCircle: Circle = circle) =>
+      receiveSafe({
+        store,
+        circles: [circle, w.home],
+        circleId: inCircle.id,
+        userId: who.userId,
+        safe: safe(id),
+        now: NOW + MIN,
+      });
+    const id = 'AAAAAAAAAAAAAAAAAAAAAA';
+
+    // A member sends the id first (they saw it in a message of the real sender, or guessed it)...
+    expect(from(mallory, id)).not.toBeNull();
+    // ...and the real sender's message with that id still shows: it is another sender's message.
+    expect(from(w.ayse, id)).not.toBeNull();
+    // The same sender's message in another circle is another message too.
+    expect(from(mallory, id, w.home)).toBeNull(); // mallory is not in "home": nothing to show
+    expect(rememberSafe(store, w.home.id, w.ayse.userId, id)).toBe(true);
+    // But the same circle, sender and id is the same message.
+    expect(from(w.ayse, id)).toBeNull();
+    expect(from(mallory, id)).toBeNull();
+    expect(rememberSafe(store, circle.id, w.ayse.userId, id)).toBe(false);
+    expect(rememberSafe(store, circle.id, mallory.userId, id)).toBe(false);
+    expect(rememberSafe(store, circle.id, w.bora.userId, id)).toBe(true);
   });
 
   it('shows nothing for a message that is too old, or from someone who is not in the circle', () => {

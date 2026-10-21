@@ -93,7 +93,13 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
   if (shown === null) return 'refused';
   const { body } = opened;
   // The message itself may have reached the open app first (or the other way round): once.
-  if (body.kind === 'safe' && !rememberSafe(store, body.id)) return 'duplicate';
+  if (
+    body.kind === 'safe' &&
+    shown.fromUserId !== null &&
+    !rememberSafe(store, body.circleId, shown.fromUserId, body.id)
+  ) {
+    return 'duplicate';
+  }
   // Where they are, if the notification carries it: kept on this phone for a day (the vault is
   // encrypted), and nowhere else. Tapping the notification, or the line in the open app, shows it.
   const spot = shown.spot;
