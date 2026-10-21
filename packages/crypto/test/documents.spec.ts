@@ -124,9 +124,10 @@ describe('documents (docs/ADR/0018)', () => {
 
   it('still checks author, circle, epoch and signature', () => {
     const envelope = seal(plan);
-    expect(codeOf(() => open({ ...envelope, sig: envelope.sig.replace(/^./, 'B') }))).toBe(
-      'BAD_SIGNATURE',
-    );
+    // Always a different first character: a fresh nonce changes the signature, and one in 64
+    // already began with the "tampered" one (ci-linux, 2026-10-21).
+    const tampered = (envelope.sig.startsWith('A') ? 'B' : 'A') + envelope.sig.slice(1);
+    expect(codeOf(() => open({ ...envelope, sig: tampered }))).toBe('BAD_SIGNATURE');
     expect(codeOf(() => open({ ...envelope, epoch: 3 }))).toBe('KEY_MISMATCH');
     expect(codeOf(() => decryptDocument({ envelope, senderKey, sender: publicKeysOf(bob) }))).toBe(
       'KEY_MISMATCH',
