@@ -21,7 +21,17 @@ export const FIX_RULES = {
   fallbackMs: 45_000,
   /** Faster than this (m/s, 180 km/h) to a spot outside both accuracies: a jump, held back… */
   jumpSpeedMs: 50,
-  /** …until this many more positions agree with it (the end of a tunnel, a train). */
+  /**
+   * …unless the phone itself says it goes that fast (a high-speed train, a plane): needing no more
+   * than its reported speed × this + `reportedSlackMs`, and in about its reported direction. A
+   * position GPS made up keeps a low reported speed, or points elsewhere, and is still held back.
+   */
+  reportedFactor: 1.5,
+  reportedSlackMs: 10,
+  headingToleranceDeg: 45,
+  /** Faster than this (m/s, about the speed of sound) is never believed. */
+  maxSpeedMs: 350,
+  /** A jump is taken once this many more positions agree with it (the end of a tunnel). */
   confirmations: 2,
 } as const;
 
@@ -43,12 +53,42 @@ export function freshFilter(now: number): FilterState {
   return { taken: null, usedAt: now, best: null, suspect: [] };
 }
 
-/** Whether `b` could follow `a`: inside both accuracies, or reached at a believable speed. */
+/** Degrees from north of the way from `a` to `b` (initial great-circle bearing, 0–360). */
+function bearing(a: Fix, b: Fix): number {
+  const rad = Math.PI / 180;
+  const dLng = (b.lng - a.lng) * rad;
+  const y = Math.sin(dLng) * Math.cos(b.lat * rad);
+  const x =
+    Math.cos(a.lat * rad) * Math.sin(b.lat * rad) -
+    Math.sin(a.lat * rad) * Math.cos(b.lat * rad) * Math.cos(dLng);
+  return (((Math.atan2(y, x) / rad) % 360) + 360) % 360;
+}
+
+/** Degrees between two directions (0–180). */
+function turn(a: number, b: number): number {
+  const diff = Math.abs(a - b) % 360;
+  return diff > 180 ? 360 - diff : diff;
+}
+
+/**
+ * Whether `b` could follow `a`: inside both accuracies, reached at a car's speed, or, faster,
+ * at about the speed and in about the direction `b` itself reports (docs/ADR/0028 addendum).
+ * Without a valid reported speed only the car's speed counts. (expo-location gives no accuracy
+ * for the speed, so its presence and sense are all that can be checked.)
+ */
 function plausible(a: Fix, b: Fix): boolean {
   const metres = distanceM(a, b);
   if (metres <= a.acc + b.acc) return true;
   const seconds = Math.max((b.ts - a.ts) / 1000, 1);
-  return metres / seconds <= FIX_RULES.jumpSpeedMs;
+  const needed = metres / seconds;
+  if (needed > FIX_RULES.maxSpeedMs) return false;
+  if (needed <= FIX_RULES.jumpSpeedMs) return true;
+  const reported = b.spd;
+  if (reported === null || !Number.isFinite(reported) || reported < 0) return false;
+  if (needed > reported * FIX_RULES.reportedFactor + FIX_RULES.reportedSlackMs) return false;
+  const heading = b.hdg;
+  if (heading === null || !Number.isFinite(heading)) return true;
+  return turn(bearing(a, b), heading) <= FIX_RULES.headingToleranceDeg;
 }
 
 function adopt(fix: Fix, now: number, outcome: 'taken' | 'fallback') {

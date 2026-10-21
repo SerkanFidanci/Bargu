@@ -96,6 +96,24 @@ EXPO_PUBLIC_DEV_TOOLS === '1'` koşuluyla içe aktarır. Expo bu değeri sürüm
 - Katman açıkken kare ölçer sürekli çalışır (ADR 0027'nin boştaki sıfır kare kuralı katman açıkken
   geçerli değil).
 
+## Ek: arabadan hızlı gidiş (PM, 2026-10-21)
+
+Sıçrama kuralı (50 m/sn, 180 km/sa) hızlı trenle ve uçakla çakışıyordu: 250 km/sa giden bir
+telefonun her konumu sıçrama sayılıyor, üç konumdan ancak biri kullanılıyordu. Kural, telefonun
+kendi bildirdiği hıza göre esner:
+
+- Ulaşmak için gereken hız 50 m/sn'den fazlaysa konum, ancak **bildirilen hız × 1,5 + 10 m/sn**'den
+  fazlasını gerektirmiyorsa sıçrama sayılmaz.
+- Yön de bildirilmişse yer değiştirmenin yönü bildirilen yönle **45° içinde** olmalı. GPS'in
+  uydurduğu yan sıçramalar böyle tutulur.
+- Bildirilen hız yoksa ya da geçersizse (eksi, boş, sayı değil) eski katı kural geçerli.
+- **350 m/sn**'den (yaklaşık ses hızı) hızlısı her zaman şüpheli.
+- Android'in hız doğruluğu (speedAccuracy) kullanılamıyor: expo-location onu vermiyor. Bu yüzden
+  yalnızca hızın varlığı ve geçerliliği denetlenir.
+- Testler: 250 km/sa tren (saniyede bir de, beş saniyede bir de) her konumda kabul; tünel çıkışında
+  düşük bildirilen hızla 2 km sıçrama tutulur, iki onayla kabul; hızsız konumda eski kural; yönü
+  tutmayan sıçrama tutulur; ses hızının üstü tutulur.
+
 ## Sonraki adımlar
 
 - **2. adım:** proje sahibi ve test oturumu ölçer.

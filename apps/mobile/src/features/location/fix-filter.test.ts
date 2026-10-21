@@ -99,6 +99,53 @@ describe('which raw positions this phone uses (docs/ADR/0028)', () => {
     ]);
   });
 
+  describe('faster than a car, when the phone says so (ADR 0028 addendum)', () => {
+    // Northwards at 250 km/h (69.4 m/s), as a high-speed train's phone reports it.
+    const TRAIN = 250 / 3.6;
+    const going = (ms: number, metres: number, spd: number | null, hdg: number | null = 0) => ({
+      ...at(ms, metres),
+      spd,
+      hdg,
+    });
+
+    it('takes every position of a 250 km/h train, a second or five apart', () => {
+      const everySecond = Array.from({ length: 10 }, (_, i) => going(i * 1_000, i * TRAIN, TRAIN));
+      expect(run(everySecond).every((result) => result.outcome === 'taken')).toBe(true);
+      const everyFive = Array.from({ length: 6 }, (_, i) => going(i * 5_000, i * 5 * TRAIN, TRAIN));
+      expect(run(everyFive).every((result) => result.outcome === 'taken')).toBe(true);
+    });
+
+    it('still holds back the 2 km jump out of a tunnel at a low reported speed, until confirmed', () => {
+      const results = run([
+        going(0, 0, 25),
+        going(10_000, 2_000, 3),
+        going(11_000, 2_003, 3),
+        going(12_000, 2_006, 3),
+      ]);
+      expect(results.map((result) => result.outcome)).toEqual(['taken', 'jump', 'jump', 'taken']);
+    });
+
+    it('without a reported speed, keeps the strict rule', () => {
+      for (const spd of [null, Number.NaN, -1]) {
+        const results = run([going(0, 0, spd), going(1_000, TRAIN, spd)]);
+        expect(results[1]?.outcome).toBe('jump');
+      }
+    });
+
+    it('holds back a jump that does not go the way the phone says it is heading', () => {
+      // Fast enough by its speed, but north while it says east: GPS made it up.
+      const results = run([going(0, 0, TRAIN, 90), going(1_000, TRAIN, TRAIN, 90)]);
+      expect(results[1]?.outcome).toBe('jump');
+      // The same jump heading north is believed.
+      expect(run([going(0, 0, TRAIN, 0), going(1_000, TRAIN, TRAIN, 5)])[1]?.outcome).toBe('taken');
+    });
+
+    it('never believes faster than about the speed of sound', () => {
+      const results = run([going(0, 0, 400), going(1_000, 400, 400)]);
+      expect(results[1]?.outcome).toBe('jump');
+    });
+  });
+
   it('lets a car on the motorway through (fast, but believable)', () => {
     // 40 m/s (144 km/h) for 5 s: 200 m.
     const results = run([at(0), at(5_000, 200), at(10_000, 400)]);
