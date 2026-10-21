@@ -3,23 +3,26 @@
 import { type CosmeticPass, cosmeticPassSchema } from '@bargu/schemas';
 
 import { KEY_BYTES, LABELS } from './constants.js';
-import { concatBytes, fromBase64url, toBase64url, u32be, uuidToBytes } from './encoding.js';
+import {
+  asciiBytes,
+  concatBytes,
+  fromBase64url,
+  toBase64url,
+  u64be,
+  uuidToBytes,
+} from './encoding.js';
 import { BarguCryptoError } from './errors.js';
-import { ed25519PublicKey, signWithLabel, verifyWithLabel } from './primitives.js';
+import { signWithLabel, verifyWithLabel } from './primitives.js';
+import { parseTrustedKeys, signingPublicKey } from './trusted-keys.js';
 
 type Unsigned = Omit<CosmeticPass, 'sig'>;
-
-const ascii = (text: string) => Uint8Array.from(text, (char) => char.charCodeAt(0));
-/** A whole number of milliseconds as 8 big-endian bytes (no BigInt: Hermes and Node alike). */
-const u64be = (value: number) =>
-  concatBytes(u32be(Math.floor(value / 0x1_0000_0000)), u32be(value % 0x1_0000_0000));
 
 /**
  * The signed bytes, fixed and unambiguous (not JSON): 0x01 ‖ len(kid) ‖ kid ‖ userId(16) ‖
  * issuedAt(8) ‖ expiresAt(8) ‖ count ‖ (len ‖ pack)… Ids are ASCII by their schemas.
  */
 function passBytes(pass: Unsigned): Uint8Array {
-  const kid = ascii(pass.kid);
+  const kid = asciiBytes(pass.kid);
   return concatBytes(
     Uint8Array.of(pass.v, kid.length),
     kid,
@@ -27,7 +30,7 @@ function passBytes(pass: Unsigned): Uint8Array {
     u64be(pass.issuedAt),
     u64be(pass.expiresAt),
     Uint8Array.of(pass.packs.length),
-    ...pass.packs.map((pack) => concatBytes(Uint8Array.of(pack.length), ascii(pack))),
+    ...pass.packs.map((pack) => concatBytes(Uint8Array.of(pack.length), asciiBytes(pack))),
   );
 }
 
@@ -71,6 +74,19 @@ export function verifyCosmeticPass(
   pass: unknown,
   input: { keys: ReadonlyMap<string, Uint8Array>; userId: string; now: number },
 ): ReadonlySet<string> | null {
+  try {
+    return checkPass(pass, input);
+  } catch {
+    // A signature of 86 characters whose last one is not canonical (QA-28 B-2: it carries 4 spare
+    // bits, only 4 of its 64 values decode strictly), or anything else unreadable: no pass.
+    return null;
+  }
+}
+
+function checkPass(
+  pass: unknown,
+  input: { keys: ReadonlyMap<string, Uint8Array>; userId: string; now: number },
+): ReadonlySet<string> | null {
   const parsed = cosmeticPassSchema.safeParse(pass);
   if (!parsed.success) return null;
   const { sig, ...unsigned } = parsed.data;
@@ -86,33 +102,16 @@ export function verifyCosmeticPass(
   }
   const key = input.keys.get(unsigned.kid);
   if (key === undefined) return null;
-  // The schema took exactly 86 base64url characters: 64 bytes, so this cannot throw.
-  const signature = fromBase64url(sig);
-  return verifyWithLabel(LABELS.cosmeticPass, passBytes(unsigned), signature, key)
+  return verifyWithLabel(LABELS.cosmeticPass, passBytes(unsigned), fromBase64url(sig), key)
     ? new Set(packs)
     : null;
 }
 
 /** The public half of a signing key, for the apps' list of trusted keys. */
-export function cosmeticPublicKey(secretKey: Uint8Array): string {
-  return toBase64url(ed25519PublicKey(secretKey));
-}
+export const cosmeticPublicKey = signingPublicKey;
 
 /**
  * The keys an app trusts, from its build's configuration: `kid:base64url` pairs separated by
  * commas (EXPO_PUBLIC_COSMETIC_KEYS). An entry that is not a valid key is left out.
  */
-export function parseCosmeticKeys(config: string | undefined): ReadonlyMap<string, Uint8Array> {
-  const keys = new Map<string, Uint8Array>();
-  for (const entry of (config ?? '').split(',')) {
-    const [kid, key] = entry.trim().split(':');
-    if (kid === undefined || key === undefined || !/^[a-z0-9-]{1,16}$/.test(kid)) continue;
-    try {
-      const bytes = fromBase64url(key, KEY_BYTES);
-      keys.set(kid, bytes);
-    } catch {
-      // Not a key: left out.
-    }
-  }
-  return keys;
-}
+export const parseCosmeticKeys = parseTrustedKeys;

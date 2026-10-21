@@ -1,4 +1,4 @@
-import { utf8ToBytes } from '@noble/hashes/utils.js';
+import { concatBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { base64urlnopad } from '@scure/base';
 
 import { ID_BYTES, MAX_U32 } from './constants.js';
@@ -57,6 +57,16 @@ export function u32be(value: number): Uint8Array {
   const bytes = new Uint8Array(4);
   new DataView(bytes.buffer).setUint32(0, value, false);
   return bytes;
+}
+
+/** A whole number of milliseconds as 8 big-endian bytes (no BigInt: Hermes and Node alike). */
+export function u64be(value: number): Uint8Array {
+  return concatBytes(u32be(Math.floor(value / 0x1_0000_0000)), u32be(value % 0x1_0000_0000));
+}
+
+/** Text known to be ASCII (an id its schema bounds) as bytes, one per character. */
+export function asciiBytes(text: string): Uint8Array {
+  return Uint8Array.from(text, (char) => char.charCodeAt(0));
 }
 
 /** A domain-separation label as bytes: UTF-8 followed by a 0x00 terminator. */

@@ -71,6 +71,25 @@ describe('cosmetic pass (docs/ADR/0025)', () => {
     }
   });
 
+  it('does not hold, and does not throw, with a non-canonical last signature character (QA-28 B-2)', () => {
+    const given = pass();
+    // 64 bytes in 86 characters leave 4 spare bits in the last one: only A, Q, g and w are
+    // canonical there. Every other value must come back as "no pass", never as an exception.
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    const letters = alphabet.split('');
+    expect(letters.filter((_, index) => index % 16 === 0)).toEqual(['A', 'Q', 'g', 'w']);
+    for (const last of letters) {
+      const sig = given.sig.slice(0, -1) + last;
+      const result = check({ ...given, sig });
+      if (sig === given.sig) expect(result).toEqual(new Set(['frames', 'rings']));
+      else expect(result).toBeNull();
+    }
+  });
+
+  it('leaves out a small-order key: it would accept forged passes', () => {
+    expect(parseCosmeticKeys(`stg-9:AQ${'A'.repeat(41)}`).size).toBe(0);
+  });
+
   it('never throws on rubbish, and reads several keys from the build configuration', () => {
     for (const value of [null, 1, 'pass', {}, { ...pass(), sig: 'x' }, { ...pass(), v: 2 }]) {
       expect(check(value)).toBeNull();
