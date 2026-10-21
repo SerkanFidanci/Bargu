@@ -96,7 +96,8 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
   yüzünden açılamadı; push'tan önce yakalandı, taklitlerle düzeldi.
 - Donma (`225e8a0`): yeni statik test `bc5f925`'in kodunda tam olarak o fonksiyonla kırılır,
   düzeltmeyle geçer. Çizim testleri baştan beri geçiyordu: Jest worklet'leri JS thread'de
-  çalıştırır, orada hata çıkmaz.
+  çalıştırır, orada hata çıkmaz. Telefonda doğrulandı (sahip, 21 Ekim): `e8a07df` kurulu, donma
+  yok, arkadaşlar görünüyor; bot yeniden hareket ediyor.
 - `225e8a0`'ın CI'ı API entegrasyonunda kırıldı (run 39606444369, rastlantı: relay testi
   koordinatı bir zaman damgasının saniyesinde buldu); staging `225e8a0`'a geçmedi. Düzeltme
   `4421231`: desen 8 örnekte denendi (zamanın saniyesi ve başka sayının içi sayılmaz; JSON değeri,
@@ -169,7 +170,10 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 - `APP_ENV=staging`, `BILLING_TEST=on` (API, işçi ve migrate), `MIN_CLIENT_LEVEL` verilmedi (0),
   `ENTITLEMENT_SIGNING_KEY` ve `ENTITLEMENT_SIGNING_KID=stg-1` yalnızca sunucudaki `.env`'de.
 - Sunucudaki `compose.yml` yedekleriyle güncellendi (deploy onu kopyalamaz).
-- Test botu v12: istemci seviyesi 3 gönderir, giriş kodunu 4 haneli okur.
+- Test botu v13: istemci seviyesi 3 gönderir, giriş kodunu 4 haneli okur. Sahibin isteğiyle "tur"
+  kipinde: 1–2 dakikada bir rastgele yürüyüş, koşu, bisiklet, araba, yarış arabası (140 km/sa),
+  tren (230) ya da uçak (320) olur ve sahibin konumunun çevresinde döner (250 m – 2 km). Hareket
+  yönü artık çemberin yönünde (v12'de 90° yanlıştı).
 
 ### Kalan açıklar
 
@@ -187,7 +191,7 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
    gösterebilir.
 6. Test botunun kodu depoda değil (yalnızca sunucuda ve oturum notlarında; Faz 10). Betik
    sunucunun `/tmp` klasöründen bağlı (sunucu yeniden başlarsa bot kalkmaz) ve bot 24 saat sonra
-   kendiliğinden durur (22 Ekim ~16:35).
+   kendiliğinden durur (22 Ekim ~17:27).
 7. `event-cleanups` entegrasyon testi makine çok yüklüyken bir kez kırıldı (QA 20), tekrar
    edilemedi.
 8. Profil, `look` ve plan içerikleri esnek okunur; diğer içerik türleri hâlâ katı (yeni alan
@@ -377,8 +381,6 @@ Kendi kartın ve ayar ekranları, APK (`e8a07df`, öncekilerin yerine):
 
 - Son APK'yı bütün telefonlara (kendi, şirket telefonu, Seko) kur; bitince söyle ki kapı
   (doğrudan seviye 3) açılabilsin.
-- Donma düzeltmesini içeren APK'yı (`225e8a0` ya da sonrası) kurunca söyle: test botu yeniden
-  yürümeye başlar (eski APK donmasın diye şimdilik yerinde duruyor).
 - Dilim 3b ve sonrası için karar (durum analizinden sonra).
 
 ## Faz 9 — Güvenlik Özellikleri & Uyum (2026-10-16)
