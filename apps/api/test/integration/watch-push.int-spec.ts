@@ -15,6 +15,7 @@ import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
 import type { PushJob } from '../../src/push/notifier.js';
 import { PushTokens } from '../../src/push/push-tokens.js';
 import { sealedFor } from '../../src/push/push.worker.js';
+import { WatchNotices } from '../../src/push/watch-notices.js';
 import { RelayService } from '../../src/relay/relay.service.js';
 import { createTestApp, type TestApp, testEnv } from './support/app.js';
 import { login } from './support/client.js';
@@ -126,30 +127,15 @@ async function queued(test: TestApp, userId: string): Promise<PushJob[]> {
 const watchJobs = async (test: TestApp, userId: string) =>
   (await queued(test, userId)).filter((job) => job.type === 'notice' && job.notice === 'watch');
 
-/** The windows of one recipient and one watcher in one circle, as if the time had passed. */
-async function letTimePass(
-  test: TestApp,
-  recipients: Person[],
-  watchers: Person[],
-  circleId: string,
-) {
-  const redis = test.app.get<RedisClient>(REDIS);
-  const keys = [
-    ...recipients.flatMap((who) => [
-      `rl:watch-push:gap:${who.userId}`,
-      `rl:watch-push:hour:${who.userId}`,
-    ]),
-    ...watchers.map((who) => `rl:watch:${who.userId}:${circleId}`),
-  ];
-  if (keys.length > 0) await redis.del(keys);
-}
-
-const expireGap = async (test: TestApp, who: Person) => {
-  await test.app.get<RedisClient>(REDIS).del(`rl:watch-push:gap:${who.userId}`);
-};
+/** A watcher's own limit (2 in 30 s per circle) as if the time had passed. */
 const expireWatcher = async (test: TestApp, who: Person, circleId: string) => {
   await test.app.get<RedisClient>(REDIS).del(`rl:watch:${who.userId}:${circleId}`);
 };
+
+const watchNotices = () => on.app.get(WatchNotices);
+/** Just over the 90 seconds a recipient must wait between two notices. */
+const GAP = 91_000;
+const HOUR = 3_600_000;
 
 /** The device a notice would be sealed for, as the worker knows it. */
 const targetOf = (userId: string, device: DeviceKeys) => ({
@@ -286,7 +272,7 @@ describe('the silent watch notice (docs/ADR/0028 step 3)', () => {
     expect(await watchJobs(on, bora.userId)).toEqual([]);
   });
 
-  it('reaches a recipient once every 90 seconds, however many watch, and 20 an hour', async () => {
+  it('reaches a recipient once every 90 seconds, however many watch', async () => {
     const [ayse, can, bora] = await Promise.all([person(on), person(on), person(on)]);
     const circle = await circleWith(on, ayse, can, bora);
     const relay = on.app.get(RelayService);
@@ -300,41 +286,68 @@ describe('the silent watch notice (docs/ADR/0028 step 3)', () => {
     await expireWatcher(on, ayse, circle.id);
     await relay.watch(authOf(ayse), circle.id);
     expect(await watchJobs(on, bora.userId)).toHaveLength(1);
-
-    // 90 seconds later it is allowed again, up to 20 in the hour, whoever watches.
-    const watchers = [ayse, can];
-    for (let i = 1; i < 20; i++) {
-      await expireGap(on, bora);
-      const watcher = watchers[i % 2] ?? ayse;
-      await expireWatcher(on, watcher, circle.id);
-      await relay.watch(authOf(watcher), circle.id);
-      expect(await watchJobs(on, bora.userId)).toHaveLength(i + 1);
-    }
-    expect(await watchJobs(on, bora.userId)).toHaveLength(20);
-    await expireGap(on, bora);
-    await expireWatcher(on, ayse, circle.id);
-    await relay.watch(authOf(ayse), circle.id);
-    expect(await watchJobs(on, bora.userId)).toHaveLength(20);
-
-    // The hour passes: Bora is told again.
-    await letTimePass(on, [bora], [ayse], circle.id);
-    await relay.watch(authOf(ayse), circle.id);
-    expect(await watchJobs(on, bora.userId)).toHaveLength(21);
+    // 90 seconds later it is allowed again, whoever watches.
+    const later = Date.now() + GAP;
+    expect(await watchNotices().tell(circle.id, [bora.userId], later - 2_000)).toEqual([]);
+    expect(await watchNotices().tell(circle.id, [bora.userId], later)).toEqual([bora.userId]);
+    expect(await watchJobs(on, bora.userId)).toHaveLength(2);
   });
 
   it('is counted per recipient: another member of the circle is told on their own account', async () => {
     const [ayse, bora, can] = await Promise.all([person(on), person(on), person(on)]);
     const circle = await circleWith(on, ayse, bora, can);
-    const relay = on.app.get(RelayService);
-    await relay.watch(authOf(ayse), circle.id);
+    await on.app.get(RelayService).watch(authOf(ayse), circle.id);
     expect(await watchJobs(on, bora.userId)).toHaveLength(1);
     expect(await watchJobs(on, can.userId)).toHaveLength(1);
     // Bora's gap is over, Can's is not.
-    await expireGap(on, bora);
-    await expireWatcher(on, ayse, circle.id);
-    await relay.watch(authOf(ayse), circle.id);
+    await watchNotices().tell(circle.id, [bora.userId], Date.now() + GAP);
     expect(await watchJobs(on, bora.userId)).toHaveLength(2);
     expect(await watchJobs(on, can.userId)).toHaveLength(1);
+  });
+
+  it('is at most 20 in any hour, not 20 in a clock hour: no burst of 40 across a window edge', async () => {
+    const circleId = randomUuid();
+    const recipient = randomUuid();
+    const start = Date.now();
+    const told: number[] = [];
+    const attempt = async (at: number) => {
+      if ((await watchNotices().tell(circleId, [recipient], start + at)).length > 0) told.push(at);
+    };
+    // One notice, a quiet half hour, then someone watches all the time (a try every 91 seconds).
+    // A fixed hour starting at the first notice would let 19 more through before its end and 20
+    // right after it: 39 in under an hour.
+    await attempt(0);
+    for (let at = HOUR / 2; at <= 3 * HOUR; at += GAP) await attempt(at);
+    for (let index = 1; index < told.length; index += 1) {
+      expect((told[index] ?? 0) - (told[index - 1] ?? 0)).toBeGreaterThanOrEqual(90_000);
+    }
+    for (const at of told) {
+      expect(told.filter((other) => other > at - HOUR && other <= at).length).toBeLessThanOrEqual(
+        20,
+      );
+    }
+    // It lets traffic through all the same: about 20 an hour, for as long as they watch.
+    expect(told.length).toBeGreaterThanOrEqual(50);
+    expect(await watchJobs(on, recipient)).toHaveLength(told.length);
+  });
+
+  it('forgets nothing it refused: at the limit, the next notice comes as soon as one ages out', async () => {
+    const circleId = randomUuid();
+    const recipient = randomUuid();
+    const start = Date.now();
+    for (let index = 0; index < 20; index += 1) {
+      expect(await watchNotices().tell(circleId, [recipient], start + index * GAP)).toEqual([
+        recipient,
+      ]);
+    }
+    // The twentieth was at 19 × 91 s; refusals along the way do not push the hour out.
+    for (let at = 20 * GAP; at < HOUR; at += GAP) {
+      expect(await watchNotices().tell(circleId, [recipient], start + at)).toEqual([]);
+    }
+    // The first one is an hour old: there is room for exactly one more.
+    expect(await watchNotices().tell(circleId, [recipient], start + HOUR)).toEqual([recipient]);
+    expect(await watchNotices().tell(circleId, [recipient], start + HOUR + 1_000)).toEqual([]);
+    expect(await watchJobs(on, recipient)).toHaveLength(21);
   });
 
   it('is not sent at all while the server switch is off, the live event still goes', async () => {

@@ -197,7 +197,7 @@ export const envSchema = z
     WATCH_PUSH: z.enum(['on', 'off']).default('off'),
     /** A recipient gets at most one `watch` notice this often (seconds), however many watch. */
     WATCH_PUSH_MIN_SECONDS: z.coerce.number().int().min(1).max(3_600).default(90),
-    /** …and at most this many an hour. */
+    /** …and at most this many in any hour (a sliding window, not a clock hour). */
     WATCH_PUSH_PER_HOUR: z.coerce.number().int().min(1).max(600).default(20),
     /** The app's bundle id (apps/mobile app.config.ts). */
     APNS_TOPIC: z
