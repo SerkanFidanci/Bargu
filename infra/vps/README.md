@@ -128,15 +128,13 @@ Adımlar (`N` = `--min-level`):
 7. nginx: `/map/` altında bulunamayan dosyanın (404) önbelleğe alınması kapatılır. Eskiden
    `add_header Cache-Control "public, max-age=86400" always` her yanıta, 404'e de, bir gün
    önbellek yazıyordu; `world.pmtiles` yokken sorulan telefonlar dosya gelse de bir gün haritayı
-   göremezdi. Şimdi tam dosya (200) ve doğrulaması (304) uzun önbellek, geri kalanı (404, 403 ve
-   Range istekleri: 206, 416) tek satır `no-store`
-   ([`bargu-staging.conf`](../staging/nginx/bargu-staging.conf), nginx `map` durum + Range
-   başlığı). Neden Range yanıtları da: nginx başlıkları 206/416 kararından ÖNCE ekler ve geçersiz
-   bir aralıkta başlıkları ikinci kez ekler (416 iki `Cache-Control` satırı ve uzun önbellek
-   alıyordu); tek satır `no-store` yalnız böyle mümkün. Bedeli: HTTP önbellekleri 206 saklamaz
-   (uygulamanın PMTiles kaynağı zaten saklamaz). Kurulu site dosyası
-   (`/etc/nginx/sites-available/bargu-staging`) iki küçük metin değişikliğiyle düzenlenir (bu
-   düzeltmenin ilk sürümü zaten kuruluysa `map` bloğu yenisiyle değiştirilir), yedeği
+   göremezdi. Şimdi 200, 206 ve 304 uzun önbellek, geri kalanı `no-store`
+   ([`bargu-staging.conf`](../staging/nginx/bargu-staging.conf), nginx `map $status`). 416 (dosyanın
+   sonundan öte aralık) bilerek eskisi gibi kalır: iki `Cache-Control` satırı alır (nginx başlıkları
+   206/416 kararından ÖNCE ekler ve geçersiz aralıkta bir kez daha ekler; tek satır `no-store` için
+   bütün Range yanıtlarını, yani her PMTiles okumasını `no-store` yapmak gerekirdi, haritanın her
+   açılışta yeniden inmesi pahasına). Kurulu site dosyası
+   (`/etc/nginx/sites-available/bargu-staging`) iki küçük metin değişikliğiyle düzenlenir, yedeği
    `/opt/bargu/staging/bargu-staging.nginx.bak-…` olur. **Bu nginx başka sitelere de hizmet
    veriyor** (rastamen): önce `nginx -t` bütün yapılandırmayı denetler, bozuksa yedek geri konur ve
    reload yapılmaz; sonra yalnız `systemctl reload nginx` (asla restart). Aynı değişiklik
@@ -146,8 +144,8 @@ Adımlar (`N` = `--min-level`):
 9. Son kontrol: api konteynerindeki `MIN_CLIENT_LEVEL`, `WATCH_PUSH*` ve `NOTICE_SIGNING_KID`
    değerleri (başka hiçbir değer ve gizli bilgi yazılmaz), `/health/live`, `world.pmtiles` boyutu,
    açık anahtar satırı (`stg-n1:…`, herkese açık) ve worker/api günlüğünde o satırın görünüp
-   görünmediği (sunucu imzalıyor mu), `/map/` altındaki 404 ile 416'nın `Cache-Control` başlığı
-   (tek satır `no-store` olmalı).
+   görünmediği (sunucu imzalıyor mu), `/map/` altındaki 404'ün `Cache-Control` başlığı (tek satır
+   `no-store` olmalı).
 
 Güvenlik: script **sadece** `/opt/bargu/staging` ve `/srv/bargu-map` içine yazar, bir tek istisnayla:
 kurulu Bargu nginx site dosyası, **tam yol eşleşmesiyle** (ön ek değil; `/etc/nginx` altında başka

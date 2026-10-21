@@ -27,15 +27,14 @@
 #   5. owner and modes: deploy:deploy, .env 0600, compose.yml 0640
 #   6. world.pmtiles: the low-detail world map (Protomaps build, zoom 0-6) next to turkey.pmtiles
 #   7. nginx: no long cache for 404s under /map/ (a phone that asks before world.pmtiles exists
-#      must not be told to keep the 404 for a day), and one Cache-Control line on every answer
-#      (a 416 got two): two small edits in the installed Bargu site file (or, if the first
-#      version of this fix is in it, its map block replaced), nginx -t on the WHOLE configuration,
-#      then a reload (never a restart: this nginx also serves other sites)
+#      must not be told to keep the 404 for a day; 200, 206 and 304 keep the long cache): two
+#      small edits in the installed Bargu site file, nginx -t on the WHOLE configuration, then a
+#      reload (never a restart: this nginx also serves other sites)
 #   8. docker compose up -d --wait worker api (only when they do not run the new settings yet,
 #      the new signing key included)
 #   9. final check: MIN_CLIENT_LEVEL, WATCH_PUSH* and the key id inside the api container,
 #      /health/live, the world.pmtiles size, the public key line and whether a service log shows
-#      it, and the Cache-Control of a 404 and of a 416 under /map/
+#      it, and the Cache-Control of a 404 under /map/
 #
 # Rules it keeps:
 #   - It writes only under /opt/bargu/staging and /srv/bargu-map, plus one exact file, the installed
@@ -260,17 +259,8 @@ perms_ok() { # file mode
   [ "$(stat -c '%U:%G %a' "$1")" = "$OWNER $2" ]
 }
 
-# Which Cache-Control map the installed site has: 2 = the current one (status and Range header),
-# 1 = the first one (status only; a 416 then gets two lines and the long cache), 0 = none.
-nginx_version() {
-  # shellcheck disable=SC2016 # nginx text, not for the shell to expand
-  if grep -qF 'map "$status:$http_range" $bargu_map_cache_control' "$NGINX_SITE"; then
-    printf 2
-  elif grep -qF 'map $status $bargu_map_cache_control' "$NGINX_SITE"; then
-    printf 1
-  else
-    printf 0
-  fi
+nginx_is_done() {
+  grep -qF 'bargu_map_cache_control' "$NGINX_SITE"
 }
 
 # The domain the Bargu site answers for (its first server_name).
@@ -833,15 +823,14 @@ step_world() {
 }
 
 step_nginx() {
-  step "7/9" "nginx: /map/ altında 404, 416 ve Range yanıtları önbelleğe alınmasın (Cache-Control: no-store, tek satır)"
+  step "7/9" "nginx: /map/ altında bulunamayan dosya (404) önbelleğe alınmasın (Cache-Control: no-store)"
   if [ ! -f "$NGINX_SITE" ]; then
     problem "$NGINX_SITE yok (infra/vps/setup-nginx.sh çalıştırılmamış olabilir); nginx'e dokunulmadı"
     NGINX_FAILED=true
     return 0
   fi
-  version=$(nginx_version)
-  if [ "$version" = 2 ]; then
-    note "zaten yapılmış: $NGINX_SITE dosyasında /map/ için Cache-Control durumuna ve Range başlığına göre seçiliyor (tam dosya: uzun önbellek; 404, 416 ve Range yanıtları: no-store)"
+  if nginx_is_done; then
+    note "zaten yapılmış: $NGINX_SITE dosyasında /map/ için duruma göre Cache-Control var (404: no-store; 200, 206, 304: uzun önbellek)"
     return 0
   fi
   if [ -L "$NGINX_SITE" ]; then
@@ -849,27 +838,14 @@ step_nginx() {
     NGINX_FAILED=true
     return 0
   fi
-  # What the edit needs to find in the installed (domain filled in) site file.
-  # shellcheck disable=SC2016 # nginx text, not for the shell to expand
-  if [ "$version" = 1 ]; then
-    mode=upgrade
-    old_map=$(grep -c '^map \$status \$bargu_map_cache_control {' "$NGINX_SITE" || true)
-    uses=$(grep -c 'add_header Cache-Control \$bargu_map_cache_control always;' "$NGINX_SITE" || true)
-    if [ "$old_map" != 1 ] || [ "$uses" != 1 ]; then
-      problem "$NGINX_SITE beklenen biçimde değil (eski 'map' bloğu $old_map tane, değişkeni kullanan satır $uses tane; ikisi de 1 olmalı); nginx'e dokunulmadı"
-      NGINX_FAILED=true
-      return 0
-    fi
-  else
-    mode=insert
-    old_header='add_header Cache-Control "public, max-age=86400" always;'
-    headers=$(grep -cF "$old_header" "$NGINX_SITE" || true)
-    servers=$(grep -c '^server[[:space:]]*{' "$NGINX_SITE" || true)
-    if [ "$headers" != 1 ] || [ "$servers" -lt 1 ]; then
-      problem "$NGINX_SITE beklenen biçimde değil ($old_header satırı $headers tane, 1 olmalı; üst düzey server bloğu $servers tane); nginx'e dokunulmadı"
-      NGINX_FAILED=true
-      return 0
-    fi
+  # What the edit needs to find, in the installed (domain filled in) site file.
+  old_header='add_header Cache-Control "public, max-age=86400" always;'
+  headers=$(grep -cF "$old_header" "$NGINX_SITE" || true)
+  servers=$(grep -c '^server[[:space:]]*{' "$NGINX_SITE" || true)
+  if [ "$headers" != 1 ] || [ "$servers" -lt 1 ]; then
+    problem "$NGINX_SITE beklenen biçimde değil ($old_header satırı $headers tane, 1 olmalı; üst düzey server bloğu $servers tane); nginx'e dokunulmadı"
+    NGINX_FAILED=true
+    return 0
   fi
   if [ "$(readlink -f "$NGINX_SITE_LINK" 2>/dev/null || true)" != "$NGINX_SITE" ]; then
     problem "$NGINX_SITE_LINK, $NGINX_SITE dosyasına bağlı değil; nginx başka bir dosyayı okuyor olabilir, nginx'e dokunulmadı"
@@ -884,11 +860,7 @@ step_nginx() {
   note "bu nginx başka sitelere de hizmet veriyor, yalnız reload yapılacak (restart yok; reload öncesi 'nginx -t' bütün yapılandırmayı denetler)"
   if $DRY_RUN; then
     note "yapılacak: $NGINX_SITE dosyasının yedeği $STACK_DIR içine alınacak ($NGINX_BAK-<damga>)"
-    if [ "$mode" = upgrade ]; then
-      note "yapılacak: dosyada bu betiğin ilk sürümünün 'map' bloğu var (416 yanıtı iki Cache-Control satırı ve uzun önbellek alıyor); yeni blokla (durum + Range başlığı) değiştirilecek"
-    else
-      note "yapılacak: dosyada iki küçük değişiklik: üstüne bir 'map' bloğu (\$bargu_map_cache_control; durum + Range başlığı), /map/ içindeki Cache-Control satırı bu değişkeni kullanacak"
-    fi
+    note "yapılacak: dosyada iki küçük değişiklik: üstüne bir 'map \$status \$bargu_map_cache_control' bloğu, /map/ içindeki Cache-Control satırı bu değişkeni kullanacak"
     note "yapılacak: 'nginx -t' (bütün yapılandırma); hata verirse yedek geri konur ve reload yapılmaz"
     note "yapılacak: 'systemctl reload nginx' (diğer siteler kesintisiz çalışmaya devam eder)"
     return 0
@@ -903,43 +875,28 @@ step_nginx() {
   safe_cp "$NGINX_SITE" "$NGINX_BAK-$nginx_stamp"
   note "yedek alındı: $NGINX_BAK-$nginx_stamp"
   tmp="$NGINX_NEW.$$"
-  # insert: the map goes in front of the first server block and the fixed header line becomes the
-  # variable. upgrade: the first version's map block (with the comment lines right above it) is
-  # replaced by the current one; the header line already uses the variable.
-  # shellcheck disable=SC2016 # the $... below is nginx text, not for the shell to expand
-  safe_awk_to "$tmp" -v mode="$mode" '
-    function emit(blank) {
-      print "# /map/ Cache-Control by status and Range header (infra/staging/nginx/bargu-staging.conf has the long note)"
-      print "map \"$status:$http_range\" $bargu_map_cache_control {"
-      print "    volatile;"
-      print "    default          \"no-store\";"
-      print "    \"~^(200|304):$\"  \"public, max-age=86400\";"
-      print "    \"~^416:\"         \"\";"
+  # The map goes in front of the first server block and the fixed header line becomes the variable.
+  # shellcheck disable=SC2016 # the $bargu_map_cache_control below is nginx text, not for the shell
+  safe_awk_to "$tmp" '
+    !placed && /^server[ \t]*\{/ {
+      print "# /map/ Cache-Control by response code (infra/staging/nginx/bargu-staging.conf has the long note)"
+      print "map $status $bargu_map_cache_control {"
+      print "    default \"no-store\";"
+      print "    200     \"public, max-age=86400\";"
+      print "    206     \"public, max-age=86400\";"
+      print "    304     \"public, max-age=86400\";"
       print "}"
-      if (blank) print ""
+      print ""
+      placed = 1
     }
-    mode == "insert" && !placed && /^server[ \t]*\{/ { emit(1); placed = 1 }
-    mode == "insert" && /^[ \t]*add_header Cache-Control "public, max-age=86400" always;[ \t]*$/ {
+    /^[ \t]*add_header Cache-Control "public, max-age=86400" always;[ \t]*$/ {
       match($0, /^[ \t]*/)
       print substr($0, 1, RLENGTH) "add_header Cache-Control $bargu_map_cache_control always;"
       next
     }
-    mode == "insert" { print; next }
-    {
-      if ($0 ~ /^#/) { held = held $0 "\n"; next }
-      if ($0 ~ /^map \$status \$bargu_map_cache_control \{/) { held = ""; emit(0); skipping = 1; next }
-      if (skipping) { if ($0 ~ /^\}/) skipping = 0; next }
-      printf "%s", held
-      held = ""
-      print
-    }
-    END { printf "%s", held }
+    { print }
   ' "$NGINX_SITE"
-  # shellcheck disable=SC2016 # nginx text, not for the shell to expand
-  if [ "$(grep -cF 'bargu_map_cache_control' "$tmp" || true)" != 2 ] ||
-    ! grep -qF 'map "$status:$http_range" $bargu_map_cache_control {' "$tmp" ||
-    grep -qF 'map $status $bargu_map_cache_control' "$tmp" ||
-    { [ "$mode" = insert ] && grep -qF "$old_header" "$tmp"; }; then
+  if [ "$(grep -cF 'bargu_map_cache_control' "$tmp" || true)" != 2 ] || grep -qF "$old_header" "$tmp"; then
     die "Yeni nginx dosyası beklenen gibi çıkmadı; $NGINX_SITE olduğu gibi duruyor."
   fi
   safe_put "$tmp" "$NGINX_SITE"
@@ -1054,11 +1011,9 @@ check_map_cache() { # tries
     note "/map/ Cache-Control kontrolü: alan adı okunamadı, atlandı"
     return 0
   fi
+  # Only the 404: a 416 (a range past the end of a file) keeps its two Cache-Control lines, see the
+  # note in infra/staging/nginx/bargu-staging.conf.
   check_cache_header "/map/ altında olmayan dosya (404)" /map/yok-boyle-bir-dosya.pmtiles 404 "$1"
-  # A range far past the end of a file that exists (the Turkey tiles): nginx answers 416.
-  if [ -f "$TILES_DIR/turkey.pmtiles" ]; then
-    check_cache_header "dosyanın sonundan öte aralık isteği (416)" /map/tiles/turkey.pmtiles 416 "$1" -H "Range: bytes=99999999999-"
-  fi
 }
 
 # The public half of the notice key (public: safe to show) and whether a service log shows it, i.e.
@@ -1095,7 +1050,7 @@ step_check() {
     step "9/9" "Son kontrol (kuru çalıştırmada yalnızca şu anki durum gösterilir)"
     wait_tries=1
   else
-    step "9/9" "Son kontrol: api ayarları, /health/live, world.pmtiles boyutu, açık anahtar, /map/ 404 ve 416 başlıkları"
+    step "9/9" "Son kontrol: api ayarları, /health/live, world.pmtiles boyutu, açık anahtar, /map/ 404 başlığı"
     wait_tries=10
   fi
   cid=$(compose ps -q api 2>/dev/null || true)
