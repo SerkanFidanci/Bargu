@@ -12,7 +12,7 @@ import { memberName } from '../../circles/names';
 import { nativeCryptoSelfTestMs } from '../../../platform/native-crypto';
 import { useFrameMeter } from '../frame-meter';
 import { STALL_MS } from './stalls';
-import { median, type Series, useMeasures, useStalls } from './store';
+import { median, restoreBackgroundLive, type Series, useMeasures, useStalls } from './store';
 import { startStallWatch } from './watch';
 
 /** Frame rate measured in windows this long, one after another, while the overlay is open. */
@@ -42,7 +42,8 @@ function gapOf(series: Series): number | null {
 /**
  * The measurement overlay (preview builds only, docs/ADR/0028): how often this phone takes and
  * sends its location, what the filter dropped, how late and how often friends' locations arrive,
- * and the screen's frame rate. Reads only the in-memory measures; shows no position.
+ * and the screen's frame rate. Reads only the measures (in memory, and the counters of background
+ * live mode, which this phone also keeps); shows no position.
  */
 export function MeasureOverlay() {
   const open = useMeasures((state) => state.open);
@@ -59,6 +60,10 @@ function Panel() {
   const meter = useFrameMeter(FPS_WINDOW_SECONDS);
   const stalls = useStalls();
   const { running, start } = meter;
+  // The kept counters of background live mode (the app may have been closed since they were counted).
+  useEffect(() => {
+    restoreBackgroundLive();
+  }, []);
   // One window after another while open.
   useEffect(() => {
     if (!running) start();

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { create } from 'zustand';
 
 import {
@@ -6,6 +7,7 @@ import {
 } from '../../location/background-live/policy';
 import type { FixOutcome } from '../../location/fix-filter';
 import type { FixSource, LocationProbe } from '../../location/probe';
+import type { KeyValueStore } from '../../storage/vault';
 import { remember, type Span, type Stall } from './stalls';
 
 /** Intervals kept for each median: about the last ten locations. */
@@ -166,6 +168,77 @@ export function backgroundLived(
   };
 }
 
+const BACKGROUND_LIVE_KEY = 'measure:bglive:v1';
+const count = z.number().int().min(0);
+const countsSchema = z.object({
+  notices: count,
+  opened: count,
+  openedMs: count,
+  refused: z.record(z.enum(BACKGROUND_LIVE_REFUSALS), count),
+});
+
+/** The counters kept on this phone; a missing or damaged copy counts as none. */
+export function loadBackgroundLive(store: KeyValueStore): BackgroundLiveCounts {
+  const raw = store.get(BACKGROUND_LIVE_KEY);
+  if (raw === undefined) return emptyBackgroundLive();
+  try {
+    const parsed = countsSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : emptyBackgroundLive();
+  } catch {
+    return emptyBackgroundLive();
+  }
+}
+
+export function saveBackgroundLive(store: KeyValueStore, counts: BackgroundLiveCounts): void {
+  store.set(BACKGROUND_LIVE_KEY, JSON.stringify(counts));
+}
+
+/** Two sets of counters as one. */
+export function addBackgroundLive(
+  a: BackgroundLiveCounts,
+  b: BackgroundLiveCounts,
+): BackgroundLiveCounts {
+  return {
+    notices: a.notices + b.notices,
+    opened: a.opened + b.opened,
+    openedMs: a.openedMs + b.openedMs,
+    refused: Object.fromEntries(
+      BACKGROUND_LIVE_REFUSALS.map((reason) => [reason, a.refused[reason] + b.refused[reason]]),
+    ) as Record<BackgroundLiveRefusal, number>,
+  };
+}
+
+/**
+ * Where background live mode's counters are kept so they survive the app being closed: the
+ * encrypted vault of this phone, set by measure/index.ts, which only development and preview
+ * builds load (the PM, 2026-10-21, for the phone trial of ADR 0028 step 3). Never sent anywhere;
+ * numbers only. With none they stay in memory like the rest of the measures (a production build
+ * has no measurement layer at all).
+ */
+export const backgroundLiveStore: { current: (() => KeyValueStore | null) | null } = {
+  current: null,
+};
+/** The kept counters have been read into memory (once per run, when the vault is open). */
+let restored = false;
+
+/** Reads the kept counters into memory, added to what was counted before the vault was open. */
+export function restoreBackgroundLive(): void {
+  if (restored) return;
+  const store = backgroundLiveStore.current?.() ?? null;
+  if (store === null) return;
+  restored = true;
+  const kept = loadBackgroundLive(store);
+  useMeasures.setState((state) => ({
+    backgroundLive: addBackgroundLive(kept, state.backgroundLive),
+  }));
+}
+
+/** Sign-out: the memory forgets (the vault is wiped by the sign-out itself). */
+export function forgetBackgroundLive(): void {
+  restored = false;
+  useMeasures.setState({ backgroundLive: emptyBackgroundLive() });
+}
+
 export const useMeasures = create<Measures & { open: boolean }>(() => ({
   ...emptyMeasures(),
   open: false,
@@ -201,6 +274,10 @@ export const recorder: LocationProbe = {
     useMeasures.setState((state) => received(state, input));
   },
   backgroundLive: (input) => {
+    // The vault is open by the time a notice is handled; read what was kept before counting.
+    restoreBackgroundLive();
     useMeasures.setState((state) => backgroundLived(state, input));
+    const store = backgroundLiveStore.current?.() ?? null;
+    if (store !== null) saveBackgroundLive(store, useMeasures.getState().backgroundLive);
   },
 };

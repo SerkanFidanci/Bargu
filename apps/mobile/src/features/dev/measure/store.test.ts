@@ -1,10 +1,16 @@
+import { memoryStore } from '../../location/test-support';
 import {
+  backgroundLiveStore,
   backgroundLived,
+  emptyBackgroundLive,
   emptyMeasures,
   extend,
+  forgetBackgroundLive,
+  loadBackgroundLive,
   median,
   received,
   recorder,
+  restoreBackgroundLive,
   sampled,
   sent,
   useMeasures,
@@ -111,6 +117,79 @@ describe('the measurement overlay keeps (docs/ADR/0028)', () => {
     expect(after.openedMs).toBe(before.openedMs + 60_000);
     expect(after.refused.ghost).toBe(before.refused.ghost + 1);
     expect(JSON.stringify(after)).not.toMatch(/"lat"|"lng"|circle/);
+  });
+
+  describe('keeps the counters of background live mode on the phone, in preview builds (the PM, 2026-10-21)', () => {
+    const KEY = 'measure:bglive:v1';
+    afterEach(() => {
+      backgroundLiveStore.current = null;
+      forgetBackgroundLive();
+    });
+
+    it('writes them as numbers only, and has them back after the app was closed', () => {
+      const kept = memoryStore();
+      backgroundLiveStore.current = () => kept;
+      forgetBackgroundLive();
+      recorder.backgroundLive({ kind: 'notice' });
+      recorder.backgroundLive({ kind: 'notice' });
+      recorder.backgroundLive({ kind: 'opened', ms: 120_000 });
+      recorder.backgroundLive({ kind: 'refused', reason: 'cap' });
+      expect(loadBackgroundLive(kept)).toMatchObject({
+        notices: 2,
+        opened: 1,
+        openedMs: 120_000,
+        refused: { cap: 1 },
+      });
+      // Nothing but counts: no place, no circle, no person.
+      expect(kept.get(KEY)).toMatch(/^[{}",:\w]+$/);
+      expect(kept.get(KEY)).not.toMatch(/lat|lng|circle|user/i);
+
+      // The app is closed and opened again: memory is empty, the phone still has the counters.
+      forgetBackgroundLive();
+      expect(useMeasures.getState().backgroundLive).toEqual(emptyBackgroundLive());
+      restoreBackgroundLive();
+      expect(useMeasures.getState().backgroundLive.notices).toBe(2);
+      // And it counts on from there, in memory and in the phone's store.
+      recorder.backgroundLive({ kind: 'notice' });
+      expect(useMeasures.getState().backgroundLive.notices).toBe(3);
+      expect(loadBackgroundLive(kept).notices).toBe(3);
+    });
+
+    it('adds what was counted before the vault was open to what the phone kept', () => {
+      const kept = memoryStore();
+      recorder.backgroundLive({ kind: 'notice' });
+      expect(kept.get(KEY)).toBeUndefined();
+      // The vault opens; an earlier run had kept 5 notices.
+      kept.set(
+        KEY,
+        JSON.stringify({ ...emptyBackgroundLive(), notices: 5, opened: 2, openedMs: 240_000 }),
+      );
+      backgroundLiveStore.current = () => kept;
+      restoreBackgroundLive();
+      expect(useMeasures.getState().backgroundLive).toMatchObject({
+        notices: 6,
+        opened: 2,
+        openedMs: 240_000,
+      });
+      // Read once per run: another look does not add them again.
+      restoreBackgroundLive();
+      expect(useMeasures.getState().backgroundLive.notices).toBe(6);
+    });
+
+    it('stays in memory only without a store (nothing is written), and ignores a damaged copy', () => {
+      const kept = memoryStore();
+      recorder.backgroundLive({ kind: 'notice' });
+      expect(useMeasures.getState().backgroundLive.notices).toBe(1);
+      expect(kept.keys()).toEqual([]);
+      // The vault is not open yet: no store to give.
+      backgroundLiveStore.current = () => null;
+      recorder.backgroundLive({ kind: 'notice' });
+      expect(useMeasures.getState().backgroundLive.notices).toBe(2);
+      for (const damaged of ['{nonsense', JSON.stringify({ notices: -1 }), JSON.stringify([1])]) {
+        kept.set(KEY, damaged);
+        expect(loadBackgroundLive(kept)).toEqual(emptyBackgroundLive());
+      }
+    });
   });
 
   it('only in memory, from the location pipeline, without positions', () => {
