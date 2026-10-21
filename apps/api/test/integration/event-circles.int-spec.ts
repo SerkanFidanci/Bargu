@@ -308,7 +308,14 @@ describe('event circles', () => {
         await test.admin.query(`UPDATE pgboss.job SET retry_count = retry_limit WHERE name = $1`, [
           QUEUES.push,
         ]);
-        const jobs = await boss.fetch(QUEUES.push, { batchSize: 100 });
+        // All of them, however many other tests left queued (watch-push leaves dozens): a first
+        // batch of 100 once missed this circle's notices (CI 39641941417).
+        const jobs = [];
+        for (;;) {
+          const batch = await boss.fetch(QUEUES.push, { batchSize: 100 });
+          if (batch.length === 0) break;
+          jobs.push(...batch);
+        }
         expect(jobs.length).toBeGreaterThan(0);
         await boss.fail(
           QUEUES.push,
