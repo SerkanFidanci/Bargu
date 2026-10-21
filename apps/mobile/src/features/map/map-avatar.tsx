@@ -11,7 +11,7 @@ import Animated, {
 
 import type { Look } from '@/features/cosmetics/look-styles';
 import { avatarPalette, space, spring, timing, useTheme } from '@/theme';
-import { AvatarMarker, type MarkerDetail, PIN_HEIGHT } from '@/ui/avatar-marker';
+import { AvatarMarker, type MarkerDetail, type MarkerWhy, PIN_HEIGHT } from '@/ui/avatar-marker';
 
 import type { Activity } from './activity';
 import { Footprints } from './footprints';
@@ -47,6 +47,8 @@ export interface MapAvatarProps {
   name: string;
   avatar: AvatarData | null;
   staleMinutes?: number | undefined;
+  /** Why the old location is old, next to its age (features/location/why.ts). */
+  why?: MarkerWhy | undefined;
   /** m/s and degrees from north, when moving. */
   spd?: number | null | undefined;
   hdg?: number | null | undefined;
@@ -84,6 +86,7 @@ export function MapAvatar({
   name,
   avatar,
   staleMinutes,
+  why,
   spd,
   hdg,
   charging,
@@ -118,6 +121,7 @@ export function MapAvatar({
       name={name}
       avatar={avatar}
       staleMinutes={staleMinutes}
+      why={why}
       charging={charging}
       lowBattery={lowBattery}
       userId={userId}

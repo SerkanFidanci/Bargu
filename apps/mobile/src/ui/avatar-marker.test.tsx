@@ -71,3 +71,44 @@ describe('a person as a pin (the owner, 2026-10-18)', () => {
     expect(screen.getByTestId('marker-live')).toBeTruthy();
   });
 });
+
+describe('why an old location is old ("Neden eski?", docs/ADR/0028)', () => {
+  beforeAll(async () => {
+    await i18n.changeLanguage('tr');
+  });
+
+  it.each([
+    ['saver', 'Pil tasarrufu'],
+    ['permission', 'Konum izni kapalı'],
+    ['nofix', 'Konum alınamıyor'],
+    ['offline', 'Çevrim dışı'],
+  ] as const)('writes %s next to the age, and reads it out', async (why, said) => {
+    await render(<AvatarMarker name="Ayşe" avatar={null} staleMinutes={23} why={why} />);
+    expect(screen.getByText(`23 dk · ${said}`)).toBeTruthy();
+    expect(screen.getByLabelText(`Ayşe, 23 dakika önceki konum, ${said}`)).toBeTruthy();
+  });
+
+  it('counts hours as before, and says nothing of a reason beside a fresh location', async () => {
+    const { rerender } = await render(
+      <AvatarMarker name="Ayşe" avatar={null} staleMinutes={190} why="saver" />,
+    );
+    expect(screen.getByText('3 sa · Pil tasarrufu')).toBeTruthy();
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} why="saver" />);
+    expect(screen.queryByText(/Pil tasarrufu/)).toBeNull();
+    expect(screen.getByLabelText('Ayşe, canlı konum')).toBeTruthy();
+  });
+
+  it('is in English too', async () => {
+    await i18n.changeLanguage('en');
+    const view = await render(
+      <AvatarMarker name="Ayşe" avatar={null} staleMinutes={23} why="permission" />,
+    );
+    try {
+      expect(screen.getByText('23 min · Location permission off')).toBeTruthy();
+    } finally {
+      // Off the screen first: a language change under a mounted screen is an update outside act().
+      await view.unmount();
+      await i18n.changeLanguage('tr');
+    }
+  });
+});

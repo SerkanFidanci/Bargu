@@ -3,7 +3,7 @@ import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Avatar } from '@/ui/avatar';
-import { type MarkerDetail, markerDetailText } from '@/ui/avatar-marker';
+import { type MarkerDetail, type MarkerWhy, markerDetailText } from '@/ui/avatar-marker';
 import { ListRow } from '@/ui/list-row';
 import { Sheet, type SheetRef } from '@/ui/sheet';
 
@@ -17,6 +17,8 @@ export interface GroupMember {
   /** The user themselves (listed, not opened). */
   me: boolean;
   staleMinutes?: number | undefined;
+  /** Why the old location is old (features/location/why.ts). */
+  why?: MarkerWhy | undefined;
   activity?: Activity | undefined;
   /** Their speed or how long they have stayed (motion-detail.ts). */
   detail?: MarkerDetail | undefined;
@@ -34,9 +36,13 @@ export const TogetherSheet = forwardRef<
   const { t } = useTranslation();
   const subtitle = (person: GroupMember) => {
     if (person.staleMinutes !== undefined) {
-      return person.staleMinutes >= 60
-        ? t('map.together.staleHours', { hours: Math.floor(person.staleMinutes / 60) })
-        : t('map.together.stale', { minutes: person.staleMinutes });
+      const age =
+        person.staleMinutes >= 60
+          ? t('map.together.staleHours', { hours: Math.floor(person.staleMinutes / 60) })
+          : t('map.together.stale', { minutes: person.staleMinutes });
+      return person.why === undefined
+        ? age
+        : t('ui.marker.withWhy', { text: age, why: t(`ui.marker.why.${person.why}`) });
     }
     const { activity, detail } = person;
     if (detail?.kind === 'stay') return markerDetailText(detail, t, true);

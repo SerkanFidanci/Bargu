@@ -2,16 +2,20 @@ import {
   BatteryCharging,
   BatteryLow,
   BatteryMedium,
+  BatteryWarning,
   Bell,
   BellOff,
   Flag,
   Hand,
   History,
+  LocateOff,
   type LucideIcon,
   MapPin,
+  MapPinOff,
   Navigation,
   UserRound,
   Users,
+  WifiOff,
   X,
 } from 'lucide-react-native';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
@@ -33,6 +37,7 @@ import { avatarSize, elevation, radius, space, spring, useTheme } from '@/theme'
 import { useMotion } from '@/theme/use-motion';
 import { Avatar } from '@/ui/avatar';
 import { ActionTile } from '@/ui/action-tile';
+import type { MarkerWhy } from '@/ui/avatar-marker';
 import { IconButton } from '@/ui/icon-button';
 import { Text } from '@/ui/text';
 
@@ -41,6 +46,7 @@ import { loadMuteSettings } from '../notifications/mute-session';
 import { personMutes, useMutes } from '../notifications/mutes';
 import { statusOf, useStatuses } from '../social/status';
 import { useMyFix } from '../location/engine';
+import { newestState, sinceTime, useStates, whyShown } from '../location/why';
 import { distanceBetween } from './glide';
 import { LOW_BATTERY, staleMinutes } from './people-layer';
 import { circleActionLabel, type PersonView } from './person-actions';
@@ -52,6 +58,13 @@ const DISMISS_PX = space.xxxl * 2;
 /** A location this coarse (m) came from a circle that shares only the neighbourhood or city. */
 const COARSE_M = 500;
 const HEADER = avatarSize.lg;
+/** The icon beside why an old location is old (features/location/why.ts). */
+const WHY_ICONS: Record<MarkerWhy, LucideIcon> = {
+  saver: BatteryWarning,
+  permission: MapPinOff,
+  nofix: LocateOff,
+  offline: WifiOff,
+};
 const MARKER = avatarSize.md;
 
 function useBackToClose(open: boolean): void {
@@ -224,6 +237,9 @@ export function PersonCard({
   const circleLabel = circleActionLabel(person);
   const status = statusOf(useStatuses(), person.userId, now);
   const minutes = loc === null ? undefined : staleMinutes(loc.ts, now);
+  const states = useStates();
+  const why =
+    loc === null ? null : whyShown({ loc, state: newestState(states, person.userId), now });
 
   const when =
     loc === null
@@ -284,6 +300,16 @@ export function PersonCard({
       )}
       {loc === null ? null : (
         <View style={styles.facts}>
+          {why === null ? null : (
+            <Fact
+              testID="card-why"
+              icon={WHY_ICONS[why.kind]}
+              text={t('map.card.whySince', {
+                why: t(`ui.marker.why.${why.kind}`),
+                time: sinceTime(why.since, i18n.language),
+              })}
+            />
+          )}
           <Fact icon={MapPin} text={place ?? (place === null ? t('map.card.placeUnknown') : '…')} />
           {far === null ? null : <Fact icon={Navigation} text={t('map.card.distance', { far })} />}
           <Fact
@@ -349,11 +375,13 @@ export function PersonCard({
 
 /** One line of facts on a card: an icon and a short text. */
 export function Fact({
+  testID,
   icon: Icon,
   text,
   danger = false,
   muted = false,
 }: {
+  testID?: string;
   icon: LucideIcon;
   text: string;
   danger?: boolean;
@@ -362,7 +390,7 @@ export function Fact({
   const { colors } = useTheme();
   const color = danger ? colors.danger : colors.textMuted;
   return (
-    <View style={styles.fact}>
+    <View testID={testID} style={styles.fact}>
       <Icon color={color} size={18} strokeWidth={2.25} />
       <Text
         variant="callout"

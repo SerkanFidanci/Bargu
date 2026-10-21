@@ -19,6 +19,11 @@ jest.mock('./tracker', () => ({
     select({ state: 'granted' }),
   watchLive: (onFix: (fix: unknown) => void) => mockWatchLive(onFix),
 }));
+// Why a location is old ("Neden eski?") has its own tests (state-report.test.ts, why.test.ts).
+jest.mock('./state-signals', () => ({
+  watchWhy: () => undefined,
+  refreshWhy: () => Promise.resolve(),
+}));
 jest.mock('./location-session', () => {
   const { create } = jest.requireActual<typeof import('zustand')>('zustand');
   return {

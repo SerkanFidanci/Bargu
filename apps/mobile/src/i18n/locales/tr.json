@@ -227,6 +227,13 @@
       "age": "{{minutes}} dk",
       "staleHours": "{{name}}, {{hours}} saat önceki konum",
       "ageHours": "{{hours}} sa",
+      "why": {
+        "saver": "Pil tasarrufu",
+        "permission": "Konum izni kapalı",
+        "nofix": "Konum alınamıyor",
+        "offline": "Çevrim dışı"
+      },
+      "withWhy": "{{text}} · {{why}}",
       "charging": "şarj oluyor",
       "lowBattery": "pili azaldı",
       "activity": {
@@ -731,6 +738,7 @@
       "now": "şimdi",
       "minutesAgo": "{{minutes}} dk önce",
       "hoursAgo": "{{hours}} sa önce",
+      "whySince": "{{why}} · {{time}} beri",
       "placeUnknown": "Yer adı yok",
       "distance": "{{far}} uzakta",
       "battery": "Pil %{{level}}",

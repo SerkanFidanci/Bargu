@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import i18n from '@/i18n';
 
+import { useStates } from '../location/why';
 import { NO_MUTES, useMutes, withPersonMuted } from '../notifications/mutes';
 import { PersonCard } from './person-card';
 import type { PersonView } from './person-actions';
@@ -109,5 +110,114 @@ describe("a person's card (UX düzeni)", () => {
     expect(screen.getByText('Arkadaşlık')).toBeTruthy();
     await renderCard('group');
     expect(screen.getByText('Çember')).toBeTruthy();
+  });
+});
+
+describe('why the location is old, on the card ("Neden eski?", docs/ADR/0028)', () => {
+  const MINUTE = 60_000;
+  const CIRCLE = '0190a8a0-0000-7000-8000-0000000000d1';
+  const located = (minutesAgo: number): PersonView => ({
+    ...person('pair'),
+    location: {
+      circleId: CIRCLE,
+      userId: ADA,
+      receivedAt: Date.now(),
+      loc: {
+        kind: 'loc',
+        lat: 41.0256,
+        lng: 28.9742,
+        acc: 8,
+        bat: 70,
+        chg: false,
+        ts: Date.now() - minutesAgo * MINUTE,
+      },
+    },
+  });
+  const said = (why: 'saver' | 'permission' | 'nofix' | 'none', minutesAgo: number, since = 0) => {
+    useStates.setState(
+      {
+        [`${CIRCLE}:${ADA}`]: {
+          circleId: CIRCLE,
+          userId: ADA,
+          why,
+          since,
+          ts: Date.now() - minutesAgo * MINUTE,
+          receivedAt: Date.now(),
+        },
+      },
+      true,
+    );
+  };
+  const showCard = (view: PersonView) =>
+    render(
+      <PersonCard
+        person={view}
+        from={{ x: 0, y: 0 }}
+        place={undefined}
+        onAction={jest.fn()}
+        onHeight={jest.fn()}
+      />,
+    );
+
+  beforeEach(() => {
+    useStates.setState({}, true);
+  });
+
+  it('gives the reason and since when, while their phone keeps renewing it', async () => {
+    const since = new Date(2026, 9, 1, 14, 20).getTime();
+    said('saver', 2, since);
+    await showCard(located(40));
+    expect(screen.getByTestId('card-why')).toBeTruthy();
+    expect(screen.getByText("Pil tasarrufu · 14:20'den beri")).toBeTruthy();
+  });
+
+  it.each([
+    ['permission', 'Konum izni kapalı'],
+    ['nofix', 'Konum alınamıyor'],
+  ] as const)('says %s as "%s"', async (why, text) => {
+    said(why, 1, new Date(2026, 9, 1, 14, 30).getTime());
+    await showCard(located(40));
+    expect(screen.getByText(`${text} · 14:30'dan beri`)).toBeTruthy();
+  });
+
+  it('says "Çevrim dışı" with the time of the last message when nothing was said', async () => {
+    const lastHeard = new Date(2026, 9, 1, 14, 20).getTime();
+    const view = located(0);
+    if (view.location === null) throw new Error('no location');
+    await showCard({
+      ...view,
+      location: { ...view.location, loc: { ...view.location.loc, ts: lastHeard } },
+    });
+    expect(screen.getByText("Çevrim dışı · 14:20'den beri")).toBeTruthy();
+  });
+
+  it('a reason that was not renewed has lapsed into "Çevrim dışı"', async () => {
+    said('saver', 15, new Date(2026, 9, 1, 14, 20).getTime());
+    await showCard(located(40));
+    expect(screen.queryByText(/Pil tasarrufu/)).toBeNull();
+    expect(screen.getByText(/^Çevrim dışı · /)).toBeTruthy();
+  });
+
+  it('says nothing next to a fresh location, or right after they said it is over', async () => {
+    said('saver', 1);
+    const { unmount } = await showCard(located(2));
+    expect(screen.queryByTestId('card-why')).toBeNull();
+    await unmount();
+    said('none', 1);
+    await showCard(located(40));
+    expect(screen.queryByTestId('card-why')).toBeNull();
+  });
+
+  it('is in English too', async () => {
+    await i18n.changeLanguage('en');
+    said('permission', 1, new Date(2026, 9, 1, 14, 20).getTime());
+    const view = await showCard(located(40));
+    try {
+      expect(screen.getByText(/^Location permission off · since /)).toBeTruthy();
+    } finally {
+      // Off the screen first: a language change under a mounted screen is an update outside act().
+      await view.unmount();
+      await i18n.changeLanguage('tr');
+    }
   });
 });

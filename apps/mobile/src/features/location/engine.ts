@@ -70,6 +70,13 @@ export interface EngineDeps {
   onFix?: (fix: Fix) => Promise<void>;
   /** When this phone will be at a circle's meeting, if it has one now (docs/ADR/0018). */
   eta?: (circleId: string, fix: Fix, now: number) => LocPayload['eta'];
+  /** A raw position came in, whatever became of it (the silence that "Neden eski?" listens for). */
+  sampled?: (at: number) => void;
+  /**
+   * What the circles hold of this phone changed: sharing or circles (`changed`), or the first
+   * location went to a circle / the last was taken back. The reason for an old location follows it.
+   */
+  settled?: () => void;
   now?: () => number;
 }
 
@@ -105,7 +112,10 @@ export function createLocationEngine(deps: EngineDeps) {
   }
 
   function setPublished(ids: Set<string>): void {
+    const before = published().size;
     deps.store().set(PUBLISHED_KEY, JSON.stringify([...ids]));
+    // Whether any circle holds a location of this phone is what a reason for it hangs on.
+    if ((before === 0) !== (ids.size === 0)) deps.settled?.();
   }
 
   /** Circles holding this phone's location that should not any more (a frozen ghost keeps all). */
@@ -223,6 +233,7 @@ export function createLocationEngine(deps: EngineDeps) {
       // Its time is what the thread spends before the first wait: once a second with the map open.
       return timed('engine.fix', () => {
         const at = now();
+        deps.sampled?.(at);
         const result = filterFix(filter, next, at, gps());
         filter = result.state;
         probe.current?.sampled({ source, ts: next.ts, acc: next.acc, at, outcome: result.outcome });
@@ -246,6 +257,16 @@ export function createLocationEngine(deps: EngineDeps) {
       return shared().length > 0;
     },
 
+    /** The circles this phone's location goes to now (sharing on, not ghost, not over, not paused). */
+    audience(): SendCircle[] {
+      return shared();
+    },
+
+    /** Some circle holds this phone's last location (it can be old, and a reason can explain it). */
+    holding(): boolean {
+      return published().size > 0;
+    },
+
     gps,
 
     /** Back online: the newest unsent fix goes out. */
@@ -263,7 +284,9 @@ export function createLocationEngine(deps: EngineDeps) {
         last = null;
         pending = latest;
       }
-      return pump();
+      return pump().finally(() => {
+        deps.settled?.();
+      });
     },
 
     /** Sign-out: nothing carries over. */

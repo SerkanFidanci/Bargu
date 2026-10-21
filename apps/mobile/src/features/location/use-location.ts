@@ -11,6 +11,7 @@ import { locationEngine, restoreLocations, useLiveUntil } from './location-sessi
 import { useSharing } from './sharing';
 import { useMapOpen } from './map-open';
 import { useSharingEnd } from './sharing-end';
+import { refreshWhy, watchWhy } from './state-signals';
 import {
   checkLocationPermission,
   lastKnownFix,
@@ -57,9 +58,13 @@ export function useLocationSession(ready: boolean): void {
     if (ready) restoreLocations();
   }, [ready]);
 
-  // Checked again on every return: the user may have changed it in the system settings.
+  // Checked again on every return: the user may have changed it in the system settings. The same
+  // goes for the location services and battery saver, which tell friends why a location is old.
   useEffect(() => {
-    if (ready && active) void checkLocationPermission();
+    if (!ready || !active) return;
+    void checkLocationPermission();
+    watchWhy();
+    void refreshWhy();
   }, [ready, active]);
 
   // Where the map should look before the first fix (nothing is sent from this).

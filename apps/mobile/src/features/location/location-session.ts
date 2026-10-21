@@ -82,6 +82,7 @@ import { isVaultOpen, vault } from '../storage/vault';
 import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix } from './engine';
 import { timed } from './probe';
 import { createReceiver } from './receive';
+import { createStateReporter } from './state-report';
 import {
   circleSharing,
   DEFAULT_SHARING,
@@ -360,6 +361,30 @@ export const locationEngine = createLocationEngine({
     await Promise.all([meeting, trail]);
   },
   eta: (circleId, fix, now) => meetings.eta(circleId, fix, now),
+  // The reason for an old location (docs/ADR/0028 "Neden eski?") follows what the engine sees.
+  sampled: (at) => {
+    stateReporter.sampled(at);
+  },
+  settled: () => {
+    void stateReporter.changed();
+  },
+});
+
+/**
+ * Why this phone's location may be old, told to the circles it shares with (`state` messages, no
+ * position in them): the same live-forward route as arrivals, so the relay keeps nothing and the
+ * members who are online see it at once. What it listens to is in state-signals.ts.
+ */
+export const stateReporter = createStateReporter({
+  keys,
+  device: () => useAuth.getState().device,
+  audience: () => locationEngine.audience(),
+  holding: () => isVaultOpen() && locationEngine.holding(),
+  send: async (request) =>
+    bumpReplySchema.parse(await api.authed('/v1/place-events', { method: 'POST', body: request })),
+  outdated: (circleIds) => {
+    for (const circleId of circleIds) void circleSync.refresh(circleId).catch(() => undefined);
+  },
 });
 
 // A meeting was set or changed: the reminder to leave follows at once (from the last position).
@@ -804,6 +829,7 @@ onOnline(() => {
     }
   })();
   void locationEngine.flush();
+  void stateReporter.flush();
   void history.flush().catch(() => undefined);
   // A "Güvendeyim" that waited for the connection goes now, once (docs/ADR/0029).
   void safeCheckIns.flush().catch(() => undefined);
@@ -853,6 +879,7 @@ onSignedOut(() => {
   reminderPlanned = undefined;
   useSharingReminder.setState({ reviewedAt: null }, true);
   locationEngine.reset();
+  stateReporter.reset();
   meetings.reset();
   history.reset();
   useHistoryPings.setState({}, true);

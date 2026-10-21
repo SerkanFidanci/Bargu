@@ -45,6 +45,22 @@ export async function checkLocationPermission(): Promise<LocationPermission> {
   return remember(await Location.getForegroundPermissionsAsync());
 }
 
+/**
+ * Whether the phone's location services are switched on (the system switch, whatever the permission
+ * of this app): off, no position can be had at all. `unknown` until checked.
+ */
+export type LocationServices = 'unknown' | 'on' | 'off';
+
+export const useLocationServices = create<{ state: LocationServices }>(() => ({
+  state: 'unknown',
+}));
+
+export async function checkLocationServices(): Promise<LocationServices> {
+  const state: LocationServices = (await Location.hasServicesEnabledAsync()) ? 'on' : 'off';
+  useLocationServices.setState({ state });
+  return state;
+}
+
 /** Shows the system dialog (only while the user has not decided for good). */
 export async function requestLocationPermission(): Promise<LocationPermission> {
   return remember(await Location.requestForegroundPermissionsAsync());

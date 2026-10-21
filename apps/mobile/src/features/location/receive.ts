@@ -8,6 +8,7 @@ type LookPayload = Extract<Payload, { kind: 'look' }>;
 type PlaceEventPayload = Extract<Payload, { kind: 'place_enter' | 'place_exit' }>;
 type LatePayload = Extract<Payload, { kind: 'late' }>;
 type SafePayload = Extract<Payload, { kind: 'safe' }>;
+type StatePayload = Extract<Payload, { kind: 'state' }>;
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -15,6 +16,7 @@ import { verifiedBundle } from '../keys/bundle-cache';
 import type { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
 import { probe, timed } from './probe';
+import { type ReceivedState, receivedStateSchema, useStates } from './why';
 
 const receivedSchema = z
   .object({
@@ -38,6 +40,12 @@ const REPLAY_KEY = 'replay:v1';
  * Only the newest one per person and circle is kept; it never leaves the phone.
  */
 const LOCATIONS_KEY = 'locations:v1';
+/**
+ * The latest reason each member gave for an old location (docs/ADR/0028 "Neden eski?"), kept like
+ * the locations: the relay does not keep it, and the replay guard refuses what was opened before.
+ * It holds no position.
+ */
+const STATES_KEY = 'states:v1';
 const entryKey = (circleId: string, userId: string) => `${circleId}:${userId}`;
 /**
  * A location measured up to this long before the one shown arrived late (the relay's snapshot
@@ -160,12 +168,47 @@ export function createReceiver({
     store().set(LOCATIONS_KEY, JSON.stringify(Object.values(next)));
   }
 
-  function keep(predicate: (entry: ReceivedLocation) => boolean): void {
+  function replaceStates(next: Record<string, ReceivedState>): void {
+    useStates.setState(next, true);
+    store().set(STATES_KEY, JSON.stringify(Object.values(next)));
+  }
+
+  /** Keeps the locations, and the reasons of the same people, that the predicate keeps. */
+  function keep(predicate: (entry: { circleId: string; userId: string }) => boolean): void {
     const current = useLocations.getState();
     const kept = Object.fromEntries(
       Object.entries(current).filter(([, entry]) => predicate(entry)),
     );
     if (Object.keys(kept).length !== Object.keys(current).length) replaceLocations(kept);
+    const states = useStates.getState();
+    const keptStates = Object.fromEntries(
+      Object.entries(states).filter(([, entry]) => predicate(entry)),
+    );
+    if (Object.keys(keptStates).length !== Object.keys(states).length) replaceStates(keptStates);
+  }
+
+  /**
+   * A member says why their location is old. Only the newest counts (it may arrive late), and a
+   * time ahead of this phone's clock is not believed: it would keep a reason alive for ever.
+   */
+  function setReason(circleId: string, userId: string, payload: StatePayload): Outcome {
+    const at = now();
+    const key = entryKey(circleId, userId);
+    const ts = Math.min(payload.ts, at);
+    const held = useStates.getState()[key];
+    if (held !== undefined && ts < held.ts) return 'ignored';
+    replaceStates({
+      ...useStates.getState(),
+      [key]: {
+        circleId,
+        userId,
+        why: payload.why,
+        since: Math.min(payload.since, ts),
+        ts,
+        receivedAt: at,
+      },
+    });
+    return 'shown';
   }
 
   function set(entry: ReceivedLocation): void {
@@ -280,6 +323,7 @@ export function createReceiver({
         onSafe?.(circle.id, sender.userId, payload);
         return 'shown';
       }
+      if (payload.kind === 'state') return setReason(circle.id, sender.userId, payload);
       return 'ignored';
     } catch (error) {
       if (error instanceof BarguCryptoError) {
@@ -315,6 +359,18 @@ export function createReceiver({
 
     /** The locations this phone had before a restart (shown until fresher ones arrive). */
     restore(): void {
+      const states = store().get(STATES_KEY);
+      if (states !== undefined) {
+        const parsedStates = z.array(receivedStateSchema).safeParse(JSON.parse(states));
+        if (parsedStates.success) {
+          useStates.setState(
+            Object.fromEntries(
+              parsedStates.data.map((entry) => [entryKey(entry.circleId, entry.userId), entry]),
+            ),
+            true,
+          );
+        }
+      }
       const raw = store().get(LOCATIONS_KEY);
       if (raw === undefined) return;
       const parsed = z.array(receivedSchema).safeParse(JSON.parse(raw));
@@ -384,6 +440,7 @@ export function createReceiver({
       replay = null;
       waiting.clear();
       useLocations.setState({}, true);
+      useStates.setState({}, true);
     },
   };
 }

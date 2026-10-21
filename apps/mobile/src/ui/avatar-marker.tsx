@@ -38,6 +38,8 @@ export interface AvatarMarkerProps {
   avatar: AvatarData | null;
   /** Minutes since the last location; set when the position is stale (shown grey with the age). */
   staleMinutes?: number | undefined;
+  /** Why the old location is old, next to its age (features/location/why.ts decides). */
+  why?: MarkerWhy | undefined;
   /** Their phone is charging: a small bolt. */
   charging?: boolean | undefined;
   /** Their battery is nearly empty (not charging): a red ring pulses. */
@@ -76,6 +78,12 @@ export type MarkerActivity =
   | 'racing'
   | 'train'
   | 'plane';
+
+/**
+ * What an old location says besides its age ("Neden eski?", docs/ADR/0028): the phone's own reason,
+ * or "offline" when nothing has been heard from it for a while.
+ */
+export type MarkerWhy = 'saver' | 'permission' | 'nofix' | 'offline';
 
 /** The line under someone (features/map/motion-detail.ts decides). */
 export type MarkerDetail =
@@ -179,6 +187,7 @@ export function AvatarMarker({
   name,
   avatar,
   staleMinutes,
+  why,
   charging = false,
   lowBattery = false,
   userId,
@@ -250,6 +259,8 @@ export function AvatarMarker({
     : hours === null
       ? t('ui.marker.stale', { name, minutes: staleMinutes })
       : t('ui.marker.staleHours', { name, hours });
+  // Only an old location has a reason to be: a fresh one needs none.
+  const whyText = stale && why !== undefined ? t(`ui.marker.why.${why}`) : null;
   const battery = charging
     ? t('ui.marker.charging')
     : lowBattery
@@ -259,9 +270,20 @@ export function AvatarMarker({
   // An old location says its age instead: its speed or stay would no longer be true. In a shared
   // frame there is no room under each one (the group's window lists it, together-sheet.tsx).
   const line = stale || framed || detail === undefined ? null : detail;
-  const label = [where, doingLabel, line === null ? null : markerDetailText(line, t, true), battery]
+  const label = [
+    where,
+    whyText,
+    doingLabel,
+    line === null ? null : markerDetailText(line, t, true),
+    battery,
+  ]
     .filter((part) => part !== null)
     .join(', ');
+  const ageText = stale
+    ? hours === null
+      ? t('ui.marker.age', { minutes: staleMinutes })
+      : t('ui.marker.ageHours', { hours })
+    : null;
   // Drawn figures face east by default; west-bound people get them mirrored.
   const facing: 1 | -1 = leanSide < -0.2 ? -1 : 1;
   // Wheels, rails and wings get a wide badge, except in a shared pin (no room beside a neighbour).
@@ -348,12 +370,10 @@ export function AvatarMarker({
           {framed ? null : <View style={[styles.tail, { borderTopColor: ring }]} />}
         </Animated.View>
       </Animated.View>
-      {stale ? (
+      {ageText !== null ? (
         <View testID="marker-age" style={[styles.age, { backgroundColor: colors.surfaceRaised }]}>
           <Text variant="caption" color="textMuted" allowFontScaling={false}>
-            {hours === null
-              ? t('ui.marker.age', { minutes: staleMinutes })
-              : t('ui.marker.ageHours', { hours })}
+            {whyText === null ? ageText : t('ui.marker.withWhy', { text: ageText, why: whyText })}
           </Text>
         </View>
       ) : line !== null ? (

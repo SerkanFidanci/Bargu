@@ -8,6 +8,7 @@ import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
 import { bestPerPerson, type ReceivedLocation, useLocations } from '../location/receive';
 import { speedShown, useSharing } from '../location/sharing';
+import { newestState, STALE_AFTER_MS, useStates, whyShown } from '../location/why';
 import { usePokes } from '../social/poke';
 import { statusOf, useMyStatus, useStatuses } from '../social/status';
 import { StatusBubble } from '../social/status-sheet';
@@ -24,11 +25,6 @@ import { ClusterBubble, type TogetherPerson } from './cluster-bubble';
 import type { ScreenPoint } from './person-focus';
 import type { GroupMember } from './together-sheet';
 
-/**
- * A location older than this is shown grey with its age. A still phone sends a heartbeat every
- * 5 minutes (send.ts), so two missed ones mean the phone is off, offline or out of reach.
- */
-export const STALE_AFTER_MS = 10 * 60_000;
 /** Below this (%) and not charging, the battery shows as nearly empty (BARGU_PLAN §4.3). */
 export const LOW_BATTERY = 15;
 
@@ -73,6 +69,8 @@ export function PeopleLayer({
   onGroup?: (people: GroupMember[], from: ScreenPoint) => void;
 }) {
   const locations = useLocations();
+  // Why a location is old, as its phone said it (no position in it); the screen follows it live.
+  const states = useStates();
   const pokes = usePokes();
   const statuses = useStatuses();
   const myStatus = useMyStatus((state) => state.status);
@@ -154,6 +152,7 @@ export function PeopleLayer({
         name: memberName(card),
         avatar: card.avatar,
         staleMinutes: staleMinutes(loc.ts, now),
+        why: whyShown({ loc, state: newestState(states, entry.userId), now })?.kind,
         heading: loc.hdg,
         charging: loc.chg,
         lowBattery: !loc.chg && loc.bat < LOW_BATTERY,
@@ -261,6 +260,7 @@ function TogetherMarker({
         avatar: marker.avatar,
         me: member.kind === 'me',
         staleMinutes: marker.staleMinutes,
+        why: marker.why,
         activity: marker.activity,
         detail: marker.detail,
       };

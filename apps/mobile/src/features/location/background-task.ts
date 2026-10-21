@@ -3,6 +3,7 @@ import * as TaskManager from 'expo-task-manager';
 
 import { ensureSession } from '../live/live-session';
 import { loadSharingSettings, locationEngine } from './location-session';
+import { watchWhy } from './state-signals';
 import { fixOf, LOCATION_TASK, stopTracking } from './tracker';
 
 /**
@@ -24,6 +25,8 @@ TaskManager.defineTask<{ locations?: LocationObject[] }>(LOCATION_TASK, async ({
       return;
     }
     loadSharingSettings();
+    // Why a location is old (battery saver, permission, services) keeps being told from here too.
+    watchWhy();
     await locationEngine.fix(fixOf(newest), 'service');
     // Sharing ended meanwhile (time up, last circle left): no reason to keep the GPS on.
     if (!locationEngine.active()) await stopTracking();

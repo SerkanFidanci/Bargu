@@ -30,6 +30,27 @@ describe('the window of people standing together (2026-10-16)', () => {
     await i18n.changeLanguage('tr');
   });
 
+  it('says why an old location is old, beside its age', async () => {
+    await render(
+      <TogetherSheet
+        people={[
+          { userId: 'cem', name: 'Cem', avatar: null, me: false, staleMinutes: 12, why: 'saver' },
+          {
+            userId: 'efe',
+            name: 'Efe',
+            avatar: null,
+            me: false,
+            staleMinutes: 130,
+            why: 'offline',
+          },
+        ]}
+        onPick={jest.fn()}
+      />,
+    );
+    expect(screen.getByText('12 dk önce buradaydı · Pil tasarrufu')).toBeTruthy();
+    expect(screen.getByText('2 sa önce buradaydı · Çevrim dışı')).toBeTruthy();
+  });
+
   it('lists everyone there, the user as "Sen", and opens the one picked', async () => {
     const onPick = jest.fn();
     await render(<TogetherSheet people={people} onPick={onPick} />);

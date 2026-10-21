@@ -227,6 +227,13 @@
       "age": "{{minutes}} min",
       "staleHours": "{{name}}, location from {{hours}} hours ago",
       "ageHours": "{{hours}} h",
+      "why": {
+        "saver": "Battery saver",
+        "permission": "Location permission off",
+        "nofix": "Can't get a location",
+        "offline": "Offline"
+      },
+      "withWhy": "{{text}} · {{why}}",
       "charging": "charging",
       "lowBattery": "battery low",
       "activity": {
@@ -731,6 +738,7 @@
       "now": "now",
       "minutesAgo": "{{minutes}} min ago",
       "hoursAgo": "{{hours}} h ago",
+      "whySince": "{{why}} · since {{time}}",
       "placeUnknown": "No place name",
       "distance": "{{far}} away",
       "battery": "Battery {{level}}%",
