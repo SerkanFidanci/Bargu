@@ -345,9 +345,11 @@ preflight() {
   if [ ! -f "$STACK_DIR/image.env" ]; then die "$STACK_DIR/image.env yok; hiçbir şey yapılmadı."; fi
   if ! command -v docker >/dev/null 2>&1; then die "docker bulunamadı; hiçbir şey yapılmadı."; fi
   if ! id deploy >/dev/null 2>&1; then die "'deploy' kullanıcısı yok; hiçbir şey yapılmadı."; fi
-  # The files the script rewrites or chowns must be real files. guard() refuses a link anyway; this
-  # says so now, before any backup or edit, instead of stopping half way.
-  for plain in "$ENV_FILE" "$COMPOSE_FILE"; do
+  # The files the script rewrites or chowns must be real files: .env, compose.yml and the nginx
+  # site file. guard() refuses a link anyway; this says so now, before any backup, edit or restart
+  # (the nginx step comes late: without this the run would back up, set the level and the key and
+  # restart the services, and only then stop at the site file).
+  for plain in "$ENV_FILE" "$COMPOSE_FILE" "$NGINX_SITE"; do
     if [ -L "$plain" ]; then
       die "Güvenlik: $plain bir kısayol (symlink); script yalnızca gerçek dosyaya yazar, hiçbir şey değiştirilmedi."
     fi

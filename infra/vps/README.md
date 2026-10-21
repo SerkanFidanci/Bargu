@@ -154,7 +154,9 @@ Güvenlik: script **sadece** `/opt/bargu/staging` ve `/srv/bargu-map` içine yaz
 kurulu Bargu nginx site dosyası, **tam yol eşleşmesiyle** (ön ek değil; `/etc/nginx` altında başka
 hiçbir dosya yazılamaz). Her yazma tek bir koruma fonksiyonundan geçer, dışarıdaki yol Türkçe
 hatayla reddedilir; **hedef dosyanın kendisi bir kısayol (symlink) ise de reddedilir** (içinden
-yazılsa ya da `chown`/`chmod` edilse dışarıdaki dosya değişirdi). Sırlar içeren her yedek (`.env`
+yazılsa ya da `chown`/`chmod` edilse dışarıdaki dosya değişirdi). `.env`, `compose.yml` ve nginx
+site dosyası kısayolsa betik daha ilk kontrolde, hiçbir yedek, değişiklik ya da yeniden başlatma
+olmadan durur. Sırlar içeren her yedek (`.env`
 yedekleri; betiğin ve `notice-key.sh`'in aldıkları) 0600 ve `deploy` sahipli olur. Sunucudaki diğer
 projeye (rastamen) dokunmaz. Yeniden başlatma başarısız olursa yedekler geri yüklenir. Eski
 yedekler silinmez.
