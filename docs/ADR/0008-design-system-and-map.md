@@ -209,3 +209,38 @@ korkulukları:
   - Tekerlek, yol, duman, hava, bulut ve hız çizgileri UI thread'de dönen ya da kayan View'lar.
   - Her hareket pinin kendi döngüsünden okunur ve döngünün sonunda başa sarar; JS thread'de hiçbir
     şey çizilmez.
+
+## Ek (2026-10-21, UX düzeni: aranan bulunsun)
+
+Sahip bir dış incelemenin gezinme notunu paylaştı. PM, karşılaştırmadan sonra eksikleri bir dilim
+yaptı. Harita, alt çubuk (Çemberler, +, Ben) ve haritadaki kontrollerin yeri değişmedi; değişen,
+özelliklere mevcut girişlerden nasıl ulaşıldığı.
+
+- **Ben sayfası başlıklı gruplarda.** Profilin hemen altında "Konum ve gizlilik" var (PM: güvenlik
+  ayarları gözden kaçmasın): hayalet, "Kimler konumumu görüyor" ve konum geçmişi. Ardından sırayla:
+  - "Bildirimler";
+  - "Görünüm ve harita";
+  - "Güvenlik": geçiş anahtarı, güvenlik, ebeveyn bağlantısı;
+  - "Bargu+ ve hesap";
+  - "Uygulama".
+
+  Çıkış ayrı. "Gizlilik ve hesap" ekranının adı içeriğine göre "Hesap ve veri" oldu.
+
+- **Bildirim tercihleri ekranı (yeni):**
+  - Bildirim izni ve telefon ayarlarına geçiş.
+  - Bu telefonda sessize alınan kişiler ve yerler; her birinin sesi tek dokunuşla açılır.
+- **Kişi kartı:**
+  - Görünür × düğmesi ("Kartı kapat").
+  - Bildirim zili: sık kullanılan işlem yalnızca uzun basmaya bağlı kalmıyor. Kişi sessizdeyse
+    zil çizili, adının altında "Sessizde" yazar.
+  - "Profil" düğmesi açtığı ekrana göre adlandırıldı: "Arkadaşlık" ya da "Çember". Uzun basma
+    menüsünde de öyle.
+- **"Seni görenler":** her çemberin kartından o çemberin paylaşım ayarına gidilir.
+- **Ekle (+):** başlığı "Ekle"; "Çember oluştur" da burada.
+- **Çemberler:** boş bölüm gizlenmez. Ne olacağını ve ilk adımı söyler ("Arkadaş ekle", "Çember
+  oluştur").
+- **Çember ayrıntısı:** ayrılma ya da arkadaşlığı bitirme bir çizginin altında, ne anlama
+  geldiğini söyleyen bir satırla ayrı durur. Onay zaten vardı.
+- Her yeni düğme en az 44 pt dokunma alanında ve ekran okuyucu etiketli. Metinler tr ve en.
+- Sonraya kaldı: alt ekrandan dönünce Ben ya da Çemberler sayfasının yeniden açılması ve kaydırma
+  yerinin korunması (ayrı dilim).

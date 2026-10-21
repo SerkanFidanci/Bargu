@@ -1,5 +1,13 @@
 import { router } from 'expo-router';
-import { Flag, type LucideIcon, QrCode, ScanLine, Search, Share2 } from 'lucide-react-native';
+import {
+  Flag,
+  type LucideIcon,
+  QrCode,
+  ScanLine,
+  Search,
+  Share2,
+  Users,
+} from 'lucide-react-native';
 import { forwardRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Share, StyleSheet, View } from 'react-native';
@@ -19,9 +27,9 @@ export interface AddSheetProps {
 }
 
 /**
- * Ways to add a friend: by username, by showing or scanning a QR code in person, or by sharing a
- * one-time link. Whoever is added still has to say yes (except for a code they scanned: showing it
- * is the yes).
+ * The "+" in the middle of the dock (UX düzeni 5): a friend by username, by showing or scanning a
+ * QR code in person, or by sharing a one-time link; a new circle; a meeting. Whoever is added still
+ * has to say yes (except for a code they scanned: showing it is the yes).
  */
 export const AddSheet = forwardRef<SheetRef, AddSheetProps>(function AddSheet(
   { onDismiss, onClose },
@@ -29,7 +37,7 @@ export const AddSheet = forwardRef<SheetRef, AddSheetProps>(function AddSheet(
 ) {
   const { t } = useTranslation();
   const [sharing, setSharing] = useState(false);
-  const go = (path: '/add/username' | '/add/qr' | '/add/scan' | '/meeting/new') => {
+  const go = (path: '/add/username' | '/add/qr' | '/add/scan' | '/circle/new' | '/meeting/new') => {
     onClose();
     router.push(path);
   };
@@ -75,6 +83,14 @@ export const AddSheet = forwardRef<SheetRef, AddSheetProps>(function AddSheet(
       subtitle: t('add.shareLinkHint'),
       onPress: () => void shareLink(),
     },
+    {
+      icon: Users,
+      title: t('sheets.add.newCircle'),
+      subtitle: t('sheets.add.newCircleHint'),
+      onPress: () => {
+        go('/circle/new');
+      },
+    },
     // A meeting in one of the circles (the project owner's request, docs/ADR/0026).
     {
       icon: Flag,
@@ -90,6 +106,7 @@ export const AddSheet = forwardRef<SheetRef, AddSheetProps>(function AddSheet(
       {options.map((option, index) => (
         <Appear key={option.title} index={index}>
           <ListRow
+            testID={`add-${String(index)}`}
             leading={<OptionIcon icon={option.icon} busy={option.icon === Share2 && sharing} />}
             title={option.title}
             subtitle={option.subtitle}

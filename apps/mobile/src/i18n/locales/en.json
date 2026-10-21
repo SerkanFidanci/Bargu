@@ -140,11 +140,13 @@
       "emptyAction": "Add a friend"
     },
     "add": {
-      "title": "Add a friend",
+      "title": "Add",
       "byUsername": "Search by username",
       "showQr": "Show my QR code",
       "shareLink": "Share an invite link",
-      "soon": "Adding friends arrives in the next update."
+      "soon": "Adding friends arrives in the next update.",
+      "newCircle": "Create a circle",
+      "newCircleHint": "A group with your family or friends"
     },
     "me": {
       "title": "Me",
@@ -172,7 +174,7 @@
       "mapAppearance_dark": "Dark",
       "mapData": "Map data",
       "mapDataDetail": "© OpenStreetMap contributors · ODbL licence · Weather: Open-Meteo (CC BY 4.0)",
-      "notifications": "Notifications",
+      "notifications": "Notification preferences",
       "notifications_enabled": "On",
       "notifications_denied": "Off · tap to turn on",
       "notifications_unavailable": "Not in this version yet",
@@ -184,7 +186,7 @@
       "historyOn": "On in {{count}} circles",
       "security": "Security",
       "securityDetail": "App lock, lost phone, events",
-      "privacy": "Privacy and account",
+      "privacy": "Account and data",
       "privacyDetail": "Notice, consent, your data, deleting the account",
       "notifications_undetermined": "Off · tap to turn on",
       "guardians": "Parent link",
@@ -201,7 +203,17 @@
       "effectsDetail_reduced": "Only short, one-off effects; nothing repeats.",
       "effectsDetail_off": "No motion, celebrations or vibration.",
       "effectsSystem": "Your phone's Reduce Motion is on: motion is off.",
-      "effectsSaving": "Battery saving or a low battery: for now it plays as Less, people move only with a new location. Back to Full afterwards."
+      "effectsSaving": "Battery saving or a low battery: for now it plays as Less, people move only with a new location. Back to Full afterwards.",
+      "sectionLocation": "Location and privacy",
+      "sectionNotifications": "Notifications",
+      "sectionLook": "Look and map",
+      "sectionSecurity": "Security",
+      "sectionAccount": "Bargu+ and account",
+      "sectionApp": "App",
+      "seers": "Who sees my location",
+      "seersGhost": "Ghost on: nobody sees it",
+      "seersNone": "Nobody sees it right now",
+      "seersCount": "Seen by: {{count}}"
     }
   },
   "ui": {
@@ -398,7 +410,9 @@
       "pending": "Pending",
       "memberCount": "People: {{count}}",
       "addFriend": "Add a friend",
-      "newCircle": "Create a circle"
+      "newCircle": "Create a circle",
+      "noFriends": "No friends yet. Add them by username, QR code or a link.",
+      "noGroups": "No groups yet. Make a circle with your family or friends."
     },
     "keys": {
       "ready": "Encrypted",
@@ -468,7 +482,9 @@
       "offlineBody": "This circle could not be opened right now. It opens on its own once connected.",
       "pausedTitle": "This circle is paused",
       "pausedBody": "Nobody has Bargu+: live location, history and arrival notices wait. Pokes, status, places and meetings still work. One of you getting Bargu+ keeps it open.",
-      "pausedPlus": "See Bargu+"
+      "pausedPlus": "See Bargu+",
+      "leaveHint": "If you leave, your location no longer goes to this circle; coming back takes a new invite.",
+      "unfriendHint": "If you end the friendship, your locations no longer go to each other; a new request is needed to be friends again."
     },
     "invite": {
       "title": "Add people",
@@ -673,7 +689,9 @@
       "notifications": "Notifications",
       "close": "Close the menu",
       "history": "History",
-      "meet": "Meet"
+      "meet": "Meet",
+      "friendship": "Friendship",
+      "circle": "Circle"
     },
     "card": {
       "noLocation": "Location not visible right now",
@@ -686,7 +704,10 @@
       "batteryCharging": "Battery {{level}}%, charging",
       "coarse": "Approximate location (they share their area or city with you)",
       "close": "Close the card",
-      "statusLeft": "{{hours}} h left"
+      "statusLeft": "{{hours}} h left",
+      "muted": "Muted",
+      "notifications": "{{name}}: notifications",
+      "notificationsMuted": "{{name}}: notifications muted"
     },
     "poke": {
       "sent": "You poked {{name}}",
@@ -924,7 +945,9 @@
     "historyWho": "Who sees my history?",
     "deleteHistory": "Delete my history too",
     "deleteHistoryTitle": "Delete your location history?",
-    "deleteHistoryBody": "Location history turns off in every circle and the copy on the server is deleted. This cannot be undone."
+    "deleteHistoryBody": "Location history turns off in every circle and the copy on the server is deleted. This cannot be undone.",
+    "circleSettings": "Sharing with this circle",
+    "circleSettingsHint": "Change what you share with {{name}}, and for how long"
   },
   "notice": {
     "title": "Privacy notice",
@@ -962,7 +985,7 @@
     "offline": "No connection; could not check your consent. Try again in a moment."
   },
   "privacy": {
-    "title": "Privacy and account",
+    "title": "Account and data",
     "noticeTitle": "Privacy policy and notice",
     "noticeBody": "How your data is processed, who receives it, and your rights.",
     "noticeRead": "You read it on {{date}}.",
@@ -1209,5 +1232,27 @@
       "more": "+{{count}}",
       "label": "Meeting, {{title}}: {{text}}. Opens the meeting."
     }
+  },
+  "notificationPrefs": {
+    "title": "Notification preferences",
+    "push_enabled": "Notifications are on",
+    "push_denied": "Notifications are off",
+    "push_undetermined": "Notifications not allowed yet",
+    "push_unknown": "Checking…",
+    "push_unavailable": "No notifications in this version",
+    "pushHint": "The phone's settings turn notifications on and off. Here you mute people and places one by one, or unmute them.",
+    "allow": "Allow notifications",
+    "settings": "Open phone settings",
+    "people": "Muted by you",
+    "places": "Muted places",
+    "noneTitle": "You have muted nobody",
+    "noneBody": "Tap someone on the map and the bell on their card.",
+    "someone": "Someone no longer in your circles",
+    "somePlace": "A deleted place",
+    "comings": "Arrivals and departures",
+    "pokes": "Pokes",
+    "unmute": "Unmute",
+    "unmuteLabel": "Turns notifications from {{name}} back on",
+    "howTo": "You mute a person with the bell on their card on the map, a place on its own screen. Muting is for this phone only."
   }
 }

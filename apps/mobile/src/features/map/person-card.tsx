@@ -2,6 +2,8 @@ import {
   BatteryCharging,
   BatteryLow,
   BatteryMedium,
+  Bell,
+  BellOff,
   Flag,
   Hand,
   History,
@@ -9,6 +11,8 @@ import {
   MapPin,
   Navigation,
   UserRound,
+  Users,
+  X,
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,14 +31,17 @@ import { avatarSize, elevation, radius, space, spring, useTheme } from '@/theme'
 import { useMotion } from '@/theme/use-motion';
 import { Avatar } from '@/ui/avatar';
 import { ActionTile } from '@/ui/action-tile';
+import { IconButton } from '@/ui/icon-button';
 import { Text } from '@/ui/text';
 
 import { useNow } from '../location/clock';
+import { loadMuteSettings } from '../notifications/mute-session';
+import { personMutes, useMutes } from '../notifications/mutes';
 import { statusOf, useStatuses } from '../social/status';
 import { useMyFix } from '../location/engine';
 import { distanceBetween } from './glide';
 import { LOW_BATTERY, staleMinutes } from './people-layer';
-import type { PersonView } from './person-actions';
+import { circleActionLabel, type PersonView } from './person-actions';
 import { closeCard, type PersonAction, type ScreenPoint } from './person-focus';
 import { distanceText } from './distance-text';
 
@@ -60,9 +67,10 @@ function useBackToClose(open: boolean): void {
 
 /**
  * A person's card (BARGU_PLAN §4.3 "Kişi Sheet'i"): how long ago, where (place name read from the
- * map on the phone), how far, battery, and the same actions as the radial menu. Opening it, their
- * avatar flies from the map into the card (a shared-element transition on the UI thread); drag
- * down, tap the map or press back to close it.
+ * map on the phone), how far, battery, and the same actions as the radial menu: their notifications
+ * too, by the bell, which shows when they are silenced (UX düzeni 1). Opening it, their avatar flies
+ * from the map into the card (a shared-element transition on the UI thread); the ×, a drag down, a
+ * tap on the map or back closes it.
  */
 export function PersonCard({
   person,
@@ -96,6 +104,10 @@ export function PersonCard({
   useBackToClose(true);
 
   const loc = person.location?.loc ?? null;
+  loadMuteSettings();
+  const silenced = personMutes(useMutes(), person.userId);
+  const quiet = silenced.places || silenced.pokes;
+  const circleLabel = circleActionLabel(person);
   const status = statusOf(useStatuses(), person.userId, now);
   const minutes = loc === null ? undefined : staleMinutes(loc.ts, now);
 
@@ -182,9 +194,31 @@ export function PersonCard({
                 {person.name}
               </Text>
               <Text variant="footnote" color="textMuted">
-                {person.handle === undefined ? when : `${person.handle} · ${when}`}
+                {[person.handle, when, quiet ? t('map.card.muted') : undefined]
+                  .filter((part) => part !== undefined)
+                  .join(' · ')}
               </Text>
             </View>
+            <IconButton
+              testID="card-notifications"
+              icon={quiet ? BellOff : Bell}
+              tone="plain"
+              label={
+                quiet
+                  ? t('map.card.notificationsMuted', { name: person.name })
+                  : t('map.card.notifications', { name: person.name })
+              }
+              onPress={() => {
+                onAction('notifications');
+              }}
+            />
+            <IconButton
+              testID="card-close"
+              icon={X}
+              tone="plain"
+              label={t('map.card.close')}
+              onPress={closeCard}
+            />
           </View>
           {status === null ? null : (
             <View style={[styles.status, { backgroundColor: colors.surface }]}>
@@ -259,8 +293,8 @@ export function PersonCard({
             />
             <ActionTile
               testID="card-profile"
-              label={t('map.actions.profile')}
-              icon={UserRound}
+              label={t(`map.actions.${circleLabel}`)}
+              icon={circleLabel === 'friendship' ? UserRound : Users}
               onPress={() => {
                 onAction('profile');
               }}
@@ -307,7 +341,7 @@ const styles = StyleSheet.create({
     padding: space.xl,
     gap: space.lg,
   },
-  header: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: HEADER },
+  header: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: HEADER },
   avatar: { width: HEADER, height: HEADER },
   inFlight: { zIndex: 1 },
   titles: { flex: 1, gap: space.xxs },

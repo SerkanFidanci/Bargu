@@ -18,6 +18,13 @@ export interface PersonView {
   location: ReceivedLocation | null;
   /** The friendship (pair circle), else the first group the two share. */
   circleId: string | null;
+  /** Which of the two that is: the card names its button after it (UX düzeni 11). */
+  circleKind: 'pair' | 'group' | null;
+}
+
+/** The card's and menu's name for the circle button: what it opens. */
+export function circleActionLabel(person: Pick<PersonView, 'circleKind'>): 'friendship' | 'circle' {
+  return person.circleKind === 'pair' ? 'friendship' : 'circle';
 }
 
 /** Everything the screens know about one person, from the circles and received locations. */
@@ -44,6 +51,7 @@ export function personView(
     avatar: card.avatar,
     location: bestPerPerson(mine)[0] ?? null,
     circleId: pair?.id ?? shared[0]?.id ?? null,
+    circleKind: pair !== undefined ? 'pair' : shared[0] !== undefined ? 'group' : null,
   };
 }
 

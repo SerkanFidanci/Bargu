@@ -29,13 +29,14 @@ const HOVER_SCALE = 1.18;
 function Item({
   action,
   index,
+  label,
   onPick,
 }: {
   action: PersonAction;
   index: number;
+  label: string;
   onPick: (action: PersonAction) => void;
 }) {
-  const { t } = useTranslation();
   const { colors } = useTheme();
   const motion = useMotion();
   const hovered = useAnimatedStyle(() => {
@@ -50,7 +51,7 @@ function Item({
     <Animated.View entering={motion.radialAt(index)} style={styles.item}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t(`map.actions.${action}`)}
+        accessibilityLabel={label}
         onPress={() => {
           onPick(action);
         }}
@@ -61,7 +62,7 @@ function Item({
       </Pressable>
       <View style={[styles.label, { backgroundColor: colors.surfaceRaised }]}>
         <Text variant="caption" allowFontScaling={false}>
-          {t(`map.actions.${action}`)}
+          {label}
         </Text>
       </View>
     </Animated.View>
@@ -72,7 +73,14 @@ function Item({
  * The menu around a held avatar (BARGU_PLAN §4.3): poke, directions, profile, notifications. Hold
  * and slide onto an item, or let go and tap one; tapping anywhere else closes it.
  */
-export function RadialMenu({ onPick }: { onPick: (userId: string, action: PersonAction) => void }) {
+export function RadialMenu({
+  onPick,
+  circleOf,
+}: {
+  onPick: (userId: string, action: PersonAction) => void;
+  /** What the circle button opens for this person: their friendship or a shared circle. */
+  circleOf: (userId: string) => 'friendship' | 'circle';
+}) {
   const { t } = useTranslation();
   const menu = usePersonFocus((state) => state.menu);
   if (menu === null) return null;
@@ -96,7 +104,12 @@ export function RadialMenu({ onPick }: { onPick: (userId: string, action: Person
             pointerEvents="box-none"
             style={[styles.slot, { left: at.x - SLOT / 2, top: at.y - touchTarget / 2 }]}
           >
-            <Item action={action} index={index} onPick={pick} />
+            <Item
+              action={action}
+              index={index}
+              label={t(`map.actions.${action === 'profile' ? circleOf(menu.userId) : action}`)}
+              onPick={pick}
+            />
           </View>
         );
       })}

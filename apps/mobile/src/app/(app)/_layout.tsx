@@ -54,6 +54,7 @@ export default function AppLayout() {
       <Stack.Screen name="history/[userId]" />
       <Stack.Screen name="security" />
       <Stack.Screen name="seers" />
+      <Stack.Screen name="notifications" />
       <Stack.Screen name="privacy" />
       <Stack.Screen name="plus" />
       <Stack.Screen name="consent" options={{ presentation: 'modal' }} />

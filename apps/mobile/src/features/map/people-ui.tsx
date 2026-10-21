@@ -18,7 +18,7 @@ import { errorMessage } from '../errors';
 import { circleSync } from '../live/live-session';
 import { startMeetingWith } from '../plan/quick-meeting';
 import type { BarguMapHandle } from './bargu-map';
-import { type PersonView, personView, runPersonAction } from './person-actions';
+import { type PersonView, circleActionLabel, personView, runPersonAction } from './person-actions';
 import { PersonCard } from './person-card';
 import {
   closeCard,
@@ -211,7 +211,13 @@ export function usePeopleUi(
           onHeight={onCardHeight}
         />
       )}
-      <RadialMenu onPick={act} />
+      <RadialMenu
+        onPick={act}
+        circleOf={(userId) => {
+          const person = personView(userId, circles, useLocations.getState());
+          return person === null ? 'circle' : circleActionLabel(person);
+        }}
+      />
       <MuteSheet ref={muteSheet} person={muting} />
       <TogetherSheet
         ref={groupSheet}

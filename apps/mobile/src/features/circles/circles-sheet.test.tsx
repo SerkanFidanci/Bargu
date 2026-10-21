@@ -122,4 +122,22 @@ describe('CirclesSheet', () => {
     await renderSheet();
     expect(await screen.findByText('Henüz çemberin yok')).toBeTruthy();
   });
+
+  it('says what an empty section would hold and offers its first step (UX düzeni 7)', async () => {
+    const friend = pair(
+      SENT,
+      member('0190a8a0-0000-7000-8000-0000000000b4', 'Ece', 'active'),
+      'active',
+    );
+    mockList.mockResolvedValue([friend]);
+    await renderSheet();
+    expect(await screen.findByTestId('no-groups')).toBeTruthy();
+    expect(
+      screen.getByText('Henüz bir grubun yok. Ailen ya da arkadaşlarınla bir çember kur.'),
+    ).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Çember oluştur'));
+    expect(mockPush).toHaveBeenCalledWith('/circle/new');
+    // Friends are there: no empty friends section.
+    expect(screen.queryByTestId('no-friends')).toBeNull();
+  });
 });

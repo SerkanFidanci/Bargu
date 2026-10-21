@@ -140,11 +140,13 @@
       "emptyAction": "Arkadaş ekle"
     },
     "add": {
-      "title": "Arkadaş ekle",
+      "title": "Ekle",
       "byUsername": "Kullanıcı adıyla ara",
       "showQr": "QR kodumu göster",
       "shareLink": "Davet linki paylaş",
-      "soon": "Arkadaş ekleme bir sonraki güncellemede geliyor."
+      "soon": "Arkadaş ekleme bir sonraki güncellemede geliyor.",
+      "newCircle": "Çember oluştur",
+      "newCircleHint": "Ailen ya da arkadaşlarınla bir grup kur"
     },
     "me": {
       "title": "Ben",
@@ -172,7 +174,7 @@
       "mapAppearance_dark": "Koyu",
       "mapData": "Harita verisi",
       "mapDataDetail": "© OpenStreetMap katkıcıları · ODbL lisansı · Hava durumu: Open-Meteo (CC BY 4.0)",
-      "notifications": "Bildirimler",
+      "notifications": "Bildirim tercihleri",
       "notifications_enabled": "Açık",
       "notifications_denied": "Kapalı · açmak için dokun",
       "notifications_unavailable": "Bu sürümde henüz yok",
@@ -184,7 +186,7 @@
       "historyOn": "{{count}} çemberde açık",
       "security": "Güvenlik",
       "securityDetail": "Uygulama kilidi, kaybolan telefon, olaylar",
-      "privacy": "Gizlilik ve hesap",
+      "privacy": "Hesap ve veri",
       "privacyDetail": "Aydınlatma, rıza, verilerin, hesabı silme",
       "notifications_undetermined": "Kapalı · açmak için dokun",
       "guardians": "Ebeveyn bağlantısı",
@@ -201,7 +203,17 @@
       "effectsDetail_reduced": "Yalnızca kısa, tek seferlik efektler; tekrar eden hareket yok.",
       "effectsDetail_off": "Hareket, kutlama ve titreşim yok.",
       "effectsSystem": "Telefonun \"Hareketi azalt\" ayarı açık: hareketler kapalı.",
-      "effectsSaving": "Pil tasarrufu ya da düşük pil nedeniyle şu an Az gibi: haritadakiler yalnızca yeni konumla kıpırdar. Düzelince Tam'a döner."
+      "effectsSaving": "Pil tasarrufu ya da düşük pil nedeniyle şu an Az gibi: haritadakiler yalnızca yeni konumla kıpırdar. Düzelince Tam'a döner.",
+      "sectionLocation": "Konum ve gizlilik",
+      "sectionNotifications": "Bildirimler",
+      "sectionLook": "Görünüm ve harita",
+      "sectionSecurity": "Güvenlik",
+      "sectionAccount": "Bargu+ ve hesap",
+      "sectionApp": "Uygulama",
+      "seers": "Kimler konumumu görüyor",
+      "seersGhost": "Hayalet açık: kimse görmüyor",
+      "seersNone": "Şu an kimse görmüyor",
+      "seersCount": "Görenler: {{count}}"
     }
   },
   "ui": {
@@ -398,7 +410,9 @@
       "pending": "Bekliyor",
       "memberCount": "{{count}} kişi",
       "addFriend": "Arkadaş ekle",
-      "newCircle": "Çember oluştur"
+      "newCircle": "Çember oluştur",
+      "noFriends": "Henüz arkadaşın yok. Kullanıcı adıyla, QR kodla ya da bir bağlantıyla ekleyebilirsin.",
+      "noGroups": "Henüz bir grubun yok. Ailen ya da arkadaşlarınla bir çember kur."
     },
     "keys": {
       "ready": "Şifreli",
@@ -468,7 +482,9 @@
       "offlineBody": "Bu çember şu an açılamadı. Bağlantı gelince kendiliğinden açılır.",
       "pausedTitle": "Bu çember duraklatıldı",
       "pausedBody": "Kimse Bargu+ kullanmıyor: canlı konum, geçmiş ve varış bildirimleri bekliyor. Dürt, durum, yerler ve buluşma çalışıyor. Açık tutmak için birinizin Bargu+’ya geçmesi yeter.",
-      "pausedPlus": "Bargu+’ya bak"
+      "pausedPlus": "Bargu+’ya bak",
+      "leaveHint": "Ayrılırsan konumun bu çembere gitmez; geri dönmek için yeniden davet gerekir.",
+      "unfriendHint": "Arkadaşlığı bitirirsen konumlarınız birbirine gitmez; yeniden arkadaş olmak için istek gerekir."
     },
     "invite": {
       "title": "Kişi ekle",
@@ -673,7 +689,9 @@
       "notifications": "Bildirimler",
       "close": "Menüyü kapat",
       "history": "Geçmiş",
-      "meet": "Buluş"
+      "meet": "Buluş",
+      "friendship": "Arkadaşlık",
+      "circle": "Çember"
     },
     "card": {
       "noLocation": "Konumu şu an görünmüyor",
@@ -686,7 +704,10 @@
       "batteryCharging": "Pil %{{level}}, şarj oluyor",
       "coarse": "Yaklaşık konum (seninle mahalle ya da şehir düzeyinde paylaşıyor)",
       "close": "Kartı kapat",
-      "statusLeft": "{{hours}} sa daha"
+      "statusLeft": "{{hours}} sa daha",
+      "muted": "Sessizde",
+      "notifications": "{{name}}: bildirimler",
+      "notificationsMuted": "{{name}}: bildirimler sessizde"
     },
     "poke": {
       "sent": "{{name}} dürtüldü",
@@ -924,7 +945,9 @@
     "historyWho": "Geçmişimi kimler görüyor?",
     "deleteHistory": "Geçmişimi de sil",
     "deleteHistoryTitle": "Konum geçmişin silinsin mi?",
-    "deleteHistoryBody": "Bütün çemberlerde konum geçmişi kapanır ve sunucudaki kopyası silinir. Bu geri alınamaz."
+    "deleteHistoryBody": "Bütün çemberlerde konum geçmişi kapanır ve sunucudaki kopyası silinir. Bu geri alınamaz.",
+    "circleSettings": "Bu çemberin paylaşım ayarı",
+    "circleSettingsHint": "{{name}} ile neyi, ne kadar süre paylaştığını değiştir"
   },
   "notice": {
     "title": "Gizlilik ve aydınlatma",
@@ -962,7 +985,7 @@
     "offline": "Bağlantı yok; rıza durumu öğrenilemedi. Biraz sonra yeniden dene."
   },
   "privacy": {
-    "title": "Gizlilik ve hesap",
+    "title": "Hesap ve veri",
     "noticeTitle": "Gizlilik politikası ve aydınlatma metni",
     "noticeBody": "Verilerinin nasıl işlendiği, kimlere gittiği ve hakların.",
     "noticeRead": "{{date}} tarihinde okudun.",
@@ -1209,5 +1232,27 @@
       "more": "+{{count}}",
       "label": "Buluşma, {{title}}: {{text}}. Buluşma ekranını açar."
     }
+  },
+  "notificationPrefs": {
+    "title": "Bildirim tercihleri",
+    "push_enabled": "Bildirimler açık",
+    "push_denied": "Bildirimler kapalı",
+    "push_undetermined": "Bildirimlere henüz izin verilmedi",
+    "push_unknown": "Kontrol ediliyor…",
+    "push_unavailable": "Bu sürümde bildirim yok",
+    "pushHint": "Bildirimleri telefonun ayarları açar ve kapatır. Kişileri ve yerleri tek tek buradan sessize alır ya da sesini açarsın.",
+    "allow": "Bildirimlere izin ver",
+    "settings": "Telefon ayarlarını aç",
+    "people": "Sessize aldıkların",
+    "places": "Sessize alınan yerler",
+    "noneTitle": "Kimseyi sessize almadın",
+    "noneBody": "Haritada birine dokun, kartındaki zile bas.",
+    "someone": "Artık çemberlerinde olmayan biri",
+    "somePlace": "Silinmiş bir yer",
+    "comings": "Varışlar ve ayrılışlar",
+    "pokes": "Dürtmeler",
+    "unmute": "Sesi aç",
+    "unmuteLabel": "{{name}} için bildirimler yeniden açılır",
+    "howTo": "Bir kişiyi haritada kartındaki zilden, bir yeri kendi ekranından sessize alırsın. Sessize almak yalnızca bu telefonda geçerli."
   }
 }

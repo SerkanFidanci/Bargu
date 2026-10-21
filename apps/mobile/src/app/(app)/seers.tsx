@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { EyeOff, Ghost, History, Play, Square } from 'lucide-react-native';
+import { EyeOff, Ghost, History, Play, SlidersHorizontal, Square } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
@@ -123,6 +123,17 @@ export default function SeersScreen() {
                         title={memberName(member)}
                       />
                     ))}
+                    {/* What is shared with this circle is changed there (UX düzeni 4). */}
+                    <Button
+                      testID={`seers-open-${circle.id}`}
+                      label={t('seers.circleSettings')}
+                      accessibilityHint={t('seers.circleSettingsHint', { name: title })}
+                      icon={SlidersHorizontal}
+                      variant="ghost"
+                      onPress={() => {
+                        router.push({ pathname: '/circle/[id]', params: { id: circle.id } });
+                      }}
+                    />
                   </View>
                 );
               })}

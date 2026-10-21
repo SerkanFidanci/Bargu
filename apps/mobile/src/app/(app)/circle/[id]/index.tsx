@@ -142,6 +142,7 @@ export default function CircleScreen() {
 
 function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
   const actions = useCircleActions();
   const status = useCircleKeys((state) => state[circle.id]);
   const celebrate = useCelebration((state) => state.celebrate);
@@ -377,7 +378,12 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
       ) : null}
 
       {active ? (
-        <Appear index={5}>
+        <Appear index={5} style={[styles.leave, { borderTopColor: colors.border }]}>
+          {pair && partner?.status === 'invited' ? null : (
+            <Text variant="footnote" color="textMuted">
+              {pair ? t('circles.detail.unfriendHint') : t('circles.detail.leaveHint')}
+            </Text>
+          )}
           <Button
             testID="leave-circle"
             label={
@@ -706,6 +712,13 @@ function Notice({
 }
 
 const styles = StyleSheet.create({
+  // Leaving stands apart from the rest, under a line (UX düzeni 6).
+  leave: {
+    gap: space.sm,
+    marginTop: space.md,
+    paddingTop: space.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   hero: { alignItems: 'center', gap: space.sm, paddingVertical: space.md },
   heroIcon: {
     width: 96,

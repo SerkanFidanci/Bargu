@@ -5,6 +5,7 @@ import {
   Clock,
   Heart,
   Lock,
+  type LucideIcon,
   Plus,
   ShieldAlert,
   UserPlus,
@@ -28,6 +29,7 @@ import { ListRow } from '@/ui/list-row';
 import { SectionTitle } from '@/ui/screen';
 import { Sheet, type SheetRef } from '@/ui/sheet';
 import { Skeleton } from '@/ui/skeleton';
+import { Text } from '@/ui/text';
 
 import { useAuth } from '../auth/auth-store';
 import { useNow } from '../location/clock';
@@ -61,6 +63,10 @@ export const CirclesSheet = forwardRef<SheetRef, CirclesSheetProps>(function Cir
   const open = (circle: Circle) => {
     onClose();
     router.push({ pathname: '/circle/[id]', params: { id: circle.id } });
+  };
+  const newCircle = () => {
+    onClose();
+    router.push('/circle/new');
   };
 
   let body;
@@ -97,7 +103,16 @@ export const CirclesSheet = forwardRef<SheetRef, CirclesSheetProps>(function Cir
             ))}
           </View>
         )}
-        {friends.length === 0 ? null : (
+        {friends.length === 0 ? (
+          <EmptySection
+            testID="no-friends"
+            title={t('circles.sheet.friends')}
+            body={t('circles.sheet.noFriends')}
+            action={t('circles.sheet.addFriend')}
+            icon={UserPlus}
+            onPress={onAdd}
+          />
+        ) : (
           <View style={styles.section}>
             <SectionTitle>{t('circles.sheet.friends')}</SectionTitle>
             {friends.map((circle, index) => (
@@ -112,7 +127,16 @@ export const CirclesSheet = forwardRef<SheetRef, CirclesSheetProps>(function Cir
             ))}
           </View>
         )}
-        {groups.length === 0 ? null : (
+        {groups.length === 0 ? (
+          <EmptySection
+            testID="no-groups"
+            title={t('circles.sheet.groups')}
+            body={t('circles.sheet.noGroups')}
+            action={t('circles.sheet.newCircle')}
+            icon={Plus}
+            onPress={newCircle}
+          />
+        ) : (
           <View style={styles.section}>
             <SectionTitle>{t('circles.sheet.groups')}</SectionTitle>
             {groups.map((circle, index) => (
@@ -128,16 +152,17 @@ export const CirclesSheet = forwardRef<SheetRef, CirclesSheetProps>(function Cir
           </View>
         )}
         <View style={styles.actions}>
-          <Button label={t('circles.sheet.addFriend')} icon={UserPlus} onPress={onAdd} />
-          <Button
-            label={t('circles.sheet.newCircle')}
-            icon={Plus}
-            variant="secondary"
-            onPress={() => {
-              onClose();
-              router.push('/circle/new');
-            }}
-          />
+          {friends.length === 0 ? null : (
+            <Button label={t('circles.sheet.addFriend')} icon={UserPlus} onPress={onAdd} />
+          )}
+          {groups.length === 0 ? null : (
+            <Button
+              label={t('circles.sheet.newCircle')}
+              icon={Plus}
+              variant="secondary"
+              onPress={newCircle}
+            />
+          )}
         </View>
       </>
     );
@@ -149,6 +174,36 @@ export const CirclesSheet = forwardRef<SheetRef, CirclesSheetProps>(function Cir
     </Sheet>
   );
 });
+
+/**
+ * A section with nothing in it yet (UX düzeni 7): what would be there and the way to start it,
+ * instead of leaving the section out.
+ */
+function EmptySection({
+  title,
+  body,
+  action,
+  icon,
+  onPress,
+  testID,
+}: {
+  title: string;
+  body: string;
+  action: string;
+  icon: LucideIcon;
+  onPress: () => void;
+  testID: string;
+}) {
+  return (
+    <View style={styles.section} testID={testID}>
+      <SectionTitle>{title}</SectionTitle>
+      <Text variant="footnote" color="textMuted">
+        {body}
+      </Text>
+      <Button label={action} icon={icon} variant="secondary" onPress={onPress} />
+    </View>
+  );
+}
 
 /** An invitation waiting for an answer: who asks, and accept or decline right here. */
 function RequestRow({ circle }: { circle: Circle }) {
