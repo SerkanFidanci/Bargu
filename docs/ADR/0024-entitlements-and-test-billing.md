@@ -10,7 +10,8 @@
   silinmez, duraklar.
 - **Paketler (PM, 2026-10-16):** BARGU_PLAN Faz 9B'deki tablo. Bedava davetli üye, 21 günlük deneme
   (kart istenmez, kendiliğinden ücretliye geçmez), Bargu+ ₺99,99/ay ya da ₺799,99/yıl. Tek seferlik
-  süs paketleri ₺29,99 ve ₺49,99. Güvenlik ve gizlilik özellikleri hep bedava. 15–17 yaşta satın
+  süs paketleri: tek paket ₺29,99 ("Halka desenleri", "Pin çerçeveleri"), sezon paketleri ₺49,99
+  (PM, 2026-10-21). Güvenlik ve gizlilik özellikleri hep bedava. 15–17 yaşta satın
   alma ebeveyn onayıyla.
 - **Sahte ödeme (proje sahibi, 2026-10-16):** "launchu ertele paymenide daha paketlerimiz yok
   şimdlik fake payment yapabilirsin." Play geliştirici hesabı henüz yok. Ödeme akışı test satın

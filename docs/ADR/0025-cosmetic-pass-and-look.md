@@ -102,7 +102,7 @@ her paket için len ‖ paket` (paketler sıralı ve tekil, en çok 6; kimlikler
 
 ## Ek (2026-10-21, Faz 9B dilim 3b: süsler haritadaki pinde)
 
-- Durum: PM onayı bekliyor.
+- Durum: Kabul edildi (PM, 2026-10-21; `island`/`edge` → `ring`/`frame` adları da).
 - İlgili: [ADR 0008](0008-design-system-and-map.md) (pin ve kendi pinin),
   [ADR 0027](0027-calm-mode-and-motion-budget.md) (sade mod).
 
@@ -128,7 +128,8 @@ bilgisi ve 15–17 kuralı değişmedi; yalnızca adlar, çizim ve hareket sın�
   tokenlarındadır.
 - Kendi pinin, arkadaşların pinleri ve "Görünüm ve harita"daki önizleme aynı bileşeni kullanır.
 - **Ortak pinde** (iki ya da daha çok kişi bir arada, `ClusterBubble`) süs çizilmez: ortak halka
-  kimsenin değildir. Ayrılınca herkesin süsü yine görünür.
+  kimsenin değildir. Ayrılınca herkesin süsü yine görünür. PM onayı: iki kişinin stilini karıştırmak
+  karışık durur.
 - Eski bir konumda pin gri olur; süs de soluk ve durağan çizilir.
 - **Ad ve yaş yazısı** pinin altındaki kendi zeminli hapta durur; süs yalnızca halka ve çerçeveyle
   sınırlıdır ve yazının üstüne gelmez. Her süs için açık ve koyu temada testle denenir.
@@ -159,7 +160,12 @@ bilgisi ve 15–17 kuralı değişmedi; yalnızca adlar, çizim ve hareket sın�
 - **Bilinen eksik:** sunucu 15–17'nin paket isteğini henüz açmıyor, `403 GUARDIAN_APPROVAL` döner
   (ADR 0024: "dilim 3'e kadar reddedilir, istek açılmaz"). Uygulama bunu hata saymaz, "bu paket için
   ebeveyn onayı gerekiyor" der. Ebeveyn tarafı (`guardian_requests`'e `cosmetic:` ürünü, ebeveyn
-  görünümü, onayda satın alma) ayrı bir sunucu işidir.
+  görünümü, onayda satın alma) ayrı bir sunucu işidir: dilim 3c (PM, 2026-10-21; kasma ve C2'den
+  sonra). Abonelik isteği ile süs isteği birbirini silmez, ebeveyn ikisini de görür; paket başına tek
+  bekleyen istek; seviye kuralı satın alma isteğindeki gibi. O zamana kadar 15–17 süs satın alamaz.
+- **Üretim:** üretim derlemesi hiçbir süs anahtarına güvenmez (yalnızca önizleme `stg-1`'e); üretim
+  anahtarı ve `kid` Faz 10'da üretilip üretim yapılandırmasına girer (PM, 2026-10-21). O zamana kadar
+  üretimde süs görünmez (§2).
 - Belge şu durumlarda yenilenir (§1'deki "yarısından azı kaldıysa" koşuluna ek): uygulama
   açılırken, `plan.changed`'de, bağlantı geri gelince, plan belgenin adlandırmadığı bir paket
   gösterince ve satın almadan hemen sonra. Paket satın almak `plan.changed` yollamadığı için son
