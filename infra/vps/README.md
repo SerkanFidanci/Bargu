@@ -80,11 +80,15 @@ ssh bargu-server 'sh -s' < infra/staging/apply-pending.sh                # uygul
 ```
 
 [`apply-pending.sh`](../staging/apply-pending.sh) her adımı Türkçe yazar, yapılmış olanı
-"zaten yapılmış" diye geçer (ikinci çalıştırma hiçbir şeyi değiştirmez). Adımlar:
+"zaten yapılmış" diye geçer (ikinci çalıştırma hiçbir şeyi değiştirmez). **İlk satırı bir
+uyarıdır** (kuru çalıştırmada da, gerçekte de): "Önce bütün telefonlara yeni APK'yı (seviye 4) kur;
+bu betik eski sürümleri kapatır." Betik telefonların sürümünü bilemez; APK'lar kurulmadan çalıştırma.
+Adımlar:
 
 1. `.env` ve `compose.yml` tarih damgalı yedeklenir (`.env.bak-…`, `compose.yml.bak-…`; sadece bir
    şey değişecekse).
-2. `.env` içinde `MIN_CLIENT_LEVEL=3` yapılır (eski uygulama sürümleri güncelleme ister).
+2. `.env` içinde `MIN_CLIENT_LEVEL=4` yapılır (seviye 4'ten eski uygulama sürümleri güncelleme
+   ister).
 3. `compose.yml` içinde `BILLING_TEST` satırından sonra üç `WATCH_PUSH*` satırı eklenir (arka plan
    canlı modu); sonra `docker compose config` ile doğrulanır, bozuksa yedekler geri konur.
 4. Sahip ve izinler düzeltilir: `deploy:deploy`, `.env` 0600, `compose.yml` 0640.
@@ -92,14 +96,26 @@ ssh bargu-server 'sh -s' < infra/staging/apply-pending.sh                # uygul
    günlük yapısı, yakınlaştırma 0-6, yaklaşık 45 MB; bugünün yapısı yoksa dünkü; 7 günden yeniyse
    atlanır). Dosya yokken uygulama haritası bugünkü gibi çalışır
    ([ADR 0008](../../docs/ADR/0008-design-system-and-map.md)).
-6. `docker compose up -d --wait worker api` (sadece yeni ayarlarla çalışmıyorlarsa).
-7. Son kontrol: api konteynerindeki `MIN_CLIENT_LEVEL` ve `WATCH_PUSH*` değerleri (başka hiçbir
-   değer ve gizli bilgi yazılmaz), `/health/live` ve `world.pmtiles` boyutu.
+6. nginx: `/map/` altında bulunamayan dosyanın (404) önbelleğe alınması kapatılır. Eskiden
+   `add_header Cache-Control "public, max-age=86400" always` her yanıta, 404'e de, bir gün
+   önbellek yazıyordu; `world.pmtiles` yokken sorulan telefonlar dosya gelse de bir gün haritayı
+   göremezdi. Şimdi 200, 206 ve 304 uzun önbellek, geri kalanı `no-store`
+   ([`bargu-staging.conf`](../staging/nginx/bargu-staging.conf), nginx `map $status`). Kurulu site
+   dosyası (`/etc/nginx/sites-available/bargu-staging`) iki küçük metin değişikliğiyle düzenlenir,
+   yedeği `/opt/bargu/staging/bargu-staging.nginx.bak-…` olur. **Bu nginx başka sitelere de hizmet
+   veriyor** (rastamen): önce `nginx -t` bütün yapılandırmayı denetler, bozuksa yedek geri konur ve
+   reload yapılmaz; sonra yalnız `systemctl reload nginx` (asla restart). Aynı değişiklik
+   `setup-nginx.sh` ile yeni kurulumlara da gelir (şablon güncellendi).
+7. `docker compose up -d --wait worker api` (sadece yeni ayarlarla çalışmıyorlarsa).
+8. Son kontrol: api konteynerindeki `MIN_CLIENT_LEVEL` ve `WATCH_PUSH*` değerleri (başka hiçbir
+   değer ve gizli bilgi yazılmaz), `/health/live`, `world.pmtiles` boyutu ve `/map/` altındaki
+   404'ün `Cache-Control` başlığı.
 
-Güvenlik: script **sadece** `/opt/bargu/staging` ve `/srv/bargu-map` içine yazar (her yazma tek bir
-koruma fonksiyonundan geçer, dışarıdaki yol Türkçe hatayla reddedilir); sunucudaki diğer projeye
-(rastamen) dokunmaz. Yeniden başlatma başarısız olursa yedekler geri yüklenir. Eski yedekler
-silinmez.
+Güvenlik: script **sadece** `/opt/bargu/staging` ve `/srv/bargu-map` içine yazar, bir tek istisnayla:
+kurulu Bargu nginx site dosyası, **tam yol eşleşmesiyle** (ön ek değil; `/etc/nginx` altında başka
+hiçbir dosya yazılamaz). Her yazma tek bir koruma fonksiyonundan geçer, dışarıdaki yol Türkçe
+hatayla reddedilir; sunucudaki diğer projeye (rastamen) dokunmaz. Yeniden başlatma başarısız olursa
+yedekler geri yüklenir. Eski yedekler silinmez.
 
 ## Günlük işler
 
