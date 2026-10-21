@@ -12,6 +12,43 @@ const MAP_URL = '__MAP_URL__';
 const SOURCE = 'protomaps';
 const ATTRIBUTION = '© OpenStreetMap';
 
+// A second, low-detail source under the Turkey one: the same Protomaps planet build cut at zoom 6
+// (infra/staging/apply-pending.sh, 45 MB), so the world outside Turkey is not empty. Beyond zoom 6
+// MapLibre overzooms it (the source says maxzoom 6). Turkey keeps its own layers on top, untouched.
+// If the file is not on the server the source fails to load and its layers draw nothing; the map
+// then looks as it did before (docs/ADR/0008, "Dünya katmanı").
+const WORLD_SOURCE = 'world';
+const WORLD_MAXZOOM = 6;
+const WORLD_ID_PREFIX = 'world_';
+// Only what reads at a glance when zoomed out: land, water, borders, and the big names. Roads,
+// parks, buildings and pois would only add layers (and noise) at this level of detail.
+const WORLD_LAYER_IDS = [
+  'earth',
+  'landcover',
+  'water',
+  'boundaries_country',
+  'boundaries',
+  'water_label_ocean',
+  'places_region',
+  'places_locality',
+  'places_country',
+];
+
+/**
+ * The world layers, in the basemap's own drawing order, under ids of their own. The basemap's
+ * background is not repeated: the Turkey style draws it once, below everything.
+ */
+function worldLayers(flavor) {
+  const wanted = new Set(WORLD_LAYER_IDS);
+  const found = layers(WORLD_SOURCE, flavor, { lang: 'tr' })
+    .filter((layer) => wanted.has(layer.id))
+    .map((layer) => ({ ...layer, id: `${WORLD_ID_PREFIX}${layer.id}` }));
+  if (found.length !== wanted.size) {
+    throw new Error('@protomaps/basemaps no longer has every world layer; update WORLD_LAYER_IDS');
+  }
+  return found;
+}
+
 // Quiet, warm base so avatars (saturated palette) stand out; water and parks stay recognisable.
 const flavors = {
   light: {
@@ -118,6 +155,9 @@ const flavors = {
 };
 
 for (const [name, flavor] of Object.entries(flavors)) {
+  // The Turkey layers exactly as before: the background first (it paints everything), then the
+  // world, then the rest of Turkey on top.
+  const [background, ...turkey] = layers(SOURCE, flavor, { lang: 'tr' });
   const style = {
     version: 8,
     name: `bargu-${name}`,
@@ -127,10 +167,16 @@ for (const [name, flavor] of Object.entries(flavors)) {
         url: `pmtiles://${MAP_URL}/tiles/turkey.pmtiles`,
         attribution: ATTRIBUTION,
       },
+      [WORLD_SOURCE]: {
+        type: 'vector',
+        url: `pmtiles://${MAP_URL}/tiles/world.pmtiles`,
+        maxzoom: WORLD_MAXZOOM,
+        attribution: ATTRIBUTION,
+      },
     },
     glyphs: `${MAP_URL}/fonts/{fontstack}/{range}.pbf`,
     sprite: `${MAP_URL}/sprites/v4/${name}`,
-    layers: layers(SOURCE, flavor, { lang: 'tr' }),
+    layers: [background, ...worldLayers(flavor), ...turkey],
   };
   const file = new URL(`../src/features/map/styles/${name}.json`, import.meta.url);
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed output files inside this repo (styles/<light|dark>.json)

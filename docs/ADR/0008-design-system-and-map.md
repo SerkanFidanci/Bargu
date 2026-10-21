@@ -61,6 +61,18 @@ marka kararı (renk, yazı tipi) ve bazı kütüphane seçimleri burada netleşt
   (sürümler sabit, indirilen araç SHA-256 ile doğrulanıyor).
 - Stil: Protomaps katmanları, Türkçe etiketler, açık/koyu tema için marka renkleriyle
   (`apps/mobile/scripts/build-map-styles.mjs` üretir, çıktı depoda).
+- **Dünya katmanı** (sonradan eklendi): Türkiye dışında harita boş kalmasın diye aynı Protomaps
+  yapısından `--maxzoom=6` ile kesilmiş ikinci bir dosya (`world.pmtiles`, yaklaşık 45 MB) stile
+  ikinci kaynak olarak girer ve Türkiye katmanlarının **altında** çizilir (arka plan, dünya,
+  Türkiye). Yalnızca kara, su, sınırlar ve büyük yer adları var (`world_` önekli 9 katman); yol,
+  park, bina yok. Kaynak `maxzoom: 6` diyor, daha yakında MapLibre aynı karoyu büyütür. Türkiye
+  katmanları öncekiyle birebir aynı (testle korunuyor). **Dosya sunucuda yoksa**: MapLibre Native
+  (uygulamadaki sürüm Android 13.6.1; kaynak kodu bu etiketten okundu, iOS aynı C++ çekirdeğini
+  kullanır) PMTiles başlığını isteyince 404 alır, `NotFound` hatasıyla kaynağı "yüklenemedi" diye
+  işaretler ve yalnızca günlüğe yazar; yeniden deneme yok (yalnızca bağlantı ve 5xx hataları
+  yeniden denenir), harita yükleme hatası olayı (`onDidFailLoadingMap`) tetiklenmez, o kaynağa
+  bağlı katmanlar hiçbir şey çizmez ve harita bugünkü gibi görünür. Dosya
+  `infra/staging/apply-pending.sh` ile kurulur.
 - **Görünüm**: harita gündüz açık, 20:00–07:00 arası koyu (plan §4.3 "gece otomatik koyu"); "Ben"
   panelinden Otomatik / Açık / Koyu seçilebilir (yalnızca telefonda saklanır). Koyu tema siyah
   değil, okunur bir gece mavisi.
