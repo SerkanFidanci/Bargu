@@ -146,7 +146,9 @@ yukarıdaki katmanla aynı kapı; üretim paketinde yok) ve açılış işi okun
   takılma, içinde biten en uzun adlı işin adını alır. Yalnızca sabit iş adları ve milisaniye tutulur:
   konum, ileti, kişi yok; konsola ya da sunucuya hiçbir şey gitmez (`no-console` kuralı yüzünden de
   günlük yerine ölçüm paneli kullanıldı). Panelde "İlk 10 sn'deki takılmalar" ve yerel şifre öz
-  testinin süresi görünür.
+  testinin süresi görünür. "10 sn yeniden izle" düğmesi aynı sayacı sonradan bir daha başlatır
+  (bot koşarken, bir sayfa açılırken kasmayı yakalamak için); `render.map` adı haritanın ve
+  üstündeki herkesin son çiziminin süresidir (React Profiler; üretimde React bunu bildirmez).
 - **Anlık görüntü (relay'in "locations", "statuses", "profiles" cevapları)** her bağlantıda gelir:
   sunucu her gönderici cihaz ve çember için yalnızca **en yenisini** tutar, yani 5 saniyede bir konum
   gönderen bot birikmiş yüzlerce ileti bırakmaz; boyut, çember sayısı × üye sayısıdır. Maliyet,

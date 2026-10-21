@@ -709,6 +709,12 @@ function restoreNow(): void {
 export const useLiveUntil = create<{ until: number }>(() => ({ until: 0 }));
 
 onLiveMessage((name, payload) => {
+  timed('live.message', () => {
+    handleLive(name, payload);
+  });
+});
+
+function handleLive(name: string, payload: unknown): void {
   if (name === 'loc') {
     const parsed = locEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope);
@@ -745,7 +751,7 @@ onLiveMessage((name, payload) => {
       useLiveUntil.setState({ until: Date.now() + LIVE_MS });
     }
   }
-});
+}
 
 /** After every (re)connection: everyone's latest location, and what waited to be sent. */
 onOnline(() => {

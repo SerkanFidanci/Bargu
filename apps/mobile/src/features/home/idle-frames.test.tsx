@@ -145,6 +145,45 @@ describe('frames on the map while nobody touches it (docs/ADR/0027)', () => {
     expect(await framesWhileIdle(1_000, 1_000)).toBeGreaterThan(0);
   });
 
+  it('none once a person who kept changing what they do (a tour) is off the map', async () => {
+    // The owner's test friend switches between walking, running, cycling, driving, a race car, a
+    // train and a plane every minute or two, for hours: each switch starts the next drawing's
+    // loops and must end the last one's. Taken off the map, nothing may keep asking for frames.
+    const tour: MarkerActivity[] = [
+      'walking',
+      'running',
+      'cycling',
+      'driving',
+      'racing',
+      'train',
+      'plane',
+      'settled',
+    ];
+    const bot = (activity: MarkerActivity, round: number) => (
+      <AvatarMarker
+        name="bot"
+        avatar={null}
+        activity={activity}
+        speed={activity === 'plane' ? 89 : 14}
+        heading={(round * 47) % 360}
+        news={round}
+      />
+    );
+    const view = await render(bot('walking', 0));
+    for (let round = 0; round < 6; round += 1) {
+      for (const activity of tour) {
+        await view.rerender(bot(activity, round));
+        await act(() => {
+          jest.advanceTimersByTime(300);
+        });
+      }
+    }
+    // Still on the map it moves (the last stop's clock), and when it leaves nothing remains.
+    expect(await framesWhileIdle(500, 1_000)).toBeGreaterThan(0);
+    await view.unmount();
+    expect(await framesWhileIdle(500, 3_000)).toBe(0);
+  });
+
   it('none from people at "full" while the map is not on screen', async () => {
     await render(<EffectsPaused.Provider value>{people(1)}</EffectsPaused.Provider>);
     expect(await framesWhileIdle()).toBe(0);

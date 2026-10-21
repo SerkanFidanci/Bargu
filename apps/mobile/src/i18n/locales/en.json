@@ -338,6 +338,7 @@
       "stalls": "Stalls in the first 10 s",
       "selfTest": "Start: crypto self-test {{ms}} ms",
       "stallsWatching": "Watching…",
+      "stallsAgain": "Watch 10 s again",
       "stallsNone": "None of {{ms}} ms or more",
       "stallsCount": "{{count}} stalls · longest {{ms}} ms",
       "stall": "at {{at}}: {{ms}} ms · {{name}}",

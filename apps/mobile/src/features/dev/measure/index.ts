@@ -3,8 +3,8 @@ import { createElement } from 'react';
 import { probe } from '../../location/probe';
 import { useDevSlots } from '../slots';
 import { MeasureOverlay } from './overlay';
-import { addStall, watchStalls } from './stalls';
-import { recorder, useMeasures, useStalls } from './store';
+import { recorder, useMeasures } from './store';
+import { startStallWatch } from './watch';
 
 /**
  * The measurement overlay, loaded only by development and preview builds (index.ts,
@@ -21,18 +21,4 @@ useDevSlots.setState({
 
 // The stall meter starts with the app: the first ten seconds are when the start-up work happens
 // (the circles, the keys, the snapshots), and the overlay is opened only after them.
-useStalls.setState({ watching: true });
-watchStalls({
-  now: () => performance.now(),
-  setTimer: (run, ms) => setTimeout(run, ms),
-  clearTimer: (timer) => {
-    clearTimeout(timer as ReturnType<typeof setTimeout>);
-  },
-  spans: () => useStalls.getState().spans,
-  onStall: (stall) => {
-    useStalls.setState((state) => ({ list: addStall(state.list, stall) }));
-  },
-  onEnd: () => {
-    useStalls.setState({ watching: false });
-  },
-});
+startStallWatch();

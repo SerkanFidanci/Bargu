@@ -29,6 +29,15 @@ export interface LocationProbe {
 export const probe: { current: LocationProbe | null } = { current: null };
 
 /**
+ * For React's Profiler around a screen's drawing: reports how long that screen's latest drawing
+ * took, under the name "render.<id>". React reports nothing in a production build, and where
+ * `probe.current` is null this does nothing either.
+ */
+export function reportRender(id: string, _phase: string, actualDuration: number): void {
+  probe.current?.span(`render.${id}`, actualDuration);
+}
+
+/**
  * Runs `work` and, in a build with the measurement overlay, tells it the name and how long it took
  * (the stall meter, features/dev/measure/stalls.ts, then says which known work held the thread).
  * Names are fixed words for kinds of work, never anything from a message or a position. Where

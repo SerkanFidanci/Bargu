@@ -338,6 +338,7 @@
       "stalls": "İlk 10 sn'deki takılmalar",
       "selfTest": "Açılış: şifre öz testi {{ms}} ms",
       "stallsWatching": "İzleniyor…",
+      "stallsAgain": "10 sn yeniden izle",
       "stallsNone": "{{ms}} ms ve üstü yok",
       "stallsCount": "{{count}} takılma · en uzunu {{ms}} ms",
       "stall": "{{at}}: {{ms}} ms · {{name}}",

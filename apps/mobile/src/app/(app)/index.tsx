@@ -1,5 +1,5 @@
 import type { LngLat } from '@maplibre/maplibre-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Profiler, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -22,6 +22,7 @@ import { useMyFix } from '@/features/location/engine';
 import { LocationBanner } from '@/features/location/location-banner';
 import { useMapOpen } from '@/features/location/map-open';
 import { useFirstPosition, useMyCell } from '@/features/location/my-position';
+import { reportRender } from '@/features/location/probe';
 import { useLocationPermission } from '@/features/location/tracker';
 import { NewPhoneCard } from '@/features/location/new-phone-card';
 import { SwarmLayer, SwarmPanel } from '@/features/dev/swarm-panel';
@@ -176,33 +177,36 @@ export default function HomeScreen() {
   return (
     <EffectsPaused.Provider value={!onScreen}>
       <View style={styles.screen}>
-        <BarguMap
-          ref={map}
-          onPress={() => {
-            people.onMapPress();
-            setWake((count) => count + 1);
-          }}
-          insets={{
-            top: insets.top + PILL_HEIGHT,
-            bottom: insets.bottom + DOCK_HEIGHT,
-          }}
-          focus={focus}
-          onSettle={(settled) => {
-            setView(settled);
-            setWake((count) => count + 1);
-            setLookups((count) => count + 1);
-          }}
-        >
-          <PlacesLayer except={meetingPlaces} />
-          <MeetingPointsLayer points={points} now={now} />
-          <PeopleLayer
-            me={me.data}
-            circles={circleList.data ?? []}
-            handlersFor={people.handlersFor}
-            onGroup={people.openGroup}
-          />
-          {DEV_TOOLS_ENABLED ? <SwarmLayer /> : null}
-        </BarguMap>
+        {/* Preview builds time each drawing of the map (probe.ts reportRender). */}
+        <Profiler id="map" onRender={reportRender}>
+          <BarguMap
+            ref={map}
+            onPress={() => {
+              people.onMapPress();
+              setWake((count) => count + 1);
+            }}
+            insets={{
+              top: insets.top + PILL_HEIGHT,
+              bottom: insets.bottom + DOCK_HEIGHT,
+            }}
+            focus={focus}
+            onSettle={(settled) => {
+              setView(settled);
+              setWake((count) => count + 1);
+              setLookups((count) => count + 1);
+            }}
+          >
+            <PlacesLayer except={meetingPlaces} />
+            <MeetingPointsLayer points={points} now={now} />
+            <PeopleLayer
+              me={me.data}
+              circles={circleList.data ?? []}
+              handlersFor={people.handlersFor}
+              onGroup={people.openGroup}
+            />
+            {DEV_TOOLS_ENABLED ? <SwarmLayer /> : null}
+          </BarguMap>
+        </Profiler>
         {weather === null ? null : <WeatherLayer here={weather} wake={wake} />}
         <MapCredit bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
         <Animated.View

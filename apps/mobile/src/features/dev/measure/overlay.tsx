@@ -13,6 +13,7 @@ import { nativeCryptoSelfTestMs } from '../../../platform/native-crypto';
 import { useFrameMeter } from '../frame-meter';
 import { STALL_MS } from './stalls';
 import { median, type Series, useMeasures, useStalls } from './store';
+import { startStallWatch } from './watch';
 
 /** Frame rate measured in windows this long, one after another, while the overlay is open. */
 const FPS_WINDOW_SECONDS = 2;
@@ -160,6 +161,18 @@ function Panel() {
         {t('dev.measure.stalls')}
       </Text>
       {line(t('dev.measure.selfTest', { ms: nativeCryptoSelfTestMs }))}
+      {stalls.watching ? null : (
+        <Pressable
+          accessibilityRole="button"
+          testID="stalls-again"
+          hitSlop={space.sm}
+          onPress={startStallWatch}
+        >
+          <Text variant="caption" color="primary">
+            {t('dev.measure.stallsAgain')}
+          </Text>
+        </Pressable>
+      )}
       {stalls.list.length === 0
         ? line(
             stalls.watching
