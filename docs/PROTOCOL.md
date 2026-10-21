@@ -206,9 +206,14 @@ bayta dolgulanır. Ayrı tür olmasının nedeni `loc`'un katı okunmasıdır: o
 uygulamaların her konumu reddetmesi demekti; `state`'i tanımayan eski uygulama `MALFORMED` sayıp
 sessizce atar (`packages/crypto/test/legacy-app.spec.ts`). Neden başlayınca ya da değişince, sürdükçe
 5 dakikada bir ve bitince (`none`) gönderilir; hayalette, kaba ve tam hassasiyette de yalnızca bu
-(konumsuz) mesaj; konumun gitmediği çembere hiç gitmez. "Çevrim dışı" gönderilmez, alıcı sessizlikten
-çıkarır. Taşıma: varış, ayrılış ve "Geldim" ile aynı `POST /v1/place-events` yolu (canlı iletilir,
-saklanmaz, bildirim yok); sunucu türü göremez.
+(konumsuz) mesaj; konumun gitmediği çembere hiç gitmez (bunlar telefonun ayarlarıdır, sunucu bilmez).
+"Çevrim dışı" gönderilmez, alıcı sessizlikten çıkarır. **Taşıma, `look` gibi kendi yolu:** `POST
+/v1/states` (canlı bağlantıda `state`), gövde `{ envelopes }`; sunucu üye ve çember başına yalnız en
+yeni zarfı 24 saat tutar, diğer üyelere canlı `state` olayı yollar, sonradan bağlanan `GET /v1/states`
+(ya da `states`) ile alır; üye çıkınca `state.gone`, konum geri çekilince nedeni de silinir. Üye
+olmayanı, başka cihazın imzasını, geçmiş epoch'u, duraklı çemberi (`PAUSED`) ve cihaz ve çember
+başına dakikada 3'ten fazlasını (`RATE_LIMITED`) reddeder. **Alıcı türü yola bağlar** (`receive.ts`
+`Route`): `state` olayından gelen zarf yalnız `state` türü, `state` türü yalnız bu yoldan sayılır.
 
 **Saklanan mesaj (yer).** Bir çemberin yeri, son kaydeden üyenin gönderen anahtarıyla şifrelenmiş
 `place` mesajı olarak sunucuda kalır. Üyeler onu yeni mesajlardan çok sonra tekrar açtığı için
