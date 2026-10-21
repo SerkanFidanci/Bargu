@@ -25,6 +25,8 @@ export const PUSH_NOTICES = [
   'guardianNewMember',
   // The child asks for Bargu+ (docs/ADR/0024 §5); names the link.
   'guardianPurchase',
+  // The child asks for a cosmetic pack (docs/ADR/0025 §6); names the link.
+  'guardianCosmetic',
   // Someone looks at this circle on the map right now (docs/ADR/0028 step 3): it wakes a phone
   // whose app is closed so it can go live for a while. Silent: never shown, names no watcher.
   'watch',

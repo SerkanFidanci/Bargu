@@ -36,6 +36,11 @@ export const planSchema = z.object({
   testBilling: z.boolean(),
   /** 15-17: the plan asked of a parent, waiting for their yes (docs/ADR/0024 §5). */
   pendingPurchase: z.enum(PLUS_PRODUCTS).nullable().optional(),
+  /**
+   * 15-17: the packs (`rings`, as in `cosmetics`) asked of a parent, waiting for their yes (docs/ADR/0025
+   * §6). Apart from `pendingPurchase`: a pack and Bargu+ are asked and answered separately.
+   */
+  pendingCosmetics: z.array(z.string()).optional(),
 });
 export type Plan = z.infer<typeof planSchema>;
 

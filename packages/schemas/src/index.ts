@@ -312,6 +312,7 @@ export {
   COSMETIC_PRODUCTS,
   COSMETIC_PASS_TTL_MS,
   type CosmeticPack,
+  type CosmeticProduct,
   type CosmeticPass,
   cosmeticPassReplySchema,
   type CosmeticPassReply,

@@ -37,4 +37,42 @@ describe('guardian view', () => {
     const parsed = guardianViewSchema.parse(view([purchase, newer]));
     expect(parsed.requests).toEqual([purchase]);
   });
+
+  it('reads a cosmetic request beside a purchase request, by the pack asked for', () => {
+    const purchase = {
+      id: uuid(2),
+      kind: 'purchase',
+      name: null,
+      memberCount: null,
+      by: null,
+      product: 'plus_month',
+      createdAt: 4,
+    };
+    const cosmetic = {
+      id: uuid(3),
+      kind: 'cosmetic',
+      name: null,
+      memberCount: null,
+      by: null,
+      pack: 'rings',
+      createdAt: 5,
+    };
+    // A pack this app has never heard of is still read (and worded in general); a field a newer
+    // server adds is dropped, not an error.
+    const newerPack = { ...cosmetic, id: uuid(4), pack: 'seasonal_7', extra: true };
+    const parsed = guardianViewSchema.parse(view([purchase, cosmetic, newerPack]));
+    expect(parsed.requests.map((request) => request.kind)).toEqual([
+      'purchase',
+      'cosmetic',
+      'cosmetic',
+    ]);
+    expect(parsed.requests.map((request) => request.pack)).toEqual([
+      undefined,
+      'rings',
+      'seasonal_7',
+    ]);
+    // Not a pack id at all: that request is skipped, the others are not.
+    const broken = { ...cosmetic, id: uuid(5), pack: 'cosmetic:rings' };
+    expect(guardianViewSchema.parse(view([broken, purchase])).requests).toEqual([purchase]);
+  });
 });

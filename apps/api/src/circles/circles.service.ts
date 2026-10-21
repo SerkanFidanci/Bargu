@@ -534,7 +534,7 @@ export class CirclesService implements OnModuleInit {
   async tellAsked(
     childId: string,
     rows: readonly { guardian_id: string; fresh: boolean }[],
-    notice: 'guardianApproval' | 'guardianPurchase' = 'guardianApproval',
+    notice: 'guardianApproval' | 'guardianPurchase' | 'guardianCosmetic' = 'guardianApproval',
   ) {
     const fresh = rows.filter((row) => row.fresh).map((row) => row.guardian_id);
     if (fresh.length === 0) return;

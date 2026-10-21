@@ -5,6 +5,8 @@ import {
   COSMETIC_PASS_MAX_PACKS,
   COSMETIC_PASS_TTL_MS,
   type CosmeticPassReply,
+  type CosmeticProduct,
+  cosmeticProductSchema,
   type Plan,
   type PlanRecords,
   type PlusProduct,
@@ -104,13 +106,16 @@ export class BillingService {
           (ms(b.expiresAt) ?? 0) - (ms(a.expiresAt) ?? 0),
       )[0];
     const trial = rows.find((row) => row.product === 'trial');
-    // 15-17: the plan asked of a parent, until they answer (docs/ADR/0024 §5).
+    // 15-17: the plan and the packs asked of a parent, until they answer (docs/ADR/0024 §5, ADR
+    // 0025 §6). Apart: a Bargu+ request and a pack's never replace each other.
     const pending = await this.database.asUser(auth.userId, (tx) =>
-      tx.execute<{ product: PlusProduct }>(
-        sql`SELECT product FROM app.guardian_requests
-             WHERE child_id = ${auth.userId} AND kind = 'purchase'`,
+      tx.execute<{ kind: 'purchase' | 'cosmetic'; product: string }>(
+        sql`SELECT kind, product FROM app.guardian_requests
+             WHERE child_id = ${auth.userId} AND kind IN ('purchase', 'cosmetic')
+             ORDER BY created_at, id`,
       ),
     );
+    const pendingPlan = pending.rows.find((row) => row.kind === 'purchase')?.product;
     return {
       plan: current === undefined ? 'free' : current.product === 'trial' ? 'trial' : 'plus',
       product:
@@ -124,7 +129,10 @@ export class BillingService {
         .filter((row) => row.product.startsWith('cosmetic:') && row.state === 'active')
         .map((row) => row.product.slice('cosmetic:'.length)),
       testBilling: testing,
-      pendingPurchase: pending.rows[0]?.product ?? null,
+      pendingPurchase: pendingPlan === undefined ? null : (pendingPlan as PlusProduct),
+      pendingCosmetics: pending.rows
+        .filter((row) => row.kind === 'cosmetic')
+        .map((row) => row.product.slice('cosmetic:'.length)),
     };
   }
 
@@ -189,12 +197,16 @@ export class BillingService {
 
   async testPurchase(auth: AuthContext, input: TestPurchase): Promise<Plan> {
     await this.guard(auth);
-    // 15-17: a purchase waits for a parent's yes (docs/ADR/0023, 0024 §5); a pack is not asked yet.
+    // 15-17: a purchase, and a pack, wait for a parent's yes (docs/ADR/0023, 0024 §5, 0025 §6).
     if (await this.isMinor(auth.userId)) {
-      if (input.product.startsWith('cosmetic:')) {
-        throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
+      const pack = cosmeticProductSchema.safeParse(input.product);
+      if (!pack.success) {
+        await this.askParents(auth.userId, input.product as PlusProduct);
+      } else if (!(await this.owns(auth.userId, pack.data))) {
+        await this.askParentsForPack(auth.userId, pack.data);
       }
-      await this.askParents(auth.userId, input.product as PlusProduct);
+      // A pack the child already has needs no one's yes: nothing is asked, nothing changes.
+      return this.plan(auth);
     }
     await this.buy(auth.userId, input.product);
     return this.plan(auth);
@@ -204,16 +216,25 @@ export class BillingService {
    * A parent said yes to their 15-17 child's purchase (guardians.service): bought as the child,
    * where test purchases are on. A real store will open its own flow on the child's phone then.
    */
-  async buyApproved(childId: string, product: PlusProduct): Promise<void> {
+  async buyApproved(childId: string, product: TestPurchase['product']): Promise<void> {
     if (!(await this.testBilling.on(childId))) {
       throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
     }
     await this.buy(childId, product);
+    // A plan tells the child's phones itself; a pack does not (docs/ADR/0025): the waiting is over
+    // and the pack is theirs, so their cosmetics and their pass are read again.
+    if (product.startsWith('cosmetic:')) await this.planEvents.own(childId);
   }
 
-  /** A parent said no: the child's Bargu+ screen hears that the request is gone. */
+  /** A parent said no: the child's Bargu+ or look screen hears that the request is gone. */
   async purchaseDeclined(childId: string): Promise<void> {
     await this.planEvents.own(childId);
+  }
+
+  /** Whether the account has the pack for good. */
+  private async owns(userId: string, product: CosmeticProduct): Promise<boolean> {
+    const mine = await this.rows(userId);
+    return mine.some((row) => row.product === product && row.state === 'active');
   }
 
   private async isMinor(userId: string): Promise<boolean> {
@@ -252,6 +273,32 @@ export class BillingService {
     }
     await this.circles.tellAsked(childId, asked.rows, 'guardianPurchase');
     // The child's Bargu+ screen shows the request waiting (on every phone of theirs).
+    if (asked.rows.some((row) => row.fresh)) await this.planEvents.own(childId);
+    throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
+  }
+
+  /**
+   * The child's parents are asked for a pack (docs/ADR/0025 §6): one waiting request per pack,
+   * apart from a Bargu+ request (neither replaces the other). The parents hear it once; asking for
+   * the same pack again tells nobody. The child gets 403 GUARDIAN_APPROVAL, as for every request
+   * that waits for a parent; with no parent linked nobody could say yes: 403
+   * GUARDIAN_LINK_REQUIRED.
+   */
+  private async askParentsForPack(childId: string, product: CosmeticProduct): Promise<never> {
+    const asked = await this.database
+      .asUser(childId, (tx) =>
+        tx.execute<{ guardian_id: string; fresh: boolean }>(
+          sql`SELECT * FROM app.ask_guardians_for_cosmetic(${product})`,
+        ),
+      )
+      .catch((error: unknown) => {
+        throw guardianRequestsFull(error);
+      });
+    if (asked.rows.length === 0) {
+      throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_LINK_REQUIRED');
+    }
+    await this.circles.tellAsked(childId, asked.rows, 'guardianCosmetic');
+    // The child's look screen shows the request waiting (on every phone of theirs).
     if (asked.rows.some((row) => row.fresh)) await this.planEvents.own(childId);
     throw new ApiError(HttpStatus.FORBIDDEN, 'GUARDIAN_APPROVAL');
   }

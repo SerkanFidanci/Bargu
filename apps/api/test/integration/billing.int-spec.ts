@@ -418,9 +418,13 @@ describe('Bargu+, the trial and paused circles (docs/ADR/0024)', () => {
       pendingPurchase: null,
     });
     expect((await view()).requests).toEqual([]);
-    // A pack waits for slice 3: refused, not asked.
+    // A pack is asked of the parent too (slice 3c, guardian-cosmetics.int-spec.ts), apart from Bargu+.
     expect((await buy(teen, 'cosmetic:rings')).json()).toMatchObject({
       code: 'GUARDIAN_APPROVAL',
+    });
+    expect(await planOf(teen)).toMatchObject({
+      pendingPurchase: null,
+      pendingCosmetics: ['rings'],
     });
     notified.mockRestore();
     told.mockRestore();

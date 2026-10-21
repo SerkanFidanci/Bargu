@@ -57,6 +57,10 @@ export class GuardianSweeper implements OnApplicationBootstrap, OnApplicationShu
       ...tools.rows.map((row) => row.child_id),
     ];
     if (told.length > 0) await this.events.publish(told, { type: 'guardians.changed' });
+    // A purchase or a pack nobody answered stops waiting: the child's plan (which says what waits)
+    // is read again on every phone of theirs (docs/ADR/0024 §5, 0025 §6).
+    const waited = [...new Set(tools.rows.map((row) => row.child_id))];
+    if (waited.length > 0) await this.events.publish(waited, { type: 'plan.changed' });
     return result.rows.length + tools.rows.length;
   }
 

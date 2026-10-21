@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ageBandSchema } from './auth.js';
 import { PLUS_PRODUCTS } from './billing.js';
 import { CIRCLE_KINDS, inviteTokenSchema, publicProfileSchema } from './circles.js';
+import { cosmeticIdSchema } from './cosmetics.js';
 
 /**
  * Guardians (docs/ADR/0023 §4): a parent (18+) and a child (15-17), linked in person by mutual
@@ -77,12 +78,23 @@ export const guardianRequestSchema = z.object({
   id: z.uuid(),
   /**
    * The child asks: friend (to befriend `name`), group / event (to join `name`, made by `by`),
-   * purchase (Bargu+, `product`; docs/ADR/0024 §5). Someone comes to the child (QA 5c F-2):
+   * purchase (Bargu+, `product`; docs/ADR/0024 §5), cosmetic (a pack, `pack`; docs/ADR/0025 §6;
+   * apart from a purchase: neither replaces the other). Someone comes to the child (QA 5c F-2):
    * befriends (`by` used the child's friend code), joins (`by` used the child's code for
    * `name`), invites (the child invites `by` into `name`). gone: the code stopped working
    * meanwhile (a yes would do nothing).
    */
-  kind: z.enum(['friend', 'group', 'event', 'befriends', 'joins', 'invites', 'purchase', 'gone']),
+  kind: z.enum([
+    'friend',
+    'group',
+    'event',
+    'befriends',
+    'joins',
+    'invites',
+    'purchase',
+    'cosmetic',
+    'gone',
+  ]),
   /**
    * The group's or event's name, or the friend's display name. Never a username: a parent cannot
    * look anyone up (the owner's decision on QA 5b G-1).
@@ -93,6 +105,11 @@ export const guardianRequestSchema = z.object({
   by: z.string().nullable(),
   /** The plan asked for, for a purchase only. */
   product: z.enum(PLUS_PRODUCTS).optional(),
+  /**
+   * The pack asked for (`rings`, not `cosmetic:rings`), for a cosmetic request only. Any id: an app
+   * that does not know the pack yet words it in general.
+   */
+  pack: cosmeticIdSchema.optional(),
   createdAt: z.number().int(),
 });
 export type GuardianRequest = z.infer<typeof guardianRequestSchema>;

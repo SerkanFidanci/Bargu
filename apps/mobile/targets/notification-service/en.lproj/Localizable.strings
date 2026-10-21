@@ -27,3 +27,4 @@
 "notice.guardianNewMember" = "Someone new joined one of your child's circles";
 "notice.guardianNewMemberIn" = "%@: someone new joined one of their circles";
 "notice.guardianPurchase" = "Your child wants Bargu+; it waits for your yes";
+"notice.guardianCosmetic" = "Your child wants a look pack; it waits for your yes";

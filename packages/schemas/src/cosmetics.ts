@@ -17,6 +17,8 @@ export const COSMETIC_PRODUCTS = [
   'cosmetic:rings',
   'cosmetic:frames',
 ] as const satisfies readonly `cosmetic:${CosmeticPack}`[];
+/** A pack as a product id (`cosmetic:rings`). */
+export type CosmeticProduct = (typeof COSMETIC_PRODUCTS)[number];
 export type RingPattern = (typeof COSMETIC_PACKS.rings)[number];
 export type FrameStyle = (typeof COSMETIC_PACKS.frames)[number];
 

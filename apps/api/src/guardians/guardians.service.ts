@@ -3,6 +3,7 @@ import { generateToken, hashToken } from '@bargu/crypto';
 import {
   AVATAR_EMOJIS,
   CLIENT_LEVEL_FOR,
+  cosmeticProductSchema,
   GUARDIAN_CODE_TTL_MS,
   GUARDIAN_END_AFTER_MS,
   type GuardianCode,
@@ -56,17 +57,48 @@ interface LinkRow extends Record<string, unknown> {
   other_avatar_emoji: string | null;
 }
 
-/** Row of app.guardian_requests_of() (migrations/0031). */
+/** What a waiting request is (migrations/0031, 0037). */
+type RequestKind = 'invite' | 'friend' | 'admit' | 'member' | 'purchase' | 'cosmetic';
+/** What a purchase or a cosmetic request asks for: a plan, or a pack as `cosmetic:<pack>`. */
+type RequestProduct = 'plus_month' | 'plus_year' | `cosmetic:${string}`;
+
+/** Row of app.take_guardian_request() (migrations/0031): the request a parent answers. */
+interface TakenRequest extends Record<string, unknown> {
+  child_id: string;
+  kind: RequestKind;
+  token_hash: Buffer | null;
+  username: string | null;
+  newcomer_id: string | null;
+  circle_id: string | null;
+  product: RequestProduct | null;
+}
+
+/**
+ * From which app level a kind of request is sent (docs/ADR/0024 §10): an older app, which cannot
+ * show it, is not sent it.
+ */
+function readableFrom(kind: GuardianRequest['kind']): number {
+  switch (kind) {
+    case 'purchase':
+      return CLIENT_LEVEL_FOR.purchaseRequests;
+    case 'cosmetic':
+      return CLIENT_LEVEL_FOR.cosmeticRequests;
+    default:
+      return 0;
+  }
+}
+
+/** Row of app.guardian_requests_of() (migrations/0037). */
 interface RequestRow extends Record<string, unknown> {
   id: string;
-  kind: 'invite' | 'friend' | 'admit' | 'member' | 'purchase';
+  kind: RequestKind;
   circle_kind: 'pair' | 'friends' | 'family' | 'event' | null;
   circle_name: string | null;
   member_count: number | null;
   code_works: boolean;
   inviter_display_name: string | null;
   other_display_name: string | null;
-  product: 'plus_month' | 'plus_year' | null;
+  product: RequestProduct | null;
   created_at: string;
 }
 
@@ -80,9 +112,19 @@ function request(row: RequestRow): GuardianRequest {
   const circle = row.circle_kind === null || row.circle_kind === 'pair' ? null : row.circle_kind;
   switch (row.kind) {
     case 'purchase':
-      return row.product === null
-        ? { ...base, kind: 'gone', name: null, by: null }
-        : { ...base, kind: 'purchase', name: null, by: null, product: row.product };
+      return row.product === 'plus_month' || row.product === 'plus_year'
+        ? { ...base, kind: 'purchase', name: null, by: null, product: row.product }
+        : { ...base, kind: 'gone', name: null, by: null };
+    case 'cosmetic':
+      return row.product?.startsWith('cosmetic:') === true
+        ? {
+            ...base,
+            kind: 'cosmetic',
+            name: null,
+            by: null,
+            pack: row.product.slice('cosmetic:'.length),
+          }
+        : { ...base, kind: 'gone', name: null, by: null };
     case 'friend':
       return { ...base, kind: 'friend', name: row.other_display_name, by: null };
     case 'member':
@@ -259,7 +301,7 @@ export class GuardiansService {
    * knowing). The other side hears it either way.
    */
   async end(auth: AuthContext, linkId: string): Promise<GuardianEnd> {
-    const { outcome, other } = await this.database.asUser(auth.userId, async (tx) => {
+    const { outcome, other, child } = await this.database.asUser(auth.userId, async (tx) => {
       const before = await this.read(tx, linkId);
       if (before === null) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
       const result = await tx.execute<{ outcome: 'ended' | 'requested' | null }>(
@@ -267,10 +309,13 @@ export class GuardiansService {
       );
       const done = result.rows[0]?.outcome ?? null;
       if (done === null) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
-      return { outcome: done, other: before.row.other_id };
+      return { outcome: done, other: before.row.other_id, child: before.row.child_id };
     });
     await this.changed([auth.userId, other]);
     if (outcome === 'ended') {
+      // The child's last parent going takes what waited for a yes with it (a plan, a pack): the
+      // child's plan, which says what waits, is read again.
+      await this.events.publish([child], { type: 'plan.changed' });
       await this.notifier.notify([other], 'guardianEnded', linkId);
       return { ended: true, endsAt: null };
     }
@@ -292,7 +337,8 @@ export class GuardiansService {
    */
   /**
    * The view both sides share, as far as the caller's app can read it: a purchase request only to
-   * level 2 and newer (older ones cannot read the kind, ADR 0024 §10).
+   * level 2 and newer, a cosmetic one only to level 4 and newer (older ones cannot read the kind,
+   * ADR 0024 §10).
    */
   async view(auth: AuthContext, linkId: string, clientLevel: number): Promise<GuardianView> {
     const found = await this.database.asUser(auth.userId, (tx) => this.read(tx, linkId));
@@ -334,10 +380,7 @@ export class GuardiansService {
         updatedBy: null,
       },
       usage: tools.usage,
-      requests: tools.requests.filter(
-        (request) =>
-          request.kind !== 'purchase' || clientLevel >= CLIENT_LEVEL_FOR.purchaseRequests,
-      ),
+      requests: tools.requests.filter((request) => clientLevel >= readableFrom(request.kind)),
       circles: circles
         .filter((circle) => circle.myStatus === 'active')
         .map((circle) => ({
@@ -396,15 +439,9 @@ export class GuardiansService {
       if (found?.link.status !== 'active' || found.link.role !== 'guardian') {
         throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
       }
-      const result = await tx.execute<{
-        child_id: string;
-        kind: 'invite' | 'friend' | 'admit' | 'member' | 'purchase';
-        token_hash: Buffer | null;
-        username: string | null;
-        newcomer_id: string | null;
-        circle_id: string | null;
-        product: 'plus_month' | 'plus_year' | null;
-      }>(sql`SELECT * FROM app.take_guardian_request(${requestId})`);
+      const result = await tx.execute<TakenRequest>(
+        sql`SELECT * FROM app.take_guardian_request(${requestId})`,
+      );
       const [row] = result.rows;
       if (row?.child_id !== found.row.child_id) {
         throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
@@ -423,8 +460,11 @@ export class GuardiansService {
         done = error instanceof ApiError && error.code === 'APPROVAL_PENDING';
       }
     }
-    // A purchase said no to (or that could not be made): the child's Bargu+ screen hears it too.
-    if (taken.kind === 'purchase' && !done) await this.billing.purchaseDeclined(childId);
+    // A purchase or a pack said no to (or that could not be made): the child's Bargu+ and look
+    // screens hear it too, and stop waiting.
+    if ((taken.kind === 'purchase' || taken.kind === 'cosmetic') && !done) {
+      await this.billing.purchaseDeclined(childId);
+    }
     await this.changed([childId, ...(await this.parentsOf(childId))]);
     await this.notifier.notify([childId], done ? 'guardianApproved' : 'guardianDeclined', linkId);
     if (yes && !done) throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
@@ -432,15 +472,7 @@ export class GuardiansService {
   }
 
   /** Does what a parent said yes to, as whoever asked for it. */
-  private async carryOut(taken: {
-    child_id: string;
-    kind: 'invite' | 'friend' | 'admit' | 'member' | 'purchase';
-    token_hash: Buffer | null;
-    username: string | null;
-    newcomer_id: string | null;
-    circle_id: string | null;
-    product: 'plus_month' | 'plus_year' | null;
-  }): Promise<void> {
+  private async carryOut(taken: TakenRequest): Promise<void> {
     const child = { userId: taken.child_id };
     const hash = taken.token_hash === null ? null : new Uint8Array(taken.token_hash);
     if (taken.kind === 'invite' && hash !== null) {
@@ -452,9 +484,17 @@ export class GuardiansService {
       await this.invites.redeem({ userId: taken.newcomer_id }, hash, { own: true, admit: true });
     } else if (taken.kind === 'member' && taken.circle_id !== null && taken.username !== null) {
       await this.circles.inviteUser(child, taken.circle_id, taken.username, true);
-    } else if (taken.kind === 'purchase' && taken.product !== null) {
+    } else if (
+      taken.kind === 'purchase' &&
+      (taken.product === 'plus_month' || taken.product === 'plus_year')
+    ) {
       // Bought as the child (docs/ADR/0024 §5); their circles hear it if one opens.
       await this.billing.buyApproved(child.userId, taken.product);
+    } else if (taken.kind === 'cosmetic') {
+      // A pack, as the child (docs/ADR/0025 §6); only one this server sells, whatever the row says.
+      const pack = cosmeticProductSchema.safeParse(taken.product);
+      if (!pack.success) throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
+      await this.billing.buyApproved(child.userId, pack.data);
     } else {
       throw new ApiError(HttpStatus.CONFLICT, 'REQUEST_FAILED');
     }
@@ -551,6 +591,8 @@ export class GuardiansService {
   /** Links that ended without either side doing it (a deleted account, the worker). */
   async ended(userIds: string[]): Promise<void> {
     await this.changed(userIds);
+    // A child's waiting purchase or pack went with the link: their plan is read again.
+    await this.events.publish(userIds, { type: 'plan.changed' });
   }
 
   private async read(tx: Tx, linkId: string) {
