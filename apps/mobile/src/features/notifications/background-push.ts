@@ -8,6 +8,7 @@ import { toast } from '@/ui/toast';
 
 import { useAuth } from '../auth/auth-store';
 import { ensureSession } from '../live/live-session';
+import { backgroundLive } from '../location/background-live/slot';
 import { loadSharing, seenThere } from '../location/sharing';
 import { vault } from '../storage/vault';
 import { isMuted, loadMutes } from './mutes';
@@ -21,11 +22,17 @@ export { sealedOf };
 export const PUSH_TASK = 'bargu-push';
 /** A notification older than this when it arrives (the phone was off) is not shown any more. */
 export const PUSH_FRESH_MS = 60 * 60_000;
+/**
+ * A `watch` signal (docs/ADR/0028 step 3) is of no use after this: someone looked a moment ago.
+ * The server also has Google drop it after two minutes.
+ */
+export const WATCH_FRESH_MS = 2 * 60_000;
 /** The last boxes opened, so a message delivered twice shows once. */
 const SEEN_KEY = 'push:seen:v1';
 const SEEN_KEEP = 50;
 
-export type Shown = 'shown' | 'inApp' | 'muted' | 'stale' | 'duplicate' | 'refused';
+/** `watch`: the silent signal of background live mode, which is never shown. */
+export type Shown = 'shown' | 'inApp' | 'muted' | 'stale' | 'duplicate' | 'refused' | 'watch';
 
 /**
  * Opens a sealed notification on this phone and shows it in the user's words: from a member, only
@@ -48,7 +55,8 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
   } catch {
     return 'refused';
   }
-  if (now - opened.body.ts > PUSH_FRESH_MS) return 'stale';
+  const watched = opened.body.kind === 'notice' && opened.body.notice === 'watch';
+  if (now - opened.body.ts > (watched ? WATCH_FRESH_MS : PUSH_FRESH_MS)) return 'stale';
   // The ephemeral key at the start of the box is fresh for every box: a good "seen" mark.
   const mark = sealed.slice(0, 48);
   const seen = z
@@ -57,6 +65,14 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
     .parse(JSON.parse(store.get(SEEN_KEY) ?? '[]'));
   if (seen.includes(mark)) return 'duplicate';
   store.set(SEEN_KEY, JSON.stringify([...seen, mark].slice(-SEEN_KEEP)));
+
+  if (opened.body.kind === 'notice' && opened.body.notice === 'watch') {
+    // Silent (docs/ADR/0028 step 3): never a banner, a line or a toast. In a build without
+    // background live mode (production for now) it is dropped like any notice with no use here.
+    await backgroundLive.loading?.catch(() => undefined);
+    await backgroundLive.current?.notice(opened.body.circleId);
+    return 'watch';
+  }
 
   const sharing = loadSharing(store);
   const shown = pushText(opened.body, opened.senderDeviceId, contacts, (circleId) =>

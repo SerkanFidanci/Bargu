@@ -44,6 +44,17 @@ const sharingSchema = z
      * starts hidden (applyMinorRules).
      */
     speed: z.enum(['show', 'hide']).optional(),
+    /**
+     * "Arka planda canlı konum" (docs/ADR/0028 step 3): the user's own choice. Unset follows
+     * `backgroundLiveDefault`.
+     */
+    backgroundLive: z.enum(['on', 'off']).optional(),
+    /**
+     * What it is without a choice: `on` for 18+, `off` for 15-17 (docs/ADR/0023: for children the
+     * default is the most private one). Written when the age band is known, so a phone that has
+     * not been told yet has it off.
+     */
+    backgroundLiveDefault: z.enum(['on', 'off']).optional(),
   })
   .strict();
 export type SharingSettings = z.infer<typeof sharingSchema>;
@@ -107,8 +118,33 @@ export function withMinorSharing(
   settings: SharingSettings,
   circleIds: readonly string[],
 ): SharingSettings {
+  // The first time these rules apply, a choice made before (as an adult) is not carried over.
+  const first = settings.newCircles !== 'off';
   const next = withNewCirclesOff(settings, circleIds);
-  return next.speed === undefined ? { ...next, speed: 'hide' } : next;
+  const withSpeed = next.speed === undefined ? { ...next, speed: 'hide' as const } : next;
+  // Background live is off for 15-17 unless the teen turns it on (docs/ADR/0028 step 3).
+  if (!first && withSpeed.backgroundLiveDefault === 'off') return withSpeed;
+  const { backgroundLive: chosen, ...rest } = withSpeed;
+  return {
+    ...rest,
+    ...(first || chosen === undefined ? {} : { backgroundLive: chosen }),
+    backgroundLiveDefault: 'off',
+  };
+}
+
+/**
+ * Background live mode (docs/ADR/0028 step 3) is on for this phone: the user's choice, else the
+ * default of the age band (on for 18+, off for 15-17), else off. Whatever is not known is off.
+ */
+export function backgroundLiveOn(settings: SharingSettings): boolean {
+  return (settings.backgroundLive ?? settings.backgroundLiveDefault ?? 'off') === 'on';
+}
+
+/** 18+: background live starts on, unless this phone already has a default (a teen's stays off). */
+export function withAdultDefaults(settings: SharingSettings): SharingSettings {
+  return settings.backgroundLiveDefault === undefined
+    ? { ...settings, backgroundLiveDefault: 'on' }
+    : settings;
 }
 
 /**

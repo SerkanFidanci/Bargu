@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 
+import {
+  BACKGROUND_LIVE_REFUSALS,
+  type BackgroundLiveRefusal,
+} from '../../location/background-live/policy';
 import type { FixOutcome } from '../../location/fix-filter';
 import type { FixSource, LocationProbe } from '../../location/probe';
 import { remember, type Span, type Stall } from './stalls';
@@ -24,6 +28,17 @@ export interface FriendMeasures {
   late: number;
 }
 
+/** Background live mode, counted since the app started (docs/ADR/0028 step 3). */
+export interface BackgroundLiveCounts {
+  /** `watch` notices that reached this phone. */
+  notices: number;
+  /** Windows opened or lengthened, and the live time (ms) they gave once positions flowed. */
+  opened: number;
+  openedMs: number;
+  /** Notices that did not open one, by reason. */
+  refused: Record<BackgroundLiveRefusal, number>;
+}
+
 /**
  * What the measurement overlay shows (docs/ADR/0028): in memory only, gone when the app closes,
  * never sent or logged. Times, accuracies and counts; no position is ever given to it.
@@ -40,9 +55,22 @@ export interface Measures {
   /** The latest send was in live mode (someone is watching). */
   live: boolean;
   friends: Readonly<Record<string, FriendMeasures>>;
+  backgroundLive: BackgroundLiveCounts;
 }
 
 const series = (): Series => ({ lastAt: null, gaps: [] });
+
+export function emptyBackgroundLive(): BackgroundLiveCounts {
+  return {
+    notices: 0,
+    opened: 0,
+    openedMs: 0,
+    refused: Object.fromEntries(BACKGROUND_LIVE_REFUSALS.map((reason) => [reason, 0])) as Record<
+      BackgroundLiveRefusal,
+      number
+    >,
+  };
+}
 
 export function emptyMeasures(): Measures {
   return {
@@ -53,6 +81,7 @@ export function emptyMeasures(): Measures {
     sends: series(),
     live: false,
     friends: {},
+    backgroundLive: emptyBackgroundLive(),
   };
 }
 
@@ -110,6 +139,33 @@ export function received(
   return { ...measures, friends: { ...measures.friends, [input.userId]: friend } };
 }
 
+export function backgroundLived(
+  measures: Measures,
+  input: Parameters<LocationProbe['backgroundLive']>[0],
+): Measures {
+  const counts = measures.backgroundLive;
+  if (input.kind === 'notice') {
+    return { ...measures, backgroundLive: { ...counts, notices: counts.notices + 1 } };
+  }
+  if (input.kind === 'opened') {
+    return {
+      ...measures,
+      backgroundLive: {
+        ...counts,
+        opened: counts.opened + 1,
+        openedMs: counts.openedMs + input.ms,
+      },
+    };
+  }
+  return {
+    ...measures,
+    backgroundLive: {
+      ...counts,
+      refused: { ...counts.refused, [input.reason]: counts.refused[input.reason] + 1 },
+    },
+  };
+}
+
 export const useMeasures = create<Measures & { open: boolean }>(() => ({
   ...emptyMeasures(),
   open: false,
@@ -143,5 +199,8 @@ export const recorder: LocationProbe = {
   },
   received: (input) => {
     useMeasures.setState((state) => received(state, input));
+  },
+  backgroundLive: (input) => {
+    useMeasures.setState((state) => backgroundLived(state, input));
   },
 };

@@ -329,6 +329,9 @@
       "modeNormal": "normal",
       "dropped": "Dropped: old {{old}} · stale {{stale}} · weak {{inaccurate}} · jump {{jump}}",
       "fallback": "Sent indoors: {{count}}",
+      "background": "Live location in the background",
+      "backgroundOpened": "Notices {{notices}} · opened {{opened}} ({{minutes}} min)",
+      "backgroundRefused": "Refused: setting {{setting}} · ghost {{ghost}} · not shared {{notShared}} · coarse {{coarse}} · expired {{expired}} · paused {{paused}} · saver {{batterySaver}} · low battery {{batteryLow}} · cap {{cap}} · system {{os}}",
       "friends": "Friends",
       "noFriends": "No location yet",
       "friend": "{{name}}: delay {{delay}} · gap {{gap}} · ±{{acc}} m · late {{late}}",
@@ -672,6 +675,17 @@
       "offDetail": "Your circles see you at the detail you chose.",
       "freezeDetail": "Your last location stays on the map; no new one is sent.",
       "hideDetail": "You disappear from everyone’s map; no location is sent."
+    },
+    "backgroundLive": {
+      "title": "Live location in the background",
+      "battery": "While someone looks at you on the map, your location is sent often for a few minutes, even with the app closed. It uses a bit more battery.",
+      "explain": "It only works for circles that get your exact location, and not in ghost mode, with a coarse location, with battery saver on, or below 20% battery. It lasts 15 minutes an hour at most.",
+      "card": {
+        "title": "Live location in the background is on",
+        "body": "While someone looks at you on the map, your location is sent more often for a few minutes; it uses a bit more battery. You can turn it off in settings.",
+        "ok": "OK",
+        "settings": "Settings"
+      }
     },
     "newPhone": {
       "title": "Your location is shared with no one on this phone",

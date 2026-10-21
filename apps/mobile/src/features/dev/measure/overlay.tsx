@@ -129,6 +129,18 @@ function Panel() {
       {line(t('dev.measure.fallback', { count: outcomes.fallback }))}
 
       <Text variant="caption" style={styles.section}>
+        {t('dev.measure.background')}
+      </Text>
+      {line(
+        t('dev.measure.backgroundOpened', {
+          notices: measures.backgroundLive.notices,
+          opened: measures.backgroundLive.opened,
+          minutes: Math.round((measures.backgroundLive.openedMs / 60_000) * 10) / 10,
+        }),
+      )}
+      {line(t('dev.measure.backgroundRefused', measures.backgroundLive.refused))}
+
+      <Text variant="caption" style={styles.section}>
         {t('dev.measure.friends')}
       </Text>
       {friends.length === 0

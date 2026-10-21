@@ -1,3 +1,4 @@
+import type { BackgroundLiveRefusal } from './background-live/policy';
 import type { FixOutcome } from './fix-filter';
 
 /** Where a raw position came from: the location service, or the 1-second watch (tracker.ts). */
@@ -24,6 +25,16 @@ export interface LocationProbe {
   received(input: { userId: string; ts: number; acc: number; at: number; ignored: boolean }): void;
   /** A piece of work on the JavaScript thread ran for `ms` (see `timed`): its name and time only. */
   span(name: string, ms: number): void;
+  /**
+   * Background live mode (docs/ADR/0028 step 3): a `watch` notice reached this phone; a live
+   * window of `ms` was opened (or lengthened) for it; or it was refused, and why.
+   */
+  backgroundLive(
+    input:
+      | { kind: 'notice' }
+      | { kind: 'opened'; ms: number }
+      | { kind: 'refused'; reason: BackgroundLiveRefusal },
+  ): void;
 }
 
 export const probe: { current: LocationProbe | null } = { current: null };

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/features/auth/auth-store';
 import { useCircles } from '@/features/circles/queries';
+import { useBackgroundLiveSlots } from '@/features/location/background-live/slot';
 import { useNow } from '@/features/location/clock';
 import { seersOf, useSharing } from '@/features/location/sharing';
 import { GhostControl } from '@/features/location/sharing-card';
@@ -24,6 +25,8 @@ export default function LocationSettingsScreen() {
   const historyCircles = Object.values(sharing.circles).filter(
     (circle) => circle.history === true,
   ).length;
+  // Only builds that have background live mode (docs/ADR/0028 step 3) fill this.
+  const backgroundLiveRow = useBackgroundLiveSlots((state) => state.settingsRow);
   return (
     <Screen title={t('sheets.me.sectionLocation')} testID="location-settings">
       <GhostControl />
@@ -57,6 +60,7 @@ export default function LocationSettingsScreen() {
           }}
         />
       </SettingsGroup>
+      {backgroundLiveRow}
       <Text variant="footnote" color="textMuted">
         {t('settingsLocation.perCircle')}
       </Text>

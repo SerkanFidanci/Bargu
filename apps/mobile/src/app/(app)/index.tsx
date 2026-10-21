@@ -27,6 +27,7 @@ import { useLocationPermission } from '@/features/location/tracker';
 import { NewPhoneCard } from '@/features/location/new-phone-card';
 import { SwarmLayer, SwarmPanel } from '@/features/dev/swarm-panel';
 import { useDevSlots } from '@/features/dev/slots';
+import { useBackgroundLiveSlots } from '@/features/location/background-live/slot';
 import { DEV_TOOLS_ENABLED } from '@/config/env';
 import { seersOf, useSharing } from '@/features/location/sharing';
 import { useWatchCircles } from '@/features/location/use-location';
@@ -122,6 +123,8 @@ export default function HomeScreen() {
     }, []),
   );
   const devOverlay = useDevSlots((state) => state.mapOverlay);
+  // The one-time explanation of background live mode, in builds that have it (ADR 0028 step 3).
+  const backgroundLiveCard = useBackgroundLiveSlots((state) => state.mapCard);
   // While the map is seen, this phone's own pin follows the GPS every second (use-location.ts).
   useEffect(() => {
     useMapOpen.setState({ open: onScreen });
@@ -231,6 +234,7 @@ export default function HomeScreen() {
           <NotificationCard />
           <NewPhoneCard onChoose={() => circles.current?.present()} />
           <SharingReminderCard />
+          {backgroundLiveCard}
           {DEV_TOOLS_ENABLED ? <SwarmPanel /> : null}
         </Animated.View>
         <Animated.View

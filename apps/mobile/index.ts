@@ -11,10 +11,19 @@ import './src/features/location/background-task';
 import './src/features/notifications/background-push';
 // 5. the screens.
 import 'expo-router/entry';
+// The slot background live mode fills when a build has it (below).
+import { backgroundLive } from './src/features/location/background-live/slot';
 
 // The measurement overlay, in development and preview builds only (docs/ADR/0028). The condition
 // is a constant when a release bundle is built (Expo inlines EXPO_PUBLIC_* there), so a production
 // bundle does not contain the overlay's code at all, not even switched off.
 if (__DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1') {
   void import('./src/features/dev/measure');
+}
+
+// Background live mode (docs/ADR/0028 step 3): the same way, in preview builds only until the
+// owner's phone trial and the PM's approval. A production bundle has no code of it; there a
+// `watch` notice is dropped (src/features/notifications/background-push.ts).
+if (process.env.EXPO_PUBLIC_BG_LIVE === '1') {
+  backgroundLive.loading = import('./src/features/location/background-live');
 }

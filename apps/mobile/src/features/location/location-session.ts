@@ -91,6 +91,7 @@ import {
   type SharingSettings,
   useSharing,
   useSharingReview,
+  withAdultDefaults,
   withAllShared,
   withMinorSharing,
   withNothingShared,
@@ -134,7 +135,7 @@ function cachedCircles(): Circle[] | undefined {
   return queryClient.getQueryData<Circle[]>(circlesKey);
 }
 
-function sendCircles(): readonly SendCircle[] {
+export function sendCircles(): readonly SendCircle[] {
   const cached = cachedCircles();
   const me = useAuth.getState().userId;
   if (cached !== undefined) return cached.map((circle) => toSendCircle(circle, me));
@@ -586,6 +587,15 @@ export async function applyMinorRules(): Promise<void> {
     (sharing) => sharing.history === true,
   );
   if (historyLeft) await forgetAllHistory();
+}
+
+/**
+ * What an adult starts with on this phone: background live mode on (docs/ADR/0028 step 3). Done
+ * once, when the age band is known; a teen's phone has its own default (applyMinorRules).
+ */
+export function applyAdultDefaults(): void {
+  if (loadSharingSettings().backgroundLiveDefault !== undefined) return;
+  updateSharing(withAdultDefaults);
 }
 
 /** Changes one circle's sharing (or the ghost mode); takes effect at once. */

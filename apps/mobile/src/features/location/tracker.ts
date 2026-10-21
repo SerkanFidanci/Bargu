@@ -108,6 +108,11 @@ export async function stopTracking(): Promise<void> {
   }
 }
 
+/** Whether the location service is running now (it outlives the screen once started). */
+export function trackingStarted(): Promise<boolean> {
+  return Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
+}
+
 /** The phone's last known position (no GPS start), e.g. to centre the map before any fix. */
 export async function lastKnownFix(): Promise<Fix | null> {
   const location = await Location.getLastKnownPositionAsync();
@@ -115,8 +120,12 @@ export async function lastKnownFix(): Promise<Fix | null> {
 }
 
 /**
- * Live mode while the app is open: GPS once a second on top of the location service, for as long
- * as someone watches. Returns the stop function.
+ * Live mode: GPS once a second on top of the location service, for as long as someone watches.
+ * Returns the stop function. While the app is open this is the app's live mode; in the
+ * background (docs/ADR/0028 step 3) it is what a `watch` notice opens for two minutes: the
+ * location service cannot be retuned from there (expo-location refuses to start or change a
+ * foreground service with the app in the background), but a watcher started while that service
+ * runs gets positions in the process it keeps alive. If the OS delivers none, the caller notices.
  */
 export async function watchLive(onFix: (fix: Fix) => void): Promise<() => void> {
   const subscription = await Location.watchPositionAsync(

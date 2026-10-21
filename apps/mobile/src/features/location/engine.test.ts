@@ -304,6 +304,7 @@ describe('the positions the engine uses (docs/ADR/0028)', () => {
       sent: (input) => heard.push(input),
       received: (input) => heard.push(input),
       span: () => undefined,
+      backgroundLive: (input) => heard.push(input),
     };
     probe.current = listener;
     const t = setup(1);

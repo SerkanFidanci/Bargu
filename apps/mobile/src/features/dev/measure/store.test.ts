@@ -1,4 +1,5 @@
 import {
+  backgroundLived,
   emptyMeasures,
   extend,
   median,
@@ -63,6 +64,53 @@ describe('the measurement overlay keeps (docs/ADR/0028)', () => {
       acc: 8,
       late: 1,
     });
+  });
+
+  it('counts background live mode: notices, minutes opened, and refusals by reason (ADR 0028 step 3)', () => {
+    let measures = emptyMeasures();
+    expect(measures.backgroundLive).toEqual({
+      notices: 0,
+      opened: 0,
+      openedMs: 0,
+      refused: {
+        setting: 0,
+        ghost: 0,
+        notShared: 0,
+        coarse: 0,
+        expired: 0,
+        paused: 0,
+        batterySaver: 0,
+        batteryLow: 0,
+        cap: 0,
+        os: 0,
+      },
+    });
+    for (let index = 0; index < 4; index += 1) {
+      measures = backgroundLived(measures, { kind: 'notice' });
+    }
+    measures = backgroundLived(measures, { kind: 'opened', ms: 120_000 });
+    measures = backgroundLived(measures, { kind: 'opened', ms: 90_000 });
+    measures = backgroundLived(measures, { kind: 'refused', reason: 'cap' });
+    measures = backgroundLived(measures, { kind: 'refused', reason: 'cap' });
+    measures = backgroundLived(measures, { kind: 'refused', reason: 'batteryLow' });
+    expect(measures.backgroundLive).toMatchObject({
+      notices: 4,
+      opened: 2,
+      openedMs: 210_000,
+      refused: { cap: 2, batteryLow: 1, os: 0, ghost: 0 },
+    });
+  });
+
+  it('hears background live mode from the pipeline too, with times and counts only', () => {
+    const before = useMeasures.getState().backgroundLive;
+    recorder.backgroundLive({ kind: 'notice' });
+    recorder.backgroundLive({ kind: 'opened', ms: 60_000 });
+    recorder.backgroundLive({ kind: 'refused', reason: 'ghost' });
+    const after = useMeasures.getState().backgroundLive;
+    expect(after.notices).toBe(before.notices + 1);
+    expect(after.openedMs).toBe(before.openedMs + 60_000);
+    expect(after.refused.ghost).toBe(before.refused.ghost + 1);
+    expect(JSON.stringify(after)).not.toMatch(/"lat"|"lng"|circle/);
   });
 
   it('only in memory, from the location pipeline, without positions', () => {

@@ -43,23 +43,25 @@ export function pushText(
   /** What a circle sees of this phone: live location, history (Faz 9, docs/ADR/0019). */
   seenIn: (circleId: string) => SeenThere = () => ({ location: false, history: false }),
 ): ShownPush | null {
-  if (body.kind === 'notice' && GUARDIAN_NOTICES.has(body.notice)) {
-    // docs/ADR/0023 §4: the "circle" is the link; the guardian screen shows who and what.
-    // Someone new near the child: named after the child when this phone knows the link.
-    const child = contacts.circles[body.circleId]?.name ?? '';
-    return {
-      title: 'Bargu',
-      body:
-        body.notice === 'guardianNewMember' && child !== ''
-          ? i18n.t('notifications.notice.guardianNewMemberIn', { name: child })
-          : i18n.t(`notifications.notice.${body.notice}`),
-      circleId: body.circleId,
-      channel: SOCIAL_CHANNEL,
-      fromUserId: null,
-      route: 'guardians',
-    };
-  }
   if (body.kind === 'notice') {
+    // The silent signal of background live mode (docs/ADR/0028 step 3) has no words, ever.
+    if (body.notice === 'watch') return null;
+    if (GUARDIAN_NOTICES.has(body.notice)) {
+      // docs/ADR/0023 §4: the "circle" is the link; the guardian screen shows who and what.
+      // Someone new near the child: named after the child when this phone knows the link.
+      const child = contacts.circles[body.circleId]?.name ?? '';
+      return {
+        title: 'Bargu',
+        body:
+          body.notice === 'guardianNewMember' && child !== ''
+            ? i18n.t('notifications.notice.guardianNewMemberIn', { name: child })
+            : i18n.t(`notifications.notice.${body.notice}`),
+        circleId: body.circleId,
+        channel: SOCIAL_CHANNEL,
+        fromUserId: null,
+        route: 'guardians',
+      };
+    }
     const circle = contacts.circles[body.circleId]?.name ?? '';
     // Someone new in a circle that sees the location or the history: they can see it too
     // (BARGU_PLAN Faz 9, QA G2).

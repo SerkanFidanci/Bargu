@@ -6,7 +6,11 @@ import { useEffect } from 'react';
 import i18n from '@/i18n';
 import { toast } from '@/ui/toast';
 
-import { applyMinorRules, loadSharingSettings } from '../location/location-session';
+import {
+  applyAdultDefaults,
+  applyMinorRules,
+  loadSharingSettings,
+} from '../location/location-session';
 import {
   fetchPrivacy,
   hasHistoryConsent,
@@ -57,6 +61,8 @@ export async function runPrivacyGate(
     queryClient.setQueryData(ageKey, age);
   }
   if (isMinor(age)) await applyMinorRules();
+  // 18+: background live mode starts on (docs/ADR/0028 step 3); a teen's phone has it off.
+  else applyAdultDefaults();
 
   let state = await queryClient.query({ queryKey: privacyKey, queryFn: fetchPrivacy });
   if (needsNotice(state)) {

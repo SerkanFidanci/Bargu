@@ -329,6 +329,9 @@
       "modeNormal": "normal",
       "dropped": "Atılan: eski {{old}} · bayat {{stale}} · zayıf {{inaccurate}} · sıçrama {{jump}}",
       "fallback": "Kapalı alanda gönderilen: {{count}}",
+      "background": "Arka planda canlı konum",
+      "backgroundOpened": "Haber {{notices}} · açılan {{opened}} ({{minutes}} dk)",
+      "backgroundRefused": "Red: ayar {{setting}} · hayalet {{ghost}} · paylaşım yok {{notShared}} · kaba {{coarse}} · süre bitti {{expired}} · duraklı {{paused}} · pil tasarrufu {{batterySaver}} · pil az {{batteryLow}} · sınır {{cap}} · sistem {{os}}",
       "friends": "Arkadaşlar",
       "noFriends": "Henüz konum gelmedi",
       "friend": "{{name}}: gecikme {{delay}} · aralık {{gap}} · ±{{acc}} m · geç {{late}}",
@@ -672,6 +675,17 @@
       "offDetail": "Çemberlerin seni seçtiğin ayrıntıda görüyor.",
       "freezeDetail": "Son konumun haritada kalır, yenisi gönderilmez.",
       "hideDetail": "Herkesin haritasından kaybolursun, konum gönderilmez."
+    },
+    "backgroundLive": {
+      "title": "Arka planda canlı konum",
+      "battery": "Biri haritada sana bakarken konumun, uygulama kapalıyken de birkaç dakika sık gider. Pil biraz daha harcanır.",
+      "explain": "Yalnızca tam konumunu paylaştığın çemberler için çalışır; hayalet modunda, kaba konumda, pil tasarrufunda ya da pil %20'nin altındayken çalışmaz. Saatte en çok 15 dakika sürer.",
+      "card": {
+        "title": "Arka planda canlı konum açık",
+        "body": "Biri haritada sana bakarken konumun birkaç dakika daha sık gider; pil biraz daha harcanır. Ayarlardan kapatabilirsin.",
+        "ok": "Tamam",
+        "settings": "Ayarlar"
+      }
     },
     "newPhone": {
       "title": "Bu telefonda konumun kimseyle paylaşılmıyor",
