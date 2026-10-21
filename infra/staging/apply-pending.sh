@@ -109,8 +109,9 @@ normalize() {
 }
 
 # The only door to the disk: every path the script writes goes through here first. It stops the
-# whole script unless the path (with ".." resolved, and the folder it sits in with symlinks
-# resolved) lies inside /opt/bargu/staging or /srv/bargu-map. The one exception is the installed
+# whole script unless the path (with ".." resolved, the folder it sits in with symlinks resolved,
+# and the file itself not a symlink) lies inside /opt/bargu/staging or /srv/bargu-map. The one
+# exception to the folders is the installed
 # Bargu nginx site: that exact path (no prefix, no pattern, nothing else under /etc/nginx), and
 # only while ALLOW_SITE is set, which safe_put does for the length of one call. The checked path
 # is left in GUARDED.
@@ -123,9 +124,11 @@ guard() {
     *) die "Güvenlik: yol / ile başlamıyor, hiçbir şey yazılmadı: $1" ;;
   esac
   normalize "$1"
+  # The target ITSELF must not be a symlink (a dangling one counts): a write or a chown/chmod
+  # through it lands wherever it points, outside the two folders. The folder it sits in is checked
+  # below. Every writer reaches the disk through here, so this covers them all.
+  if [ -L "$NORM" ]; then die "Güvenlik: $NORM bir kısayol (symlink), hiçbir şey yazılmadı."; fi
   if [ "$NORM" = "$NGINX_SITE" ] && $ALLOW_SITE; then
-    # A link could lead anywhere: the site must be the plain file itself.
-    if [ -L "$NORM" ]; then die "Güvenlik: $NORM bir kısayol (symlink), hiçbir şey yazılmadı."; fi
     GUARDED=$NORM
     return 0
   fi
@@ -291,6 +294,13 @@ preflight() {
   if [ ! -f "$STACK_DIR/image.env" ]; then die "$STACK_DIR/image.env yok; hiçbir şey yapılmadı."; fi
   if ! command -v docker >/dev/null 2>&1; then die "docker bulunamadı; hiçbir şey yapılmadı."; fi
   if ! id deploy >/dev/null 2>&1; then die "'deploy' kullanıcısı yok; hiçbir şey yapılmadı."; fi
+  # The files the script rewrites or chowns must be real files. guard() refuses a link anyway; this
+  # says so now, before any backup or edit, instead of stopping half way.
+  for plain in "$ENV_FILE" "$COMPOSE_FILE"; do
+    if [ -L "$plain" ]; then
+      die "Güvenlik: $plain bir kısayol (symlink); script yalnızca gerçek dosyaya yazar, hiçbir şey değiştirilmedi."
+    fi
+  done
 
   if env_is_done; then NEED_ENV=false; else NEED_ENV=true; fi
   if compose_is_done; then
@@ -430,6 +440,11 @@ step_world() {
     note "zaten yapılmış: dosya var ve 7 günden yeni ($(size_text "$WORLD_FILE"))"
     return 0
   fi
+  if [ -L "$WORLD_FILE" ] || [ -L "$WORLD_PART" ]; then
+    problem "$WORLD_FILE veya $WORLD_PART bir kısayol (symlink); oraya yazılmaz, harita atlandı"
+    MAP_FAILED=true
+    return 0
+  fi
   if [ -f "$WORLD_FILE" ]; then note "dosya var ama 7 günden eski, yenilenecek"; fi
   if [ ! -x "$PMTILES" ]; then
     problem "$PMTILES çalıştırılamıyor (infra/vps/setup-map.sh kurulmamış olabilir); harita atlandı"
@@ -473,6 +488,11 @@ step_nginx() {
   fi
   if nginx_is_done; then
     note "zaten yapılmış: $NGINX_SITE dosyasında /map/ için duruma göre Cache-Control var (404: no-store; 200, 206, 304: uzun önbellek)"
+    return 0
+  fi
+  if [ -L "$NGINX_SITE" ]; then
+    problem "$NGINX_SITE bir kısayol (symlink); oraya yazılmaz, nginx'e dokunulmadı"
+    NGINX_FAILED=true
     return 0
   fi
   # What the edit needs to find, in the installed (domain filled in) site file.
