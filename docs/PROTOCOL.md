@@ -344,9 +344,9 @@ gövde (JSON) = { kind: "place", circleId, placeId, event: "enter" | "exit", nam
 - Telefon bir haberi yalnızca derlemesinin güvendiği bir anahtarla (`EXPO_PUBLIC_NOTICE_KEYS`,
   `kid:base64url`), kendi cihazı için imzalanmış, taze (`watch` 2 dakika, öteki haberler 1 saat) ve
   `id`'si görülmemişse kabul eder (`verifyServerNotice`); gerisini, imzasız haberler dahil, sessizce
-  atar. `openPush` imzayı yalnızca okur, denetlemez. (Telefonun denetimi 2. adımda gelir; 1. adımın
-  uygulaması imzalı ve imzasız haberi denetlemeden açar. Eski uygulamalar imzalı haberi açamaz ve
-  sessizce atar.)
+  atar. TypeScript `openPush` imzayı yalnızca okur, denetlemez; Swift `openPush` güvenilen
+  anahtarları alır ve imzasız haberi de reddeder. (1. adımın uygulaması imzalı ve imzasız haberi
+  denetlemeden açar; daha eski uygulamalar imzalı haberi açamaz ve sessizce atar.)
 - Tazelik (`ts`) ve tekrar (kutunun geçici anahtarı; sunucu haberinde ayrıca `id`) alıcıda
   denetlenir. `safe` bildirimi 24 saat geçerlidir (öbürleri 1 saat; mesaj göndericinin bağlantısını
   bekleyebilir) ve gövdesindeki `id` ile, aynı mesajın zarfı da gelmişse bir kez gösterilir.

@@ -1,4 +1,4 @@
-import { openPush } from '@bargu/crypto';
+import { openPush, verifyServerNotice } from '@bargu/crypto';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { AppState } from 'react-native';
@@ -15,6 +15,7 @@ import { keepSpot, showSpot } from '../social/safe-spot';
 import { vault } from '../storage/vault';
 import { SAFE_QUIET_CHANNEL } from './channels';
 import { isMuted, loadMutes } from './mutes';
+import { trustedNoticeKeys } from './notice-keys';
 import { identityOf, loadContacts } from './push-contacts';
 import { sealedOf } from './push-payload';
 import { pushText } from './push-text';
@@ -31,6 +32,21 @@ export const WATCH_FRESH_MS = 2 * 60_000;
 /** The last boxes opened, so a message delivered twice shows once. */
 const SEEN_KEY = 'push:seen:v1';
 const SEEN_KEEP = 50;
+/**
+ * Server notices taken, by id, for as long as they could pass as fresh (QA-28 B-1): the same
+ * notice sealed again is a replay.
+ */
+const NOTICES_KEY = 'push:notices:v1';
+const NOTICES_KEEP = 200;
+const noticeLogSchema = z.array(z.object({ id: z.string(), until: z.number() })).catch([]);
+
+function readList(store: ReturnType<typeof vault>, key: string): unknown {
+  try {
+    return JSON.parse(store.get(key) ?? '[]');
+  } catch {
+    return [];
+  }
+}
 
 /** `watch`: the silent signal of background live mode, which is never shown. */
 export type Shown =
@@ -38,8 +54,10 @@ export type Shown =
 
 /**
  * Opens a sealed notification on this phone and shows it in the user's words: from a member, only
- * if signed by the device the app trusts for them; nothing about it is logged. In the foreground
- * it becomes an in-app line instead of a system banner.
+ * if signed by the device the app trusts for them; from the server, only if signed for this device
+ * by a notice key this build trusts, fresh and not seen before (QA-28 B-1). Anything else is
+ * dropped without a word, and nothing about it is logged. In the foreground it becomes an in-app
+ * line instead of a system banner.
  */
 export async function showPush(sealed: string, now = Date.now()): Promise<Shown> {
   if (!(await ensureSession())) return 'refused';
@@ -59,21 +77,37 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
   }
   const watched = opened.body.kind === 'notice' && opened.body.notice === 'watch';
   // A "Güvendeyim" may have waited for its sender's connection (docs/ADR/0029): it is still news.
-  const fresh = watched
+  const freshFor = watched
     ? WATCH_FRESH_MS
     : opened.body.kind === 'safe'
       ? SAFE_FRESH_MS
       : PUSH_FRESH_MS;
-  if (now - opened.body.ts > fresh) return 'stale';
+  if (now - opened.body.ts > freshFor) return 'stale';
   // Dated more than a few minutes ahead: a wrong clock, or made up. Not shown (docs/ADR/0029 §5).
   if (opened.body.kind === 'safe' && safeAge(opened.body.ts, now) === 'ahead') return 'future';
   // The ephemeral key at the start of the box is fresh for every box: a good "seen" mark.
   const mark = sealed.slice(0, 48);
-  const seen = z
-    .array(z.string())
-    .catch([])
-    .parse(JSON.parse(store.get(SEEN_KEY) ?? '[]'));
+  const seen = z.array(z.string()).catch([]).parse(readList(store, SEEN_KEY));
   if (seen.includes(mark)) return 'duplicate';
+  if (opened.body.kind === 'notice') {
+    // Any member knows this device's DH key and could seal a "notice" (QA-28 B-1): only the
+    // server's signature, for this device, makes it one. An unsigned one is dropped like a forgery.
+    const taken = noticeLogSchema
+      .parse(readList(store, NOTICES_KEY))
+      .filter((entry) => entry.until >= now);
+    const stamp = verifyServerNotice(opened, {
+      keys: trustedNoticeKeys,
+      now,
+      maxAgeMs: freshFor,
+      seen: (id) => taken.some((entry) => entry.id === id),
+    });
+    if (stamp === null) return 'refused';
+    const until = Math.max(now, stamp.issuedAt) + PUSH_FRESH_MS;
+    store.set(
+      NOTICES_KEY,
+      JSON.stringify([...taken, { id: stamp.id, until }].slice(-NOTICES_KEEP)),
+    );
+  }
   store.set(SEEN_KEY, JSON.stringify([...seen, mark].slice(-SEEN_KEEP)));
 
   if (opened.body.kind === 'notice' && opened.body.notice === 'watch') {

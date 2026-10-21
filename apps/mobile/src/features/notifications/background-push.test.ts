@@ -1,11 +1,14 @@
 import {
   generateDeviceKeys,
+  noticePublicKey,
+  openSealed,
+  parseNoticeKeys,
   randomUuid,
   sealForDevice,
   sealPush,
   toBase64url,
 } from '@bargu/crypto';
-import type { PushBody } from '@bargu/schemas';
+import { PUSH_NOTICES, type PushBody } from '@bargu/schemas';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { AppState } from 'react-native';
@@ -29,10 +32,14 @@ import { PUSH_FRESH_MS, showPush, WATCH_FRESH_MS } from './background-push';
 import { SAFE_QUIET_CHANNEL } from './channels';
 import { saveMutes } from './mutes';
 import { safeOfResponse } from './push';
-import { type PushContacts, saveContacts } from './push-contacts';
+import { EMPTY_CONTACTS, type PushContacts, saveContacts } from './push-contacts';
 
 const mockDevice = generateDeviceKeys(randomUuid());
 const mockStore = memoryStore();
+// The server's notice key (QA-28 B-1): a throwaway one, 32 random bytes; the build trusts its
+// public half, as a preview build trusts staging's (EXPO_PUBLIC_NOTICE_KEYS).
+const signer = { secretKey: generateDeviceKeys(randomUuid()).identity.secretKey, kid: 'test-n1' };
+let mockNoticeKeys = parseNoticeKeys(`test-n1:${noticePublicKey(signer.secretKey)}`);
 
 // Native modules jest does not have on Linux (CI), though Windows resolves them.
 jest.mock('expo-notifications', () => ({
@@ -51,14 +58,20 @@ jest.mock('../auth/auth-store', () => ({
 }));
 jest.mock('../live/live-session', () => ({ ensureSession: () => Promise.resolve(true) }));
 jest.mock('../storage/vault', () => ({ vault: () => mockStore }));
+jest.mock('./notice-keys', () => ({
+  get trustedNoticeKeys() {
+    return mockNoticeKeys;
+  },
+  sharedNoticeKeys: () => ({}),
+}));
 
 const circleId = randomUuid();
 const NOW = 1_800_000_000_000;
 const recipient = { deviceId: mockDevice.deviceId, dhKey: mockDevice.dh.publicKey };
 const notice = (kind: string, ts = NOW) => ({ kind: 'notice', notice: kind, circleId, ts });
 
-/** A box the server sealed for this phone. */
-const fromServer = (body: PushBody) => sealPush({ recipient, sender: null, body });
+/** A box the server sealed for this phone, signed with its notice key. */
+const fromServer = (body: PushBody) => sealPush({ recipient, sender: null, body, signer });
 
 /**
  * A box with a body this app's schema does not know, the way a newer server would send one to an
@@ -111,33 +124,119 @@ describe('a notice this app does not know is dropped silently', () => {
   });
 });
 
-describe('server notices the server signed (QA-28 B-1, before the phone checks them)', () => {
-  // A throwaway notice key: 32 random bytes.
-  const signer = { secretKey: generateDeviceKeys(randomUuid()).identity.secretKey, kid: 'stg-n1' };
-  const signed = (body: PushBody) => sealPush({ recipient, sender: null, body, signer });
+describe('server notices are the server’s only when it signed them (QA-28 B-1)', () => {
+  const body = (kind: (typeof PUSH_NOTICES)[number], ts = NOW): PushBody => ({
+    kind: 'notice',
+    notice: kind,
+    circleId,
+    ts,
+  });
+  /** What any member of the circle can seal: they know this device's DH key. */
+  const unsigned = (kind: (typeof PUSH_NOTICES)[number]) =>
+    sealPush({ recipient, sender: null, body: body(kind) });
+  /** A genuine notice sealed for another device, opened there and sealed again for this one. */
+  function resealed(kind: (typeof PUSH_NOTICES)[number]): string {
+    const other = generateDeviceKeys(randomUuid());
+    const box = sealPush({
+      recipient: { deviceId: other.deviceId, dhKey: other.dh.publicKey },
+      sender: null,
+      body: body(kind),
+      signer,
+    });
+    return sealForDevice(mockDevice.dh.publicKey, openSealed(other, box));
+  }
+  const nothingHappened = () => {
+    expect(scheduled).not.toHaveBeenCalled();
+    expect(toasted).not.toHaveBeenCalled();
+    expect(mockNotice).not.toHaveBeenCalled();
+  };
 
-  it('open and act exactly like unsigned ones: this build checks nothing yet', async () => {
-    expect(
-      await showPush(signed({ kind: 'notice', notice: 'watch', circleId, ts: NOW }), NOW),
-    ).toBe('watch');
+  afterEach(() => {
+    mockNoticeKeys = parseNoticeKeys(`test-n1:${noticePublicKey(signer.secretKey)}`);
+  });
+
+  it('takes a signed notice as before: a banner, or the silent watch', async () => {
+    expect(await showPush(fromServer(body('circleInvite')), NOW)).toBe('shown');
+    expect(await showPush(fromServer(body('watch')), NOW)).toBe('watch');
     expect(mockNotice).toHaveBeenCalledWith(circleId);
-    expect(
-      await showPush(signed({ kind: 'notice', notice: 'circleInvite', circleId, ts: NOW }), NOW),
-    ).toBe('shown');
-    // Unsigned ones too, as a server without a notice key sends them.
-    expect(
-      await showPush(
-        fromServer({ kind: 'notice', notice: 'friendRequest', circleId, ts: NOW }),
-        NOW,
-      ),
-    ).toBe('shown');
-    expect(scheduled).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(PUSH_NOTICES)(
+    'drops an unsigned or re-sealed %s without a word, open or closed',
+    async (kind) => {
+      for (const state of ['background', 'active'] as const) {
+        appIs(state);
+        expect(await showPush(unsigned(kind), NOW)).toBe('refused');
+        expect(await showPush(resealed(kind), NOW)).toBe('refused');
+      }
+      nothingHappened();
+    },
+  );
+
+  it('the QA reproduction: a member’s watch notice does not open background live mode', async () => {
+    // Unsigned, signed by another key under the trusted kid, under an unknown kid, or re-sealed.
+    const forged = [
+      unsigned('watch'),
+      sealPush({
+        recipient,
+        sender: null,
+        body: body('watch'),
+        signer: { ...signer, secretKey: generateDeviceKeys(randomUuid()).identity.secretKey },
+      }),
+      sealPush({ recipient, sender: null, body: body('watch'), signer: { ...signer, kid: 'x-1' } }),
+      resealed('watch'),
+    ];
+    for (const sealed of forged) expect(await showPush(sealed, NOW)).toBe('refused');
+    nothingHappened();
+    // The server's own watch still does.
+    expect(await showPush(fromServer(body('watch')), NOW)).toBe('watch');
+    expect(mockNotice).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes a notice once: the same box is a duplicate, its content sealed again a replay', async () => {
+    const box = fromServer(body('watch'));
+    expect(await showPush(box, NOW)).toBe('watch');
+    expect(await showPush(box, NOW)).toBe('duplicate');
+    const again = sealForDevice(mockDevice.dh.publicKey, openSealed(mockDevice, box));
+    expect(await showPush(again, NOW + 1_000)).toBe('refused');
+    expect(mockNotice).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops a stale signed notice: a watch after two minutes, the others after an hour', async () => {
+    expect(await showPush(fromServer(body('watch', NOW - WATCH_FRESH_MS - 1)), NOW)).toBe('stale');
+    expect(await showPush(fromServer(body('memberJoined', NOW - PUSH_FRESH_MS - 1)), NOW)).toBe(
+      'stale',
+    );
+    nothingHappened();
+  });
+
+  it('takes no notice at all in a build that trusts no notice key', async () => {
+    mockNoticeKeys = new Map();
+    expect(await showPush(fromServer(body('circleInvite')), NOW)).toBe('refused');
+    expect(await showPush(fromServer(body('watch')), NOW)).toBe('refused');
+    nothingHappened();
+  });
+
+  it('keeps taking members’ notifications, which their own phones sign, without any notice key', async () => {
+    mockNoticeKeys = new Map();
+    const ada = generateDeviceKeys(randomUuid());
+    saveContacts(mockStore, {
+      ...EMPTY_CONTACTS,
+      devices: {
+        [ada.deviceId]: {
+          userId: randomUuid(),
+          name: 'Ada',
+          identityKey: toBase64url(ada.identity.publicKey),
+        },
+      },
+    });
+    const poke = sealPush({ recipient, sender: ada, body: { kind: 'bump', circleId, ts: NOW } });
+    expect(await showPush(poke, NOW)).toBe('shown');
   });
 
   it('a box in a format the app does not know is dropped without a word, as an older app (028ab2e) drops a signed notice', async () => {
     // The opening code of 028ab2e refuses the signed notice's first byte (0x02) the way today's
-    // refuses 0x03 (packages/crypto legacy-app.spec.ts runs that code); this file, which handles
-    // the refusal, is unchanged since 028ab2e.
+    // refuses 0x03 (packages/crypto legacy-app.spec.ts runs that code), through the same catch.
     const unknown = sealForDevice(
       mockDevice.dh.publicKey,
       Uint8Array.of(3, ...new TextEncoder().encode(JSON.stringify(notice('watch')))),
@@ -155,9 +254,7 @@ describe('server notices the server signed (QA-28 B-1, before the phone checks t
         executionInfo: { eventId: 'event', taskName: 'bargu-push' },
       }),
     ).resolves.toBeUndefined();
-    expect(scheduled).not.toHaveBeenCalled();
-    expect(toasted).not.toHaveBeenCalled();
-    expect(mockNotice).not.toHaveBeenCalled();
+    nothingHappened();
   });
 });
 

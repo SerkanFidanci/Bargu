@@ -137,7 +137,9 @@ ebeveyn bildirimi gösterilebiliyordu.
 - **2. adım (sonra, anahtar eas.json'a girince):** telefon denetimi (imzasız ve geçersiz haberi
   atma, alıcı, tazelik, tekrar) ve iOS eklentisi. İstemci seviyesi 5. Herkes 2. adımın APK'sına
   geçince `MIN_CLIENT_LEVEL` 5 olur: 1. adımın APK'sı imzasız haberi hâlâ kabul ettiği için açık
-  ancak o zaman bütün telefonlarda kapanır.
+  ancak o zaman bütün telefonlarda kapanır. Uygulandı: telefon `background-push.ts` (güvenilen
+  anahtarlar `notice-keys.ts`, gördüğü id'ler `push:notices:v1`), iOS `BarguCrypto.swift` ve
+  `PushShare.swift`.
 - Güvendiği anahtarı olmayan derleme (geliştirme; üretim, Faz 10'a kadar) 2. adımdan sonra bütün
   sunucu haberlerini atar. Yerelde denemek için yerel API'ye bir haber anahtarı, geliştirme
   derlemesine de onun açık yarısı verilir.

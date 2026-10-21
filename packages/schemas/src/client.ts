@@ -4,8 +4,9 @@
  * read a paused circle). The app sends it on every request and on the event socket; an app that
  * sends nothing is level 0. A server whose minimum is above it answers 426 UPGRADE_REQUIRED.
  * 4: reads the server's signed notices (QA-28 B-1); older apps drop them once the server signs.
+ * 5: takes a server notice only when signed for it (QA-28 B-1); 4 still takes unsigned ones.
  */
-export const CLIENT_LEVEL = 4;
+export const CLIENT_LEVEL = 5;
 
 /**
  * From which level an app reads what a server sends; an older one is not sent it at all (ADR 0024

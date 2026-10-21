@@ -4,14 +4,16 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 import type { Mutes } from './mutes';
+import { sharedNoticeKeys } from './notice-keys';
 import type { PushContacts } from './push-contacts';
 
 /**
  * What the iOS Notification Service Extension needs to open and word a sealed notification
  * (docs/ADR/0016, apps/mobile/targets/notification-service): this device's id and X25519 secret
- * (never the identity key), the trusted contacts and the mutes. Kept in a keychain group only the
- * app and its extension share, readable after the first unlock, never synced. Off until the
- * Apple team id is configured (app.config.ts `extra.iosPushKeychainGroup`).
+ * (never the identity key) with the server notice keys this build trusts, the trusted contacts and
+ * the mutes. Kept in a keychain group only the app and its extension share, readable after the
+ * first unlock, never synced. Off until the Apple team id is configured (app.config.ts
+ * `extra.iosPushKeychainGroup`).
  */
 const EXTENSION_SERVICE = 'bargu.push';
 export const EXTENSION_ITEMS = {
@@ -22,6 +24,8 @@ export const EXTENSION_ITEMS = {
   history: 'history',
   /** Circles that see the live location now: "someone new can see your location" (Faz 9). */
   live: 'live',
+  /** Written by the extension: the server notices it took, by id (QA-28 B-1, replays). */
+  notices: 'notices',
 } as const;
 
 function options(): SecureStore.SecureStoreOptions | null {
@@ -63,6 +67,8 @@ export function shareDeviceWithExtension(device: DeviceKeys): Promise<void> {
   return put(EXTENSION_ITEMS.device, {
     deviceId: device.deviceId,
     dhSecretKey: toBase64url(device.dh.secretKey),
+    // Public keys from the build (EXPO_PUBLIC_NOTICE_KEYS): what a server notice must be signed by.
+    noticeKeys: sharedNoticeKeys(),
   });
 }
 
