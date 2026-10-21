@@ -1261,6 +1261,7 @@
     "bought": "The pack is yours. The look you chose shows to your friends.",
     "ask": "Ask my parent · {{price}}",
     "asked": "You asked your parent. Once they say yes, the pack opens and you'll hear about it.",
+    "approved": "Your parent said yes: {{pack}}",
     "waiting": "Waiting for a yes",
     "pending": "Waiting for your parent's yes. Once they say yes, the pack opens and you'll hear about it.",
     "soon": "Buying is coming soon: the store is not connected yet.",

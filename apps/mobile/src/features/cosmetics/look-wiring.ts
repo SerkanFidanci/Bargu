@@ -1,3 +1,4 @@
+import type { Plan } from '@bargu/schemas';
 import { hashKey } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
@@ -8,7 +9,9 @@ import { useCircleKeys } from '../circles/circle-sync';
 import { onOnline, onServerEvents } from '../live/live-session';
 import { queryClient } from '../query-client';
 import { isVaultOpen } from '../storage/vault';
+import { planSeen, resetApproval } from './look-approval';
 import { publishLook, refreshPass, resetLooks, restoreLooks } from './look-session';
+import { resetTrying } from './look-trying';
 
 /**
  * What keeps the looks current (docs/ADR/0025), by events and never by polling: the own pass is
@@ -31,7 +34,12 @@ onOnline(() => {
 });
 queryClient.getQueryCache().subscribe((event) => {
   if (event.type !== 'updated') return;
-  if (event.query.queryHash === PLAN_HASH) quietly(refreshPass());
+  if (event.query.queryHash === PLAN_HASH) {
+    quietly(refreshPass());
+    // A pack a parent said yes to (the plan had it waiting, now it is theirs): opened (look-approval).
+    const plan = event.query.state.data as Plan | undefined;
+    if (plan !== undefined) planSeen(plan);
+  }
   // New members and new epochs: they could not read the look sent before.
   if (event.query.queryHash === CIRCLES_HASH && isVaultOpen()) quietly(publishLook());
 });
@@ -39,7 +47,11 @@ queryClient.getQueryCache().subscribe((event) => {
 useCircleKeys.subscribe(() => {
   if (isVaultOpen()) quietly(publishLook());
 });
-onSignedOut(resetLooks);
+onSignedOut(() => {
+  resetLooks();
+  resetApproval();
+  resetTrying();
+});
 
 /**
  * With the vault open: the choice, the pass and others' looks from before, then the pass checked

@@ -1261,6 +1261,7 @@
     "bought": "Paket açıldı. Seçtiğin süs arkadaşlarında görünür.",
     "ask": "Ebeveynime sor · {{price}}",
     "asked": "Ebeveynine sordun. Onaylayınca paket açılır ve haber alırsın.",
+    "approved": "Ebeveynin onayladı: {{pack}}",
     "waiting": "Onay bekliyor",
     "pending": "Ebeveyninin onayı bekleniyor. Onaylayınca paket açılır ve haber alırsın.",
     "soon": "Satın alma yakında: mağaza bağlantısı henüz yok.",

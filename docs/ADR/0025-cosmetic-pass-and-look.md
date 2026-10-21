@@ -187,7 +187,8 @@ bilgisi ve 15–17 kuralı değişmedi; yalnızca adlar, çizim ve hareket sın�
 
 ## Ek (2026-10-21, Faz 9B dilim 3c: 15–17 süs paketi için ebeveynine sorar)
 
-- Durum: Uygulandı (migration 0037). PM kararları 2026-10-21.
+- Durum: Uygulandı (migration 0037; 7 günlük düşmenin olayları ve evet gelince stilin kendiliğinden
+  seçilmesi aynı gün PM cevabıyla eklendi, migration 0038). PM kararları 2026-10-21.
 - İlgili: [ADR 0024 §5 ve §10](0024-entitlements-and-test-billing.md), [ADR 0023](0023-age-15-plus.md).
 
 **Neden:** §6 süs satın almanın ebeveyn onayıyla olacağını yazıyordu ama sunucu isteği saklamıyordu;
@@ -226,6 +227,12 @@ GUARDIAN_APPROVAL` alır (uygulama bunu hata değil "soruldu" sayar). Test satı
 - **Plan cevabı:** `pendingCosmetics` (bekleyen paketler, `rings` gibi) `pendingPurchase`'ten ayrıdır.
   Ekran onu `plan.changed` olayıyla günceller (yoklama yok). Olay şu durumlarda gider: yeni istek,
   ebeveynin cevabı, 7 günlük düşme (işçi), son ebeveyn bağının bitmesi.
+- **7 günlük düşme iki tarafa da olaydır (migration 0038, CLAUDE.md: her durum değişikliği bir
+  olay):** `app.expire_guardian_tools()` düşen her isteğin türünü ve çocuğun etkin ebeveynlerini de
+  döner. İşçi çocuğa ve ebeveynlere `guardians.changed` yollar (açık ebeveyn görünümü isteği artık
+  göstermez); çocuğa ayrıca `plan.changed` yollar, ama yalnızca düşen istek bir Bargu+ ya da süs
+  isteğiyse (başka türün planla ilgisi yoktur). Aynı boşluk Bargu+ satın alma isteğinde de vardı ve
+  kapandı. İşçi bir ebeveyn bağını bitirirse (isteklerle birlikte gider) çocuğa `plan.changed` gider.
 - **Ebeveyn görünümü:** istek `{ kind: 'cosmetic', pack: 'rings' }` olarak gelir (`product` yalnızca
   abonelik içindir). Tanınmayan bir paket kimliği de okunur; uygulama onu genel cümleyle yazar
   ("Yeni bir süs paketi almak istiyor"), fiyatsız.
@@ -233,9 +240,15 @@ GUARDIAN_APPROVAL` alır (uygulama bunu hata değil "soruldu" sayar). Test satı
   bekliyor"); saatlik üst sınır diğer ebeveyn haberleriyle ortaktır. Eski Android sessizce atar, eski
   iOS uzantısı genel metni gösterir (ADR 0024 §10).
 - **Çocuğun ekranı:** "Pin süsleri"nde paketin düğmesi "Ebeveynime sor" iken soruldu mu "Onay bekliyor"
-  rozeti ve "Ebeveyninin onayı bekleniyor" yazısı çıkar, düğme gider. Evet gelince paket "Sende" olur;
-  denenen stil seçilmemişti, pin onu göstermeyi bırakır ve stil tek dokunuşla seçilir. Hayır
-  gelince düğme geri gelir.
+  rozeti ve "Ebeveyninin onayı bekleniyor" yazısı çıkar, düğme gider. Hayır gelince düğme geri gelir.
+- **Evet gelince (PM, 2026-10-21):** paket "Sende" olur, küçük bir bildirim çıkar ("Ebeveynin
+  onayladı: Pin çerçeveleri") ve çocuğun beklerken denediği stil kendiliğinden seçilir ve çemberlere
+  gider (onun seçimiydi). Bu bir ekranın işi değildir: telefon planı önbelleğinde "bekleyen paket artık
+  sahip olunan paket" geçişini görür (`look-approval.ts`, `plan.changed` ile yenilenen plan; durum
+  güncellemesi bir etki (effect) içinde değil, olay yolundadır). Denenen stil bu yüzden ekrandan
+  ayrı bir depoda durur (`look-trying.ts`); ekran kapansa da evet gelince orada bulunur. Aynı
+  telefonda paket bekleyen değilse (yetişkinin satın alması) bu yol çalışmaz, satın alma kendi
+  akışıyla seçer. Hayır gelince denenen stil denemede kalır; çocuk yeniden isteyebilir.
 
 ### Uyumluluk: istemci seviyesi 4
 

@@ -96,6 +96,7 @@ jest.mock('./look-session', () => {
 import LookSettingsScreen from '@/app/(app)/settings/look';
 
 import { useMyLook } from './look-session';
+import { resetTrying, useTrying } from './look-trying';
 
 /** The flattened style of a rendered element (the test renderer types props loosely). */
 const styleOf = (element: { props: unknown }): ViewStyle & TextStyle =>
@@ -142,6 +143,7 @@ beforeEach(() => {
   mockChoose.mockImplementation(() => Promise.resolve());
   mockRefresh.mockImplementation(() => Promise.resolve());
   useMyLook.setState({ choice: { ring: null, frame: null }, pass: null, look: null });
+  resetTrying();
   useToasts.setState({ current: null });
 });
 
@@ -319,14 +321,30 @@ describe('"Pin süsleri" in Görünüm ve harita (docs/ADR/0025, the pin addendu
     expect(await screen.findByText('Sende')).toBeTruthy();
     expect(screen.queryByTestId('pack-pending-rings')).toBeNull();
     expect(screen.queryByText('Onay bekliyor')).toBeNull();
-    // The style that was tried was never chosen, so the pin does not show it any more: friends
-    // would not see it either.
+    // Choosing the style that was tried is the event path's (look-approval.ts, with its own tests):
+    // this screen shows what is chosen, never a trial of a pack the user has.
     expect(preview().queryByTestId('pin-look-ring-sparkle')).toBeNull();
     expect(mockChoose).not.toHaveBeenCalled();
     // The pack is theirs now: a style is chosen at once and goes to circles, as for anyone.
     await fireEvent.press(screen.getByTestId('style-dots'));
     expect(mockChoose).toHaveBeenLastCalledWith({ ring: 'dots', frame: null });
     expect(preview().getByTestId('pin-look-ring-dots')).toBeTruthy();
+  });
+
+  it('keeps a style tried while a pack waits when the screen is left and opened again', async () => {
+    mockBand = '15-17';
+    mockPlan = plan([], true, ['rings']);
+    const { unmount } = await show();
+    await fireEvent.press(await screen.findByTestId('style-sparkle'));
+    expect(preview().getByTestId('pin-look-ring-sparkle')).toBeTruthy();
+    // The user leaves; the parent's yes can come while another screen is open, and the style tried
+    // must still be there for it (look-approval.ts).
+    await unmount();
+    expect(useTrying.getState().ring).toBe('sparkle');
+    await show();
+    expect(await screen.findByTestId('pack-pending-rings')).toBeTruthy();
+    expect(preview().getByTestId('pin-look-ring-sparkle')).toBeTruthy();
+    expect(mockChoose).not.toHaveBeenCalled();
   });
 
   it('tells a 15-17 account with no parent linked that a parent is needed, and shows nothing waiting', async () => {

@@ -7,7 +7,6 @@ import {
 } from '@bargu/schemas';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FlaskConical, Sparkles } from 'lucide-react-native';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
@@ -36,21 +35,11 @@ import {
   isRingPattern,
   type Look,
   type LookChoice,
+  PACK_PART as PART,
   PACK_PRICE,
   PACKS,
 } from './look-styles';
-
-/** Which part of a look each pack gives. */
-const PART = { rings: 'ring', frames: 'frame' } as const satisfies Record<
-  CosmeticPack,
-  keyof LookChoice
->;
-
-/** Styles being tried: absent (undefined) is not trying, null is trying the plain one. */
-interface Trying {
-  ring?: string | null | undefined;
-  frame?: string | null | undefined;
-}
+import { stopTrying, tryStyle, useTrying } from './look-trying';
 
 /** What a choice would look like, as far as this app knows its styles (a preview, so not checked). */
 function previewOf(choice: LookChoice): Look | undefined {
@@ -75,11 +64,14 @@ export function PinLooks() {
   const age = useQuery({ queryKey: ageKey, queryFn: fetchAge });
   const teen = isMinor(age.data);
   const choice = useMyLook((state) => state.choice);
-  // Styles tried from packs not bought: shown on the pin, never saved or sent.
-  const [trying, setTrying] = useState<Trying>({});
+  // Styles tried from packs not bought: shown on the pin, never saved or sent. Kept apart from this
+  // screen: a style tried from a pack a parent has yet to say yes to is chosen when the yes comes
+  // (look-approval.ts), wherever the user is then.
+  const trying = useTrying();
   const owned = (pack: CosmeticPack) => plan.data?.cosmetics.includes(pack) === true;
-  // A style tried from a pack that has since become theirs (a parent said yes while this screen was
-  // open) is not shown any more: friends would not see it, so the pin shows what is chosen.
+  // A style tried from a pack that has since become theirs (a parent said yes) is no longer a
+  // trial: look-approval.ts chooses it, so the pin shows what is chosen, never a trial of a pack
+  // the user has.
   const shownPart = (pack: CosmeticPack) => {
     const part = PART[pack];
     const tried = owned(pack) ? undefined : trying[part];
@@ -92,10 +84,10 @@ export function PinLooks() {
   const pick = (pack: CosmeticPack, id: string | null) => {
     const part = PART[pack];
     if (!owned(pack)) {
-      setTrying((current) => ({ ...current, [part]: id }));
+      tryStyle(part, id);
       return;
     }
-    setTrying((current) => ({ ...current, [part]: undefined }));
+    stopTrying(part);
     chooseLook({ ...choice, [part]: id }).catch(() => undefined);
   };
 
@@ -106,7 +98,7 @@ export function PinLooks() {
       // The new pack is in the next pass; the style tried goes to circles with it.
       const part = PART[pack];
       const tried = trying[part];
-      setTrying((current) => ({ ...current, [part]: undefined }));
+      stopTrying(part);
       refreshPass(true)
         .then(async () => {
           if (tried !== undefined) {
