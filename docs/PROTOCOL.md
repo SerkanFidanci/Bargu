@@ -342,7 +342,8 @@ gövde (JSON) = { kind: "place", circleId, placeId, event: "enter" | "exit", nam
   `kid` en çok 16 karakter `[a-z0-9-]`; `issuedAt` gövdedeki `ts`'e eşit olmalıdır; `id` her habere
   16 rastgele bayttır. İmza kutunun içinde ham bayttır.
 - Telefon bir haberi yalnızca derlemesinin güvendiği bir anahtarla (`EXPO_PUBLIC_NOTICE_KEYS`,
-  `kid:base64url`), kendi cihazı için imzalanmış, taze (`watch` 2 dakika, öteki haberler 1 saat) ve
+  `kid:base64url`; her derleme profili yalnızca kendi sunucusununkine), kendi cihazı için
+  imzalanmış, taze (`watch` 2 dakika, öteki haberler 1 saat; en çok 5 dakika ileri tarihli) ve
   `id`'si görülmemişse kabul eder (`verifyServerNotice`); gerisini, imzasız haberler dahil, sessizce
   atar. TypeScript `openPush` imzayı yalnızca okur, denetlemez; Swift `openPush` güvenilen
   anahtarları alır ve imzasız haberi de reddeder. (1. adımın uygulaması imzalı ve imzasız haberi

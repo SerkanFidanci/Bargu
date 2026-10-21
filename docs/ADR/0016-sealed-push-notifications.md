@@ -91,10 +91,17 @@ ebeveyn bildirimi gösterilebiliyordu.
     "kanonik olmayan karakter" hatası çıkamaz.
 - **Telefon bir haberi yalnızca şu durumda kabul eder** (`verifyServerNotice`):
   - `kid` derlemenin güvendiği listede: `EXPO_PUBLIC_NOTICE_KEYS` (`kid:base64url`, virgülle),
-    derleme profiline göre (preview staging'inkine, üretim ileride kendi anahtarına güvenir; süs
-    anahtarlarıyla aynı düzen, ADR 0025 §2);
+    derleme profiline göre, her profil yalnızca kendi sunucusunun anahtarına (süs anahtarlarıyla
+    aynı düzen, ADR 0025 §2; PM, 2026-10-21):
+    - geliştirme yalnızca yerel API'nin geliştirme anahtarına (`dev-n1`);
+    - preview yalnızca staging'inkine (`stg-n1`); lead açık anahtarı koyana kadar `eas.json`'da
+      işaretli bir yer tutucu durur ve preview hiçbir habere güvenmez;
+    - üretim hiçbirine (kendi anahtarı Faz 10'da).
+    - Bir anahtar iki profilde birden olamaz (test `eas.json`'ı okur).
   - imza doğru ve bu cihaz için;
-  - taze: `watch` en çok 2 dakika (FCM ömrüyle aynı), öteki haberler 1 saat (bugünkü kural);
+  - taze: `watch` en çok 2 dakika (FCM ömrüyle aynı), öteki haberler 1 saat (bugünkü kural); ileri
+    tarihli haber en çok 5 dakika ileride olabilir, daha ilerisi düşer (PM: saati biraz geri bir
+    telefon haberleri almaya devam eder);
   - id daha önce görülmemiş.
   - Başka her şey, imzasız haberler dahil, **sessizce** düşer: hata yok, bildirim yok, satır yok,
     arka plan canlı modu açılmaz.
@@ -140,9 +147,17 @@ ebeveyn bildirimi gösterilebiliyordu.
   ancak o zaman bütün telefonlarda kapanır. Uygulandı: telefon `background-push.ts` (güvenilen
   anahtarlar `notice-keys.ts`, gördüğü id'ler `push:notices:v1`), iOS `BarguCrypto.swift` ve
   `PushShare.swift`.
-- Güvendiği anahtarı olmayan derleme (geliştirme; üretim, Faz 10'a kadar) 2. adımdan sonra bütün
-  sunucu haberlerini atar. Yerelde denemek için yerel API'ye bir haber anahtarı, geliştirme
-  derlemesine de onun açık yarısı verilir.
+- Güvendiği anahtarı olmayan derleme (üretim, Faz 10'a kadar; preview, yer tutucu dururken) 2.
+  adımdan sonra bütün sunucu haberlerini atar.
+- **Geliştirme anahtarı:** `pnpm --filter @bargu/api build`, sonra
+  `pnpm --filter @bargu/api notice-key:dev`. Yardımcı, anahtarı yalnızca git'in yok saydığı
+  `apps/api/.env`'e yazar (yok sayılmıyorsa hiçbir şey yazmaz; staging ya da üretim `.env`'ini
+  reddeder; varsa olanı korur) ve yalnızca açık satırı (`dev-n1:...`) yazdırır. Bu satır
+  `eas.json`'ın geliştirme profiline ve Metro'nun okuduğu `apps/mobile/.env`'e girer. Sır depoya,
+  loga ya da ekrana hiç çıkmaz.
+- **Ortak test vektörleri:** her vektörün rastgeleliği adından türetilir (HKDF, "fixture/tür/ad"),
+  listedeki yerinden değil. Yeni bir haber türü yalnızca yeni bir kayıt ekler, eskileri değişmez;
+  değişen bir kayıt protokolün değiştiği anlamına gelir.
 
 ### Sonuçlar
 
