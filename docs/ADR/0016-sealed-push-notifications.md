@@ -54,3 +54,100 @@ kutuyu iOS bildirim eklentisi (Swift + CryptoKit) açar.
   ister; o izin gelene kadar yerine içeriksiz yer tutucu görünür.
 - Büyük bir çemberde dürtme ve varış, üye başına bir kutu taşır (en çok ~55 KB); bu yüzden canlı
   bağlantı sınırını aşan istekler HTTP'den gider.
+
+## Ek (2026-10-21, QA-28 B-1: sunucu haberleri imzalı)
+
+- Durum: Kabul edildi (PM, 2026-10-21). İki adımda yayılır (aşağıda "Geçiş").
+- İlgili: [ADR 0025](0025-cosmetic-pass-and-look.md) (sunucunun imzaladığı belge, aynı desen),
+  [ADR 0028](0028-location-accuracy-and-glide.md) (arka plan canlı modu, `watch`),
+  [PROTOCOL §9](../PROTOCOL.md).
+
+**Neden:** Sunucu haberleri (`notice`) imzasızdı (`0x00 ‖ gövde`) ve alıcı cihazın DH anahtarına
+mühürleniyordu. Bu anahtarı çemberdeki her üye bilir. Bir üye kendi "haberini" mühürleyip
+(`sealPush({ sender: null, body: { kind: 'notice', notice: 'watch', … } })`) varış ya da dürtme
+isteğinin `pushes` alanıyla gönderebiliyordu; sunucu kutuyu açamadığı için taşıyordu, alıcının
+telefonu da onu gerçek bir sunucu haberi sanıyordu. `watch` için sonuç: sunucunun sınırları (90 sn,
+saatte 20) atlanıyor, arkadaşın telefonu saatte 15 dakikaya kadar 1 saniyelik canlı moda
+zorlanıyordu (saldırgana daha çok konum, kurbana pil). Telefon haberin kendisine göre davrandığı için
+`WATCH_PUSH` kapalıyken de işliyordu. Öteki haberlerle sahte "arkadaşlık isteği", "davet" ya da
+ebeveyn bildirimi gösterilebiliyordu.
+
+### Karar
+
+- **Her sunucu haberi imzalı.** `packages/schemas/src/push.ts`'deki bütün türler (arkadaşlık,
+  çember, ebeveyn haberleri, `watch`) Ed25519 ile imzalanır. İmza tek yerde atılır: push işçisi, her
+  haberi hedef cihaz için mühürlerken (`sealedFor`). Yeni bir haber türü de kendiliğinden imzalanır.
+- **Yeni ve ayrı anahtar:** `NOTICE_SIGNING_KEY` (32 bayt) ve `NOTICE_SIGNING_KID`; ikisi birlikte
+  ya da hiçbiri. Süs anahtarıyla (`ENTITLEMENT_SIGNING_KEY`) aynı olamaz, sunucu açılmaz. Etiket de
+  ayrı: `bargu/v1/server-notice`.
+- **Kutunun içi:** `0x02 ‖ len(kid) ‖ kid ‖ issuedAt(8) ‖ id(16) ‖ imza(64) ‖ gövde`.
+- **İmzalanan baytlar** (JSON değil, sabit düzen, süs belgesindeki gibi):
+  `0x01 (sürüm) ‖ len(kid) ‖ kid ‖ alıcı cihaz kimliği(16) ‖ issuedAt(8, BE, ms) ‖ id(16) ‖ gövde`.
+  - **Alıcı cihaz:** üye kendine gelen gerçek bir haberi başkasına yeniden mühürlerse imza tutmaz.
+  - **issuedAt:** haberin kendi `ts`'i; ikisi eşit olmalı (tek saat).
+  - **id:** her habere 16 rastgele bayt. Telefon gördüğü id'leri tutar, ikinci kez geleni atar.
+  - **Gövde:** haberin kanonik JSON'u, en sonda (uzunluğu kalan kısımdır). İmza ham bayt olarak
+    kutunun içindedir: Google ve Apple görmez; base64 yazımı olmadığı için QA-28 B-2 türü bir
+    "kanonik olmayan karakter" hatası çıkamaz.
+- **Telefon bir haberi yalnızca şu durumda kabul eder** (`verifyServerNotice`):
+  - `kid` derlemenin güvendiği listede: `EXPO_PUBLIC_NOTICE_KEYS` (`kid:base64url`, virgülle),
+    derleme profiline göre (preview staging'inkine, üretim ileride kendi anahtarına güvenir; süs
+    anahtarlarıyla aynı düzen, ADR 0025 §2);
+  - imza doğru ve bu cihaz için;
+  - taze: `watch` en çok 2 dakika (FCM ömrüyle aynı), öteki haberler 1 saat (bugünkü kural);
+  - id daha önce görülmemiş.
+  - Başka her şey, imzasız haberler dahil, **sessizce** düşer: hata yok, bildirim yok, satır yok,
+    arka plan canlı modu açılmaz.
+- **iOS bildirim eklentisi** aynı kuralı CryptoKit ile uygular. Güvenilen anahtarları uygulama,
+  cihaz bilgisiyle birlikte paylaşılan anahtarlığa yazar; gördüğü id'leri eklenti kendisi tutar.
+  APNs hâlâ kapalı; doğruluğu Swift–TypeScript ortak test vektörleri gösterir.
+- **Anahtar yoksa** sunucu imzalayamaz: işçi başlarken bir kez uyarır (sır yazmaz) ve haberleri
+  imzasız gönderir. Yeni uygulamalar bunları atar, eski uygulamalar bugünkü gibi davranır. Anahtar
+  varken işçi başlarken yalnızca açık anahtar satırını (`kid:anahtar`) yazar.
+- **Staging anahtarı sunucuda üretilir** (`infra/staging/notice-key.sh`, `apply-pending.sh`
+  çağırır): sır yalnızca sunucudaki `.env`'de durur; açık yarısı `notice-public-key.txt`
+  dosyasındadır, oradan `apps/mobile/eas.json`'a girer. Kimlik `stg-n1`.
+- Üyelerin bildirimleri (varış, dürtme, geç kalma, buluşma) değişmedi: onları zaten üyenin cihazı
+  imzalıyor.
+
+### Neden böyle
+
+- **Ayrı anahtar:** süs anahtarı sızarsa yalnızca bedava süs demektir; haber anahtarı ise telefonun
+  davranışını (arka plan canlı modu, ebeveyn ekranı) yönetir. Biri ötekini açmamalı.
+- **Alıcıya bağlı imza:** üyenin bildirimindeki gibi (yukarıda); yeniden mühürleme işe yaramaz.
+- **Sabit bayt düzeni:** JSON'un alan sırasına ve boşluklarına bağlı değil; Swift aynı baytları
+  kolayca kurar.
+- **id ve tazelik:** haberi yalnızca sunucu imzalayabildiği için tekrar ancak kutuyu ele geçiren
+  biri (ör. bildirim servisi ya da tekrar teslim) için anlamlıdır; yine de engellenir.
+
+### Geçiş
+
+- **1. adım (bu dal, hemen):** `packages/crypto` (imza ve doğrulama), sunucunun imzası (anahtar
+  varsa), `notice-key.sh`, belgeler. Bu adımın APK'sı imzalı haberi okur ama **hiçbir şey
+  denetlemez**: imzasız haberleri bugünkü gibi kabul eder. İstemci seviyesi 4.
+- **Eski uygulamalar** (028ab2e ve öncesi) imzalı haberin ilk baytını (0x02) tanımaz; açma kodu
+  kendi "geçersiz kutu" hatasını verir, uygulama bunu zaten yakalar: haber sessizce düşer, çökme
+  yok. Bu, 028ab2e'deki açma kodunun kopyasıyla (`packages/crypto/test/legacy-app.spec.ts`) ve
+  uygulamanın aynı hata yolundan geçen testiyle (`background-push.test.ts`) gösterildi. iOS
+  eklentisi içeriksiz yer tutucuyu bırakır. Yani anahtar kurulunca eski APK'lar sunucu haberlerini
+  (arkadaşlık isteği, davet, katılım, ebeveyn haberleri, `watch`) almaz; üyelerin bildirimleri
+  gelmeye devam eder.
+- **Önerilen sıra:** herkes 1. adımın APK'sına geçince anahtar betiği çalışır ve `MIN_CLIENT_LEVEL`
+  4 olur; açık anahtar `eas.json`'daki preview profiline girer.
+- **2. adım (sonra, anahtar eas.json'a girince):** telefon denetimi (imzasız ve geçersiz haberi
+  atma, alıcı, tazelik, tekrar) ve iOS eklentisi. İstemci seviyesi 5. Herkes 2. adımın APK'sına
+  geçince `MIN_CLIENT_LEVEL` 5 olur: 1. adımın APK'sı imzasız haberi hâlâ kabul ettiği için açık
+  ancak o zaman bütün telefonlarda kapanır.
+- Güvendiği anahtarı olmayan derleme (geliştirme; üretim, Faz 10'a kadar) 2. adımdan sonra bütün
+  sunucu haberlerini atar. Yerelde denemek için yerel API'ye bir haber anahtarı, geliştirme
+  derlemesine de onun açık yarısı verilir.
+
+### Sonuçlar
+
+- Bir üye artık sunucu adına haber uyduramaz; `watch`'ın sınırları gerçekten sunucunun sınırları
+  olur (sahte `watch` canlı modu açmaz).
+- Haber kutusu ~100 bayt büyür (dolgulu boyutu 256 baytta kalır; base64 ~410 karakter).
+- **Kabul edilen risk:** haber anahtarı sızarsa, sızdıran sunucu adına haber uydurabilir (bugünkü
+  durum). Anahtar değiştirilir, eski `kid` uygulamanın listesinden çıkar; süs anahtarı etkilenmez.
+- Sunucu (ve yöneticileri) hâlâ haber gönderebilir; bu zaten tehdit modelinde: sunucu yalnızca
+  `notice` gönderebilir, "eve vardı" uyduramaz.

@@ -251,19 +251,35 @@ box = 0x01 ‖ ephPub(32) ‖ ChaCha20-Poly1305(key, nonce, aad = 0x01 ‖ ephPu
 Kutunun içi (`sealPush` / `openPush`):
 
 ```
-üyeden:    0x01 ‖ senderDeviceId(16) ‖ sig(64) ‖ gövde
-           sig = Ed25519("bargu/v1/push-sig\0" ‖ recipientDeviceId(16) ‖ senderDeviceId(16) ‖ gövde)
-sunucudan: 0x00 ‖ gövde
+üyeden:             0x01 ‖ senderDeviceId(16) ‖ sig(64) ‖ gövde
+                    sig = Ed25519("bargu/v1/push-sig\0" ‖ recipientDeviceId(16) ‖ senderDeviceId(16) ‖ gövde)
+sunucudan (imzalı): 0x02 ‖ len(kid)(1) ‖ kid ‖ issuedAt(8) ‖ id(16) ‖ sig(64) ‖ gövde
+                    sig = Ed25519(NOTICE_SIGNING_KEY, "bargu/v1/server-notice\0" ‖ 0x01 ‖ len(kid) ‖ kid
+                                  ‖ recipientDeviceId(16) ‖ issuedAt(8, BE, ms) ‖ id(16) ‖ gövde)
+sunucudan (eski):   0x00 ‖ gövde      (haber anahtarı olmayan sunucu)
 gövde (JSON) = { kind: "place", circleId, placeId, event: "enter" | "exit", name, emoji, ts }
              | { kind: "bump", circleId, ts }
+             | { kind: "late", circleId, minutes, ts }
+             | { kind: "meeting", circleId, name, emoji, meetAt, ts }
              | { kind: "notice", notice, circleId, ts }
 ```
 
 - Üyenin bildirimi, uygulamanın o cihaz için güvendiği kimlik anahtarıyla imzalı olmalı ve
   **alıcının** cihaz kimliğini kapsar (başka birine yeniden mühürlenemez); asla `notice` olamaz.
-- Sunucunun kendi haberleri (`notice`) imzasızdır ve yalnızca tür + çember söyler (sunucu bu
-  olayları zaten bilir); metni uygulama kendi dilinde yazar.
-- Tazelik (`ts`, 1 saat) ve tekrar (kutunun geçici anahtarı) alıcıda denetlenir.
+- Sunucunun kendi haberleri (`notice`) yalnızca tür + çember söyler (sunucu bu olayları zaten
+  bilir); metni uygulama kendi dilinde yazar. Haberler **sunucunun haber anahtarıyla imzalıdır**
+  ([ADR 0016 Ek](ADR/0016-sealed-push-notifications.md), QA-28 B-1): alıcı cihazın DH anahtarını
+  her üye bildiği için imzasız bir haberi her üye uydurabilirdi. Anahtar süs anahtarından ayrıdır;
+  `kid` en çok 16 karakter `[a-z0-9-]`; `issuedAt` gövdedeki `ts`'e eşit olmalıdır; `id` her habere
+  16 rastgele bayttır. İmza kutunun içinde ham bayttır.
+- Telefon bir haberi yalnızca derlemesinin güvendiği bir anahtarla (`EXPO_PUBLIC_NOTICE_KEYS`,
+  `kid:base64url`), kendi cihazı için imzalanmış, taze (`watch` 2 dakika, öteki haberler 1 saat) ve
+  `id`'si görülmemişse kabul eder (`verifyServerNotice`); gerisini, imzasız haberler dahil, sessizce
+  atar. `openPush` imzayı yalnızca okur, denetlemez. (Telefonun denetimi 2. adımda gelir; 1. adımın
+  uygulaması imzalı ve imzasız haberi denetlemeden açar. Eski uygulamalar imzalı haberi açamaz ve
+  sessizce atar.)
+- Tazelik (`ts`) ve tekrar (kutunun geçici anahtarı; sunucu haberinde ayrıca `id`) alıcıda
+  denetlenir.
 
 Base64url olarak gönderilir (en çok 1.100 karakter). Android'de data-only FCM ile arka plan görevi,
 iOS'ta bildirim eklentisi (yalnızca CryptoKit) açar; Google ve Apple yalnızca şifreli kutuyu, iOS'ta
@@ -281,6 +297,10 @@ ayrıca içeriksiz bir yer tutucu metni görür.
 - TypeScript çıktısı Swift/CryptoKit ile açılır (macOS CI). Swift tarafı da bilinmeyen alanı, yanlış
   boyutlu `ct`'yi ve kanonik olmayan UUID'yi reddeder. CryptoKit küçük mertebeli kimlik anahtarlarını
   kendisi reddetmez: eklenti yalnızca uygulamanın TypeScript ile doğrulayıp sakladığı anahtarları kullanır.
+- Sunucu haberi: her türün gerçeği kabul edilir; imzasız, başka anahtarla, bilinmeyen `kid` ile,
+  başka cihaz için imzalanmış (yeniden mühürlenmiş), bayat, tekrar eden ya da gövdesi değişmiş olanı
+  reddedilir (TypeScript testleri ve ortak vektörler). `verifyServerNotice` ve `verifyCosmeticPass`
+  hiç hata fırlatmaz. Güvenilen sunucu anahtarları listesine küçük mertebeli anahtar girmez.
 
 ## 11. Sürümleme
 
@@ -298,17 +318,18 @@ formatının sürümü değildir; sunucu eski uygulamayı `426 UPGRADE_REQUIRED`
 Mesaj formatının parçası değildir; aynı kütüphaneler ve etiket kuralıyla `packages/crypto/src/auth.ts`
 ve `at-rest.ts`'te tanımlıdır. Kararlar: [ADR 0005](ADR/0005-auth-and-devices.md).
 
-| Etiket                   | Kullanım                                             |
-| ------------------------ | ---------------------------------------------------- |
-| `bargu/v1/req-sig`       | Cihaz imzalı API isteği                              |
-| `bargu/v1/otp`           | Giriş kodunun türetilmesi                            |
-| `bargu/v1/web-code`      | Hesap web sayfası kodunun türetilmesi                |
-| `bargu/v1/web-unlock`    | Hesap sayfası "tarayıcıyı tanıt" bağlantısının sırrı |
-| `bargu/v1/cosmetic-pass` | Sunucunun süs geçiş belgesi imzası (ADR 0025)        |
-| `bargu/v1/email`         | E-posta adresinin anahtarlı özeti                    |
-| `bargu/v1/token`         | Refresh token özeti                                  |
-| `bargu/v1/at-rest`       | Sunucuda saklanan hassas verinin şifrelenmesi        |
-| `bargu/v1/pseudonym`     | Hız sınırı anahtarları için anahtarlı takma ad       |
+| Etiket                   | Kullanım                                                  |
+| ------------------------ | --------------------------------------------------------- |
+| `bargu/v1/req-sig`       | Cihaz imzalı API isteği                                   |
+| `bargu/v1/otp`           | Giriş kodunun türetilmesi                                 |
+| `bargu/v1/web-code`      | Hesap web sayfası kodunun türetilmesi                     |
+| `bargu/v1/web-unlock`    | Hesap sayfası "tarayıcıyı tanıt" bağlantısının sırrı      |
+| `bargu/v1/cosmetic-pass` | Sunucunun süs geçiş belgesi imzası (ADR 0025)             |
+| `bargu/v1/server-notice` | Sunucu haberinin imzası, ayrı anahtarla (ADR 0016 Ek, §9) |
+| `bargu/v1/email`         | E-posta adresinin anahtarlı özeti                         |
+| `bargu/v1/token`         | Refresh token özeti                                       |
+| `bargu/v1/at-rest`       | Sunucuda saklanan hassas verinin şifrelenmesi             |
+| `bargu/v1/pseudonym`     | Hız sınırı anahtarları için anahtarlı takma ad            |
 
 **İstek imzası** (başlıklar `x-bargu-sig`, `x-bargu-ts`, `x-bargu-nonce`):
 
