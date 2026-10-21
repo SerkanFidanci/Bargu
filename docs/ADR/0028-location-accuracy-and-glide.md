@@ -1,6 +1,8 @@
 # 0028. Konumun doğruluğu: filtre, kayma ve ölçüm katmanı
 
-- Durum: Kabul edildi, 1. adım (PM, 2026-10-18). 3. adım (arka planda canlı mod) ayrıca onaylanacak.
+- Durum: Kabul edildi, 1. adım (PM, 2026-10-18). 3. adım (arka planda canlı mod): önizleme denemesi
+  için onaylandı (PM, 2026-10-21); ölçümden sonra PM son onayı verirse kalıcı olur, o zamana kadar
+  yalnızca önizleme paketinde.
 - Tarih: 2026-10-18
 - İlgili: [ADR 0002](0002-location-relay.md) (konum yolu), [ADR 0008](0008-design-system-and-map.md)
   (harita, hareket tokenları), [ADR 0027](0027-calm-mode-and-motion-budget.md) (sade mod)
@@ -114,13 +116,126 @@ kendi bildirdiği hıza göre esner:
   düşük bildirilen hızla 2 km sıçrama tutulur, iki onayla kabul; hızsız konumda eski kural; yönü
   tutmayan sıçrama tutulur; ses hızının üstü tutulur.
 
+## Ek (2026-10-21, 3. adım: arka planda canlı mod)
+
+PM onayı: önizleme denemesi için onaylandı; son onay ölçümden sonra.
+
+### Bugün
+
+Biri haritayı açınca telefonu dakikada bir `watch` gönderir; sunucu çemberin öbür üyelerine yalnız
+canlı bağlantıdan `watch` olayı yollar (izleyeni söylemez, yalnız çemberi). Uygulama arka plana
+geçince canlı bağlantı pil için kapanır: sinyal arka plandaki telefona hiç ulaşmaz; saniyede bir
+GPS de yalnız uygulama öndeyken açılır. Arka plandaki arkadaş bu yüzden 5 sn'de bir gelir.
+
+### Karar
+
+1. **Sinyal:** `watch` geldiğinde sunucu, canlı bağlantısı olmayan üyelere ayrıca mühürlü bir
+   sunucu haberi (`notice`, tür `watch`; ADR 0016) gönderir. Haber yalnız çember kimliğini taşır:
+   izleyenin adı, cihazı, imzası yoktur; bugünkü canlı olaydan fazlasını söylemez. Yalnızca o
+   üyenin güncel cihazına gider, izleyene hiç gitmez, duraklı (kimsenin ödemediği) çember için ve
+   yabancı için hiç üretilmez. Bildirim gösterilmez. Sunucuda `WATCH_PUSH` ayarının arkasında:
+   staging'de açık, ayar yoksa kapalı. Şimdilik yalnız Android'e gider: iPhone'da bu haber
+   "Yeni bir bildirimin var" yer tutucusuyla ekranı yakardı (iOS sonra).
+2. **Sunucu hız sınırı (alıcı başına, kaç kişi izlerse izlesin):** en çok 90 sn'de 1 ve saatte 20
+   haber. İkisi de ortam ayarıyla değişir: `WATCH_PUSH_MIN_SECONDS` (90) ve `WATCH_PUSH_PER_HOUR`
+   (20). Saatlik sınır sabit bir saatlik penceredir. İzleyen başına bugünkü sınır (30 sn'de 2)
+   aynen sürer. FCM haberi en çok 2 dakika tutar ve yeniden denemez; 2 dakikadan eski haber
+   telefonda atılır: geç gelen sinyal kimse için pencere açmasın.
+3. **Telefon:** arka plan görevi haberi açar. Aşağıdaki durdurucuların hiçbiri yoksa telefon 2 dk
+   (`LIVE_MS`) canlı moda geçer: saniyede bir konum, gönderim bugünkü canlı kurala göre (en sık
+   0,9 sn, soket kapalı olduğundan HTTP ile). Süre bitince normal ritme (5 sn) döner. Pencere
+   sürerken yeni haber gelirse (izleyen bakmaya devam ediyor) pencere uzar, aynı sınırlar içinde.
+   Bildirim metni değişmez: izlendiğini göstermez.
+   **Durdurucular (telefonda, hiçbiri sunucuya ya da başkasına söylenmez):**
+   - kullanıcının ayarı kapalı;
+   - hayalet modu (dondur ya da gizle);
+   - bu çemberle yalnızca kaba (mahalle ya da şehir) paylaşım, ya da hiç paylaşım yok;
+   - bu çemberle zamanlı paylaşımın süresi dolmuş;
+   - çember duraklı (kimse ödemiyor, ADR 0024): **asla**;
+   - pil tasarrufu açık;
+   - pil %20'nin altında;
+   - telefonun kendi sınırı: **kayan her saatte en çok 15 dakika** arka plan canlı modu (sabit;
+     sunucu ne yollarsa yollasın). İki dakikalık pencereler bir saatte 7 kez açılabilir; sekizincisi
+     beklemek zorunda;
+   - işletim sistemi arka plana konum vermezse (aşağıda): pencere 15 sn sonra kapanır.
+     Pencere açıkken bunlardan biri başlarsa (hayalet açıldı, paylaşım bitti, çember duraklandı) pencere
+     hemen kapanır. Uygulama öne gelince de kapanır: açık uygulamanın kendi canlı modu devralır.
+4. **Ayar:** Konum ayarlarında "Arka planda canlı konum" (pil notuyla). 18+ için varsayılan açık.
+   Kullanıcıya bir kez açıklama kartı çıkar: "Biri haritada sana bakarken konumun birkaç dakika daha
+   sık gider; pil biraz daha harcanır. Ayarlardan kapatabilirsin." (İngilizcesi de var.) Kart
+   haritada, uygulama bu özellik açıkken ilk açıldığında görünür; ayarı açan kullanıcı açıklamayı
+   zaten görmüştür, kart sonra çıkmaz. Ayar yalnız bu telefonda, şifreli kasada durur.
+5. **15–17:** varsayılan **kapalı**; yalnız gencin kendisi açabilir. Ebeveyn uzaktan açamaz; ayar
+   ebeveyn araçlarında (ADR 0023 §5) gösterilmez ve taşınmaz (ebeveyn ayarları: yeni insanlar için
+   onay ve günlük süre; ikisi de değişmedi, testle kilitli). Gerekçe: çocuklar için varsayılan her
+   zaman en gizli olandır (ADR 0023, Play aile kuralları). 18+'dan 15–17'ye geçen telefonda önceki
+   seçim taşınmaz, kapalı başlar. Yaş grubu henüz bilinmeyen telefonda özellik kapalıdır.
+6. **Eski uygulamalar:** `openPush` bilmediği haber türünü reddeder (şema `strict`, bilinmeyen tür
+   `MALFORMED`); uygulama bunu sessizce atar: bildirim yok, çökme yok (testli, bilinmeyen tür ve
+   bilinmeyen haber). Bu yüzden istemci seviyesi artırılmadı (`CLIENT_LEVEL` 3 kalır). Eski bir
+   uygulama yalnızca haberle uyanıp hiçbir şey yapmadan döner.
+7. **Ölçüm katmanı (yalnızca önizleme, §6):** alınan `watch` haberi sayısı, açılan arka plan canlı
+   dakikası ve reddedilenler neden diye: ayar, hayalet, paylaşım yok, kaba, süre bitti, duraklı,
+   pil tasarrufu, pil az, sınır, sistem. Yalnızca bellekte; konum ya da çember kimliği yoktur.
+8. **Bayrak:** telefon tarafı şimdilik yalnız önizleme (ve geliştirme) paketinde: `EXPO_PUBLIC_BG_LIVE=1`
+   (`eas.json` development ve preview). Production paketinde özelliğin kodu yoktur, ayar satırı ve
+   kart da yoktur; gelen `watch` haberi atılır. Doğrulandı: bayraksız `expo export` paketinde
+   özelliğin metinleri (kasa anahtarları, test kimlikleri) 0 kez geçiyor, bayraklı pakette var.
+   Production'a, sahibin telefon denemesinden ve PM'in son onayından sonra açılır.
+
+### Platform bulguları (resmi dokümanla denetlendi, 2026-10-21)
+
+Tasarımdaki "konum servisini haberden sonra saniyeye çek" varsayımı tutmadı; yerine geçen çözüm:
+
+- Android 12+ arka plandan ön plan servisi başlatmaya yüksek öncelikli FCM mesajı için istisna
+  tanır (Android geliştirici dokümanı, "restrictions on starting a foreground service from the
+  background"). Ama (a) sistem, kullanıcıya görünür bildirim üretmeyen yüksek öncelikli mesajları
+  zamanla normal önceliğe çekebilir; çekilirse istisna gider; (b) Android 14'te `location` türündeki
+  servis arka plandan kurulursa, "yalnızca kullanırken" izniyle konuma erişemez ve `SecurityException`
+  verir; FCM istisnası bu erişim istisnaları arasında yok. Uygulama arka plan konum izni
+  (`ACCESS_BACKGROUND_LOCATION`) istemiyor (ADR 0011).
+- expo-location 57.0.20 de bunu kendisi engeller: `foregroundService` seçeneğiyle
+  `startLocationUpdatesAsync`, uygulama ön planda değilse `ForegroundServiceStartNotAllowedException`
+  fırlatır; ayarı arka planda değiştirmek servisi yeniden başlatmaz. Yani çalışan konum servisinin
+  hızı arka plandan değiştirilemez.
+- Yerine: servis zaten çalışırken (ön planda başlatıldığı için işlemin konum erişimi sürer) 2 dakikalık
+  bir konum izleyici (`watchPositionAsync`, saniyede bir, yüksek doğruluk) açılır; konumlar bugünkü
+  süzgeçten ve gönderim kuralından geçer. expo-location'ın dokümanı bu izleyicinin "yalnızca ön planda"
+  çalıştığını söyler ve yerel kod, uygulama arka plana geçerken var olan izleyicileri durdurur; arka
+  planda yeni kurulanı durdurmaz. Bu **telefonda doğrulanacak**. Çalışmazsa 15 sn içinde konum
+  gelmez, pencere kapanır, "sistem" sayacı artar ve telefon 5 sn'lik normal ritminde kalır.
+- Servis hiç çalışmıyorsa (paylaşım yok, uygulama hiç açılmadı) pencere açılmaz ("sistem").
+- Android, uygulamayı zorla kapatan üreticilerde data mesajının uygulamayı uyandırmasına izin
+  vermez (ADR 0016'daki gibi); orada özellik çalışmaz, arkadaş 5 sn ritminde kalır.
+
+### Deneme ve ölçüm (onaydan önce, PM ek 6)
+
+Önizleme APK'sı, iki telefon: A telefonu arka planda (uygulama kapalı, konum servisi açık), B
+telefonunda harita 30 dk açık / kapalı. Ölçülecek: pil yüzdesi farkı, A'nın gönderim aralığı ve
+B'deki gecikme (ölçüm katmanı), `watch` haberi sayısı, açılan dakika, red nedenleri (özellikle
+"sistem": Android arka plana konum verdi mi, FCM öncelik düşürdü mü). Sonuç ve pil etkisi PM'e; son
+onaydan sonra production'a açılır.
+
+### Sonuçlar
+
+- Arka plandaki arkadaş, birisi bakarken yaklaşık saniyede bir gelir; kimse bakmıyorsa 5 sn'de bir.
+  Sunucu "biri bakıyor" bilgisini zaten biliyordu; yeni bilgi yalnızca Google'ın gördüğü haber zamanı
+  (THREAT_MODEL).
+- Pil: telefon başına en çok saatte 15 dakika ek canlı mod; ayardan kapatılabilir.
+- Testler: sunucu (haber yalnız çevrimdışı üyenin güncel cihazına gider; izleyene, duraklı çembere,
+  yabancıya gitmez; açılan kutuda yalnız tür ve çember var; alıcı başına 90 sn ve saatlik sınır, iki
+  izleyenle; `WATCH_PUSH` kapalıyken hiç), şema, FCM süresi, iOS'a gitmeme; telefon (her durdurucu,
+  süre bitince normal ritim, sayaçlar, saatlik sınır, 15–17 varsayılanı ve ebeveyn araçlarında
+  olmaması, tek seferlik kart, bilinmeyen haber türünün sessizce atılması, `watch` haberinin hiç
+  gösterilmemesi).
+
 ## Sonraki adımlar
 
 - **2. adım:** proje sahibi ve test oturumu ölçer.
-- **3. adım (C2), ayrıca onaylanacak:** arkadaş haritayı açınca göndericinin telefonu arka planda da
-  canlı moda geçsin. Önce tek telefonda önizleme denemesi, sonuç ve pil etkisi PM'e. Koşullar (PM
-  ek 6): sinyal kimin izlediğini yeni bir yolla açığa çıkarmamalı, hız sınırı olmalı; 15–17 yaş
-  kuralları bu ADR'ye eklenecek.
+- **3. adım (C2):** arkadaş haritayı açınca göndericinin telefonu arka planda da canlı moda geçsin.
+  Tasarım ve kararlar aşağıdaki "Ek (2026-10-21, 3. adım)" bölümünde; önizleme paketinde yazıldı,
+  tek telefonda denenecek, sonuç ve pil etkisi PM'e gider. Koşullar (PM ek 6) karşılandı: sinyal
+  kimin izlediğini yeni bir yolla açığa çıkarmaz, hız sınırları var, 15–17 kuralı yazıldı.
 
 ## Sonuçlar
 
