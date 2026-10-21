@@ -13,7 +13,14 @@ domain="${BARGU_API_DOMAIN:-api.46-62-162-70.sslip.io}"
 dir=/srv/bargu-apk/public
 
 [ -f "$apk" ] || { echo "publish-apk: no such file: $apk" >&2; exit 1; }
+# Only APKs go on the public staging link. A store bundle (scripts/build-android-local.sh FORMAT=aab)
+# is also a zip but belongs to the owner and Google Play, never to a web link.
+case "$apk" in *.apk) ;; *) echo "publish-apk: not an .apk file (store bundles are never published here)" >&2; exit 1 ;; esac
 case "$(head -c 2 "$apk")" in PK) ;; *) echo "publish-apk: not an APK (zip)" >&2; exit 1 ;; esac
+if unzip -l "$apk" 2>/dev/null | grep -q 'BundleConfig.pb'; then
+  echo "publish-apk: this is an app bundle renamed to .apk, not publishing it" >&2
+  exit 1
+fi
 
 name="$(basename "$apk" .apk)-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n').apk"
 scp -q "$apk" "$host:/tmp/$name"
