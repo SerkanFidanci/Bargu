@@ -9,6 +9,8 @@ export const NONCE_BYTES = 12;
 export const TAG_BYTES = 16;
 export const SALT_BYTES = 16;
 export const ID_BYTES = 16;
+/** A server notice's random id (docs/PROTOCOL.md §9): a second box with it is a replay. */
+export const NOTICE_ID_BYTES = 16;
 
 /** Every message plaintext is padded to exactly this size (one bucket: size reveals nothing). */
 export { MESSAGE_PADDED_BYTES };
@@ -57,6 +59,8 @@ export const LABELS = {
   historySignature: 'bargu/v1/hist-sig',
   // The server's signed word on an account's cosmetic packs (docs/ADR/0025).
   cosmeticPass: 'bargu/v1/cosmetic-pass',
+  // The server's signature on its own notices (docs/ADR/0016, Ek 2026-10-21): its own key, too.
+  serverNotice: 'bargu/v1/server-notice',
 } as const;
 
 export type Label = (typeof LABELS)[keyof typeof LABELS];

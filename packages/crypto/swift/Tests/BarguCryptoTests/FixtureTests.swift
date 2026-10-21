@@ -30,11 +30,18 @@ final class FixtureTests: XCTestCase {
     let sealedPush: SealedPushFixture
     let signedPush: PushFixture
     let noticePush: PushFixture
+    let serverNotice: PushFixture
+    let serverNotices: [NoticeFixture]
     let safetyNumber: SafetyNumberFixture
 
     struct PushFixture: Decodable {
       let sealed: String
       let body: String
+    }
+
+    struct NoticeFixture: Decodable {
+      let notice: String
+      let sealed: String
     }
 
     struct SenderKeyDistributionFixture: Decodable {
@@ -222,6 +229,17 @@ final class FixtureTests: XCTestCase {
     XCTAssertNil(opened.senderDeviceId)
     XCTAssertEqual(opened.body.kind, .notice)
     XCTAssertEqual(opened.body.notice, "circleInvite")
+  }
+
+  /// The server signs its notices once it has a notice key (QA-28 B-1). This extension predates
+  /// that: it cannot read one and keeps the content-free placeholder (PushOpener returns nil).
+  func testSignedServerNoticeIsNotReadByThisExtension() throws {
+    let signed = [Self.fixtures.serverNotice.sealed] + Self.fixtures.serverNotices.map(\.sealed)
+    for sealed in signed {
+      XCTAssertThrowsError(try openPush(sealed)) {
+        XCTAssertEqual($0 as? BarguCryptoError, .malformed)
+      }
+    }
   }
 
   func testPushIsBoundToItsRecipientAndSender() throws {

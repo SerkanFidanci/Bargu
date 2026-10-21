@@ -101,3 +101,12 @@ export {
   parseCosmeticKeys,
   verifyCosmeticPass,
 } from './cosmetics.js';
+export {
+  noticePublicKey,
+  parseNoticeKeys,
+  signServerNotice,
+  verifyServerNotice,
+  type NoticeSigner,
+  type ServerNoticeStamp,
+  type ServerSignature,
+} from './server-notice.js';

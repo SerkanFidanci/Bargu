@@ -64,6 +64,14 @@ export function u64be(value: number): Uint8Array {
   return concatBytes(u32be(Math.floor(value / 0x1_0000_0000)), u32be(value % 0x1_0000_0000));
 }
 
+/** The first 8 bytes, big-endian, as a whole number; above Number.MAX_SAFE_INTEGER is MALFORMED. */
+export function readU64be(bytes: Uint8Array): number {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, 8);
+  const high = view.getUint32(0, false);
+  if (high > 0x1f_ffff) throw new BarguCryptoError('MALFORMED', 'number too large');
+  return high * 0x1_0000_0000 + view.getUint32(4, false);
+}
+
 /** Text known to be ASCII (an id its schema bounds) as bytes, one per character. */
 export function asciiBytes(text: string): Uint8Array {
   return Uint8Array.from(text, (char) => char.charCodeAt(0));

@@ -46,11 +46,14 @@ describe('sealed, signed pushes', () => {
     expect(openPush({ recipient: bob, sealed, senderIdentityKey: known })).toEqual({
       senderDeviceId: alice.deviceId,
       body: arrived,
+      serverSignature: null,
     });
+    // A server without a notice key seals its notices unsigned (signed ones: server-notice.spec).
     const fromServer = sealPush({ recipient: toBob, sender: null, body: notice });
     expect(openPush({ recipient: bob, sealed: fromServer, senderIdentityKey: known })).toEqual({
       senderDeviceId: null,
       body: notice,
+      serverSignature: null,
     });
   });
 
