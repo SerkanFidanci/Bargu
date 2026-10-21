@@ -16,6 +16,7 @@ export {
   activityFx,
   ambient,
   choreography,
+  cosmeticFx,
   duration,
   glide,
   haptic,

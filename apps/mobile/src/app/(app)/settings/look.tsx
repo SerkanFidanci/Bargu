@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
+import { PinLooks } from '@/features/cosmetics/pin-looks';
 import { setEffectLevel } from '@/features/home/effect-prefs';
 import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
 import { space } from '@/theme';
@@ -14,7 +15,10 @@ import { Segmented } from '@/ui/segmented';
 const APPEARANCE_ICONS = { auto: MapIcon, light: Sun, dark: Moon } as const;
 const EFFECT_ICONS = { full: Sparkles, reduced: Sparkle, off: Ban } as const;
 
-/** "Görünüm ve harita" (from Me): the map's light or dark look, and how much moves (sade mod). */
+/**
+ * "Görünüm ve harita" (from Me): the map's light or dark look, how much moves (sade mod), and the
+ * looks of the user's own pin (features/cosmetics).
+ */
 export default function LookSettingsScreen() {
   const { t } = useTranslation();
   const appearance = useMapAppearance((state) => state.mode);
@@ -56,6 +60,7 @@ export default function LookSettingsScreen() {
               : t(`sheets.me.effectsDetail_${effects}`)}
         </Hint>
       </View>
+      <PinLooks />
     </Screen>
   );
 }

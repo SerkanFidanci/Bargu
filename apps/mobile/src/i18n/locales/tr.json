@@ -1210,6 +1210,42 @@
     "askOther": "Bunun yerine {{plan}} iste",
     "teenSoon": "Satın almak için ebeveyn onayı gerekiyor. Mağaza bağlantısı henüz yok, yakında burada olacak."
   },
+  "cosmetics": {
+    "title": "Pin süsleri",
+    "intro": "Pinin haritada böyle görünür. Süs yalnızca görünüştür: arkadaşların seçtiğin süsü ancak satın aldıysan görür.",
+    "preview": "Pinin: önizleme",
+    "plain": "Düz",
+    "owned": "Sende",
+    "chosen": "Seçili",
+    "moves": "Hareketli: sade modda, pil tasarrufunda ve “Hareketi azalt” açıkken durur.",
+    "packs": {
+      "rings": {
+        "name": "Halka desenleri",
+        "about": "Pinin halkasına desen: çizgili, puantiyeli, renk geçişli, parıltılı."
+      },
+      "frames": {
+        "name": "Pin çerçeveleri",
+        "about": "Pinin çevresine çerçeve: holografik, altın, neon, kesik çizgi."
+      }
+    },
+    "styles": {
+      "stripes": "Çizgili",
+      "dots": "Puantiyeli",
+      "gradient": "Renk geçişli",
+      "sparkle": "Parıltılı",
+      "holo": "Holografik",
+      "gold": "Altın",
+      "neon": "Neon",
+      "dashed": "Kesik çizgi"
+    },
+    "trying": "Deniyorsun: satın alınca arkadaşların da görür.",
+    "buy": "Paketi al · {{price}}",
+    "bought": "Paket açıldı. Seçtiğin süs arkadaşlarında görünür.",
+    "ask": "Ebeveynime sor · {{price}}",
+    "needsApproval": "Bu paket için ebeveyn onayı gerekiyor.",
+    "soon": "Satın alma yakında: mağaza bağlantısı henüz yok.",
+    "teenSoon": "Satın almak için ebeveyn onayı gerekiyor. Mağaza bağlantısı henüz yok, yakında burada olacak."
+  },
   "upgrade": {
     "title": "Yeni sürüm gerekiyor",
     "body": "Bu Bargu sürümü artık desteklenmiyor. Güncelleyene kadar konumun paylaşılmıyor ve yakınlarının yeni konumlarını göremiyorsun. Verilerin güvende; yeni sürümü yükleyince her şey kaldığı yerden devam eder.",

@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import type { Look } from '@/features/cosmetics/look-styles';
 import { avatarPalette, space, spring, timing, useTheme } from '@/theme';
 import { AvatarMarker, type MarkerDetail, PIN_HEIGHT } from '@/ui/avatar-marker';
 
@@ -67,6 +68,10 @@ export interface MapAvatarProps {
   burst?: { at: number; colors: readonly [string, string] } | null | undefined;
   /** When their latest location came (sade mod "reduced" moves once per new one). */
   news?: number | undefined;
+  /** What their pass gives them to wear on the pin (features/cosmetics). */
+  look?: Look | undefined;
+  /** The user's own pin. */
+  lookMine?: boolean | undefined;
 }
 
 /**
@@ -91,6 +96,8 @@ export function MapAvatar({
   activity,
   detail,
   news,
+  look,
+  lookMine,
 }: MapAvatarProps) {
   const lift = useSharedValue(0);
   useEffect(() => {
@@ -119,6 +126,8 @@ export function MapAvatar({
       speed={spd}
       detail={detail}
       news={news}
+      look={look}
+      lookMine={lookMine}
     />
   );
   return (

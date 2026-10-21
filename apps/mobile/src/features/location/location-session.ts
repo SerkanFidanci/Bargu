@@ -32,6 +32,7 @@ import { circlesApi } from '../circles/circles-api';
 import { memberName } from '../circles/names';
 import { useCircleKeys } from '../circles/circle-sync';
 import { isApiError } from '../errors';
+import { receivedLook } from '../cosmetics/look-session';
 import { createHistory } from '../history/history';
 import { historyApi, removeAllHistory, useHistoryPings } from '../history/history-api';
 import { tellNewViewer } from '../history/viewer-notice';
@@ -638,6 +639,10 @@ const receiver = createReceiver({
   onProfile: (userId, profile, senderDeviceId) => {
     void receivedProfile(userId, profile, senderDeviceId).catch(() => undefined);
   },
+  // What a member wears on their pin: checked against the server's pass (docs/ADR/0025).
+  onLook: (userId, look) => {
+    receivedLook(userId, look);
+  },
   // Someone arrived at or left a place: a line saying who and where, unless muted.
   onPlace: (circleId, userId, event) => {
     if (Date.now() - event.ts > PLACE_EVENT_FRESH_MS) return;
@@ -724,6 +729,9 @@ function handleLive(name: string, payload: unknown): void {
   } else if (name === 'profile') {
     const parsed = statusEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope);
+  } else if (name === 'look') {
+    const parsed = statusEventSchema.safeParse(payload);
+    if (parsed.success) receiver.receive(parsed.data.envelope);
   } else if (name === 'status') {
     const parsed = statusEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope);
@@ -766,6 +774,8 @@ onOnline(() => {
       if (statuses.success) await receiver.receiveAll(statuses.data.envelopes);
       const profiles = statusSnapshotSchema.safeParse(await liveRequest('profiles'));
       if (profiles.success) await receiver.receiveAll(profiles.data.envelopes);
+      const looks = statusSnapshotSchema.safeParse(await liveRequest('looks'));
+      if (looks.success) await receiver.receiveAll(looks.data.envelopes);
     } catch {
       // The next connection asks again; live messages keep coming meanwhile.
     }

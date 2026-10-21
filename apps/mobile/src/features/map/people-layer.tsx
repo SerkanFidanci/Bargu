@@ -1,6 +1,8 @@
 import type { Circle, Me, MemberCard } from '@bargu/schemas';
 import { useMemo } from 'react';
 
+import { lookAt } from '../cosmetics/look-model';
+import { useLooks, useMyLook } from '../cosmetics/look-session';
 import { memberName } from '../circles/names';
 import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
@@ -79,6 +81,9 @@ export function PeopleLayer({
   const now = useNow();
   const zoom = useMapZoom((state) => state.zoom);
   const mySince = useMyFix((state) => state.since);
+  // What each person wears on their pin: only what their pass holds (features/cosmetics).
+  const looks = useLooks();
+  const myLook = useMyLook((state) => state.look);
   // This phone's own pin shows a fast car, a train or a plane only while its speed is shown.
   const fastShown = useSharing((state) => speedShown(state));
   const members: PersonOnMap[] = bestPerPerson(locations).flatMap((entry) => {
@@ -126,6 +131,8 @@ export function PeopleLayer({
           name: me.displayName ?? '?',
           avatar: me.avatar,
           heading: myFix?.hdg,
+          look: lookAt(myLook, now),
+          lookMine: true,
         },
         // Their own pin opens their own card (the owner, 2026-10-21).
         handlers: handlersFor?.(me.userId),
@@ -150,6 +157,7 @@ export function PeopleLayer({
         heading: loc.hdg,
         charging: loc.chg,
         lowBattery: !loc.chg && loc.bat < LOW_BATTERY,
+        look: lookAt(looks[entry.userId], now),
       },
       handlers: handlersFor?.(entry.userId),
       pokedAt: pokes[entry.userId],

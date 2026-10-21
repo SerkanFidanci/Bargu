@@ -219,6 +219,40 @@ export const pinFx = {
   together: { gap: 6 },
 } as const;
 
+/**
+ * Looks on the map pin (features/cosmetics, docs/ADR/0025 and its addendum of 2026-10-21): a
+ * pattern on the pin's ring and a frame around it. Sizes in px, periods in ms. The still styles
+ * (stripes, dots, gradient, gold, dashed) cost nothing; the moving ones (sparkle, holo, neon) play
+ * at sade mod "full" only, never for an old location, and on at most `maxAnimated` pins at a time.
+ */
+export const cosmeticFx = {
+  /** A ring pattern is drawn over the pin's ring, this wide. */
+  ringWidth: 5,
+  /** A frame is this wide and this far outside the ring. */
+  frame: { width: 3, gap: 2 },
+  /** Segments of the striped ring, dots of the dotted ring, sparkles on the sparkling one. */
+  stripes: 24,
+  dots: 12,
+  sparkles: { count: 8, size: 7 },
+  /** The dashed frame: the dash and the gap between dashes. */
+  dash: { length: 6, gap: 4 },
+  /** The glow around a neon frame: how much wider than the frame, and how faint, each. */
+  glow: [
+    { grow: 3, opacity: 0.3 },
+    { grow: 6, opacity: 0.14 },
+  ],
+  /** An old location shows its look this faint. */
+  staleOpacity: 0.45,
+  /** How many pins on the map move their look at once; the user's own pin always may. */
+  maxAnimated: 3,
+  /** Sparkles twinkle in two groups taking turns: one twinkle takes this long, to this dimmest. */
+  sparkle: { periodMs: 1_800, dimmest: 0.25 },
+  /** The holographic frame turns once in this long. */
+  holo: { periodMs: 6_000 },
+  /** The neon frame breathes in and out once in this long, to this dimmest glow. */
+  neon: { periodMs: 1_400, dimmest: 0.4 },
+} as const;
+
 /** Sequencing of several elements: how they enter one after another and how they react. */
 export const choreography = {
   /** Delay between consecutive elements entering (titles, fields, rows). */

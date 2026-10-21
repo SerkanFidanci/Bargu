@@ -25,6 +25,8 @@ import {
   useTheme,
 } from '@/theme';
 import { type EffectLevel, repeatFinite, useEffects } from '@/theme/effects';
+import { PinLook } from '@/features/cosmetics/pin-look';
+import type { Look } from '@/features/cosmetics/look-styles';
 
 import { Avatar } from './avatar';
 import { ActivityGlyph, BADGE_ROUND, BADGE_WIDE, wideGlyph } from './activity-glyph';
@@ -57,6 +59,10 @@ export interface AvatarMarkerProps {
   detail?: MarkerDetail | undefined;
   /** When their latest location came: at sade mod "reduced" each one plays the motion once. */
   news?: number | undefined;
+  /** What their pass gives them to wear: a pattern on the ring, a frame (features/cosmetics). */
+  look?: Look | undefined;
+  /** The user's own pin: its look is always one of the few that move. */
+  lookMine?: boolean | undefined;
 }
 
 /** What someone seems to be doing (features/map/activity.ts decides). */
@@ -182,6 +188,8 @@ export function AvatarMarker({
   framed = false,
   detail,
   news,
+  look,
+  lookMine = false,
 }: AvatarMarkerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -284,6 +292,16 @@ export function AvatarMarker({
             ]}
           >
             <Avatar avatar={avatar} name={name} size="md" muted={stale} userId={userId} />
+            {look === undefined || framed ? null : (
+              <PinLook
+                look={look}
+                size={PIN_CIRCLE}
+                ringColor={ring}
+                stale={stale}
+                id={userId ?? name}
+                mine={lookMine}
+              />
+            )}
             {doing === 'still' ? null : (
               <View
                 style={[

@@ -4,6 +4,7 @@ import { useLiveSession } from '@/features/live/live-session';
 import { useLocationSession } from '@/features/location/use-location';
 import { usePushNotifications } from '@/features/notifications/use-push';
 import { usePrivacyGate } from '@/features/account/privacy-gate';
+import { useLookSession } from '@/features/cosmetics/look-wiring';
 import { useAppLock } from '@/features/security/app-lock';
 // Guardian links follow their events (docs/ADR/0023 §4).
 import '@/features/guardians/guardians-session';
@@ -22,6 +23,8 @@ export default function AppLayout() {
   usePushNotifications(ready);
   // Then the location: permission, the location service, live mode (Faz 5).
   useLocationSession(ready);
+  // The looks on the map pin: the own pass renewed, the look told to circles (docs/ADR/0025).
+  useLookSession(ready);
   // The optional app lock (docs/ADR/0021): after a minute away, and over everything when locked.
   useAppLockWatcher();
   // KVKK (docs/ADR/0022): the information notice, and consent to history where it is on.

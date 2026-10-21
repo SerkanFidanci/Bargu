@@ -38,6 +38,8 @@ jest.mock('@/features/auth/auth-store', () => ({
 }));
 // Watches the battery (expo-battery, native): not what is tested here.
 jest.mock('@/features/home/effect-prefs', () => ({ setEffectLevel: jest.fn() }));
+// The pin looks have their own tests (features/cosmetics/pin-looks.test.tsx).
+jest.mock('@/features/cosmetics/pin-looks', () => ({ PinLooks: () => null }));
 
 beforeAll(async () => {
   await i18n.changeLanguage('tr');
