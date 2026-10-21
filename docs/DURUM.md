@@ -5,19 +5,19 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                                                  |
-| -------------------------------- | ---------------------------------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                           |
-| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                          |
-| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                           |
-| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)  |
-| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)  |
-| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)          |
-| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                        |
-| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                       |
-| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)             |
-| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)          |
-| Faz 9B — Para modeli & Bargu+    | 🟡 Sürüyor: 1–2c, 3a, buluşma, tema, konum 1. adım, B bitti; 3b askıda |
+| Faz                              | Durum                                                                       |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                               |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                |
+| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)       |
+| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)       |
+| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)               |
+| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                             |
+| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                            |
+| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                  |
+| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)               |
+| Faz 9B — Para modeli & Bargu+    | 🟡 Sürüyor: 1–2c, 3a, buluşma, tema, konum 1, B, UX düzeni bitti; 3b sırada |
 
 ## Ortamlar
 
@@ -75,6 +75,7 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 | Buluşma kartı            | `7f4d989`                                                        | Sahibin ekran görüntüsü: bir etkinliğin iki adayı (Hilltown, Avm) haritada üst üste biniyor, alttaki tıklanamıyordu. Haritanın yakınlığında etiketleri çakışacak buluşmalar tek kartta alt alta birer satır; her satır kendi buluşmasını açar, buluşmanın kendisi üstte ve mercan; yakınlaşınca ayrılır; seçilmemiş yerlerin kesikli kenarı soluk (ADR 0026 §3)                                                                                                                                                                                    |
 | B: hareket çizimleri     | `bc5f925`                                                        | Sahibin isteği, önizlemesi onaylı (ADR 0008 eki): dizi, dirseği bükülen yürüyen ve koşan insan, pedalı izleyen bisikletli; tekerlekleri ve yolu hıza göre giden araba (şehirde duman, yolda hava çizgileri); 120 km/sa'ten yarış arabası ve düz hız çizgileri, 200'den hızlı tren, 300'den uçak; kişinin kendi rengi. Yalnızca hız bilgisiyle ("Hızımı göster" açık, tam konum); kendi pininde hız gizliyken en fazla araba; kutlama yok; sade moda uyar                                                                                           |
 | B: düzeltmeler           | `6c0aad3`, `28805fd`, `51b3cb9`, `b4bb890`, `67f4638`            | Sıçrama kuralı bildirilen hıza ve yöne göre esner (ADR 0028 eki: 250 km/sa tren kabul, tünel çıkışı tutulur); 24,8 günden uzak süreli paylaşım hemen bitmez (QA 25); dışarıdan gelen bağlantılar yalnızca bargu://i/ ve /g/ ile açılır, gerisi ana sayfa (tarama notu 1); ölü test yardımcısı ve dosya içi export'lar (tarama notu 3)                                                                                                                                                                                                              |
+| UX düzeni                | `8e965a2`                                                        | Dış gezinme notu, PM'in dilimi (ADR 0008 eki): Ben sayfası başlıklı gruplarda, profilin altında "Konum ve gizlilik" (hayalet, kimler görüyor, konum geçmişim); yeni "Bildirim tercihleri" ekranı (izin, telefon ayarları, sessize alınanlar ve sesi açma); kişi kartında × ve bildirim zili (sessizdeyse çizili, "Sessizde"), çember düğmesi "Arkadaşlık" ya da "Çember"; "Seni görenler"den çemberin paylaşım ayarına; Ekle'de "Çember oluştur"; Çemberler'de boş bölüm açıklamalı; ayrılma ayrı; "Gizlilik ve hesap" → "Hesap ve veri"           |
 
 ### QA turları
 
@@ -83,7 +84,16 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
   A-1 (aşağıda) ve test botunun kodunun depoya alınması sonraya.
 - QA 21 (P1b, T-1, 2c, 3a, buluşma): orta ya da yüksek bulgu yok. Düşük B-1…B-5 düzeltildi.
 
-### Test sonuçları (son çalıştırma, `bc5f925`)
+### Test sonuçları (son çalıştırma, `8e965a2`)
+
+- UX düzeni: mobil 521. Kartta × kapatır, zil bildirimleri açar, sessizdeyken "Sessizde" ve çizili
+  zil, çember düğmesinin adı (Arkadaşlık / Çember); Ben'de gruplar sırayla ve "Konum ve gizlilik"
+  ilk, oradan /seers, /notifications ve "Hesap ve veri"; bildirim tercihlerinden sesi açma;
+  reddedilmiş bildirimde telefon ayarları; "Seni görenler"den çembere; Ekle'de çember oluşturma;
+  boş grup bölümü. Üç yeni test Linux'ta yerel modüller (bildirim, güvenli depo, cihaz kilidi, pil,
+  expo-router) yüzünden açılamıyordu; push'tan önce yakalandı, taklitlerle düzeldi.
+- `scripts/ci-linux.sh 8e965a2`: push'tan önce geçti (mobil 521); CI 5/5 yeşil (run 39595531390);
+  staging `8e965a2`, sağlık ok, hata 0.
 
 - B: mobil 510, API birim 93. Çizimler: adımda alttaki ayak hep yerde, koşan bir an havada,
   bacaklar ve kollar karşılıklı, bisikletlinin ayağı pedalda ve dizi önde; eşikler (119 araba, 120
@@ -195,6 +205,8 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
     oturumunda bakılmalı. Araç gövdeleri sabit SVG, hareketli parçalar UI thread'de.
 23. Hızdan tahmin: 200–300 km/sa her zaman tren, üstü uçak (telefon hangisi olduğunu bilmez). Hızı
     gizli olanın arkadaşları onu yine hareketsiz görür.
+24. UX düzeni: alt ekrandan dönünce Ben ya da Çemberler sayfası yeniden açılmaz, kaydırma yeri
+    korunmaz (PM: ayrı dilim). Sessize alma yalnızca bu telefonda; sunucu bilmez.
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -298,6 +310,21 @@ Hareket çizimleri (B), APK (`bc5f925`, öncekilerin yerine):
 32. Ben > Efektler "Az": çizim her yeni konumda bir kez oynar; "Kapalı": hiç oynamaz.
 33. Bozuk bir davet bağlantısı (ör. sonuna %E0%A4%A eklenmiş) uygulamayı dondurmaz, haritayı açar;
     doğru davet bağlantısı davet ekranını açar.
+
+UX düzeni, APK (`8e965a2`, öncekilerin yerine):
+<https://api.46-62-162-70.sslip.io/apk/bargu-8e965a2-713b98389b35f572.apk>
+
+34. Ben: profilin hemen altında "Konum ve gizlilik" (hayalet, "Kimler konumumu görüyor", konum
+    geçmişim); sonra Bildirimler, Görünüm ve harita, Güvenlik, Bargu+ ve hesap, Uygulama başlıkları.
+35. Ben > Bildirim tercihleri: bildirim izni, telefon ayarları; sessize aldığın kişiler ve yerler,
+    her birinde "Sesi aç".
+36. Haritada birine dokun: kartın sağ üstünde zil ve ×. Zile basınca sessize alma; sessize alınca
+    zil çizili ve adının altında "Sessizde". × kartı kapatır. Alttaki düğme "Arkadaşlık" ya da
+    "Çember" yazar.
+37. "Seni görenler"de her çemberin altında "Bu çemberin paylaşım ayarı" o çembere götürür.
+38. Ortadaki + : başlığı "Ekle", içinde "Çember oluştur".
+39. Çemberler: hiç grubun yoksa "Gruplar" başlığı altında açıklama ve "Çember oluştur".
+40. Bir çemberin ekranında "Çemberden ayrıl" bir çizginin altında, ne anlama geldiğiyle.
 
 ### Senden gerekenler
 
