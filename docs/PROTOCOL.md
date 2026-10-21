@@ -272,7 +272,7 @@ sunucudan (imzalı): 0x02 ‖ len(kid)(1) ‖ kid ‖ issuedAt(8) ‖ id(16) ‖
 sunucudan (eski):   0x00 ‖ gövde      (haber anahtarı olmayan sunucu)
 gövde (JSON) = { kind: "place", circleId, placeId, event: "enter" | "exit", name, emoji, ts }
              | { kind: "bump", circleId, ts }
-             | { kind: "safe", circleId, id, bat, ts }       (ADR 0029: konum yok, ad yok, metin yok)
+             | { kind: "safe", circleId, id, bat, lat?, lng?, acc?, ts }   (ADR 0029: ad yok, metin yok)
              | { kind: "late", circleId, minutes, ts }
              | { kind: "meeting", circleId, name, emoji, meetAt, ts }
              | { kind: "notice", notice, circleId, ts }
@@ -295,6 +295,10 @@ gövde (JSON) = { kind: "place", circleId, placeId, event: "enter" | "exit", nam
 - Tazelik (`ts`) ve tekrar (kutunun geçici anahtarı; sunucu haberinde ayrıca `id`) alıcıda
   denetlenir. `safe` bildirimi 24 saat geçerlidir (öbürleri 1 saat; mesaj göndericinin bağlantısını
   bekleyebilir) ve gövdesindeki `id` ile, aynı mesajın zarfı da gelmişse bir kez gösterilir.
+- `safe` gövdesindeki `lat`, `lng`, `acc` birlikte gelir ya da hiç gelmez (önceki sürümden bir telefon
+  yalnızca metin gönderir); zarftaki konumla aynı sayılar, yani o çemberin hassasiyetinde. En büyük
+  gövde 219 bayt JSON, kutu 384 baytlık dolgu sınıfında (578 karakter): 128 baytlık blokların ve
+  2048 bayt sınırının içinde, yeni boy yok. Alıcı yeri 24 saat şifreli kasada tutar (ADR 0029 §5).
 
 Base64url olarak gönderilir (en çok 1.100 karakter). Android'de data-only FCM ile arka plan görevi,
 iOS'ta bildirim eklentisi (yalnızca CryptoKit) açar; Google ve Apple yalnızca şifreli kutuyu, iOS'ta

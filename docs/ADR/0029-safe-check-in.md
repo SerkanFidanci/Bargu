@@ -63,16 +63,36 @@ kuyruğa da girmez. Çember listesinde bu çemberlerin altında "konum şu an pa
 
 ### 5. Bildirim: mühürlü, imzalı, metni alan yazar
 
-Çevrimdışı üyeye giden bildirimin gövdesi `{ kind: 'safe', circleId, id, bat, ts }` (PROTOCOL §9):
-**konum yok**, ad yok, metin yok. Alıcı telefon gönderenin adını kendi kişi listesinden yazar:
+Çevrimdışı üyeye giden bildirimin gövdesi `{ kind: 'safe', circleId, id, bat, lat, lng, acc, ts }`
+(PROTOCOL §9): **ad yok, metin yok**; konum (`lat`, `lng`, `acc`) var, çünkü uygulaması kapalı üye de
+nerede olduğunu görsün ve sunucu şifreli zarfı saklamaz. Konum zarftakiyle aynı sayılardır: o çemberin
+hassasiyetinde (yaklaşık çembere hücre merkezi, ince konum değil). Kutu alıcı cihazın anahtarına mühürlü
+ve gönderenin cihazıyla imzalıdır; Google ve Apple yalnızca zamanı ve boyutu görür. Alıcı telefon
+gönderenin adını kendi kişi listesinden yazar:
 "Ayşe: İyiyim ✓ · %45"; mesaj geç kaldıysa saatiyle ("… · 14:05"). Yalnızca güvenilen cihazın imzası
 kabul edilir. Sessize alma bunu **susturmaz** (kişinin dürtmelerini sessize almak onun "iyiyim"ini
 kaçırmak demek olmamalı). Bildirim 24 saat geçerlidir (öbür bildirimlerin 1 saati değil): mesaj
 göndericinin bağlantısını bekledi ise yine haberdir.
 
-Uygulama açıkken alıcı sistem bildirimi yerine bir satır görür; satıra dokunmak kişinin yerini (çemberin
-verdiği hassasiyette) telefonun harita uygulamasında açar. `id` her iki yolda ortaktır: aynı mesaj hem
-zarftan hem bildirimden gelirse bir kez gösterilir.
+**Boyut.** En büyük gövde (en uzun sayılar, en büyük zaman) 219 bayt JSON; kutu 384 baytlık dolgu
+sınıfına düşer (578 karakter; istekte kutu başına sınır 1100). Bu, PROTOCOL §9'daki 128 baytlık blokların
+içinde kalır; yeni bir boy ya da protokol değişikliği değildir. Kısa adlı bir varış bildirimiyle aynı
+sınıftır, 256'lık dürtmeden ayrılır. Sıradan konum (13–17 basamak) aynı sınıftadır: basamak sayısı bir şey
+söylemez. Test: `packages/crypto/test/push.spec.ts`.
+
+**Telefonda (24 saat).** Arka plan görevi bildirimi açıp imzayı doğruladıktan sonra yeri şifreli kasada
+saklar (`safe:spots:v1`: `id`, çember, ad, konum, doğruluk, pil, zaman) ve **mesajın yapıldığı andan 24
+saat** sonra siler. Silme her bildirimde, uygulama açılırken ve okunurken olur; yani süre dolunca kasada
+kalmaz, yalnızca gösterilmemez. En çok 20 yer tutulur. Uygulama açıkken gelen canlı mesajın yeri de aynı
+yolla saklanır; `id` ortak olduğu için biri ötekini tekrarlamaz. Sistemin bildirim deposuna yer değil,
+yalnızca mesajın `id`'si yazılır (`data: { circleId, safe }`).
+
+**Dokununca harita.** Bildirime (uygulama açıkken satıra) dokunmak yeri Bargu'nun kendi haritasında açar:
+ince konum için bir **nokta**, yaklaşık konum (doğruluk 100 m'den büyük: mahalle ya da şehir hücresi, ya da
+kaba bir ölçüm) için **doğruluk yarıçaplı bir daire** ve gönderenin adı; kamera daireyi bütün gösterir.
+Haritaya dokunmak ya da bir gün geçmesi onu kaldırır. Yer bir günü geçip silinmişse bildirim her zamanki
+gibi çemberi açar. Sessize alma kuralı değişmedi: Güvendeyim hiç susturulmaz. `id` her iki yolda
+ortaktır: aynı mesaj hem zarftan hem bildirimden gelirse bir kez gösterilir.
 
 ### 6. Çevrimdışı ve uçak modu
 
@@ -142,9 +162,10 @@ eklentiye tür ve ortak test vektörleri eklenir (PM'e raporda takip işi olarak
   gittiği). Konumu, pili, metni, `id`'yi (özet dışında) saklamaz.
 - Google ve Apple yalnızca bildirimin zamanını ve dolgulu boyutunu görür.
 - **Kabul edilen sınırlar:**
-  - Uygulaması kapalı üye yalnızca metni görür ("Ayşe: İyiyim ✓ · %45"), **konumu görmez**: sunucu
-    şifreli zarfı saklamaz (dürtme gibi). Konumun da görünmesi için sunucunun şifreli bir kopya
-    tutması gerekir; bu, "sunucu hiçbir şey saklamaz" kararını değiştirir, PM kararı bekliyor.
+  - Uygulaması kapalı üye metni ve yeri bildirimin kutusundan alır; sunucuda kopya yoktur. Bildirim
+    FCM'in 1 saatlik ömründe teslim edilmezse (telefon kapalı) ikisi de gelmez ve açılınca uygulama
+    içinden görünmez (dürtme gibi). Önceki sürümden bir telefonun bildirimi yer taşımaz: yalnızca metin
+    gelir.
   - Eski uygulamalı üye hiçbir şey görmez; gönderen bilmez.
   - Sunucu `safe` uyduramaz ve bir üye başkası adına gönderemez: zarf ve bildirim gönderen cihazın
     kimliğiyle imzalıdır.
