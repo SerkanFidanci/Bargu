@@ -99,23 +99,31 @@ Adımlar:
 6. nginx: `/map/` altında bulunamayan dosyanın (404) önbelleğe alınması kapatılır. Eskiden
    `add_header Cache-Control "public, max-age=86400" always` her yanıta, 404'e de, bir gün
    önbellek yazıyordu; `world.pmtiles` yokken sorulan telefonlar dosya gelse de bir gün haritayı
-   göremezdi. Şimdi 200, 206 ve 304 uzun önbellek, geri kalanı `no-store`
-   ([`bargu-staging.conf`](../staging/nginx/bargu-staging.conf), nginx `map $status`). Kurulu site
-   dosyası (`/etc/nginx/sites-available/bargu-staging`) iki küçük metin değişikliğiyle düzenlenir,
-   yedeği `/opt/bargu/staging/bargu-staging.nginx.bak-…` olur. **Bu nginx başka sitelere de hizmet
+   göremezdi. Şimdi tam dosya (200) ve doğrulaması (304) uzun önbellek, geri kalanı (404, 403 ve
+   Range istekleri: 206, 416) tek satır `no-store`
+   ([`bargu-staging.conf`](../staging/nginx/bargu-staging.conf), nginx `map` durum + Range
+   başlığı). Neden Range yanıtları da: nginx başlıkları 206/416 kararından ÖNCE ekler ve geçersiz
+   bir aralıkta başlıkları ikinci kez ekler (416 iki `Cache-Control` satırı ve uzun önbellek
+   alıyordu); tek satır `no-store` yalnız böyle mümkün. Bedeli: HTTP önbellekleri 206 saklamaz
+   (uygulamanın PMTiles kaynağı zaten saklamaz). Kurulu site dosyası
+   (`/etc/nginx/sites-available/bargu-staging`) iki küçük metin değişikliğiyle düzenlenir (bu
+   düzeltmenin ilk sürümü zaten kuruluysa `map` bloğu yenisiyle değiştirilir), yedeği
+   `/opt/bargu/staging/bargu-staging.nginx.bak-…` olur. **Bu nginx başka sitelere de hizmet
    veriyor** (rastamen): önce `nginx -t` bütün yapılandırmayı denetler, bozuksa yedek geri konur ve
    reload yapılmaz; sonra yalnız `systemctl reload nginx` (asla restart). Aynı değişiklik
    `setup-nginx.sh` ile yeni kurulumlara da gelir (şablon güncellendi).
 7. `docker compose up -d --wait worker api` (sadece yeni ayarlarla çalışmıyorlarsa).
 8. Son kontrol: api konteynerindeki `MIN_CLIENT_LEVEL` ve `WATCH_PUSH*` değerleri (başka hiçbir
    değer ve gizli bilgi yazılmaz), `/health/live`, `world.pmtiles` boyutu ve `/map/` altındaki
-   404'ün `Cache-Control` başlığı.
+   404 ile 416'nın `Cache-Control` başlığı (tek satır `no-store` olmalı).
 
 Güvenlik: script **sadece** `/opt/bargu/staging` ve `/srv/bargu-map` içine yazar, bir tek istisnayla:
 kurulu Bargu nginx site dosyası, **tam yol eşleşmesiyle** (ön ek değil; `/etc/nginx` altında başka
 hiçbir dosya yazılamaz). Her yazma tek bir koruma fonksiyonundan geçer, dışarıdaki yol Türkçe
-hatayla reddedilir; sunucudaki diğer projeye (rastamen) dokunmaz. Yeniden başlatma başarısız olursa
-yedekler geri yüklenir. Eski yedekler silinmez.
+hatayla reddedilir; **hedef dosyanın kendisi bir kısayol (symlink) ise de reddedilir** (içinden
+yazılsa ya da `chown`/`chmod` edilse dışarıdaki dosya değişirdi). Sunucudaki diğer projeye
+(rastamen) dokunmaz. Yeniden başlatma başarısız olursa yedekler geri yüklenir. Eski yedekler
+silinmez.
 
 ## Günlük işler
 

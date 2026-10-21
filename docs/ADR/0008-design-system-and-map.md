@@ -75,10 +75,11 @@ marka kararı (renk, yazı tipi) ve bazı kütüphane seçimleri burada netleşt
   işaretler ve yalnızca günlüğe yazar; yeniden deneme yok (yalnızca bağlantı ve 5xx hataları
   yeniden denenir), harita yükleme hatası olayı (`onDidFailLoadingMap`) tetiklenmez, o kaynağa
   bağlı katmanlar hiçbir şey çizmez ve harita bugünkü gibi görünür. nginx `/map/` altındaki
-  404'ü artık önbelleğe aldırmaz (200, 206, 304 uzun önbellek, geri kalan `no-store`; eskiden
-  `add_header ... always` her yanıta bir gün yazıyordu ve dosya sonradan gelince telefonlar
-  haritayı bir gün göremezdi). Dosya ve bu nginx ayarı `infra/staging/apply-pending.sh` ile
-  kurulur.
+  404'ü artık önbelleğe aldırmaz (tam dosya 200 ve 304 uzun önbellek, geri kalan, Range yanıtları
+  206 ve 416 dahil, tek satır `no-store`; eskiden `add_header ... always` her yanıta bir gün
+  yazıyordu ve dosya sonradan gelince telefonlar haritayı bir gün göremezdi; 416 ayrıca iki
+  satır alıyordu, çünkü nginx başlıkları 206/416 kararından önce ve geçersiz aralıkta bir kez
+  daha ekler). Dosya ve bu nginx ayarı `infra/staging/apply-pending.sh` ile kurulur.
 - **Görünüm**: harita gündüz açık, 20:00–07:00 arası koyu (plan §4.3 "gece otomatik koyu"); "Ben"
   panelinden Otomatik / Açık / Koyu seçilebilir (yalnızca telefonda saklanır). Koyu tema siyah
   değil, okunur bir gece mavisi.
