@@ -274,6 +274,16 @@ public enum BarguProtocol {
     static func bytes(_ label: String) -> Data { Data(label.utf8) + Data([0]) }
   }
 
+  /// A server notice dated more than this ahead of the phone's clock is dropped (TypeScript:
+  /// NOTICE_MAX_FUTURE_MS, PM decision on QA-28 B-1).
+  public static let noticeMaxFutureMs: UInt64 = 300_000
+
+  /// Whether a checked server notice is fresh at `nowMs`: not older than `maxAgeMs` and not dated
+  /// more than `noticeMaxFutureMs` ahead (issuedAt is at most 2^53, so nothing overflows).
+  public static func isFresh(_ notice: ServerNoticeStamp, nowMs: UInt64, maxAgeMs: UInt64) -> Bool {
+    notice.issuedAt <= nowMs + noticeMaxFutureMs && nowMs <= notice.issuedAt + maxAgeMs
+  }
+
   // MARK: - Sealed push payload
 
   /// Opens `version(1) ‖ ephemeralKey(32) ‖ ciphertext ‖ tag` addressed to this device.

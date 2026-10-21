@@ -9,6 +9,7 @@ import { randomBytes, signWithLabel } from '../src/primitives.js';
 import { type OpenedPush, openPush, sealPush, sealPushWith } from '../src/push.js';
 import { openSealed, sealForDevice } from '../src/sealed.js';
 import {
+  NOTICE_MAX_FUTURE_MS,
   noticePublicKey,
   parseNoticeKeys,
   signServerNotice,
@@ -116,6 +117,24 @@ describe('signed server notices (QA-28 B-1, docs/ADR/0016 Ek)', () => {
       expect(check(tampered)).toBeNull();
     }
   });
+
+  it.each(['watch', 'circleInvite'] as const)(
+    'takes a %s dated up to 5 minutes ahead of the phone, not further',
+    (kind) => {
+      expect(NOTICE_MAX_FUTURE_MS).toBe(5 * MINUTE);
+      // The phone's clock is behind: the notice looks dated in the future.
+      const maxAgeMs = kind === 'watch' ? 2 * MINUTE : HOUR;
+      const at = (ahead: number) =>
+        verifyServerNotice(open(genuine(kind, NOW + ahead)), { keys, now: NOW, maxAgeMs });
+      expect(at(4 * MINUTE)).not.toBeNull();
+      expect(at(NOTICE_MAX_FUTURE_MS)).not.toBeNull();
+      expect(at(NOTICE_MAX_FUTURE_MS + 1)).toBeNull();
+      expect(at(HOUR)).toBeNull();
+      // And on the other side, its age limit.
+      expect(at(-maxAgeMs)).not.toBeNull();
+      expect(at(-maxAgeMs - 1)).toBeNull();
+    },
+  );
 
   it('opens a box only for its device: Carol cannot even read a notice sealed for Bob', () => {
     expect(codeOf(() => open(genuine('watch'), carol))).toBe('DECRYPT_FAILED');

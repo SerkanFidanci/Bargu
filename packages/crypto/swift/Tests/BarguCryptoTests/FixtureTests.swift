@@ -310,6 +310,24 @@ final class FixtureTests: XCTestCase {
     }
   }
 
+  /// A notice dated up to 5 minutes ahead of the phone's clock is taken, further ahead it is not;
+  /// on the other side its age limit holds.
+  func testServerNoticeFreshness() {
+    let now: UInt64 = 1_800_000_000_000
+    let hour: UInt64 = 3_600_000
+    func fresh(_ issuedAt: UInt64) -> Bool {
+      BarguProtocol.isFresh(
+        ServerNoticeStamp(kid: "test-n1", id: "x", issuedAt: issuedAt), nowMs: now, maxAgeMs: hour)
+    }
+    XCTAssertEqual(BarguProtocol.noticeMaxFutureMs, 5 * 60_000)
+    XCTAssertTrue(fresh(now))
+    XCTAssertTrue(fresh(now + 4 * 60_000))
+    XCTAssertTrue(fresh(now + BarguProtocol.noticeMaxFutureMs))
+    XCTAssertFalse(fresh(now + BarguProtocol.noticeMaxFutureMs + 1))
+    XCTAssertTrue(fresh(now - hour))
+    XCTAssertFalse(fresh(now - hour - 1))
+  }
+
   func testSeenNoticesKeepIdsUntilTheyExpire() {
     var seen = SeenNotices()
     seen.remember("a", until: 2_000, now: 1_000)

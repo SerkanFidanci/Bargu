@@ -210,6 +210,19 @@ describe('server notices are the server’s only when it signed them (QA-28 B-1)
     nothingHappened();
   });
 
+  it.each(['watch', 'circleInvite'] as const)(
+    'takes a %s dated up to 5 minutes ahead of the phone, drops one further ahead',
+    async (kind) => {
+      const ahead = 5 * 60_000;
+      expect(await showPush(fromServer(body(kind, NOW + ahead)), NOW)).toBe(
+        kind === 'watch' ? 'watch' : 'shown',
+      );
+      expect(await showPush(fromServer(body(kind, NOW + ahead + 1)), NOW)).toBe('refused');
+      expect(await showPush(fromServer(body(kind, NOW + 60 * 60_000)), NOW)).toBe('refused');
+      expect(mockNotice).toHaveBeenCalledTimes(kind === 'watch' ? 1 : 0);
+    },
+  );
+
   it('takes no notice at all in a build that trusts no notice key', async () => {
     mockNoticeKeys = new Map();
     expect(await showPush(fromServer(body('circleInvite')), NOW)).toBe('refused');

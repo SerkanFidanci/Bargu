@@ -13,6 +13,11 @@ import { parseTrustedKeys, SIGNING_KID, signingPublicKey } from './trusted-keys.
 export const FROM_SERVER_SIGNED = 0x02;
 /** Version of the signed layout: its first byte. */
 const NOTICE_VERSION = 1;
+/**
+ * How far ahead of the phone's clock a notice may be dated (PM, QA-28 B-1): a phone a little
+ * behind still takes the server's notices; further ahead, it is dropped.
+ */
+export const NOTICE_MAX_FUTURE_MS = 5 * 60_000;
 
 /** The server's notice key (NOTICE_SIGNING_KEY, an Ed25519 seed) and the id apps know it by. */
 export interface NoticeSigner {
@@ -132,7 +137,8 @@ export function readServerNotice(
 /**
  * Whether an opened push is a notice the server really sent to this device (QA-28 B-1): signed by
  * a key this app trusts (`keys`, from its build: EXPO_PUBLIC_NOTICE_KEYS), for the device that
- * opened it, not older than `maxAgeMs`, and with an id `seen` does not know. Its stamp, or null for
+ * opened it, not older than `maxAgeMs` nor dated more than NOTICE_MAX_FUTURE_MS ahead, and with
+ * an id `seen` does not know. Its stamp, or null for
  * anything else: an unsigned notice, a member's push, a key it does not know, a wrong signature, a
  * stale or replayed one. Never throws: a notice that cannot be checked is dropped without a word.
  * The signature travels as raw bytes inside the sealed box, so no text form can be non-canonical.
@@ -155,7 +161,8 @@ export function verifyServerNotice(
     if (signed === null || opened.senderDeviceId !== null || opened.body.kind !== 'notice') {
       return null;
     }
-    if (input.now - signed.issuedAt > input.maxAgeMs || input.seen?.(signed.id) === true) {
+    const age = input.now - signed.issuedAt;
+    if (age > input.maxAgeMs || -age > NOTICE_MAX_FUTURE_MS || input.seen?.(signed.id) === true) {
       return null;
     }
     const key = input.keys.get(signed.kid);

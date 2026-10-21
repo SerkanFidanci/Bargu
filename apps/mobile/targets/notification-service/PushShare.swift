@@ -116,8 +116,11 @@ enum PushOpener {
       return nil
     }
     if let notice = opened.notice {
-      guard !seen.contains(notice.id) else { return nil }
       let nowMs = UInt64(max(0, now.timeIntervalSince1970 * 1000))
+      guard
+        BarguProtocol.isFresh(notice, nowMs: nowMs, maxAgeMs: UInt64(freshSeconds * 1000)),
+        !seen.contains(notice.id)
+      else { return nil }
       seen.remember(
         notice.id, until: max(nowMs, notice.issuedAt) + UInt64(freshSeconds * 1000), now: nowMs)
     }

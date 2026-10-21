@@ -103,6 +103,7 @@ export {
   verifyCosmeticPass,
 } from './cosmetics.js';
 export {
+  NOTICE_MAX_FUTURE_MS,
   noticePublicKey,
   parseNoticeKeys,
   signServerNotice,
