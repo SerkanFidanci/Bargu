@@ -5,19 +5,19 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                                                     |
-| -------------------------------- | ------------------------------------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                              |
-| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                             |
-| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                              |
-| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)     |
-| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)     |
-| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)             |
-| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                           |
-| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                          |
-| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                |
-| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)             |
-| Faz 9B — Para modeli & Bargu+    | 🟡 Sürüyor: dilim 1–2c, 3a, buluşma, tema bitti; konum 1. adım; 3b askıda |
+| Faz                              | Durum                                                                  |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                           |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                          |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                           |
+| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)  |
+| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)  |
+| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)          |
+| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                        |
+| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                       |
+| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)             |
+| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)          |
+| Faz 9B — Para modeli & Bargu+    | 🟡 Sürüyor: 1–2c, 3a, buluşma, tema, konum 1. adım, B bitti; 3b askıda |
 
 ## Ortamlar
 
@@ -73,6 +73,8 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 | QA 23–24                 | `7f08964`                                                        | İzin bilinmeden "paylaşılıyor" denmez ("Kontrol ediliyor…", hayalet düğmesinde nokta yok); süreli paylaşım bittiği an konum durur ve bütün ekranlar aynı anda söyler; hava kartında eski ilçe adı kalmaz; iki renk çifti okunur; QR halesi ve tarayıcı çizgisi sade mod "tam"dan çıkınca durur; titreşim yalnızca Efektler seçimine bağlı                                                                                                                                                                                                          |
 | Konum doğruluğu, 1. adım | `7f23b98`, `c7eb602`, `f9ffb32`                                  | Sahibin şikâyeti: konum geç geliyor, virajda pin yoldan çıkıp sonra düzeliyor (ADR 0028). Gönderen ham konumu süzer (eski, 2 dk'dan bayat, GPS açıkken 100 m'den zayıf, 180 km/sa'ten hızlı sıçrama; kapalı alanda 45 sn sonra en iyisi doğruluğuyla gider); alıcı geç gelen eski konumu göstermez; pin iki konum arasında kayar, tahmin en çok 1 sn ve yalnızca düz yolda (eskiden 10 sn); zayıf konumda daire; harita açıkken kendi pini saniyede bir; Efektler'de pil tasarrufu notu; önizleme paketinde ölçüm katmanı (production'da kodu yok) |
 | Buluşma kartı            | `7f4d989`                                                        | Sahibin ekran görüntüsü: bir etkinliğin iki adayı (Hilltown, Avm) haritada üst üste biniyor, alttaki tıklanamıyordu. Haritanın yakınlığında etiketleri çakışacak buluşmalar tek kartta alt alta birer satır; her satır kendi buluşmasını açar, buluşmanın kendisi üstte ve mercan; yakınlaşınca ayrılır; seçilmemiş yerlerin kesikli kenarı soluk (ADR 0026 §3)                                                                                                                                                                                    |
+| B: hareket çizimleri     | `bc5f925`                                                        | Sahibin isteği, önizlemesi onaylı (ADR 0008 eki): dizi, dirseği bükülen yürüyen ve koşan insan, pedalı izleyen bisikletli; tekerlekleri ve yolu hıza göre giden araba (şehirde duman, yolda hava çizgileri); 120 km/sa'ten yarış arabası ve düz hız çizgileri, 200'den hızlı tren, 300'den uçak; kişinin kendi rengi. Yalnızca hız bilgisiyle ("Hızımı göster" açık, tam konum); kendi pininde hız gizliyken en fazla araba; kutlama yok; sade moda uyar                                                                                           |
+| B: düzeltmeler           | `6c0aad3`, `28805fd`, `51b3cb9`, `b4bb890`, `67f4638`            | Sıçrama kuralı bildirilen hıza ve yöne göre esner (ADR 0028 eki: 250 km/sa tren kabul, tünel çıkışı tutulur); 24,8 günden uzak süreli paylaşım hemen bitmez (QA 25); dışarıdan gelen bağlantılar yalnızca bargu://i/ ve /g/ ile açılır, gerisi ana sayfa (tarama notu 1); ölü test yardımcısı ve dosya içi export'lar (tarama notu 3)                                                                                                                                                                                                              |
 
 ### QA turları
 
@@ -81,7 +83,20 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
   A-1 (aşağıda) ve test botunun kodunun depoya alınması sonraya.
 - QA 21 (P1b, T-1, 2c, 3a, buluşma): orta ya da yüksek bulgu yok. Düşük B-1…B-5 düzeltildi.
 
-### Test sonuçları (son çalıştırma, `7f4d989`)
+### Test sonuçları (son çalıştırma, `bc5f925`)
+
+- B: mobil 510, API birim 93. Çizimler: adımda alttaki ayak hep yerde, koşan bir an havada,
+  bacaklar ve kollar karşılıklı, bisikletlinin ayağı pedalda ve dizi önde; eşikler (119 araba, 120
+  yarış, 200 tren, 300 uçak) ve kendi pinin sınırı; her çizim ve sesli adı; duran ya da eski
+  konumda çizim yok; "az" ve "kapalı"da yeni çizimlerle de boşta 0 kare. Sıçrama: 250 km/sa tren
+  her konumda, tünel çıkışı iki onayla, hızsız eski kural, yönü tutmayan ve ses hızı üstü tutulur.
+  Uzun paylaşım: bir ay sonraki bitiş hemen değil tam zamanında (düzeltmesiz test kırılıyor).
+  Uygulama yalnızca "1 saat" ve "bu akşama kadar" sunar; bu durum telefonun saati geri alınınca
+  ya da ileride daha uzun süreler eklenince doğar.
+  Bağlantılar: ağır ve bozuk yüzde kodlaması, sorgu, parça, uzunluk, başka şema, bilinmeyen ekran,
+  kısa token ana sayfaya; kanca hiç fırlatmaz.
+- `scripts/ci-linux.sh bc5f925`: push'tan önce geçti (mobil 510); CI 5/5 yeşil (run 39589016676);
+  staging `bc5f925`, sağlık ok, hata 0.
 
 - Mobil 489. Konum doğruluğu (ADR 0028): Filtre: eski, bayat, zayıf, kapalı alanda en iyisi
   doğruluğuyla, sıçrama ve iki onay, tek sapkın konum hiç kullanılmaz, otoyol hızı geçer. Motor: iki
@@ -170,6 +185,16 @@ dilimini istedi (PM onayıyla). Dilim 3b ve sonrası onay bekliyor.
 18. Ölçüm katmanındaki arkadaş gecikmesi iki telefonun saat farkını da içerir.
 19. Production'da ölçüm katmanından boş bir dinleyici kancası, boş bir yuva ve menü satırının metin
     anahtarı kalır (kod değil, hiç çalışmaz).
+20. decode-uri-component 0.2.2 (orta, expo-router → query-string): override yapılmadı. Yamalı 0.5.0
+    yalnızca ESM; query-string 7 onu require ile alıyor, fonksiyon yerine nesne geliyor ve çağrı
+    TypeError veriyor (denendi). Koruma: app/+native-intent.tsx'teki süzgeç. Expo güncellemesinde
+    yeniden bakılacak.
+21. uuid 7.0.3 ve 8.3.2 (orta): yalnızca prebuild aracı (xcode, @bacons/xcode) üzerinden, uygulamaya
+    girmez; CI yalnızca yüksekte kırılır. İşlem yok.
+22. Yeni çizimler telefonda ölçülmedi: 50 kişilik sürü (geliştirici menüsü) ile kare hızı test
+    oturumunda bakılmalı. Araç gövdeleri sabit SVG, hareketli parçalar UI thread'de.
+23. Hızdan tahmin: 200–300 km/sa her zaman tren, üstü uçak (telefon hangisi olduğunu bilmez). Hızı
+    gizli olanın arkadaşları onu yine hareketsiz görür.
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -260,6 +285,19 @@ Konum doğruluğu, buluşma kartı ve QA 23–24, APK (`7f4d989`, öncekilerin y
       Yürürken ve araçta birkaç dakika açık tutup ekran görüntüsü yeterli.
 27. Bir etkinliğin birbirine yakın iki adayı haritada tek kartta alt alta görünür; ikisine de ayrı
     ayrı dokunulabilir. Yakınlaşınca kendi etiketlerine ayrılırlar.
+
+Hareket çizimleri (B), APK (`bc5f925`, öncekilerin yerine):
+<https://api.46-62-162-70.sslip.io/apk/bargu-bc5f925-7cc5c5d5af18ee06.apk>
+
+28. Yürürken ve koşarken pinin köşesindeki insanın dizi ve kolları bükülerek sallanır; gömleği
+    kişinin renginde. Bisiklette bacaklar pedalı izler.
+29. Araçta tekerlekler hıza göre döner; şehirde arkadan duman, yolda hava çizgileri. Rozet geniştir.
+30. 120 km/sa üstünde (yalnızca "Hızımı göster" açık ve tam konumla) yarış arabası ve arkada düz
+    çizgiler; 200 üstü tren, 300 üstü uçak. Kutlama, ses, rozet yok.
+31. Kendi telefonunda "Hızımı göster"i kapatınca kendi pinin en fazla araba gösterir.
+32. Ben > Efektler "Az": çizim her yeni konumda bir kez oynar; "Kapalı": hiç oynamaz.
+33. Bozuk bir davet bağlantısı (ör. sonuna %E0%A4%A eklenmiş) uygulamayı dondurmaz, haritayı açar;
+    doğru davet bağlantısı davet ekranını açar.
 
 ### Senden gerekenler
 
