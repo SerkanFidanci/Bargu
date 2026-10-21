@@ -185,7 +185,7 @@
       "historyOff": "Off",
       "historyOn": "On in {{count}} circles",
       "security": "Security",
-      "securityDetail": "App lock, lost phone, events",
+      "securityDetail": "Passkeys, app lock, guardian link",
       "privacy": "Account and data",
       "privacyDetail": "Notice, consent, your data, deleting the account",
       "notifications_undetermined": "Off · tap to turn on",
@@ -213,7 +213,8 @@
       "seers": "Who sees my location",
       "seersGhost": "Ghost on: nobody sees it",
       "seersNone": "Nobody sees it right now",
-      "seersCount": "Seen by: {{count}}"
+      "seersCount": "Seen by: {{count}}",
+      "lookDetail": "Map: {{map}} · Effects: {{effects}}"
     }
   },
   "ui": {
@@ -638,7 +639,9 @@
       "historyViewers": "Who sees it?",
       "historyOff": "History turned off and deleted from the server",
       "historyOffLater": "History turned off; it is deleted from the server once you are online",
-      "historyOffCoarse": "Location history needs the exact location; it was turned off and deleted for this circle."
+      "historyOffCoarse": "Location history needs the exact location; it was turned off and deleted for this circle.",
+      "summaryAlways": "{{precision}} location · until you turn it off",
+      "summaryUntil": "{{precision}} location · until {{time}}"
     },
     "precision": {
       "exact": "Exact",
@@ -743,6 +746,16 @@
       "meet": "Start a meeting",
       "here": "I'm here ({{place}})",
       "shared": "Your location is being shared."
+    },
+    "myCard": {
+      "you": "You",
+      "noLocation": "No location yet",
+      "ghost": "Ghost on: your location goes to nobody",
+      "nobody": "Your location goes to nobody right now",
+      "seers": "Seeing your location: {{count}}",
+      "whoSees": "Who sees me",
+      "status": "Status",
+      "settings": "Settings"
     }
   },
   "places": {
@@ -769,7 +782,9 @@
     "exactOnly": "Your arrivals and departures are shared while you share your exact location with this circle.",
     "arrivedToast": "{{name}} arrived · {{place}}",
     "leftToast": "{{name}} left · {{place}}",
-    "encrypted": "The name and location of the place are encrypted; the server cannot see them."
+    "encrypted": "The name and location of the place are encrypted; the server cannot see them.",
+    "none": "No places yet",
+    "count": "Places: {{count}}"
   },
   "status": {
     "title": "Your status",
@@ -1254,5 +1269,8 @@
     "unmute": "Unmute",
     "unmuteLabel": "Turns notifications from {{name}} back on",
     "howTo": "You mute a person with the bell on their card on the map, a place on its own screen. Muting is for this phone only."
+  },
+  "settingsLocation": {
+    "perCircle": "What one circle sees, and for how long, is changed on that circle's screen."
   }
 }

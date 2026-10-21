@@ -127,6 +127,8 @@ export function PeopleLayer({
           avatar: me.avatar,
           heading: myFix?.hdg,
         },
+        // Their own pin opens their own card (the owner, 2026-10-21).
+        handlers: handlersFor?.(me.userId),
         above:
           myStatus === null || myStatus.expiresAt <= now ? undefined : (
             <StatusBubble status={myStatus} />
@@ -191,6 +193,7 @@ export function PeopleLayer({
                 hdg={myFix.hdg}
                 news={myFix.ts}
                 burst={burst}
+                handlers={shown.handlers}
                 above={shown.above}
               />
             </GlidingMarker>

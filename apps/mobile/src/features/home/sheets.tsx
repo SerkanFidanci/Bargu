@@ -1,87 +1,72 @@
 import type { Me } from '@bargu/schemas';
 import { router } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
 import {
-  Ban,
   Bell,
-  ChevronRight,
-  Eye,
-  HeartHandshake,
-  History,
-  KeyRound,
-  Map as MapIcon,
+  Info,
   LogOut,
-  type LucideIcon,
-  Moon,
+  Palette,
   Pencil,
-  Smile,
   ShieldCheck,
-  Smartphone,
-  Sparkle,
+  ShieldHalf,
+  Smile,
   Sparkles,
-  Sun,
   UserCog,
-  Wrench,
 } from 'lucide-react-native';
-import { Children, forwardRef, Fragment, type ReactNode } from 'react';
+import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Linking, StyleSheet, View } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import { Alert, StyleSheet, View } from 'react-native';
 
-import { DEV_TOOLS_ENABLED, env } from '@/config/env';
+import { env } from '@/config/env';
+import { signOut, useAuth } from '@/features/auth/auth-store';
 import { usePlan } from '@/features/billing/plan';
 import { daysLeft } from '@/features/billing/plan-model';
-import { useNow } from '@/features/location/clock';
-import { signOut, useAuth } from '@/features/auth/auth-store';
 import { useCircles } from '@/features/circles/queries';
-import {
-  addPasskey,
-  passkeyDiagnostic,
-  passkeyFailure,
-  passkeysSupported,
-} from '@/features/auth/passkeys';
-import { errorMessage } from '@/features/errors';
-import { GhostControl } from '@/features/location/sharing-card';
+import { useNow } from '@/features/location/clock';
 import { seersOf, useSharing } from '@/features/location/sharing';
-import { useMyStatus } from '@/features/social/status';
-import { startSwarm } from '@/features/dev/map-swarm';
-import { useDevSlots } from '@/features/dev/slots';
-import { useMyFix } from '@/features/location/engine';
-import { INITIAL_VIEW } from '@/features/map/style';
-import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
-import { setEffectLevel } from '@/features/home/effect-prefs';
+import { useMapAppearance } from '@/features/map/appearance';
 import { usePushState } from '@/features/notifications/push';
-import { meKey } from '@/features/profile/queries';
-import { EFFECT_LEVELS, useDeviceSaving, useEffectChoice } from '@/theme/effects';
-import { feedback } from '@/theme/haptics';
-import { radius, space, touchTarget, useTheme } from '@/theme';
+import { useMyStatus } from '@/features/social/status';
+import { space } from '@/theme';
+import { useEffectChoice } from '@/theme/effects';
 import { Appear } from '@/ui/appear';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
-import { PressableScale } from '@/ui/pressable-scale';
-import { Hint } from '@/ui/hint';
-import { SectionTitle } from '@/ui/screen';
-import { Segmented } from '@/ui/segmented';
+import { SettingsGroup, SettingsRow } from '@/ui/settings-row';
 import { Sheet, type SheetRef } from '@/ui/sheet';
 import { Text } from '@/ui/text';
-import { toast } from '@/ui/toast';
 
-/** Licence page of the map data (ODbL), linked from the Me sheet as the credit's permanent home. */
-const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
+import { leaveSheet, rememberScroll, useSheetReturn } from './sheet-return';
 
+type MeScreen =
+  | '/edit-profile'
+  | '/settings/location'
+  | '/notifications'
+  | '/settings/look'
+  | '/security'
+  | '/plus'
+  | '/privacy'
+  | '/settings/about';
+
+/**
+ * "Ben" (the owner, 2026-10-21: "tıklanınca kendi ekranları açılacak, açık şekilde durmasın"): the
+ * profile, then one row per part, each with what it is set to now and its own screen behind it, as
+ * in the phone's settings. "Konum ve gizlilik" right under the profile (the PM: the safety
+ * switches are never missed). Coming back from a screen opens this sheet again where it was.
+ */
 export const MeSheet = forwardRef<
   SheetRef,
   { me: Me; onClose: () => void; onStatus: () => void; onDismiss?: () => void }
 >(function MeSheet({ me, onClose, onStatus, onDismiss }, ref) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const push = usePushState((state) => state.state);
   const myStatus = useMyStatus((state) => state.status);
-  const historyCircles = Object.values(useSharing((state) => state.circles)).filter(
-    (sharing) => sharing.history === true,
-  ).length;
-  const plan = usePlan().data;
+  const sharing = useSharing();
+  const myUserId = useAuth((state) => state.userId);
   const now = useNow();
+  const seers = seersOf(useCircles().data ?? [], sharing, myUserId, now).length;
+  const appearance = useMapAppearance((state) => state.mode);
+  const effects = useEffectChoice((state) => state.level);
+  const plan = usePlan().data;
   const planDetail =
     plan === undefined
       ? undefined
@@ -90,35 +75,10 @@ export const MeSheet = forwardRef<
         : plan.plan === 'trial' && plan.trialEndsAt !== null
           ? t('sheets.me.plusTrial', { days: daysLeft(plan.trialEndsAt, now) })
           : t('sheets.me.plusFree');
-  const appearance = useMapAppearance((state) => state.mode);
-  const setAppearance = useMapAppearance((state) => state.setMode);
-  const effects = useEffectChoice((state) => state.level);
-  const systemReduced = useReducedMotion();
-  // Battery saving plays "full" as "less" for now (docs/ADR/0027): said so, not a frozen map.
-  const saving = useDeviceSaving((state) => state.saving);
-  const toggleMeasure = useDevSlots((state) => state.toggleOverlay);
-  const sharing = useSharing();
-  const myUserId = useAuth((state) => state.userId);
-  const seers = seersOf(useCircles().data ?? [], sharing, myUserId, now).length;
-  const createPasskey = async () => {
-    try {
-      await addPasskey();
-      // The count shown here comes from the cache: update it from the result, no refetch.
-      queryClient.setQueryData<Me>(meKey, (current) =>
-        current === undefined ? current : { ...current, passkeys: current.passkeys + 1 },
-      );
-      feedback('success');
-      toast.success(t('sheets.me.passkeyAdded'));
-    } catch (failure) {
-      const detail = DEV_TOOLS_ENABLED ? ` (${passkeyDiagnostic(failure)})` : '';
-      if (failure instanceof Error) {
-        toast.error(errorMessage(failure, t) + detail);
-        return;
-      }
-      const reason = passkeyFailure(failure);
-      if (reason === 'exists') toast.info(t('sheets.me.passkeyExists'));
-      else if (reason !== 'cancelled') toast.error(t('sheets.me.passkeyFailed') + detail);
-    }
+  const go = (screen: MeScreen) => {
+    leaveSheet('me');
+    onClose();
+    router.push(screen);
   };
   const confirmSignOut = () => {
     Alert.alert(t('sheets.me.logoutTitle'), t('sheets.me.logoutBody'), [
@@ -139,6 +99,10 @@ export const MeSheet = forwardRef<
       ref={ref}
       title={t('sheets.me.title')}
       testID="me-sheet"
+      onScrolled={(y) => {
+        rememberScroll('me', y);
+      }}
+      scrollTo={() => useSheetReturn.getState().scroll.me ?? 0}
       {...(onDismiss === undefined ? {} : { onDismiss })}
     >
       <Appear style={styles.profile}>
@@ -153,12 +117,11 @@ export const MeSheet = forwardRef<
         icon={Pencil}
         variant="secondary"
         onPress={() => {
-          onClose();
-          router.push('/edit-profile');
+          go('/edit-profile');
         }}
       />
-      <Group>
-        <Row
+      <SettingsGroup>
+        <SettingsRow
           icon={Smile}
           label={t('sheets.me.status')}
           detail={
@@ -168,211 +131,82 @@ export const MeSheet = forwardRef<
           }
           onPress={onStatus}
         />
-      </Group>
-      {/* Right under the profile, so the safety switches are never missed (the PM). */}
-      <Section title={t('sheets.me.sectionLocation')}>
-        <GhostControl />
-        <Group>
-          <Row
-            testID="me-seers"
-            icon={Eye}
-            label={t('sheets.me.seers')}
-            detail={
-              sharing.ghost !== 'off'
-                ? t('sheets.me.seersGhost')
-                : seers === 0
-                  ? t('sheets.me.seersNone')
-                  : t('sheets.me.seersCount', { count: seers })
-            }
-            onPress={() => {
-              onClose();
-              router.push('/seers');
-            }}
-          />
-          <Row
-            icon={History}
-            label={t('sheets.me.history')}
-            detail={
-              historyCircles === 0
-                ? t('sheets.me.historyOff')
-                : t('sheets.me.historyOn', { count: historyCircles })
-            }
-            onPress={() => {
-              onClose();
-              router.push('/history/viewers');
-            }}
-          />
-        </Group>
-      </Section>
-      <Section title={t('sheets.me.sectionNotifications')}>
-        <Group>
-          <Row
-            testID="me-notifications"
-            icon={Bell}
-            label={t('sheets.me.notifications')}
-            detail={t(`sheets.me.notifications_${push}`)}
-            onPress={() => {
-              onClose();
-              router.push('/notifications');
-            }}
-          />
-        </Group>
-      </Section>
-      <Section title={t('sheets.me.sectionLook')}>
-        <Segmented
-          testID="map-appearance"
-          label={t('sheets.me.mapAppearance')}
-          value={appearance}
-          onChange={setAppearance}
-          options={MAP_APPEARANCES.map((value) => ({
-            value,
-            label: t(`sheets.me.mapAppearance_${value}`),
-            icon: APPEARANCE_ICONS[value],
-          }))}
+      </SettingsGroup>
+      <SettingsGroup>
+        <SettingsRow
+          testID="me-location"
+          icon={ShieldHalf}
+          label={t('sheets.me.sectionLocation')}
+          detail={
+            sharing.ghost !== 'off'
+              ? t('sheets.me.seersGhost')
+              : seers === 0
+                ? t('sheets.me.seersNone')
+                : t('sheets.me.seersCount', { count: seers })
+          }
+          onPress={() => {
+            go('/settings/location');
+          }}
         />
-        <View style={styles.effects}>
-          <Segmented
-            testID="effects-level"
-            label={t('sheets.me.effects')}
-            value={effects}
-            onChange={setEffectLevel}
-            options={EFFECT_LEVELS.map((value) => ({
-              value,
-              label: t(`sheets.me.effects_${value}`),
-              icon: EFFECT_ICONS[value],
-            }))}
-          />
-          <Hint>
-            {systemReduced
-              ? t('sheets.me.effectsSystem')
-              : saving && effects === 'full'
-                ? t('sheets.me.effectsSaving')
-                : t(`sheets.me.effectsDetail_${effects}`)}
-          </Hint>
-        </View>
-      </Section>
-      <Section title={t('sheets.me.sectionSecurity')}>
-        <Group>
-          {passkeysSupported() ? (
-            <Row
-              icon={KeyRound}
-              label={t('sheets.me.passkey')}
-              detail={
-                me.passkeys > 0
-                  ? t('sheets.me.passkeyCount', { count: me.passkeys })
-                  : t('sheets.me.passkeyAdd')
-              }
-              onPress={() => void createPasskey()}
-            />
-          ) : null}
-          <Row
-            icon={ShieldCheck}
-            label={t('sheets.me.security')}
-            detail={t('sheets.me.securityDetail')}
-            onPress={() => {
-              onClose();
-              router.push('/security');
-            }}
-          />
-          <Row
-            icon={HeartHandshake}
-            label={t('sheets.me.guardians')}
-            detail={t('sheets.me.guardiansDetail')}
-            onPress={() => {
-              onClose();
-              router.push('/guardians');
-            }}
-          />
-        </Group>
-      </Section>
-      <Section title={t('sheets.me.sectionAccount')}>
-        <Group>
-          <Row
-            icon={Sparkles}
-            label={t('sheets.me.plus')}
-            detail={planDetail}
-            onPress={() => {
-              onClose();
-              router.push('/plus');
-            }}
-          />
-          <Row
-            testID="me-account"
-            icon={UserCog}
-            label={t('sheets.me.privacy')}
-            detail={t('sheets.me.privacyDetail')}
-            onPress={() => {
-              onClose();
-              router.push('/privacy');
-            }}
-          />
-        </Group>
-      </Section>
-      <Section title={t('sheets.me.sectionApp')}>
-        <Group>
-          <Row
-            icon={Smartphone}
-            label={t('sheets.me.device')}
-            detail={
-              me.device.attested ? t('sheets.me.deviceAttested') : t('sheets.me.deviceNotAttested')
-            }
-          />
-          {DEV_TOOLS_ENABLED ? (
-            <>
-              <Row
-                icon={Wrench}
-                label={t('dev.ui.link')}
-                onPress={() => {
-                  onClose();
-                  router.push('/_dev/ui');
-                }}
-              />
-              <Row
-                icon={Wrench}
-                label={t('dev.swarm.link')}
-                onPress={() => {
-                  onClose();
-                  const fix = useMyFix.getState().fix;
-                  const [lng, lat] = INITIAL_VIEW.center;
-                  startSwarm(fix ?? { lat, lng });
-                }}
-              />
-              {toggleMeasure === null ? null : (
-                <Row
-                  icon={Wrench}
-                  label={t('dev.measure.link')}
-                  onPress={() => {
-                    onClose();
-                    toggleMeasure();
-                  }}
-                />
-              )}
-              <Row
-                icon={Wrench}
-                label={t('dev.billing.link')}
-                onPress={() => {
-                  onClose();
-                  router.push('/_dev/billing');
-                }}
-              />
-              <Row
-                icon={Wrench}
-                label={t('home.devTools')}
-                onPress={() => {
-                  onClose();
-                  router.push('/_dev/crypto');
-                }}
-              />
-            </>
-          ) : null}
-          <Row
-            icon={MapIcon}
-            label={t('sheets.me.mapData')}
-            detail={t('sheets.me.mapDataDetail')}
-            onPress={() => void Linking.openURL(OSM_COPYRIGHT_URL)}
-          />
-        </Group>
-      </Section>
+        <SettingsRow
+          testID="me-notifications"
+          icon={Bell}
+          label={t('sheets.me.sectionNotifications')}
+          detail={t(`sheets.me.notifications_${push}`)}
+          onPress={() => {
+            go('/notifications');
+          }}
+        />
+        <SettingsRow
+          testID="me-look"
+          icon={Palette}
+          label={t('sheets.me.sectionLook')}
+          detail={t('sheets.me.lookDetail', {
+            map: t(`sheets.me.mapAppearance_${appearance}`),
+            effects: t(`sheets.me.effects_${effects}`),
+          })}
+          onPress={() => {
+            go('/settings/look');
+          }}
+        />
+        <SettingsRow
+          testID="me-security"
+          icon={ShieldCheck}
+          label={t('sheets.me.sectionSecurity')}
+          detail={t('sheets.me.securityDetail')}
+          onPress={() => {
+            go('/security');
+          }}
+        />
+      </SettingsGroup>
+      <SettingsGroup>
+        <SettingsRow
+          icon={Sparkles}
+          label={t('sheets.me.plus')}
+          detail={planDetail}
+          onPress={() => {
+            go('/plus');
+          }}
+        />
+        <SettingsRow
+          testID="me-account"
+          icon={UserCog}
+          label={t('sheets.me.privacy')}
+          detail={t('sheets.me.privacyDetail')}
+          onPress={() => {
+            go('/privacy');
+          }}
+        />
+        <SettingsRow
+          testID="me-app"
+          icon={Info}
+          label={t('sheets.me.sectionApp')}
+          detail={t('sheets.me.version', { version: env.appVersion })}
+          onPress={() => {
+            go('/settings/about');
+          }}
+        />
+      </SettingsGroup>
       <Button
         testID="sign-out"
         label={t('sheets.me.logout')}
@@ -380,127 +214,11 @@ export const MeSheet = forwardRef<
         variant="ghost"
         onPress={confirmSignOut}
       />
-      <Text variant="caption" color="textMuted" align="center">
-        {t('sheets.me.version', { version: env.appVersion })}
-      </Text>
     </Sheet>
   );
 });
 
-const APPEARANCE_ICONS = { auto: MapIcon, light: Sun, dark: Moon } as const;
-const EFFECT_ICONS = { full: Sparkles, reduced: Sparkle, off: Ban } as const;
-
-/**
- * A titled part of the Me sheet (UX düzeni 2): what belongs together under a name that says what it
- * holds, so a setting is found without reading the rest.
- */
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <SectionTitle>{title}</SectionTitle>
-      {children}
-    </View>
-  );
-}
-
-/** Rows that belong together on one card, a hairline between them (the theme of 2026-10-18). */
-function Group({ children }: { children: ReactNode }) {
-  const { colors } = useTheme();
-  const rows = Children.toArray(children);
-  return (
-    <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      {rows.map((row, index) => (
-        <Fragment key={index}>
-          {index === 0 ? null : (
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          )}
-          {row}
-        </Fragment>
-      ))}
-    </View>
-  );
-}
-
-function Row({
-  icon: Icon,
-  label,
-  detail,
-  onPress,
-  testID,
-}: {
-  icon: LucideIcon;
-  label: string;
-  detail?: string | undefined;
-  onPress?: (() => void) | undefined;
-  testID?: string | undefined;
-}) {
-  const { colors } = useTheme();
-  const content = (
-    <>
-      <View style={[styles.rowIcon, { backgroundColor: colors.primarySoft }]}>
-        <Icon color={colors.primary} size={20} strokeWidth={2.25} />
-      </View>
-      <View style={styles.rowText}>
-        <Text variant="body">{label}</Text>
-        {detail === undefined ? null : (
-          <Text variant="footnote" color="textMuted">
-            {detail}
-          </Text>
-        )}
-      </View>
-      {onPress === undefined ? null : (
-        <ChevronRight color={colors.textMuted} size={20} strokeWidth={2.25} />
-      )}
-    </>
-  );
-  if (onPress === undefined) {
-    return (
-      <View
-        style={styles.row}
-        accessible
-        accessibilityLabel={detail ? `${label}, ${detail}` : label}
-      >
-        {content}
-      </View>
-    );
-  }
-  return (
-    <PressableScale
-      testID={testID}
-      haptic="select"
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={detail ? `${label}, ${detail}` : label}
-      style={styles.row}
-    >
-      {content}
-    </PressableScale>
-  );
-}
-
 const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
-  effects: { gap: space.sm },
-  section: { gap: space.sm },
   profileText: { flex: 1, gap: space.xxs },
-  group: {
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    paddingHorizontal: space.md,
-  },
-  divider: { height: StyleSheet.hairlineWidth * 2, marginLeft: touchTarget + space.xs },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    minHeight: touchTarget + space.md,
-  },
-  rowIcon: {
-    width: touchTarget - space.sm,
-    height: touchTarget - space.sm,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowText: { flex: 1, gap: space.xxs },
 });

@@ -16,6 +16,8 @@ import {
   WifiOff,
   X,
   PauseCircle,
+  MapPin,
+  Radar,
   Sparkles,
 } from 'lucide-react-native';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -36,8 +38,9 @@ import { circleSync, keys, onOnline } from '@/features/live/live-session';
 import { EventCard } from '@/features/circles/event-card';
 import { EventBadge } from '@/features/circles/event-ui';
 import { useNow } from '@/features/location/clock';
-import { SharingCard } from '@/features/location/sharing-card';
-import { PlacesCard } from '@/features/places/places-card';
+import { useSharingSummary } from '@/features/location/sharing-card';
+import { usePlaces } from '@/features/places/places';
+import { SettingsGroup, SettingsRow } from '@/ui/settings-row';
 import { MeetingCard } from '@/features/plan/meeting-card';
 import { MeetingRow } from '@/features/plan/meeting-row';
 import { isValidDisplayName } from '@/features/profile/profile-form';
@@ -143,6 +146,10 @@ export default function CircleScreen() {
 function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const sharingSummary = useSharingSummary(circle.id);
+  const placeCount = Object.values(usePlaces()).filter(
+    (place) => place.circleId === circle.id,
+  ).length;
   const actions = useCircleActions();
   const status = useCircleKeys((state) => state[circle.id]);
   const celebrate = useCelebration((state) => state.celebrate);
@@ -300,13 +307,29 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
 
       {active ? (
         <Appear index={2}>
-          <SharingCard circleId={circle.id} name={pair ? title : null} />
-        </Appear>
-      ) : null}
-
-      {active ? (
-        <Appear index={2}>
-          <PlacesCard circleId={circle.id} />
+          {/* Each setting on its own screen, a line here saying how it is (the owner). */}
+          <SettingsGroup>
+            <SettingsRow
+              testID="circle-sharing"
+              icon={Radar}
+              label={t('location.sharing.title')}
+              detail={sharingSummary}
+              onPress={() => {
+                router.push({ pathname: '/circle/[id]/sharing', params: { id: circle.id } });
+              }}
+            />
+            <SettingsRow
+              testID="circle-places"
+              icon={MapPin}
+              label={t('places.title')}
+              detail={
+                placeCount === 0 ? t('places.none') : t('places.count', { count: placeCount })
+              }
+              onPress={() => {
+                router.push({ pathname: '/circle/[id]/places', params: { id: circle.id } });
+              }}
+            />
+          </SettingsGroup>
         </Appear>
       ) : null}
 

@@ -14,7 +14,7 @@ import {
   Users,
   X,
 } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackHandler, type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -26,6 +26,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
+
+import type { Avatar as AvatarData } from '@bargu/schemas';
 
 import { avatarSize, elevation, radius, space, spring, useTheme } from '@/theme';
 import { useMotion } from '@/theme/use-motion';
@@ -66,33 +68,35 @@ function useBackToClose(open: boolean): void {
 }
 
 /**
- * A person's card (BARGU_PLAN §4.3 "Kişi Sheet'i"): how long ago, where (place name read from the
- * map on the phone), how far, battery, and the same actions as the radial menu: their notifications
- * too, by the bell, which shows when they are silenced (UX düzeni 1). Opening it, their avatar flies
- * from the map into the card (a shared-element transition on the UI thread); the ×, a drag down, a
- * tap on the map or back closes it.
+ * What every card on the map shares (a friend's, and since the owner's request of 2026-10-21 the
+ * user's own): the avatar flying in from the map, the name and a line under it, buttons beside the
+ * name, the ×, and closing by a drag down, a tap on the map or back.
  */
-export function PersonCard({
-  person,
+export function CardFrame({
+  testID,
   from,
-  place,
-  onAction,
   onHeight,
+  avatar,
+  title,
+  subtitle,
+  buttons,
+  children,
 }: {
-  person: PersonView;
-  /** Where on screen their avatar was tapped. */
+  testID: string;
+  /** Where on screen the avatar was tapped. */
   from: ScreenPoint;
-  /** Place name, once the map has it (null: none nearby, undefined: still looking). */
-  place: string | null | undefined;
-  onAction: (action: PersonAction | 'meet') => void;
   /** The card's height, so the map keeps the person visible above it. */
   onHeight: (height: number) => void;
+  avatar: { avatar: AvatarData | null; name: string; userId: string };
+  title: string;
+  subtitle: string;
+  /** Beside the name, before the ×. */
+  buttons?: ReactNode;
+  children: ReactNode;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const now = useNow();
-  const myFix = useMyFix((state) => state.fix);
   const motion = useMotion();
   const [landed, setLanded] = useState(false);
   const started = useRef(false);
@@ -102,14 +106,6 @@ export function PersonCard({
   const flyScale = useSharedValue(1);
   const flyShown = useSharedValue(0);
   useBackToClose(true);
-
-  const loc = person.location?.loc ?? null;
-  loadMuteSettings();
-  const silenced = personMutes(useMutes(), person.userId);
-  const quiet = silenced.places || silenced.pokes;
-  const circleLabel = circleActionLabel(person);
-  const status = statusOf(useStatuses(), person.userId, now);
-  const minutes = loc === null ? undefined : staleMinutes(loc.ts, now);
 
   const onLayout = (event: LayoutChangeEvent) => {
     const { y, height } = event.nativeEvent.layout;
@@ -151,6 +147,84 @@ export function PersonCard({
       drag.set(withSpring(0, spring.snappy));
     });
 
+  return (
+    <Animated.View entering={motion.enterUp} onLayout={onLayout} style={styles.dock}>
+      <GestureDetector gesture={pan}>
+        <Animated.View
+          testID={testID}
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surfaceRaised,
+              boxShadow: elevation.floating,
+              paddingBottom: insets.bottom + space.lg,
+            },
+            card,
+          ]}
+        >
+          <View style={styles.header}>
+            <Animated.View style={[styles.avatar, flying, landed ? null : styles.inFlight]}>
+              <Avatar avatar={avatar.avatar} name={avatar.name} size="lg" userId={avatar.userId} />
+            </Animated.View>
+            <View style={styles.titles}>
+              <Text variant="title2" numberOfLines={1}>
+                {title}
+              </Text>
+              <Text variant="footnote" color="textMuted">
+                {subtitle}
+              </Text>
+            </View>
+            {buttons}
+            <IconButton
+              testID="card-close"
+              icon={X}
+              tone="plain"
+              label={t('map.card.close')}
+              onPress={closeCard}
+            />
+          </View>
+          {children}
+        </Animated.View>
+      </GestureDetector>
+    </Animated.View>
+  );
+}
+
+/**
+ * A person's card (BARGU_PLAN §4.3 "Kişi Sheet'i"): how long ago, where (place name read from the
+ * map on the phone), how far, battery, and the same actions as the radial menu: their notifications
+ * too, by the bell, which shows when they are silenced (UX düzeni 1). Opening it, their avatar flies
+ * from the map into the card (a shared-element transition on the UI thread); the ×, a drag down, a
+ * tap on the map or back closes it.
+ */
+export function PersonCard({
+  person,
+  from,
+  place,
+  onAction,
+  onHeight,
+}: {
+  person: PersonView;
+  /** Where on screen their avatar was tapped. */
+  from: ScreenPoint;
+  /** Place name, once the map has it (null: none nearby, undefined: still looking). */
+  place: string | null | undefined;
+  onAction: (action: PersonAction | 'meet') => void;
+  /** The card's height, so the map keeps the person visible above it. */
+  onHeight: (height: number) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const { colors } = useTheme();
+  const now = useNow();
+  const myFix = useMyFix((state) => state.fix);
+  const loc = person.location?.loc ?? null;
+  loadMuteSettings();
+  const silenced = personMutes(useMutes(), person.userId);
+  const quiet = silenced.places || silenced.pokes;
+  const circleLabel = circleActionLabel(person);
+  const status = statusOf(useStatuses(), person.userId, now);
+  const minutes = loc === null ? undefined : staleMinutes(loc.ts, now);
+
   const when =
     loc === null
       ? t('map.card.noLocation')
@@ -171,142 +245,110 @@ export function PersonCard({
         : BatteryMedium;
 
   return (
-    <Animated.View entering={motion.enterUp} onLayout={onLayout} style={styles.dock}>
-      <GestureDetector gesture={pan}>
-        <Animated.View
-          testID="person-card"
-          style={[
-            styles.card,
-            {
-              backgroundColor: colors.surfaceRaised,
-              boxShadow: elevation.floating,
-              paddingBottom: insets.bottom + space.lg,
-            },
-            card,
-          ]}
-        >
-          <View style={styles.header}>
-            <Animated.View style={[styles.avatar, flying, landed ? null : styles.inFlight]}>
-              <Avatar avatar={person.avatar} name={person.name} size="lg" userId={person.userId} />
-            </Animated.View>
-            <View style={styles.titles}>
-              <Text variant="title2" numberOfLines={1}>
-                {person.name}
-              </Text>
-              <Text variant="footnote" color="textMuted">
-                {[person.handle, when, quiet ? t('map.card.muted') : undefined]
-                  .filter((part) => part !== undefined)
-                  .join(' · ')}
-              </Text>
-            </View>
-            <IconButton
-              testID="card-notifications"
-              icon={quiet ? BellOff : Bell}
-              tone="plain"
-              label={
-                quiet
-                  ? t('map.card.notificationsMuted', { name: person.name })
-                  : t('map.card.notifications', { name: person.name })
-              }
-              onPress={() => {
-                onAction('notifications');
-              }}
-            />
-            <IconButton
-              testID="card-close"
-              icon={X}
-              tone="plain"
-              label={t('map.card.close')}
-              onPress={closeCard}
-            />
-          </View>
-          {status === null ? null : (
-            <View style={[styles.status, { backgroundColor: colors.surface }]}>
-              <Text variant="bodyStrong">
-                {[status.emoji, status.text].filter((part) => part !== undefined).join('  ')}
-              </Text>
-              <Text variant="caption" color="textMuted">
-                {t('map.card.statusLeft', {
-                  hours: Math.max(1, Math.round((status.expiresAt - now) / 3_600_000)),
-                })}
-              </Text>
-            </View>
-          )}
-          {loc === null ? null : (
-            <View style={styles.facts}>
-              <Fact
-                icon={MapPin}
-                text={place ?? (place === null ? t('map.card.placeUnknown') : '…')}
-              />
-              {far === null ? null : (
-                <Fact icon={Navigation} text={t('map.card.distance', { far })} />
-              )}
-              <Fact
-                icon={BatteryIcon}
-                text={
-                  loc.chg
-                    ? t('map.card.batteryCharging', { level: loc.bat })
-                    : t('map.card.battery', { level: loc.bat })
-                }
-                danger={!loc.chg && loc.bat < LOW_BATTERY}
-              />
-              {loc.acc >= COARSE_M ? (
-                <Fact icon={MapPin} text={t('map.card.coarse')} muted />
-              ) : null}
-            </View>
-          )}
-          <View style={styles.actions}>
-            <ActionTile
-              testID="card-poke"
-              label={t('map.actions.poke')}
-              icon={Hand}
-              primary
-              onPress={() => {
-                onAction('poke');
-              }}
-            />
-            <ActionTile
-              testID="card-meet"
-              label={t('map.actions.meet')}
-              icon={Flag}
-              disabled={person.username === null}
-              onPress={() => {
-                onAction('meet');
-              }}
-            />
-            <ActionTile
-              testID="card-directions"
-              label={t('map.actions.directions')}
-              icon={Navigation}
-              disabled={loc === null}
-              onPress={() => {
-                onAction('directions');
-              }}
-            />
-            <ActionTile
-              testID="card-history"
-              label={t('map.actions.history')}
-              icon={History}
-              onPress={() => {
-                onAction('history');
-              }}
-            />
-            <ActionTile
-              testID="card-profile"
-              label={t(`map.actions.${circleLabel}`)}
-              icon={circleLabel === 'friendship' ? UserRound : Users}
-              onPress={() => {
-                onAction('profile');
-              }}
-            />
-          </View>
-        </Animated.View>
-      </GestureDetector>
-    </Animated.View>
+    <CardFrame
+      testID="person-card"
+      from={from}
+      onHeight={onHeight}
+      avatar={{ avatar: person.avatar, name: person.name, userId: person.userId }}
+      title={person.name}
+      subtitle={[person.handle, when, quiet ? t('map.card.muted') : undefined]
+        .filter((part) => part !== undefined)
+        .join(' · ')}
+      buttons={
+        <IconButton
+          testID="card-notifications"
+          icon={quiet ? BellOff : Bell}
+          tone="plain"
+          label={
+            quiet
+              ? t('map.card.notificationsMuted', { name: person.name })
+              : t('map.card.notifications', { name: person.name })
+          }
+          onPress={() => {
+            onAction('notifications');
+          }}
+        />
+      }
+    >
+      {status === null ? null : (
+        <View style={[styles.status, { backgroundColor: colors.surface }]}>
+          <Text variant="bodyStrong">
+            {[status.emoji, status.text].filter((part) => part !== undefined).join('  ')}
+          </Text>
+          <Text variant="caption" color="textMuted">
+            {t('map.card.statusLeft', {
+              hours: Math.max(1, Math.round((status.expiresAt - now) / 3_600_000)),
+            })}
+          </Text>
+        </View>
+      )}
+      {loc === null ? null : (
+        <View style={styles.facts}>
+          <Fact icon={MapPin} text={place ?? (place === null ? t('map.card.placeUnknown') : '…')} />
+          {far === null ? null : <Fact icon={Navigation} text={t('map.card.distance', { far })} />}
+          <Fact
+            icon={BatteryIcon}
+            text={
+              loc.chg
+                ? t('map.card.batteryCharging', { level: loc.bat })
+                : t('map.card.battery', { level: loc.bat })
+            }
+            danger={!loc.chg && loc.bat < LOW_BATTERY}
+          />
+          {loc.acc >= COARSE_M ? <Fact icon={MapPin} text={t('map.card.coarse')} muted /> : null}
+        </View>
+      )}
+      <View style={styles.actions}>
+        <ActionTile
+          testID="card-poke"
+          label={t('map.actions.poke')}
+          icon={Hand}
+          primary
+          onPress={() => {
+            onAction('poke');
+          }}
+        />
+        <ActionTile
+          testID="card-meet"
+          label={t('map.actions.meet')}
+          icon={Flag}
+          disabled={person.username === null}
+          onPress={() => {
+            onAction('meet');
+          }}
+        />
+        <ActionTile
+          testID="card-directions"
+          label={t('map.actions.directions')}
+          icon={Navigation}
+          disabled={loc === null}
+          onPress={() => {
+            onAction('directions');
+          }}
+        />
+        <ActionTile
+          testID="card-history"
+          label={t('map.actions.history')}
+          icon={History}
+          onPress={() => {
+            onAction('history');
+          }}
+        />
+        <ActionTile
+          testID="card-profile"
+          label={t(`map.actions.${circleLabel}`)}
+          icon={circleLabel === 'friendship' ? UserRound : Users}
+          onPress={() => {
+            onAction('profile');
+          }}
+        />
+      </View>
+    </CardFrame>
   );
 }
 
-function Fact({
+/** One line of facts on a card: an icon and a short text. */
+export function Fact({
   icon: Icon,
   text,
   danger = false,

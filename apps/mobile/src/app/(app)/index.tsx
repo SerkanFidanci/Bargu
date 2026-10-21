@@ -1,12 +1,12 @@
 import type { LngLat } from '@maplibre/maplibre-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Dock } from '@/features/home/dock';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { MapShortcuts } from '@/features/home/map-shortcuts';
 import { MeetingChip } from '@/features/home/meeting-chip';
@@ -38,6 +38,7 @@ import { useDocs } from '@/features/plan/docs';
 import { meetingPoints } from '@/features/plan/meeting-points';
 import { MeetingPointsLayer } from '@/features/plan/meeting-points-layer';
 import { MeSheet } from '@/features/home/sheets';
+import { takeReturn } from '@/features/home/sheet-return';
 import { StatusSheet } from '@/features/social/status-sheet';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
 import { usePeopleUi } from '@/features/map/people-ui';
@@ -77,7 +78,9 @@ export default function HomeScreen() {
   const myFix = useMyFix((state) => state.fix);
   const now = useNow();
   const map = useRef<BarguMapHandle>(null);
-  const people = usePeopleUi(map, circleList.data ?? [], insets.top);
+  const people = usePeopleUi(map, circleList.data ?? [], insets.top, () => {
+    statusSheet.current?.present();
+  });
   const weather = useWeatherHere();
   // Meetings: their own look and screen, never a saved place's (the project owner's request,
   // docs/ADR/0026). An event's places are its meeting's, so none of them is drawn as a place.
@@ -98,6 +101,18 @@ export default function HomeScreen() {
   // Nothing moves while the map is not seen (another page over it, the app in the background);
   // a touch or a move wakes the weather for a while (docs/ADR/0027).
   const onScreen = useOnScreen();
+  // Back from a screen a sheet opened: that sheet opens again where it was (UX düzeni 8).
+  useFocusEffect(
+    useCallback(() => {
+      const back = takeReturn();
+      if (back === 'me') {
+        meSheet.current?.present();
+        setMeOpen(true);
+      } else if (back === 'circles') {
+        circles.current?.present();
+      }
+    }, []),
+  );
   const devOverlay = useDevSlots((state) => state.mapOverlay);
   // While the map is seen, this phone's own pin follows the GPS every second (use-location.ts).
   useEffect(() => {

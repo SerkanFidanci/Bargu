@@ -10,7 +10,10 @@ import { toast } from '@/ui/toast';
 
 import type { SheetRef } from '@/ui/sheet';
 
+import { useAuth } from '../auth/auth-store';
+import { useMyFix } from '../location/engine';
 import { useLocations } from '../location/receive';
+import { useMe } from '../profile/queries';
 import { MuteSheet } from '../notifications/mute-sheet';
 import { poke } from '../social/poke';
 import { circlesApi } from '../circles/circles-api';
@@ -19,6 +22,7 @@ import { circleSync } from '../live/live-session';
 import { startMeetingWith } from '../plan/quick-meeting';
 import type { BarguMapHandle } from './bargu-map';
 import { type PersonView, circleActionLabel, personView, runPersonAction } from './person-actions';
+import { MyCard } from './my-card';
 import { PersonCard } from './person-card';
 import {
   closeCard,
@@ -44,7 +48,11 @@ export function usePeopleUi(
   map: RefObject<BarguMapHandle | null>,
   circles: readonly Circle[],
   topInset: number,
+  /** The user's own status, from their own card. */
+  onMyStatus: () => void,
 ) {
+  const myUserId = useAuth((state) => state.userId);
+  const me = useMe().data;
   const { t, i18n } = useTranslation();
   const selected = usePersonFocus((state) => state.selected);
   const locations = useLocations();
@@ -147,8 +155,13 @@ export function usePeopleUi(
         setPlace(null);
         openCard(userId, point);
       },
+      // The user's own pin: their card on a hold too (no menu of things to do to oneself).
       onHold: (point) => {
         feedback('bump');
+        if (userId === myUserId) {
+          openCard(userId, point);
+          return;
+        }
         openMenu(userId, point, topInset);
       },
       onRelease: () => {
@@ -160,7 +173,7 @@ export function usePeopleUi(
       },
       topInset,
     }),
-    [act, topInset],
+    [act, topInset, myUserId],
   );
 
   /** More than two standing together: everyone there in a window; a pick opens their card. */
@@ -171,7 +184,16 @@ export function usePeopleUi(
     groupSheet.current?.present();
   }, []);
 
-  const person = selected === null ? null : personView(selected.userId, circles, locations);
+  const mine = selected !== null && selected.userId === myUserId;
+  const person = selected === null || mine ? null : personView(selected.userId, circles, locations);
+
+  /** The user's own card: the map shows their pin above it. */
+  const onMyCardHeight = (height: number) => {
+    if (focused.current === myUserId) return;
+    focused.current = myUserId;
+    const fix = useMyFix.getState().fix;
+    if (fix !== null) map.current?.focusOn([fix.lng, fix.lat], height);
+  };
 
   /** Once the card's height is known: bring the person into view above it, then name the place. */
   const onCardHeight = (height: number) => {
@@ -211,6 +233,15 @@ export function usePeopleUi(
           onHeight={onCardHeight}
         />
       )}
+      {mine && me !== undefined ? (
+        <MyCard
+          key="me"
+          me={me}
+          from={selected.from}
+          onHeight={onMyCardHeight}
+          onStatus={onMyStatus}
+        />
+      ) : null}
       <RadialMenu
         onPick={act}
         circleOf={(userId) => {

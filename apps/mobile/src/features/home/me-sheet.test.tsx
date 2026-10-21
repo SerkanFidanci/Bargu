@@ -5,6 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import i18n from '@/i18n';
 
 import { AddSheet } from '../circles/add-sheet';
+import { takeReturn, useSheetReturn } from './sheet-return';
 import { MeSheet } from './sheets';
 
 // Native modules jest does not have on Linux (CI), though Windows resolves them: the secure store,
@@ -84,34 +85,47 @@ beforeEach(() => {
   mockPush.mockClear();
 });
 
-describe('the Me sheet, grouped (UX düzeni 2, 3, 10)', () => {
-  it('puts "Konum ve gizlilik" right under the profile, then the other titled groups', async () => {
+describe('the Me sheet, one row per part (the owner, 2026-10-21)', () => {
+  it('lists the parts as rows, "Konum ve gizlilik" first right under the profile', async () => {
     await render(withQueries(<MeSheet me={me} onClose={jest.fn()} onStatus={jest.fn()} />));
-    const titles = screen.getAllByRole('header').map((node) => {
-      const text: unknown = node.props.children;
-      return typeof text === 'string' ? text : '';
-    });
-    // The sheet's own title first, then its groups.
-    expect(titles.filter((title) => title !== '')).toEqual([
-      'Ben',
+    const labels = screen
+      .getAllByRole('button')
+      .map((node) => String((node.props as { accessibilityLabel?: string }).accessibilityLabel))
+      .map((label) => label.split(',')[0] ?? '');
+    const parts = [
       'Konum ve gizlilik',
       'Bildirimler',
       'Görünüm ve harita',
       'Güvenlik',
-      'Bargu+ ve hesap',
+      'Bargu+',
+      'Hesap ve veri',
       'Uygulama',
-    ]);
+    ];
+    const at = parts.map((part) => labels.indexOf(part));
+    expect(at.every((index) => index >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    // No controls left open on the sheet itself: they are on their screens.
+    expect(screen.queryByTestId('ghost-mode')).toBeNull();
+    expect(screen.queryByTestId('effects-level')).toBeNull();
   });
 
-  it('leads to who sees the location, the notification preferences and "Hesap ve veri"', async () => {
-    await render(withQueries(<MeSheet me={me} onClose={jest.fn()} onStatus={jest.fn()} />));
-    await fireEvent.press(screen.getByTestId('me-seers'));
-    expect(mockPush).toHaveBeenLastCalledWith('/seers');
-    await fireEvent.press(screen.getByTestId('me-notifications'));
-    expect(mockPush).toHaveBeenLastCalledWith('/notifications');
-    expect(screen.getByText('Hesap ve veri')).toBeTruthy();
-    await fireEvent.press(screen.getByTestId('me-account'));
-    expect(mockPush).toHaveBeenLastCalledWith('/privacy');
+  it('opens each part on its own screen and comes back to the sheet afterwards', async () => {
+    const onClose = jest.fn();
+    await render(withQueries(<MeSheet me={me} onClose={onClose} onStatus={jest.fn()} />));
+    for (const [row, path] of [
+      ['me-location', '/settings/location'],
+      ['me-notifications', '/notifications'],
+      ['me-look', '/settings/look'],
+      ['me-security', '/security'],
+      ['me-account', '/privacy'],
+      ['me-app', '/settings/about'],
+    ] as const) {
+      useSheetReturn.setState({ pending: null });
+      await fireEvent.press(screen.getByTestId(row));
+      expect(mockPush).toHaveBeenLastCalledWith(path);
+      expect(takeReturn()).toBe('me');
+    }
+    expect(onClose).toHaveBeenCalledTimes(6);
   });
 });
 

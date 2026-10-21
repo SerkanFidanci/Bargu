@@ -41,6 +41,8 @@ export default function AppLayout() {
       <Stack.Screen name="circle/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="circle/[id]/index" />
       <Stack.Screen name="circle/[id]/invite" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="circle/[id]/sharing" />
+      <Stack.Screen name="circle/[id]/places" />
       <Stack.Screen name="circle/[id]/verify/[userId]" />
       <Stack.Screen name="add/username" options={{ presentation: 'modal' }} />
       <Stack.Screen name="add/qr" />
@@ -55,6 +57,9 @@ export default function AppLayout() {
       <Stack.Screen name="security" />
       <Stack.Screen name="seers" />
       <Stack.Screen name="notifications" />
+      <Stack.Screen name="settings/location" />
+      <Stack.Screen name="settings/look" />
+      <Stack.Screen name="settings/about" />
       <Stack.Screen name="privacy" />
       <Stack.Screen name="plus" />
       <Stack.Screen name="consent" options={{ presentation: 'modal' }} />

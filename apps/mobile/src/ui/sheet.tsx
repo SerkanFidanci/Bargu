@@ -3,11 +3,12 @@ import {
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetScrollView,
+  type BottomSheetScrollViewMethods,
   useBottomSheetSpringConfigs,
 } from '@gorhom/bottom-sheet';
-import { forwardRef, type ReactNode, useCallback } from 'react';
+import { forwardRef, type ReactNode, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet } from 'react-native';
+import { type NativeScrollEvent, type NativeSyntheticEvent, StyleSheet } from 'react-native';
 import { ReduceMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,6 +23,10 @@ export interface SheetProps {
   children: ReactNode;
   onDismiss?: () => void;
   testID?: string;
+  /** Where the content was scrolled to when it settled (to open there again). */
+  onScrolled?: (y: number) => void;
+  /** Where to open the content, read each time the sheet opens. */
+  scrollTo?: () => number;
 }
 
 /**
@@ -29,9 +34,13 @@ export interface SheetProps {
  * on the UI thread, dismissed by swipe or by tapping the dimmed map.
  */
 export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet(
-  { title, children, onDismiss, testID },
+  { title, children, onDismiss, testID, onScrolled, scrollTo },
   ref,
 ) {
+  const scroller = useRef<BottomSheetScrollViewMethods>(null);
+  const settled = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    onScrolled?.(event.nativeEvent.contentOffset.y);
+  };
   const { t } = useTranslation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -63,9 +72,16 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet(
       handleIndicatorStyle={{ backgroundColor: colors.border }}
       topInset={insets.top}
       {...(onDismiss === undefined ? {} : { onDismiss })}
+      onChange={(index) => {
+        const y = scrollTo?.() ?? 0;
+        if (index >= 0 && y > 0) scroller.current?.scrollTo({ y, animated: false });
+      }}
     >
       <BottomSheetScrollView
+        ref={scroller}
         testID={testID}
+        onScrollEndDrag={settled}
+        onMomentumScrollEnd={settled}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space.xl }]}
       >
         <Text variant="title2" accessibilityRole="header">

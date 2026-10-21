@@ -244,3 +244,29 @@ yaptı. Harita, alt çubuk (Çemberler, +, Ben) ve haritadaki kontrollerin yeri 
 - Her yeni düğme en az 44 pt dokunma alanında ve ekran okuyucu etiketli. Metinler tr ve en.
 - Sonraya kaldı: alt ekrandan dönünce Ben ya da Çemberler sayfasının yeniden açılması ve kaydırma
   yerinin korunması (ayrı dilim).
+
+## Ek (2026-10-21, sahibin telefon denemesi: kendi pinin, ayarlar kendi ekranlarında)
+
+- **Kendi pinine dokunmak** (sahip: "kendi üzerime de tıklayabilmek istiyorum"): arkadaşlarınki
+  gibi kart açılır.
+  - Kartta konumun kaç kişiye gittiği (hayalette "kimseye gitmiyor"), telefonun pili, hayalet seçimi
+    ve durum yer alır.
+  - Düğmeler: "Kimler görüyor", "Durum", "Geçmiş", "Ayarlar".
+  - Kendine anlamsız düğmeler yok (dürt, buluş). Uzun basınca da aynı kart açılır, işlem menüsü
+    açılmaz.
+  - Kart ve arkadaş kartı aynı çerçeveyi kullanır (`CardFrame`).
+- **Ayarlar kendi ekranlarında** (sahip: "tıklanınca kendi ekranları açılacak, açık şekilde
+  durmasın"):
+  - Ben sayfasında her bölüm tek satır, altında şu anki durumu.
+  - Satırlar ve açtıkları ekranlar:
+    - "Konum ve gizlilik" (en üstte): hayalet, kimler görüyor, konum geçmişim;
+    - "Bildirimler";
+    - "Görünüm ve harita": harita görünümü, efektler;
+    - "Güvenlik": geçiş anahtarı ve ebeveyn bağlantısı da burada;
+    - "Bargu+";
+    - "Hesap ve veri";
+    - "Uygulama": bu telefon, harita verisi, sürüm, geliştirici araçları.
+  - Çember ekranında "Konumun" ve "Yerler" de birer özet satırı. Ayarları kendi ekranlarında; üyeler
+    içerik olduğu için yerinde.
+- **Geri dönüş:** Ben ya da Çemberler sayfasından açılan bir ekrandan dönünce o sayfa yeniden açılır
+  ve kaldığı yere kaydırılır (`sheet-return.ts`).

@@ -32,6 +32,7 @@ import { Skeleton } from '@/ui/skeleton';
 import { Text } from '@/ui/text';
 
 import { useAuth } from '../auth/auth-store';
+import { leaveSheet, rememberScroll, useSheetReturn } from '../home/sheet-return';
 import { useNow } from '../location/clock';
 import { useCircleKeys } from './circle-sync';
 import { EventBadge, timeLeftText } from './event-ui';
@@ -61,10 +62,12 @@ export const CirclesSheet = forwardRef<SheetRef, CirclesSheetProps>(function Cir
   const { t } = useTranslation();
   const circles = useCircles();
   const open = (circle: Circle) => {
+    leaveSheet('circles');
     onClose();
     router.push({ pathname: '/circle/[id]', params: { id: circle.id } });
   };
   const newCircle = () => {
+    leaveSheet('circles');
     onClose();
     router.push('/circle/new');
   };
@@ -169,7 +172,15 @@ export const CirclesSheet = forwardRef<SheetRef, CirclesSheetProps>(function Cir
   }
 
   return (
-    <Sheet ref={ref} title={t('sheets.circles.title')} testID="circles-sheet">
+    <Sheet
+      ref={ref}
+      title={t('sheets.circles.title')}
+      testID="circles-sheet"
+      onScrolled={(y) => {
+        rememberScroll('circles', y);
+      }}
+      scrollTo={() => useSheetReturn.getState().scroll.circles ?? 0}
+    >
       {body}
     </Sheet>
   );

@@ -53,6 +53,28 @@ function clock(at: number, language: string): string {
  * location at all, how precisely (coarsened on this phone, before encryption) and until when.
  * Changes apply at once: a coarser choice replaces the finer location the members have.
  */
+/**
+ * What a circle gets now, in one line (its row on the circle's screen, the owner: settings open on
+ * their own screen): hidden by the ghost, off, or the precision and until when.
+ */
+export function useSharingSummary(circleId: string): string {
+  const { t, i18n } = useTranslation();
+  const settings = useSharing();
+  const sharing = circleSharing(settings, circleId);
+  const now = useNow();
+  if (settings.ghost !== 'off') return t('location.sharing.ghostOn');
+  if (!sharing.sharing || (sharing.until !== null && sharing.until <= now)) {
+    return t('location.sharing.off');
+  }
+  const precision = t(`location.precision.${sharing.precision}`);
+  return sharing.until === null
+    ? t('location.sharing.summaryAlways', { precision })
+    : t('location.sharing.summaryUntil', {
+        precision,
+        time: clock(sharing.until, i18n.language),
+      });
+}
+
 export function SharingCard({ circleId, name }: { circleId: string; name: string | null }) {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();

@@ -185,7 +185,7 @@
       "historyOff": "Kapalı",
       "historyOn": "{{count}} çemberde açık",
       "security": "Güvenlik",
-      "securityDetail": "Uygulama kilidi, kaybolan telefon, olaylar",
+      "securityDetail": "Geçiş anahtarı, uygulama kilidi, ebeveyn bağlantısı",
       "privacy": "Hesap ve veri",
       "privacyDetail": "Aydınlatma, rıza, verilerin, hesabı silme",
       "notifications_undetermined": "Kapalı · açmak için dokun",
@@ -213,7 +213,8 @@
       "seers": "Kimler konumumu görüyor",
       "seersGhost": "Hayalet açık: kimse görmüyor",
       "seersNone": "Şu an kimse görmüyor",
-      "seersCount": "Görenler: {{count}}"
+      "seersCount": "Görenler: {{count}}",
+      "lookDetail": "Harita: {{map}} · Efektler: {{effects}}"
     }
   },
   "ui": {
@@ -638,7 +639,9 @@
       "historyViewers": "Kimler görüyor?",
       "historyOff": "Geçmiş kapatıldı ve sunucudan silindi",
       "historyOffLater": "Geçmiş kapatıldı; bağlantı gelince sunucudan da silinecek",
-      "historyOffCoarse": "Konum geçmişi tam konum ister; bu çemberde kapatıldı ve silindi."
+      "historyOffCoarse": "Konum geçmişi tam konum ister; bu çemberde kapatıldı ve silindi.",
+      "summaryAlways": "{{precision}} konum · sen kapatana kadar",
+      "summaryUntil": "{{precision}} konum · {{time}} saatine kadar"
     },
     "precision": {
       "exact": "Tam",
@@ -743,6 +746,16 @@
       "meet": "Buluşma başlat",
       "here": "Geldim ({{place}})",
       "shared": "Konumun paylaşılıyor."
+    },
+    "myCard": {
+      "you": "Sen",
+      "noLocation": "Konumun henüz yok",
+      "ghost": "Hayalet açık: konumun kimseye gitmiyor",
+      "nobody": "Konumun şu an kimseye gitmiyor",
+      "seers": "Konumunu görenler: {{count}}",
+      "whoSees": "Kimler görüyor",
+      "status": "Durum",
+      "settings": "Ayarlar"
     }
   },
   "places": {
@@ -769,7 +782,9 @@
     "exactOnly": "Bu çembere tam konum paylaştığında varış ve ayrılışların haber verilir.",
     "arrivedToast": "{{name}} vardı · {{place}}",
     "leftToast": "{{name}} ayrıldı · {{place}}",
-    "encrypted": "Yerin adı ve konumu şifreli; sunucu göremez."
+    "encrypted": "Yerin adı ve konumu şifreli; sunucu göremez.",
+    "none": "Henüz yer yok",
+    "count": "Yerler: {{count}}"
   },
   "status": {
     "title": "Durumun",
@@ -1254,5 +1269,8 @@
     "unmute": "Sesi aç",
     "unmuteLabel": "{{name}} için bildirimler yeniden açılır",
     "howTo": "Bir kişiyi haritada kartındaki zilden, bir yeri kendi ekranından sessize alırsın. Sessize almak yalnızca bu telefonda geçerli."
+  },
+  "settingsLocation": {
+    "perCircle": "Bir çemberin neyi, ne kadar süre gördüğünü o çemberin ekranından değiştirirsin."
   }
 }
