@@ -1,5 +1,7 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
+type AndroidConfig = NonNullable<ExpoConfig['android']>;
+
 /** Reverse-DNS app identifier; permanent once published to the stores. */
 const APP_ID = 'app.bargu';
 
@@ -26,6 +28,47 @@ const PUSH_KEYCHAIN_GROUP = 'app.bargu.push';
 
 /** Brand violet (src/theme/colors.ts lightColors.primary), for the icon background and splash. */
 const BRAND_VIOLET = '#5B34F2';
+
+/**
+ * Android App Links (docs/ADR/0009 Ek, 2026-10-22): with the invite host set for this build
+ * profile (eas.json EXPO_PUBLIC_INVITE_HOST: the staging host in development and preview, none in
+ * production until the permanent domain exists), https://<host>/i/* and /g/* open the app. Android
+ * verifies the claim against https://<host>/.well-known/assetlinks.json (apps/api, which names the
+ * package and this build's signing certificate); until it verifies, those links open in the
+ * browser, on the invite page. The same value is what the app lets through
+ * (src/features/links/incoming-link.ts), so a wrong one fails the build here. Same rule as the
+ * app's src/config/invite-host.ts and the server's INVITE_HOST.
+ */
+const INVITE_HOST = process.env.EXPO_PUBLIC_INVITE_HOST;
+const isHostLabel = (label: string): boolean =>
+  label.length <= 63 &&
+  /^[a-z0-9-]+$/.test(label) &&
+  !label.startsWith('-') &&
+  !label.endsWith('-');
+function inviteIntentFilters(
+  host: string | undefined,
+): NonNullable<AndroidConfig['intentFilters']> {
+  if (host === undefined || host === '') return [];
+  const labels = host.split('.');
+  if (host.length > 253 || labels.length < 2 || !labels.every(isHostLabel)) {
+    throw new Error(
+      'EXPO_PUBLIC_INVITE_HOST must be a lower-case host name such as invite.example.com ' +
+        '(no scheme, port or path)',
+    );
+  }
+  return [
+    {
+      action: 'VIEW',
+      autoVerify: true,
+      data: [
+        { scheme: 'https', host, pathPrefix: '/i/' },
+        { scheme: 'https', host, pathPrefix: '/g/' },
+      ],
+      category: ['BROWSABLE', 'DEFAULT'],
+    },
+  ];
+}
+
 const FONTS = {
   Inter: [
     [400, 'inter/400Regular/Inter_400Regular.ttf'],
@@ -75,6 +118,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     predictiveBackGestureEnabled: false,
     // The photo picker library declares the microphone (for video); Bargu never records sound.
     blockedPermissions: ['android.permission.RECORD_AUDIO'],
+    // https invite links open the app (App Links); none for a build without an invite host.
+    ...(INVITE_HOST === undefined || INVITE_HOST === ''
+      ? {}
+      : { intentFilters: inviteIntentFilters(INVITE_HOST) }),
   },
   plugins: [
     'expo-router',

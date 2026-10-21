@@ -15,7 +15,8 @@
       "environment": "development",
       "env": {
         "EXPO_PUBLIC_DEV_TOOLS": "1",
-        "EXPO_PUBLIC_BG_LIVE": "1"
+        "EXPO_PUBLIC_BG_LIVE": "1",
+        "EXPO_PUBLIC_INVITE_HOST": "api.46-62-162-70.sslip.io"
       },
       "android": {
         "buildType": "apk"
@@ -29,7 +30,8 @@
         "EXPO_PUBLIC_API_URL": "https://api.46-62-162-70.sslip.io",
         "EXPO_PUBLIC_DEV_TOOLS": "1",
         "EXPO_PUBLIC_COSMETIC_KEYS": "stg-1:mwQvYUsDWMETNhiYMFXRSHkwR47YHPC6l27Deu3Sgtw",
-        "EXPO_PUBLIC_BG_LIVE": "1"
+        "EXPO_PUBLIC_BG_LIVE": "1",
+        "EXPO_PUBLIC_INVITE_HOST": "api.46-62-162-70.sslip.io"
       },
       "android": {
         "buildType": "apk"
