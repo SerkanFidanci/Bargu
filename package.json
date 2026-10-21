@@ -21,6 +21,8 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:mobile:locked": "bash scripts/with-test-lock.sh pnpm --filter @bargu/mobile test",
+    "test:lock": "bash scripts/with-test-lock.test.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "infra:up": "docker compose -f infra/docker-compose.yml up -d --wait",

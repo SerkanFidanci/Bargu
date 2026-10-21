@@ -8,6 +8,10 @@
 #
 # Same image and pnpm store volume as scripts/build-android-local.sh. Exits non-zero when any
 # step fails and prints the failing lines.
+#
+# The Docker run holds the machine-wide test lock (scripts/with-test-lock.sh), shared by every
+# worktree: while another heavy test run is going it waits ("bekliyor: ...") instead of competing
+# for CPU, which made the heavy mobile screen tests time out.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
 
@@ -22,7 +26,9 @@ gitdir="$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)"
 
 host_path() { if command -v cygpath >/dev/null; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 
-docker run --rm \
+lock_script="$(dirname "${BASH_SOURCE[0]}")/with-test-lock.sh"
+
+"$BASH" "$lock_script" docker run --rm \
   -v "$(host_path "$gitdir"):/src.git:ro" \
   -v bargu-pnpm-store:/root/.local/share/pnpm/store \
   -e COMMIT="$commit" -e PNPM="$PNPM" \
