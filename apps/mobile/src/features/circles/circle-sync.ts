@@ -5,6 +5,7 @@ import { create } from 'zustand';
 
 import { isApiError } from '../errors';
 import type { KeyStore } from '../keys/key-store';
+import { timed } from '../location/probe';
 import { cachedCircle, circlesKey, removeCircle, upsertCircle } from './circle-cache';
 import type { circlesApi } from './circles-api';
 import { memberName } from './names';
@@ -128,7 +129,7 @@ export function createCircleSync({
 
   async function syncKeys(circle: Circle, fetchKeys: boolean, attempt = 0): Promise<void> {
     const store = keys();
-    const changed = store.observe(circle);
+    const changed = timed('keys.observe', () => store.observe(circle));
     if (changed.length > 0) {
       notify([
         {
@@ -140,12 +141,14 @@ export function createCircleSync({
         },
       ]);
     }
-    store.prune(circle.id, circle.epoch);
+    timed('keys.prune', () => {
+      store.prune(circle.id, circle.epoch);
+    });
     if (circle.myStatus !== 'active') {
       publish(circle);
       return;
     }
-    const pending = store.pendingDistributions(circle);
+    const pending = timed('keys.distribute', () => store.pendingDistributions(circle));
     if (pending.length > 0) {
       try {
         await api.uploadKeys(circle.id, circle.epoch, pending);
@@ -159,7 +162,8 @@ export function createCircleSync({
       }
     }
     if (fetchKeys || !store.readiness(circle).ready) {
-      store.accept(circle, await api.keys(circle.id));
+      const received = await api.keys(circle.id);
+      timed('keys.accept', () => store.accept(circle, received));
     }
     const askKey = `${circle.id}:${String(circle.epoch)}`;
     if (

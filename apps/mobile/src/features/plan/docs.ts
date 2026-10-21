@@ -1,10 +1,4 @@
-import {
-  decryptDocument,
-  type DeviceKeys,
-  encryptDocument,
-  verifyDeviceKeyBundle,
-  voteId,
-} from '@bargu/crypto';
+import { decryptDocument, type DeviceKeys, encryptDocument, voteId } from '@bargu/crypto';
 import {
   type Circle,
   type DevicePushes,
@@ -17,7 +11,9 @@ import {
 import { z } from 'zod';
 import { create } from 'zustand';
 
+import { verifiedBundle } from '../keys/bundle-cache';
 import type { KeyStore } from '../keys/key-store';
+import { timed } from '../location/probe';
 import type { KeyValueStore } from '../storage/vault';
 import { type Doc, meetingEnd } from './plan-model';
 
@@ -190,7 +186,7 @@ export function createDocs(deps: DocsDeps) {
       if (author === undefined || card === undefined || card === null || !keys.trusted(author)) {
         return null;
       }
-      sender = verifyDeviceKeyBundle(card.bundle);
+      sender = verifiedBundle(card.bundle);
       senderKey = keys.receivedKey(circle.id, envelope.epoch, envelope.senderDeviceId);
       authorId = author.userId;
     }
@@ -286,7 +282,8 @@ export function createDocs(deps: DocsDeps) {
   }
 
   async function syncCircle(circle: Circle): Promise<{ stale: StaleDoc[]; orphans: string[] }> {
-    return apply(circle, await deps.api.list(circle.id));
+    const records = await deps.api.list(circle.id);
+    return timed('docs.apply', () => apply(circle, records));
   }
 
   return {

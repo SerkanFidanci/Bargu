@@ -303,6 +303,7 @@ describe('the positions the engine uses (docs/ADR/0028)', () => {
       sampled: (input) => heard.push(input),
       sent: (input) => heard.push(input),
       received: (input) => heard.push(input),
+      span: () => undefined,
     };
     probe.current = listener;
     const t = setup(1);

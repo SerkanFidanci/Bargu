@@ -1,10 +1,4 @@
-import {
-  decryptStoredMessage,
-  type DeviceKeys,
-  encryptMessage,
-  randomUuid,
-  verifyDeviceKeyBundle,
-} from '@bargu/crypto';
+import { decryptStoredMessage, type DeviceKeys, encryptMessage, randomUuid } from '@bargu/crypto';
 import {
   type Circle,
   type MessageEnvelope,
@@ -15,7 +9,9 @@ import {
 import { z } from 'zod';
 import { create } from 'zustand';
 
+import { verifiedBundle } from '../keys/bundle-cache';
 import type { KeyStore } from '../keys/key-store';
+import { timed } from '../location/probe';
 import type { KeyValueStore } from '../storage/vault';
 import type { Place } from './place-model';
 
@@ -142,7 +138,7 @@ export function createPlaces(deps: PlacesDeps) {
       if (author === undefined || card === undefined || card === null || !keys.trusted(author)) {
         return null;
       }
-      sender = verifyDeviceKeyBundle(card.bundle);
+      sender = verifiedBundle(card.bundle);
       senderKey = keys.receivedKey(circle.id, envelope.epoch, envelope.senderDeviceId);
     }
     if (senderKey === null) return null;
@@ -198,7 +194,8 @@ export function createPlaces(deps: PlacesDeps) {
   }
 
   async function sync(): Promise<PlaceRecord[]> {
-    return apply(await deps.api.list());
+    const records = await deps.api.list();
+    return timed('places.apply', () => apply(records));
   }
 
   return {

@@ -12,7 +12,7 @@ import { create } from 'zustand';
 import type { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
 import { filterFix, type FilterState, freshFilter } from './fix-filter';
-import { type FixSource, probe } from './probe';
+import { type FixSource, probe, timed } from './probe';
 import { type Battery, buildEnvelopes, type Fix, type LastSent, shouldSend } from './send';
 import { circleSharing, type SharingSettings, sharedCircles } from './sharing';
 import { nextStay, type Stay } from './stay';
@@ -220,14 +220,17 @@ export function createLocationEngine(deps: EngineDeps) {
   return {
     /** A new raw position from the location service or the 1-second watch. */
     fix(next: Fix, source: FixSource = 'service'): Promise<void> {
-      const at = now();
-      const result = filterFix(filter, next, at, gps());
-      filter = result.state;
-      probe.current?.sampled({ source, ts: next.ts, acc: next.acc, at, outcome: result.outcome });
-      if (result.take !== null) return adopt(result.take);
-      // Nothing new to use, but a timed share may just have ended: take it back without waiting.
-      if (toWithdraw().length > 0) return pump();
-      return running ?? Promise.resolve();
+      // Its time is what the thread spends before the first wait: once a second with the map open.
+      return timed('engine.fix', () => {
+        const at = now();
+        const result = filterFix(filter, next, at, gps());
+        filter = result.state;
+        probe.current?.sampled({ source, ts: next.ts, acc: next.acc, at, outcome: result.outcome });
+        if (result.take !== null) return adopt(result.take);
+        // Nothing new to use, but a timed share may just have ended: take it back without waiting.
+        if (toWithdraw().length > 0) return pump();
+        return running ?? Promise.resolve();
+      });
     },
 
     /** Someone looks at one of this phone's circles: live updates for a while. */

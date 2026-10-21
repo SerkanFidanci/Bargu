@@ -77,6 +77,7 @@ import {
 } from '../social/status';
 import { isVaultOpen, vault } from '../storage/vault';
 import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix } from './engine';
+import { timed } from './probe';
 import { createReceiver } from './receive';
 import {
   circleSharing,
@@ -680,6 +681,10 @@ let restored = false;
 
 /** The open app's start: settings and the last known locations from the vault, once per run. */
 export function restoreLocations(): void {
+  timed('start.restore', restoreNow);
+}
+
+function restoreNow(): void {
   loadSharingSettings();
   // What sharing stopped for while the app was closed (a timed share over) goes before anything.
   if (isVaultOpen()) {
@@ -746,14 +751,15 @@ onLiveMessage((name, payload) => {
 onOnline(() => {
   void (async () => {
     try {
+      // Opened a few at a time with a moment between (receive.ts SLICE), and not at all when this
+      // phone has opened them before: the app opening or the connection returning is no moment
+      // to hold the screen for dozens of signature checks.
       const snapshot = locationSnapshotSchema.safeParse(await liveRequest('locations'));
-      if (snapshot.success) receiver.receiveSnapshot(snapshot.data.envelopes);
+      if (snapshot.success) await receiver.receiveSnapshot(snapshot.data.envelopes);
       const statuses = statusSnapshotSchema.safeParse(await liveRequest('statuses'));
-      if (statuses.success)
-        for (const envelope of statuses.data.envelopes) receiver.receive(envelope);
+      if (statuses.success) await receiver.receiveAll(statuses.data.envelopes);
       const profiles = statusSnapshotSchema.safeParse(await liveRequest('profiles'));
-      if (profiles.success)
-        for (const envelope of profiles.data.envelopes) receiver.receive(envelope);
+      if (profiles.success) await receiver.receiveAll(profiles.data.envelopes);
     } catch {
       // The next connection asks again; live messages keep coming meanwhile.
     }

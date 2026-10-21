@@ -1,8 +1,9 @@
-import { fromBase64url, verifyDeviceKeyBundle } from '@bargu/crypto';
+import { fromBase64url } from '@bargu/crypto';
 import type { Circle, GuardianLink } from '@bargu/schemas';
 import { z } from 'zod';
 
 import { memberName, partnerOf } from '../circles/names';
+import { verifiedBundle } from '../keys/bundle-cache';
 import type { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
 
@@ -56,7 +57,7 @@ export function contactsOf(
       if (!keys.trusted(member)) continue;
       const bundle = member.device.bundle;
       try {
-        verifyDeviceKeyBundle(bundle);
+        verifiedBundle(bundle);
       } catch {
         continue;
       }

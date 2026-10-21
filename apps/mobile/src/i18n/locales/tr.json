@@ -334,7 +334,14 @@
       "friend": "{{name}}: gecikme {{delay}} · aralık {{gap}} · ±{{acc}} m · geç {{late}}",
       "screen": "Ekran",
       "fps": "{{fps}} fps · en kötü kare {{worst}} ms",
-      "fpsWaiting": "Ölçülüyor…"
+      "fpsWaiting": "Ölçülüyor…",
+      "stalls": "İlk 10 sn'deki takılmalar",
+      "selfTest": "Açılış: şifre öz testi {{ms}} ms",
+      "stallsWatching": "İzleniyor…",
+      "stallsNone": "{{ms}} ms ve üstü yok",
+      "stallsCount": "{{count}} takılma · en uzunu {{ms}} ms",
+      "stall": "{{at}}: {{ms}} ms · {{name}}",
+      "stallUnnamed": "adsız"
     }
   },
   "scan": {

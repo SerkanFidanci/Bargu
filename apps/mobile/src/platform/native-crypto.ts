@@ -11,5 +11,14 @@ function setup(): NativeInstallResult {
   return installNativePrimitives(nativeCrypto);
 }
 
+const started = performance.now();
+
 /** Outcome of the startup self-test (shown on the developer benchmark screen). */
 export const nativeCryptoStatus: NativeInstallResult = setup();
+
+/**
+ * How long the self-test held the JavaScript thread while the app opened (ms). It runs the
+ * reference curve code too, which is slow on Hermes (docs/ADR/0007); the measurement overlay
+ * shows it in preview builds.
+ */
+export const nativeCryptoSelfTestMs = Math.round(performance.now() - started);

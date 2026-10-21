@@ -1,9 +1,4 @@
-import {
-  decryptHistory,
-  type DeviceKeys,
-  encryptHistory,
-  verifyDeviceKeyBundle,
-} from '@bargu/crypto';
+import { decryptHistory, type DeviceKeys, encryptHistory } from '@bargu/crypto';
 import {
   type Circle,
   HISTORY_SLOT_MS,
@@ -14,6 +9,7 @@ import {
 } from '@bargu/schemas';
 import { z } from 'zod';
 
+import { verifiedBundle } from '../keys/bundle-cache';
 import type { KeyStore } from '../keys/key-store';
 import type { Fix } from '../location/send';
 import type { KeyValueStore } from '../storage/vault';
@@ -281,7 +277,7 @@ export function createHistory(deps: HistoryDeps) {
       if (member === undefined || card === undefined || card === null || !keys.trusted(member)) {
         return [];
       }
-      const sender = verifyDeviceKeyBundle(card.bundle);
+      const sender = verifiedBundle(card.bundle);
       const points: TracePoint[] = [];
       for (const record of await deps.api.list(circleId, userId, from, to)) {
         const { envelope } = record;

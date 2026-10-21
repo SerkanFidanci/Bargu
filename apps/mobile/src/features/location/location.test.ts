@@ -344,7 +344,7 @@ describe('a location from one phone to another', () => {
     expect(receiverOf(alice, () => [changed]).receive(envelope)).toBe('ignored');
   });
 
-  it('keeps the last locations on the phone for the next start, and drops what is gone', () => {
+  it('keeps the last locations on the phone for the next start, and drops what is gone', async () => {
     const circle = circleOf([alice, bob]);
     exchangeKeys(circle, [alice, bob]);
     const envelope = nth(send([circle]));
@@ -355,10 +355,10 @@ describe('a location from one phone to another', () => {
     next.restore();
     expect(useLocations.getState()[`${circle.id}:${bob.userId}`]?.loc.lat).toBe(GALATA.lat);
     // The server still has it: the snapshot (already opened) keeps it on the map.
-    next.receiveSnapshot([envelope]);
+    await next.receiveSnapshot([envelope]);
     expect(Object.keys(useLocations.getState())).toHaveLength(1);
     // Expired or taken back on the server: gone here too.
-    next.receiveSnapshot([]);
+    await next.receiveSnapshot([]);
     expect(useLocations.getState()).toEqual({});
   });
 

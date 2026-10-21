@@ -9,6 +9,8 @@ import {
 import * as SecureStore from 'expo-secure-store';
 import { z } from 'zod';
 
+import { timed } from '../location/probe';
+
 const STORAGE_KEY = 'bargu.device.v1';
 
 /**
@@ -33,11 +35,15 @@ export async function loadDeviceKeys(): Promise<DeviceKeys | null> {
   const raw = await SecureStore.getItemAsync(STORAGE_KEY, OPTIONS);
   if (raw === null) return null;
   const stored = storedSchema.parse(JSON.parse(raw));
-  return restoreDeviceKeys({
-    deviceId: stored.deviceId,
-    identitySecretKey: fromBase64url(stored.identitySecretKey, 32),
-    dhSecretKey: fromBase64url(stored.dhSecretKey, 32),
-  });
+  // The public keys are recomputed in JavaScript every start (reference curve code, slow on
+  // Hermes, docs/ADR/0007): named for the stall meter.
+  return timed('auth.restoreKeys', () =>
+    restoreDeviceKeys({
+      deviceId: stored.deviceId,
+      identitySecretKey: fromBase64url(stored.identitySecretKey, 32),
+      dhSecretKey: fromBase64url(stored.dhSecretKey, 32),
+    }),
+  );
 }
 
 /** A fresh device identity, persisted before it is used (a new id each time: ids never return). */

@@ -1,10 +1,4 @@
-import {
-  BarguCryptoError,
-  decryptMessage,
-  ReplayGuard,
-  type ReplayState,
-  verifyDeviceKeyBundle,
-} from '@bargu/crypto';
+import { BarguCryptoError, decryptMessage, ReplayGuard, type ReplayState } from '@bargu/crypto';
 import { type Circle, locPayloadSchema, type MessageEnvelope, type Payload } from '@bargu/schemas';
 
 type StatusPayload = Extract<Payload, { kind: 'status' }>;
@@ -15,9 +9,10 @@ type LatePayload = Extract<Payload, { kind: 'late' }>;
 import { z } from 'zod';
 import { create } from 'zustand';
 
+import { verifiedBundle } from '../keys/bundle-cache';
 import type { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
-import { probe } from './probe';
+import { probe, timed } from './probe';
 
 const receivedSchema = z
   .object({
@@ -69,8 +64,17 @@ export interface ReceiverDeps {
   onLate?: (circleId: string, userId: string, late: LatePayload) => void;
   /** A member says they are at the circle's meeting ("Geldim", docs/ADR/0026 §5). */
   onArrived?: (circleId: string, userId: string, arrived: ArrivedPayload) => void;
+  /** A moment for the screen between two slices of a batch (a frame); the default is a timer. */
+  pause?: () => Promise<void>;
   now?: () => number;
 }
+
+/**
+ * Messages opened in one go before the screen gets a moment: a few take about a frame on a phone
+ * (each is a signature check and a decryption in JavaScript), so a snapshot of dozens never stops
+ * the map for longer than that.
+ */
+export const SLICE = 5;
 
 /**
  * A member who may be on this phone's map: active in a circle this phone is active in, one that
@@ -101,10 +105,15 @@ export function createReceiver({
   onPlace,
   onLate,
   onArrived,
+  pause = () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
   now = Date.now,
 }: ReceiverDeps) {
   let replay: ReplayGuard | null = null;
   const waiting = new Map<string, MessageEnvelope>();
+  /** Locations that came in while a snapshot was being opened: that snapshot must not drop them. */
+  const windows = new Set<Set<string>>();
+  /** Counts sign-outs, so a batch being opened in slices stops when one happens. */
+  let run = 0;
 
   function guard(): ReplayGuard {
     if (replay === null) {
@@ -128,6 +137,7 @@ export function createReceiver({
   }
 
   function set(entry: ReceivedLocation): void {
+    for (const touched of windows) touched.add(entryKey(entry.circleId, entry.userId));
     replaceLocations({
       ...useLocations.getState(),
       [entryKey(entry.circleId, entry.userId)]: entry,
@@ -163,11 +173,24 @@ export function createReceiver({
     waiting.delete(waitKey);
     if (!keyStore.trusted(sender)) return 'ignored';
     const replayGuard = guard();
+    // Already opened (a snapshot after a restart or a short drop hands over what this phone has):
+    // decryptMessage refuses it as a replay in the end, after a bundle check, a signature check
+    // and the replay window. The answer is the same, so nothing is spent finding it out.
+    if (
+      replayGuard.check(
+        envelope.circleId,
+        envelope.senderDeviceId,
+        envelope.epoch,
+        envelope.seq,
+      ) === 'replay'
+    ) {
+      return 'ignored';
+    }
     try {
       const payload = decryptMessage({
         envelope,
         senderKey,
-        sender: verifyDeviceKeyBundle(device.bundle),
+        sender: verifiedBundle(device.bundle),
         replay: replayGuard,
       });
       persistReplay(replayGuard);
@@ -218,11 +241,30 @@ export function createReceiver({
       return 'ignored';
     } catch (error) {
       if (error instanceof BarguCryptoError) {
-        // STALE / REPLAY / forged: the replay window may have advanced; keep it.
-        persistReplay(replayGuard);
+        // STALE is the one refusal that advanced the replay window (the message was authentic and
+        // is now recorded): keep it. A forged or replayed one changed nothing, so nothing is written.
+        if (error.code === 'STALE') persistReplay(replayGuard);
         return 'ignored';
       }
       throw error;
+    }
+  }
+
+  /**
+   * Opens a batch a few at a time (SLICE), leaving the screen a moment between slices, so dozens
+   * of messages after a start or a reconnection never hold the JavaScript thread for long.
+   */
+  async function receiveAll(envelopes: readonly MessageEnvelope[]): Promise<void> {
+    const started = run;
+    for (let start = 0; start < envelopes.length; start += SLICE) {
+      if (start > 0) {
+        await pause();
+        // Signed out meanwhile: nothing of this batch may reach the next account.
+        if (run !== started) return;
+      }
+      timed('receive.slice', () => {
+        for (const envelope of envelopes.slice(start, start + SLICE)) receive(envelope);
+      });
     }
   }
 
@@ -247,19 +289,30 @@ export function createReceiver({
      * Snapshot after (re)connecting: every member's latest envelope on the server. A location the
      * server no longer has (expired after 24 hours, taken back, member gone) goes from the map too.
      */
-    receiveSnapshot(envelopes: readonly MessageEnvelope[]): void {
-      for (const envelope of envelopes) receive(envelope);
+    async receiveSnapshot(envelopes: readonly MessageEnvelope[]): Promise<void> {
+      const touched = new Set<string>();
+      windows.add(touched);
+      try {
+        await receiveAll(envelopes);
+      } finally {
+        windows.delete(touched);
+      }
       const known = circles();
       const onServer = new Set(
         envelopes.map((envelope) => `${envelope.circleId}:${envelope.senderDeviceId}`),
       );
       keep((entry) => {
+        // A location that came in live while the slices were being opened is newer than the snapshot.
+        if (touched.has(entryKey(entry.circleId, entry.userId))) return true;
         const circle = known.find((candidate) => candidate.id === entry.circleId);
         const member = circle?.members.find((candidate) => candidate.userId === entry.userId);
         const deviceId = member?.device?.bundle.deviceId;
         return deviceId !== undefined && onServer.has(`${entry.circleId}:${deviceId}`);
       });
     },
+
+    /** Statuses and profiles after (re)connecting: opened in slices, as the snapshot is. */
+    receiveAll,
 
     /** After key or membership sync: messages that waited for a sender key get another try. */
     retryWaiting(): void {
@@ -285,6 +338,7 @@ export function createReceiver({
 
     /** Sign-out (the vault is destroyed with everything in it). */
     reset(): void {
+      run += 1;
       replay = null;
       waiting.clear();
       useLocations.setState({}, true);

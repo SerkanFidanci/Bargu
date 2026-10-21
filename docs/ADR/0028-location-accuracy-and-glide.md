@@ -132,3 +132,43 @@ kendi bildirdiği hıza göre esner:
 - Testler: filtre (eski, bayat, zayıf, kapalı alan, sıçrama ve iki onay, tek sapkın, otoyol), motor
   (iki kaynak, kapalı alan, kaba çember aynı, ölçüme koordinat gitmez), alıcı (geç gelen, aynı zaman,
   saat geri), kayma (hedefi geçmez, 1 sn sınırı, viraj, duruş, zayıf konum, geç gelen, atlama).
+
+## Ek (2026-10-21): açılışta ve her bağlantıda yapılan iş, takılma ölçümü
+
+Sahibin telefonu (Galaxy S25 Ultra) "kasıyor", açılırken de. JS thread'in tutulduğu yerleri bulmak
+için ölçüm katmanına bir **takılma sayacı** eklendi (yalnızca geliştirme ve önizleme sürümleri,
+yukarıdaki katmanla aynı kapı; üretim paketinde yok) ve açılış işi okunup sayıldı.
+
+- **Takılma sayacı** (`features/dev/measure/stalls.ts`): uygulama açıldıktan sonraki ilk 10 saniyede
+  her ~16 ms'de bir kendini çağırtır; 50 ms ya da daha geç çalışırsa thread o kadar tutulmuştur.
+  Neyin tuttuğunu bilmez; bu yüzden bilinen işler `timed(ad, iş)` ile adını ve süresini bildirir
+  (anahtar eşitleme, yerler, belgeler, anlık görüntü dilimi, `engine.fix`, açılış geri yükleme) ve
+  takılma, içinde biten en uzun adlı işin adını alır. Yalnızca sabit iş adları ve milisaniye tutulur:
+  konum, ileti, kişi yok; konsola ya da sunucuya hiçbir şey gitmez (`no-console` kuralı yüzünden de
+  günlük yerine ölçüm paneli kullanıldı). Panelde "İlk 10 sn'deki takılmalar" ve yerel şifre öz
+  testinin süresi görünür.
+- **Anlık görüntü (relay'in "locations", "statuses", "profiles" cevapları)** her bağlantıda gelir:
+  sunucu her gönderici cihaz ve çember için yalnızca **en yenisini** tutar, yani 5 saniyede bir konum
+  gönderen bot birikmiş yüzlerce ileti bırakmaz; boyut, çember sayısı × üye sayısıdır. Maliyet,
+  bunların her birinin telefonda açılmasıdır (anahtar paketi kontrolü, imza, çözme).
+  - **Daha önce açılmış olanlara hiç dokunulmaz.** Yeniden bağlanma ya da yeniden başlatma aynı
+    iletileri geri verir; `decryptMessage` bunları en sonunda "tekrar" diye reddederdi, ama önce
+    anahtar paketini (saf JS eğri aritmetiği, Hermes'te yavaş, ADR 0007) ve imzayı denetlerdi. Artık
+    tekrar penceresine önce bakılır ve cevap aynı olduğu için hiçbir şey harcanmaz. Reddedilen iletide
+    tekrar durumu kasaya yeniden yazılmaz.
+  - **Anahtar paketi bir kez denetlenir** (`features/keys/bundle-cache.ts`): aynı paket için sonuç
+    aynıdır; anahtar paketin bütün alanlarıdır, bu yüzden değişmiş bir paket asla eskisiyle
+    karışmaz; geçersiz paket hatırlanmaz. En çok 256 paket tutulur.
+  - **Yeni gelenler dilimler halinde açılır** (5'er ileti, aralarda bir zamanlayıcı turu): onlarca
+    ileti haritayı bir anda tutmaz. Dilimler arasında canlı gelen bir konum, anlık görüntü onu
+    bilmiyor diye haritadan silinmez; çıkış yapılırsa yarım kalan iş bırakılır.
+- **Harita ekranı konumun her saniyelik değişimiyle çizilmez** (`features/location/my-position.ts`):
+  harita açıkken kendi konumum saniyede bir gelir; ana ekran (harita, sayfalar, hava çizimi, kısayollar)
+  konumun kendisini dinliyordu. Artık yalnızca ilk konumu (bir kez), bulunduğu 1 km'lik kareyi, haritanın
+  benden uzaklaşıp uzaklaşmadığını ve hava ızgarasındaki hücreyi izler; hepsi nadiren değişen değerler.
+  Kendi pinim ve kartım konumu kendileri dinlemeye devam eder.
+- **Bakıldı, sorun bulunmadı:** güvenlik numarası açılışta hesaplanmaz (yalnızca doğrulama ekranında,
+  dilimli); geçmiş parçaları açılışta çözülmez (yalnızca geçmiş ekranında); sahibin kendi geçmişi
+  çeyrek saat başına bir anahtarda ve sınırlı; tekrar penceresi gönderici başına 64 numara; `useNow`
+  ve `timerAt` zamanlayıcıları ekran açıp kapatmayla birikmez; 30 dakikalık, 5 saniyede bir gelen
+  konum akışında kasanın anahtar sayısı ve boyutu sabit kalır (testler).

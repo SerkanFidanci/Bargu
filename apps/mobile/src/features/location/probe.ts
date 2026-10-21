@@ -22,6 +22,25 @@ export interface LocationProbe {
   sent(input: { at: number; live: boolean }): void;
   /** A friend's location arrived; `ignored` when it was older than the one shown. */
   received(input: { userId: string; ts: number; acc: number; at: number; ignored: boolean }): void;
+  /** A piece of work on the JavaScript thread ran for `ms` (see `timed`): its name and time only. */
+  span(name: string, ms: number): void;
 }
 
 export const probe: { current: LocationProbe | null } = { current: null };
+
+/**
+ * Runs `work` and, in a build with the measurement overlay, tells it the name and how long it took
+ * (the stall meter, features/dev/measure/stalls.ts, then says which known work held the thread).
+ * Names are fixed words for kinds of work, never anything from a message or a position. Where
+ * `probe.current` is null (a production bundle) this only calls `work`.
+ */
+export function timed<T>(name: string, work: () => T): T {
+  const listener = probe.current;
+  if (listener === null) return work();
+  const started = performance.now();
+  try {
+    return work();
+  } finally {
+    listener.span(name, performance.now() - started);
+  }
+}

@@ -334,7 +334,14 @@
       "friend": "{{name}}: delay {{delay}} · gap {{gap}} · ±{{acc}} m · late {{late}}",
       "screen": "Screen",
       "fps": "{{fps}} fps · worst frame {{worst}} ms",
-      "fpsWaiting": "Measuring…"
+      "fpsWaiting": "Measuring…",
+      "stalls": "Stalls in the first 10 s",
+      "selfTest": "Start: crypto self-test {{ms}} ms",
+      "stallsWatching": "Watching…",
+      "stallsNone": "None of {{ms}} ms or more",
+      "stallsCount": "{{count}} stalls · longest {{ms}} ms",
+      "stall": "at {{at}}: {{ms}} ms · {{name}}",
+      "stallUnnamed": "unnamed"
     }
   },
   "scan": {

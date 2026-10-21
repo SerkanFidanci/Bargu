@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import type { FixOutcome } from '../../location/fix-filter';
 import type { FixSource, LocationProbe } from '../../location/probe';
+import { remember, type Span, type Stall } from './stalls';
 
 /** Intervals kept for each median: about the last ten locations. */
 const KEEP = 10;
@@ -114,8 +115,26 @@ export const useMeasures = create<Measures & { open: boolean }>(() => ({
   open: false,
 }));
 
+/**
+ * The stall meter's findings (stalls.ts): the thread held for 50 ms or more in the first ten
+ * seconds, and the named work reported meanwhile. Memory only, like the rest.
+ */
+export const useStalls = create<{
+  list: readonly Stall[];
+  spans: readonly Span[];
+  /** The watch is still running. */
+  watching: boolean;
+}>(() => ({ list: [], spans: [], watching: false }));
+
 /** The location pipeline's listener (probe.ts) while this build has the overlay. */
 export const recorder: LocationProbe = {
+  span: (name, ms) => {
+    // Kept for naming stalls; only while the meter watches (after that nothing is stored).
+    if (!useStalls.getState().watching) return;
+    useStalls.setState((state) => ({
+      spans: remember(state.spans, { name, ms, end: performance.now() }),
+    }));
+  },
   sampled: (input) => {
     useMeasures.setState((state) => sampled(state, input));
   },

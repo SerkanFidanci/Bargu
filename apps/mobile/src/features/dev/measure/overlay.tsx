@@ -9,8 +9,10 @@ import { Text } from '@/ui/text';
 
 import { useCircles } from '../../circles/queries';
 import { memberName } from '../../circles/names';
+import { nativeCryptoSelfTestMs } from '../../../platform/native-crypto';
 import { useFrameMeter } from '../frame-meter';
-import { median, type Series, useMeasures } from './store';
+import { STALL_MS } from './stalls';
+import { median, type Series, useMeasures, useStalls } from './store';
 
 /** Frame rate measured in windows this long, one after another, while the overlay is open. */
 const FPS_WINDOW_SECONDS = 2;
@@ -18,6 +20,8 @@ const FPS_WINDOW_SECONDS = 2;
 const PANEL_TOP = 140;
 const PANEL_WIDTH = 260;
 const CLOSE_ICON = 18;
+/** The latest stalls listed (all are counted). */
+const STALLS_SHOWN = 6;
 
 /** "1,2 sn" / "1.2 s", or a dash with nothing measured yet. */
 function useSeconds() {
@@ -52,6 +56,7 @@ function Panel() {
   const measures = useMeasures();
   const circles = useCircles().data ?? [];
   const meter = useFrameMeter(FPS_WINDOW_SECONDS);
+  const stalls = useStalls();
   const { running, start } = meter;
   // One window after another while open.
   useEffect(() => {
@@ -150,6 +155,34 @@ function Panel() {
               worst: meter.report.worstFrameMs,
             }),
       )}
+
+      <Text variant="caption" style={styles.section}>
+        {t('dev.measure.stalls')}
+      </Text>
+      {line(t('dev.measure.selfTest', { ms: nativeCryptoSelfTestMs }))}
+      {stalls.list.length === 0
+        ? line(
+            stalls.watching
+              ? t('dev.measure.stallsWatching')
+              : t('dev.measure.stallsNone', { ms: STALL_MS }),
+          )
+        : [
+            line(
+              t('dev.measure.stallsCount', {
+                count: stalls.list.length,
+                ms: Math.max(...stalls.list.map((stall) => stall.ms)),
+              }),
+            ),
+            ...stalls.list.slice(-STALLS_SHOWN).map((stall) =>
+              line(
+                t('dev.measure.stall', {
+                  at: seconds(stall.at),
+                  ms: stall.ms,
+                  name: stall.name ?? t('dev.measure.stallUnnamed'),
+                }),
+              ),
+            ),
+          ]}
     </View>
   );
 }

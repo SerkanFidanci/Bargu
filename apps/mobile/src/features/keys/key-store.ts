@@ -7,7 +7,6 @@ import {
   openSenderKeyDistribution,
   type SenderKey,
   toBase64url,
-  verifyDeviceKeyBundle,
 } from '@bargu/crypto';
 import {
   type Circle,
@@ -19,6 +18,7 @@ import { z } from 'zod';
 
 import { type Seen, seenSchema } from '../circles/notices';
 import type { KeyValueStore } from '../storage/vault';
+import { verifiedBundle } from './bundle-cache';
 
 /**
  * The protocol accepts the current epoch and the two before it (PROTOCOL §5); older keys are
@@ -61,7 +61,7 @@ function read<T>(store: KeyValueStore, key: string, schema: z.ZodType<T>): T | n
 
 /** What a member's current device bundle says, once checked (signature over the DH key). */
 function memberKeys(member: MemberCard) {
-  return member.device === null ? null : verifyDeviceKeyBundle(member.device.bundle);
+  return member.device === null ? null : verifiedBundle(member.device.bundle);
 }
 
 /**
