@@ -3,6 +3,7 @@
  * app change means older apps would misread what the server sends (APKs before 32b0f2d cannot
  * read a paused circle). The app sends it on every request and on the event socket; an app that
  * sends nothing is level 0. A server whose minimum is above it answers 426 UPGRADE_REQUIRED.
+ * 4: reads the server's signed notices (QA-28 B-1); older apps drop them once the server signs.
  */
 export const CLIENT_LEVEL = 4;
 

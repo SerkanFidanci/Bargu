@@ -1,6 +1,7 @@
 import { generateDeviceKeys, randomUuid, sealForDevice, sealPush } from '@bargu/crypto';
 import type { PushBody } from '@bargu/schemas';
 import * as Notifications from 'expo-notifications';
+import * as TaskManager from 'expo-task-manager';
 import { AppState } from 'react-native';
 
 import { toast } from '@/ui/toast';
@@ -47,6 +48,9 @@ function fromNewerServer(body: unknown): string {
   return sealForDevice(mockDevice.dh.publicKey, inner);
 }
 
+/** The background task as the bundle defined it on load (before any mock is cleared). */
+const pushTask = jest.mocked(TaskManager.defineTask).mock.calls[0]?.[1];
+
 const scheduled = Notifications.scheduleNotificationAsync as jest.Mock;
 const toasted = toast.info as jest.Mock;
 const mockNotice = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
@@ -77,6 +81,56 @@ describe('a notice this app does not know is dropped silently', () => {
     expect(await showPush(fromNewerServer({ kind: 'hologram', circleId, ts: NOW }), NOW)).toBe(
       'refused',
     );
+    expect(scheduled).not.toHaveBeenCalled();
+    expect(toasted).not.toHaveBeenCalled();
+    expect(mockNotice).not.toHaveBeenCalled();
+  });
+});
+
+describe('server notices the server signed (QA-28 B-1, before the phone checks them)', () => {
+  // A throwaway notice key: 32 random bytes.
+  const signer = { secretKey: generateDeviceKeys(randomUuid()).identity.secretKey, kid: 'stg-n1' };
+  const signed = (body: PushBody) => sealPush({ recipient, sender: null, body, signer });
+
+  it('open and act exactly like unsigned ones: this build checks nothing yet', async () => {
+    expect(
+      await showPush(signed({ kind: 'notice', notice: 'watch', circleId, ts: NOW }), NOW),
+    ).toBe('watch');
+    expect(mockNotice).toHaveBeenCalledWith(circleId);
+    expect(
+      await showPush(signed({ kind: 'notice', notice: 'circleInvite', circleId, ts: NOW }), NOW),
+    ).toBe('shown');
+    // Unsigned ones too, as a server without a notice key sends them.
+    expect(
+      await showPush(
+        fromServer({ kind: 'notice', notice: 'friendRequest', circleId, ts: NOW }),
+        NOW,
+      ),
+    ).toBe('shown');
+    expect(scheduled).toHaveBeenCalledTimes(2);
+  });
+
+  it('a box in a format the app does not know is dropped without a word, as an older app (028ab2e) drops a signed notice', async () => {
+    // The opening code of 028ab2e refuses the signed notice's first byte (0x02) the way today's
+    // refuses 0x03 (packages/crypto legacy-app.spec.ts runs that code); this file, which handles
+    // the refusal, is unchanged since 028ab2e.
+    const unknown = sealForDevice(
+      mockDevice.dh.publicKey,
+      Uint8Array.of(3, ...new TextEncoder().encode(JSON.stringify(notice('watch')))),
+    );
+    for (const state of ['background', 'active'] as const) {
+      appIs(state);
+      expect(await showPush(unknown, NOW)).toBe('refused');
+    }
+    // The background task, as Android runs it, ends quietly too.
+    expect(pushTask).toBeDefined();
+    await expect(
+      pushTask?.({
+        data: { bargu: unknown },
+        error: null,
+        executionInfo: { eventId: 'event', taskName: 'bargu-push' },
+      }),
+    ).resolves.toBeUndefined();
     expect(scheduled).not.toHaveBeenCalled();
     expect(toasted).not.toHaveBeenCalled();
     expect(mockNotice).not.toHaveBeenCalled();
