@@ -392,7 +392,9 @@ since, ts }`.
    sonsuza dek yaşamasın).
    - **Etiket yalnızca eski konumun yanında** (konum 10 dakikadan eski, `STALE_AFTER_MS`): pin etiketi
      ("23 dk · Pil tasarrufu") ve kişi kartı ("Pil tasarrufu · 14:20'den beri") ve birlikte duranların
-     penceresi. Taze konum gelince etiket kendiliğinden gider (`none` gecikse de).
+     penceresi. Birlikte duranların ortak pininde yer yoktur: orada rozet yalnızca yaşı yazar, neden
+     pencerede ve sesli okunan etikettedir. Taze konum gelince etiket kendiliğinden gider (`none`
+     gecikse de).
    - Metinler: "Pil tasarrufu", "Konum izni kapalı", "Konum alınamıyor" (tr + en).
    - **Çevrim dışı çıkarımı:** konum eski ve **10 dakikadır** (iki kalp atışı kaçtı) o telefondan
      hiçbir mesaj (konum ya da `state`) gelmedi, ve geçerli bir neden yoksa: "Çevrim dışı · 14:20'den

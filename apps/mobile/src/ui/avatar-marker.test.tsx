@@ -98,6 +98,13 @@ describe('why an old location is old ("Neden eski?", docs/ADR/0028)', () => {
     expect(screen.getByLabelText('Ayşe, canlı konum')).toBeTruthy();
   });
 
+  it('keeps the pill to the age inside a shared frame, and still reads the reason out', async () => {
+    await render(<AvatarMarker name="Ayşe" avatar={null} staleMinutes={23} why="nofix" framed />);
+    expect(screen.getByText('23 dk')).toBeTruthy();
+    expect(screen.queryByText(/Konum alınamıyor/)).toBeNull();
+    expect(screen.getByLabelText('Ayşe, 23 dakika önceki konum, Konum alınamıyor')).toBeTruthy();
+  });
+
   it('is in English too', async () => {
     await i18n.changeLanguage('en');
     const view = await render(

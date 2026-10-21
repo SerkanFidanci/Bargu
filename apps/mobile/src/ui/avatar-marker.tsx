@@ -259,7 +259,9 @@ export function AvatarMarker({
     : hours === null
       ? t('ui.marker.stale', { name, minutes: staleMinutes })
       : t('ui.marker.staleHours', { name, hours });
-  // Only an old location has a reason to be: a fresh one needs none.
+  // Only an old location has a reason to be: a fresh one needs none. In a shared frame the pill
+  // keeps to the age (no room beside a neighbour); the group's window lists the reason, and the
+  // spoken label has it.
   const whyText = stale && why !== undefined ? t(`ui.marker.why.${why}`) : null;
   const battery = charging
     ? t('ui.marker.charging')
@@ -373,7 +375,9 @@ export function AvatarMarker({
       {ageText !== null ? (
         <View testID="marker-age" style={[styles.age, { backgroundColor: colors.surfaceRaised }]}>
           <Text variant="caption" color="textMuted" allowFontScaling={false}>
-            {whyText === null ? ageText : t('ui.marker.withWhy', { text: ageText, why: whyText })}
+            {whyText === null || framed
+              ? ageText
+              : t('ui.marker.withWhy', { text: ageText, why: whyText })}
           </Text>
         </View>
       ) : line !== null ? (
