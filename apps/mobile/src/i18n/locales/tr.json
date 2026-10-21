@@ -599,7 +599,8 @@
       "guardianSettings": "Ebeveynin ayarlarını değiştirdi",
       "guardianNewMember": "Çocuğunun bir çemberine yeni biri katıldı",
       "guardianNewMemberIn": "{{name}}: bir çemberine yeni biri katıldı",
-      "guardianPurchase": "Çocuğun Bargu+ almak istiyor; onayını bekliyor"
+      "guardianPurchase": "Çocuğun Bargu+ almak istiyor; onayını bekliyor",
+      "guardianCosmetic": "Çocuğun bir süs paketi almak istiyor; onayını bekliyor"
     },
     "mute": {
       "title": "{{name}} için bildirimler",
@@ -1169,7 +1170,9 @@
       "askBefriends": "{{by}}, çocuğunun arkadaş koduyla arkadaşı olmak istiyor",
       "askJoins": "{{by}}, çocuğunun koduyla {{name}} çemberine katılmak istiyor",
       "askInvites": "Çocuğun {{by}} kişisini {{name}} çemberine davet etmek istiyor",
-      "askPurchase": "Bargu+ {{plan}} almak istiyor ({{price}})"
+      "askPurchase": "Bargu+ {{plan}} almak istiyor ({{price}})",
+      "askCosmetic": "“{{pack}}” süs paketini almak istiyor ({{price}})",
+      "askCosmeticOther": "Yeni bir süs paketi almak istiyor"
     },
     "unnamed": "Adı yazılmamış biri",
     "newMember": "{{name}} (yeni)"
@@ -1257,7 +1260,9 @@
     "buy": "Paketi al · {{price}}",
     "bought": "Paket açıldı. Seçtiğin süs arkadaşlarında görünür.",
     "ask": "Ebeveynime sor · {{price}}",
-    "needsApproval": "Bu paket için ebeveyn onayı gerekiyor.",
+    "asked": "Ebeveynine sordun. Onaylayınca paket açılır ve haber alırsın.",
+    "waiting": "Onay bekliyor",
+    "pending": "Ebeveyninin onayı bekleniyor. Onaylayınca paket açılır ve haber alırsın.",
     "soon": "Satın alma yakında: mağaza bağlantısı henüz yok.",
     "teenSoon": "Satın almak için ebeveyn onayı gerekiyor. Mağaza bağlantısı henüz yok, yakında burada olacak."
   },

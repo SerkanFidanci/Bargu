@@ -1,6 +1,7 @@
 import type { Me, Plan } from '@bargu/schemas';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+  act,
   configure,
   fireEvent,
   render,
@@ -39,7 +40,7 @@ const ME: Me = {
   device: { id: '0190f7a4-1111-7111-8111-000000000002', platform: 'android', attested: true },
   passkeys: 0,
 };
-const plan = (cosmetics: string[], testBilling = true): Plan => ({
+const plan = (cosmetics: string[], testBilling = true, pendingCosmetics?: string[]): Plan => ({
   plan: 'free',
   product: null,
   source: null,
@@ -49,6 +50,7 @@ const plan = (cosmetics: string[], testBilling = true): Plan => ({
   trialEndsAt: null,
   cosmetics,
   testBilling,
+  ...(pendingCosmetics === undefined ? {} : { pendingCosmetics }),
 });
 let mockPlan: Plan = plan([]);
 let mockBand: '18+' | '15-17' = '18+';
@@ -99,18 +101,17 @@ import { useMyLook } from './look-session';
 const styleOf = (element: { props: unknown }): ViewStyle & TextStyle =>
   StyleSheet.flatten((element.props as { style?: StyleProp<ViewStyle & TextStyle> }).style);
 
+/** The cache of the screen shown last: a plan arriving over the event stream is put into it. */
+let cache: QueryClient;
 const show = async () => {
+  cache = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity },
+      mutations: { gcTime: Infinity },
+    },
+  });
   const view = await render(
-    <QueryClientProvider
-      client={
-        new QueryClient({
-          defaultOptions: {
-            queries: { retry: false, gcTime: Infinity },
-            mutations: { gcTime: Infinity },
-          },
-        })
-      }
-    >
+    <QueryClientProvider client={cache}>
       <LookSettingsScreen />
     </QueryClientProvider>,
   );
@@ -118,6 +119,7 @@ const show = async () => {
   await waitFor(() => {
     expect(
       screen.queryByTestId('pack-buy-rings') ??
+        screen.queryByTestId('pack-pending-rings') ??
         screen.queryByText('Sende') ??
         screen.queryAllByText(/yakında|gerekiyor/)[0],
     ).toBeTruthy();
@@ -235,7 +237,7 @@ describe('"Pin süsleri" in Görünüm ve harita (docs/ADR/0025, the pin addendu
     expect(hints.length).toBeGreaterThan(0);
   });
 
-  it('asks a parent instead of buying for 15-17, and says a parent must say yes', async () => {
+  it('asks a parent instead of buying for 15-17, and shows the pack waiting for their yes', async () => {
     mockBand = '15-17';
     mockPurchase.mockRejectedValueOnce(new ApiError(403, 'GUARDIAN_APPROVAL'));
     await show();
@@ -244,17 +246,112 @@ describe('"Pin süsleri" in Görünüm ve harita (docs/ADR/0025, the pin addendu
     });
     expect(screen.getAllByText('Ebeveynime sor · ₺29,99')).toHaveLength(2);
     expect(screen.queryByText('Paketi al · ₺29,99')).toBeNull();
+    expect(screen.queryByTestId('pack-pending-rings')).toBeNull();
     await fireEvent.press(screen.getByTestId('pack-buy-rings'));
     await waitFor(() => {
       expect(mockPurchase).toHaveBeenCalledWith('cosmetic:rings');
     });
-    // Not an error: the pack waits for a parent (ADR 0025 §6), nothing bought, nothing chosen.
+    // Not an error: the request is made (ADR 0025 §6) and the pack waits; nothing bought, nothing
+    // chosen.
     await waitFor(() => {
-      expect(useToasts.getState().current?.message).toBe('Bu paket için ebeveyn onayı gerekiyor.');
+      expect(useToasts.getState().current?.message).toBe(
+        'Ebeveynine sordun. Onaylayınca paket açılır ve haber alırsın.',
+      );
     });
-    expect(useToasts.getState().current?.tone).toBe('info');
+    expect(useToasts.getState().current?.tone).toBe('success');
+    const rings = within(screen.getByTestId('pack-rings'));
+    expect(await rings.findByTestId('pack-pending-rings')).toBeTruthy();
+    expect(rings.getByText('Onay bekliyor')).toBeTruthy();
+    expect(rings.getByText(/Ebeveyninin onayı bekleniyor/)).toBeTruthy();
+    // It cannot be asked twice from here, and the other pack is still to ask for.
+    expect(screen.queryByTestId('pack-buy-rings')).toBeNull();
+    expect(screen.getByTestId('pack-buy-frames')).toBeTruthy();
+    expect(within(screen.getByTestId('pack-frames')).queryByText('Onay bekliyor')).toBeNull();
     expect(mockRefresh).not.toHaveBeenCalled();
     expect(mockChoose).not.toHaveBeenCalled();
+  });
+
+  it('keeps a pack waiting when the other is asked for, and shows what waits from the plan', async () => {
+    mockBand = '15-17';
+    mockPlan = plan([], true, ['rings']);
+    mockPurchase.mockRejectedValueOnce(new ApiError(403, 'GUARDIAN_APPROVAL'));
+    await show();
+    // Opened again later (or on another phone): the plan says rings wait.
+    expect(await screen.findByTestId('pack-pending-rings')).toBeTruthy();
+    expect(screen.queryByTestId('pack-buy-rings')).toBeNull();
+    await fireEvent.press(screen.getByTestId('pack-buy-frames'));
+    await waitFor(() => {
+      expect(mockPurchase).toHaveBeenCalledWith('cosmetic:frames');
+    });
+    expect(await screen.findByTestId('pack-pending-frames')).toBeTruthy();
+    // Asking for one never clears the other.
+    expect(screen.getByTestId('pack-pending-rings')).toBeTruthy();
+    expect(mockPurchase).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops waiting when a parent says no, and may ask again', async () => {
+    mockBand = '15-17';
+    mockPlan = plan([], true, ['frames']);
+    await show();
+    expect(await screen.findByTestId('pack-pending-frames')).toBeTruthy();
+    // plan.changed brought the plan again: nothing waits any more.
+    await act(() => {
+      cache.setQueryData(['plan'], plan([], true, []));
+    });
+    expect(await screen.findByTestId('pack-buy-frames')).toBeTruthy();
+    expect(screen.queryByTestId('pack-pending-frames')).toBeNull();
+    expect(screen.queryByText('Onay bekliyor')).toBeNull();
+  });
+
+  it('shows the pack as theirs when a parent says yes: nothing waits, styles are chosen at once', async () => {
+    mockBand = '15-17';
+    mockPlan = plan([], true, ['rings']);
+    await show();
+    expect(await screen.findByTestId('pack-pending-rings')).toBeTruthy();
+    // A style of the waiting pack can be tried meanwhile: shown, never sent.
+    await fireEvent.press(screen.getByTestId('style-sparkle'));
+    expect(preview().getByTestId('pin-look-ring-sparkle')).toBeTruthy();
+    expect(mockChoose).not.toHaveBeenCalled();
+    // The parent's yes arrives over the event stream (plan.changed): the plan has the pack.
+    await act(() => {
+      cache.setQueryData(['plan'], plan(['rings'], true, []));
+    });
+    expect(await screen.findByText('Sende')).toBeTruthy();
+    expect(screen.queryByTestId('pack-pending-rings')).toBeNull();
+    expect(screen.queryByText('Onay bekliyor')).toBeNull();
+    // The style that was tried was never chosen, so the pin does not show it any more: friends
+    // would not see it either.
+    expect(preview().queryByTestId('pin-look-ring-sparkle')).toBeNull();
+    expect(mockChoose).not.toHaveBeenCalled();
+    // The pack is theirs now: a style is chosen at once and goes to circles, as for anyone.
+    await fireEvent.press(screen.getByTestId('style-dots'));
+    expect(mockChoose).toHaveBeenLastCalledWith({ ring: 'dots', frame: null });
+    expect(preview().getByTestId('pin-look-ring-dots')).toBeTruthy();
+  });
+
+  it('tells a 15-17 account with no parent linked that a parent is needed, and shows nothing waiting', async () => {
+    mockBand = '15-17';
+    mockPurchase.mockRejectedValueOnce(new ApiError(403, 'GUARDIAN_LINK_REQUIRED'));
+    await show();
+    await fireEvent.press(await screen.findByTestId('pack-buy-rings'));
+    await waitFor(() => {
+      expect(useToasts.getState().current?.tone).toBe('error');
+    });
+    expect(useToasts.getState().current?.message).toMatch(/ebeveyn/i);
+    // The button's loading state ends in the query cache's next tick.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(screen.queryByTestId('pack-pending-rings')).toBeNull();
+    expect(screen.getByTestId('pack-buy-rings')).toBeTruthy();
+  });
+
+  it('never shows an adult a pack as waiting, whatever the plan says', async () => {
+    mockPlan = plan([], true, ['rings']);
+    await show();
+    expect(await screen.findByTestId('pack-buy-rings')).toBeTruthy();
+    expect(screen.queryByTestId('pack-pending-rings')).toBeNull();
+    expect(screen.queryByText('Onay bekliyor')).toBeNull();
   });
 
   it('offers no purchase where the server has no test billing, nor to 15-17 there', async () => {

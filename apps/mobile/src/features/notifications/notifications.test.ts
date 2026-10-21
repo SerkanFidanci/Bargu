@@ -102,6 +102,17 @@ describe('notification texts', () => {
       pushText({ kind: 'notice', notice: 'friendAdded', circleId: placeId, ts: 1 }, null, contacts)
         ?.route,
     ).toBeUndefined();
+    // A child asks for a look pack (docs/ADR/0025 §6): worded apart from Bargu+, same screen.
+    expect(
+      pushText(
+        { kind: 'notice', notice: 'guardianCosmetic', circleId: placeId, ts: 1 },
+        null,
+        contacts,
+      ),
+    ).toMatchObject({
+      body: 'Çocuğun bir süs paketi almak istiyor; onayını bekliyor',
+      route: 'guardians',
+    });
     // Someone new near the child: a parent's phone names the child after the link (QA 5c F-2).
     const linkId = randomUuid();
     const parents = contactsOf([circle], me.keys, me.userId, [

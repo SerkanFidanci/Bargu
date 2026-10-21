@@ -18,6 +18,7 @@ import { toast } from '@/ui/toast';
 import { Toggle } from '@/ui/toggle';
 
 import { PLUS_PRICES, priceText } from '../billing/plan-model';
+import { PACK_PRICE, PACKS } from '../cosmetics/look-styles';
 import { errorMessage, isApiError } from '../errors';
 import { guardiansApi, guardiansKey, guardianViewKey } from './guardians-api';
 import { localDay } from './screen-time';
@@ -125,6 +126,17 @@ export function GuardianTools({ view }: { view: GuardianView }) {
             (yearly ? t('plus.perYear') : t('plus.perMonth')),
         });
       }
+      case 'cosmetic': {
+        // docs/ADR/0025 §6: the pack by its name, as on the child's look screen. A pack this app
+        // does not know yet is worded in general, without a price it cannot know.
+        const pack = PACKS.find((known) => known === request.pack);
+        return pack === undefined
+          ? t('guardians.tools.askCosmeticOther')
+          : t('guardians.tools.askCosmetic', {
+              pack: t(`cosmetics.packs.${pack}.name`),
+              price: priceText(PACK_PRICE, i18n.language),
+            });
+      }
       case 'gone':
         return t('guardians.tools.askGone');
     }
@@ -153,6 +165,7 @@ export function GuardianTools({ view }: { view: GuardianView }) {
                   }}
                 />
                 <Button
+                  testID={`guardian-decline-${request.id}`}
                   label={t('guardians.tools.decline')}
                   variant="secondary"
                   onPress={() => {

@@ -2,6 +2,7 @@ import {
   COSMETIC_PACKS,
   type CosmeticPack,
   type FrameStyle,
+  type Plan,
   type RingPattern,
 } from '@bargu/schemas';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -76,12 +77,16 @@ export function PinLooks() {
   const choice = useMyLook((state) => state.choice);
   // Styles tried from packs not bought: shown on the pin, never saved or sent.
   const [trying, setTrying] = useState<Trying>({});
-  const shown: LookChoice = {
-    ring: trying.ring === undefined ? choice.ring : trying.ring,
-    frame: trying.frame === undefined ? choice.frame : trying.frame,
-  };
-  const look = previewOf(shown);
   const owned = (pack: CosmeticPack) => plan.data?.cosmetics.includes(pack) === true;
+  // A style tried from a pack that has since become theirs (a parent said yes while this screen was
+  // open) is not shown any more: friends would not see it, so the pin shows what is chosen.
+  const shownPart = (pack: CosmeticPack) => {
+    const part = PART[pack];
+    const tried = owned(pack) ? undefined : trying[part];
+    return tried === undefined ? choice[part] : tried;
+  };
+  const shown: LookChoice = { ring: shownPart('rings'), frame: shownPart('frames') };
+  const look = previewOf(shown);
   const testing = plan.data?.testBilling === true;
 
   const pick = (pack: CosmeticPack, id: string | null) => {
@@ -114,19 +119,50 @@ export function PinLooks() {
       toast.success(t('cosmetics.bought'));
     },
     onError: (error) => {
-      // 15-17: the pack waits for a parent (docs/ADR/0025 §6); the server says so with this code.
+      toast.error(errorMessage(error, t));
+    },
+  });
+  // 15-17 (docs/ADR/0025 §6): the pack is asked of a parent. The server keeps the request and
+  // answers 403 GUARDIAN_APPROVAL; the plan's `pendingCosmetics` says what waits, on every phone of
+  // theirs, and follows a parent's answer through plan.changed (no polling).
+  const ask = useMutation({
+    mutationFn: (pack: CosmeticPack) => billingApi.testPurchase(`cosmetic:${pack}`),
+    // A pack they already have needs no one's yes: the server just answers the plan.
+    onSuccess: (next) => {
+      queryClient.setQueryData(planKey, next);
+    },
+    onError: (error, pack) => {
       if (isApiError(error, 'GUARDIAN_APPROVAL')) {
+        // Waiting at once on this phone; the server tells the others.
+        queryClient.setQueryData<Plan>(planKey, (current) =>
+          current === undefined
+            ? current
+            : {
+                ...current,
+                pendingCosmetics: [...new Set([...(current.pendingCosmetics ?? []), pack])],
+              },
+        );
         feedback('success');
-        toast.info(t('cosmetics.needsApproval'));
+        toast.success(t('cosmetics.asked'));
         return;
       }
       toast.error(errorMessage(error, t));
     },
   });
+  const waiting = (pack: CosmeticPack) =>
+    teen && plan.data?.pendingCosmetics?.includes(pack) === true;
 
   const price = priceText(PACK_PRICE, i18n.language);
   const purchase = (pack: CosmeticPack) => {
     if (plan.data === undefined) return null;
+    // 15-17: already asked of a parent; it waits until they answer, however often it is opened.
+    if (waiting(pack)) {
+      return (
+        <Text variant="footnote" color="textMuted" testID={`pack-pending-${pack}`}>
+          {t('cosmetics.pending')}
+        </Text>
+      );
+    }
     if (!testing) {
       return (
         <Text variant="footnote" color="textMuted">
@@ -134,15 +170,16 @@ export function PinLooks() {
         </Text>
       );
     }
+    const mutation = teen ? ask : buy;
     return (
       <View style={styles.purchase}>
         <Button
           testID={`pack-buy-${pack}`}
           label={teen ? t('cosmetics.ask', { price }) : t('cosmetics.buy', { price })}
           icon={Sparkles}
-          loading={buy.isPending && buy.variables === pack}
+          loading={mutation.isPending && mutation.variables === pack}
           onPress={() => {
-            buy.mutate(pack);
+            mutation.mutate(pack);
           }}
         />
         <View style={styles.test} accessible accessibilityLabel={t('plus.testBand')}>
@@ -199,7 +236,11 @@ export function PinLooks() {
               <Text variant="headline" style={styles.name}>
                 {t(`cosmetics.packs.${pack}.name`)}
               </Text>
-              {has ? <Badge label={t('cosmetics.owned')} tone="success" /> : null}
+              {has ? (
+                <Badge label={t('cosmetics.owned')} tone="success" />
+              ) : waiting(pack) ? (
+                <Badge label={t('cosmetics.waiting')} tone="muted" />
+              ) : null}
             </View>
             <Text variant="footnote" color="textMuted">
               {t(`cosmetics.packs.${pack}.about`)}

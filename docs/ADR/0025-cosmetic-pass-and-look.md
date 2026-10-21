@@ -87,7 +87,8 @@ her paket için len ‖ paket` (paketler sıralı ve tekil, en çok 6; kimlikler
 ### 6. 15–17
 
 - Süs satın alma da ebeveyn onayıyla (ADR 0024 §5, ürün `cosmetic:<paket>`). Süs istekleri Bargu+
-  isteğinden ayrı tutulur; biri ötekini silmez. Ebeveyn ikisini de görür.
+  isteğinden ayrı tutulur; biri ötekini silmez. Ebeveyn ikisini de görür. **Yapıldı: dilim 3c
+  (2026-10-21), aşağıdaki son ek.**
 
 ## Sonuçlar
 
@@ -157,12 +158,13 @@ bilgisi ve 15–17 kuralı değişmedi; yalnızca adlar, çizim ve hareket sın�
 - Satın alma, test satın almanın açık olduğu yerde test satın almadır ("TEST — gerçek ödeme yok");
   başka yerde "yakında". 15–17'de düğme "Ebeveynime sor" olur ve yine
   `POST /v1/billing/test/purchase` çağrılır.
-- **Bilinen eksik:** sunucu 15–17'nin paket isteğini henüz açmıyor, `403 GUARDIAN_APPROVAL` döner
-  (ADR 0024: "dilim 3'e kadar reddedilir, istek açılmaz"). Uygulama bunu hata saymaz, "bu paket için
-  ebeveyn onayı gerekiyor" der. Ebeveyn tarafı (`guardian_requests`'e `cosmetic:` ürünü, ebeveyn
-  görünümü, onayda satın alma) ayrı bir sunucu işidir: dilim 3c (PM, 2026-10-21; kasma ve C2'den
-  sonra). Abonelik isteği ile süs isteği birbirini silmez, ebeveyn ikisini de görür; paket başına tek
-  bekleyen istek; seviye kuralı satın alma isteğindeki gibi. O zamana kadar 15–17 süs satın alamaz.
+- **Bilinen eksik (dilim 3c ile kapandı, aşağıdaki son ek):** sunucu 15–17'nin paket isteğini henüz
+  açmıyordu, `403 GUARDIAN_APPROVAL` dönüyordu (ADR 0024: "dilim 3'e kadar reddedilir, istek
+  açılmaz"). Uygulama bunu hata saymıyor, "bu paket için ebeveyn onayı gerekiyor" diyordu. Ebeveyn
+  tarafı (`guardian_requests`'e `cosmetic:` ürünü, ebeveyn görünümü, onayda satın alma) ayrı bir
+  sunucu işiydi: dilim 3c (PM, 2026-10-21; kasma ve C2'den sonra). Abonelik isteği ile süs isteği
+  birbirini silmez, ebeveyn ikisini de görür; paket başına tek bekleyen istek; seviye kuralı satın
+  alma isteğindeki gibi.
 - **Üretim:** üretim derlemesi hiçbir süs anahtarına güvenmez (yalnızca önizleme `stg-1`'e); üretim
   anahtarı ve `kid` Faz 10'da üretilip üretim yapılandırmasına girer (PM, 2026-10-21). O zamana kadar
   üretimde süs görünmez (§2).
@@ -182,3 +184,63 @@ bilgisi ve 15–17 kuralı değişmedi; yalnızca adlar, çizim ve hareket sın�
   görünüm çıkar, hata gösterilmez.
 - Staging'e yeni şemalar dağıtılana kadar eski sunucu `cosmetic:rings` satın almasını reddeder; bu
   yüzden dağıtım, uygulamanın denenmesinden önce yapılmalıdır.
+
+## Ek (2026-10-21, Faz 9B dilim 3c: 15–17 süs paketi için ebeveynine sorar)
+
+- Durum: Uygulandı (migration 0037). PM kararları 2026-10-21.
+- İlgili: [ADR 0024 §5 ve §10](0024-entitlements-and-test-billing.md), [ADR 0023](0023-age-15-plus.md).
+
+**Neden:** §6 süs satın almanın ebeveyn onayıyla olacağını yazıyordu ama sunucu isteği saklamıyordu;
+çocuğun düğmesi yalnızca "ebeveyn onayı gerekiyor" diyordu. Artık Bargu+ satın alma isteği gibi çalışır.
+
+### İstek
+
+- `guardian_requests`'e yeni tür `cosmetic`, ürünü `cosmetic:<paket>` (şimdi `cosmetic:rings`,
+  `cosmetic:frames`; API yalnızca `COSMETIC_PRODUCTS`'ı kabul eder, veritabanı `entitlements` gibi
+  `cosmetic:` ve en çok 16 karakterlik bir kimliği kabul eder, yeni paket için migration gerekmez).
+- **Ayrı tür:** abonelik isteği (`purchase`) ile süs isteği birbirini ne siler ne değiştirir. Öbür
+  planı istemek yalnızca abonelik isteğini değiştirir; paket isteği olduğu gibi kalır. Ebeveyn ikisini
+  de görür.
+- **Paket başına tek bekleyen istek** (veritabanında benzersiz dizin). Aynı paketi yeniden istemek
+  ikinci istek açmaz ve ebeveyne yeniden haber vermez; öbür paket başka bir istektir. Çocuk başına
+  toplam 20 istek sınırı (migration 0027) geçerlidir. İki dokunuş aynı anda gelirse tek istek olur
+  (çocuk başına kilit, migration 0033'teki gibi).
+- Çocuğun zaten sahip olduğu paket sorulmaz: sunucu planı `200` ile döner, kimseye haber vermez.
+- Bağlı ebeveyn yoksa istek saklanmaz: `403 GUARDIAN_LINK_REQUIRED`. Saklanınca çocuk `403
+GUARDIAN_APPROVAL` alır (uygulama bunu hata değil "soruldu" sayar). Test satın alma kapalıysa uç
+  yoktur (404), istek de açılmaz. "Yeni kişiler için onay" ayarından bağımsız, her zaman sorulur.
+- İstekler diğerleri gibi 7 günde düşer; ebeveyn bağı bitince de gider.
+
+### Ebeveynin cevabı
+
+- **Evet:** paket çocuk adına alınır (testte kaynak `test`, Bargu+ onayıyla aynı yol; yalnızca bu
+  sunucunun sattığı bir paket). Çocuğun planı (`cosmetics`) ve geçiş belgesi `plan.changed` olayıyla
+  yeniden okunur; belge paketi söyler. Çocuk `guardianApproved` haberini alır.
+- **Hayır:** istek düşer, çocuğun "bekliyor" durumu `plan.changed` ile temizlenir, `guardianDeclined`
+  haberi gider; çocuk yeniden isteyebilir.
+- Yetki: yalnızca çocuğun etkin ebeveyni görür ve cevaplar. Başka bir ebeveyn, bir yabancı ya da
+  çocuğun kendisi görünümü okuyamaz, isteği cevaplayamaz (404, testli).
+
+### Telde ve cevapta
+
+- **Plan cevabı:** `pendingCosmetics` (bekleyen paketler, `rings` gibi) `pendingPurchase`'ten ayrıdır.
+  Ekran onu `plan.changed` olayıyla günceller (yoklama yok). Olay şu durumlarda gider: yeni istek,
+  ebeveynin cevabı, 7 günlük düşme (işçi), son ebeveyn bağının bitmesi.
+- **Ebeveyn görünümü:** istek `{ kind: 'cosmetic', pack: 'rings' }` olarak gelir (`product` yalnızca
+  abonelik içindir). Tanınmayan bir paket kimliği de okunur; uygulama onu genel cümleyle yazar
+  ("Yeni bir süs paketi almak istiyor"), fiyatsız.
+- **Bildirim:** ebeveyne bir kez `guardianCosmetic` ("Çocuğun bir süs paketi almak istiyor; onayını
+  bekliyor"); saatlik üst sınır diğer ebeveyn haberleriyle ortaktır. Eski Android sessizce atar, eski
+  iOS uzantısı genel metni gösterir (ADR 0024 §10).
+- **Çocuğun ekranı:** "Pin süsleri"nde paketin düğmesi "Ebeveynime sor" iken soruldu mu "Onay bekliyor"
+  rozeti ve "Ebeveyninin onayı bekleniyor" yazısı çıkar, düğme gider. Evet gelince paket "Sende" olur;
+  denenen stil seçilmemişti, pin onu göstermeyi bırakır ve stil tek dokunuşla seçilir. Hayır
+  gelince düğme geri gelir.
+
+### Uyumluluk: istemci seviyesi 4
+
+- `CLIENT_LEVEL` 3'ten 4'e çıktı (`CLIENT_LEVEL_FOR.cosmeticRequests`). Sunucu süs isteğini seviye
+  4'ten eski uygulamaya ebeveyn görünümünde ve ayar cevabında göndermez. Seviye 2 ve 3 uygulamalar
+  tanımadıkları türü zaten atlar (dilim 2c'den beri esnek liste); yani eski bir ebeveyn uygulaması
+  bozulmaz ve göremez. Süs isteği ancak ebeveyn uygulamayı güncelleyince görünür; istek 7 gün bekler.
+- `MIN_CLIENT_LEVEL` değişmedi; yükseltme kararı PM'indir (ADR 0024 §10).

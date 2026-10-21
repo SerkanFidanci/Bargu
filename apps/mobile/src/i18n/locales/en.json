@@ -599,7 +599,8 @@
       "guardianSettings": "Your parent changed your settings",
       "guardianNewMember": "Someone new joined one of your child’s circles",
       "guardianNewMemberIn": "{{name}}: someone new joined one of their circles",
-      "guardianPurchase": "Your child wants Bargu+; it waits for your yes"
+      "guardianPurchase": "Your child wants Bargu+; it waits for your yes",
+      "guardianCosmetic": "Your child wants a look pack; it waits for your yes"
     },
     "mute": {
       "title": "Notifications from {{name}}",
@@ -1169,7 +1170,9 @@
       "askBefriends": "{{by}} wants to be your child’s friend with their friend code",
       "askJoins": "{{by}} wants to join {{name}} with your child’s code",
       "askInvites": "Your child wants to invite {{by}} into {{name}}",
-      "askPurchase": "Wants Bargu+ {{plan}} ({{price}})"
+      "askPurchase": "Wants Bargu+ {{plan}} ({{price}})",
+      "askCosmetic": "Wants the “{{pack}}” look pack ({{price}})",
+      "askCosmeticOther": "Wants a new look pack"
     },
     "unnamed": "Someone without a name",
     "newMember": "{{name}} (new)"
@@ -1257,7 +1260,9 @@
     "buy": "Get the pack · {{price}}",
     "bought": "The pack is yours. The look you chose shows to your friends.",
     "ask": "Ask my parent · {{price}}",
-    "needsApproval": "This pack needs a parent's yes.",
+    "asked": "You asked your parent. Once they say yes, the pack opens and you'll hear about it.",
+    "waiting": "Waiting for a yes",
+    "pending": "Waiting for your parent's yes. Once they say yes, the pack opens and you'll hear about it.",
     "soon": "Buying is coming soon: the store is not connected yet.",
     "teenSoon": "Buying needs a parent's yes. The store isn't connected yet; it's coming soon."
   },

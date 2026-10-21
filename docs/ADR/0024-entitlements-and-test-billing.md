@@ -117,12 +117,20 @@ yeni tablo `app.entitlements`:
   - Çocuğun zaten mağazadan bir planı varsa sorulmaz (`409 ALREADY_SUBSCRIBED`).
   - Test satın alma kapalıysa (üretim) satın alma ucu da yoktur (404). Gerçek mağaza gelince
     onaydan sonra çocuğun telefonu mağaza akışını açar (Faz 10).
-  - Süs paketleri 15–17 için dilim 3'e kadar `GUARDIAN_APPROVAL` ile reddedilir, istek açılmaz.
+  - Süs paketleri 15–17 için dilim 3'e kadar `GUARDIAN_APPROVAL` ile reddedilirdi, istek açılmazdı;
+    dilim 3c ile açılır (aşağıdaki "Dilim 3c" maddesi).
   - **Eski uygulamalarla uyum (PM kararı):** Bu sürümden önceki uygulamalar ebeveyn görünümündeki
     istek listesini katı okur; `purchase` türünü görseler ebeveyn ekranı açılmazdı. Bu yüzden
     sunucu satın alma isteğini yalnızca seviye 2 ve üstüne gönderir (§10). Eski bir ebeveyn
     uygulaması isteği görmez ama ekranı bozulmaz; istek yeni uygulamada görünür. Bu sürümden
     itibaren liste ayrıca esnek okunur: tanınmayan tür atlanır.
+- **Dilim 3c — süs paketi isteği (2026-10-21, migration 0037, tamam):** 15–17'nin "Ebeveynime sor"u
+  süs paketi için de istek açar; ayrıntısı [ADR 0025](0025-cosmetic-pass-and-look.md) ekinde.
+  Bu bölümden farkları:
+  - İstek ayrı bir türdür (`cosmetic`, ürün `cosmetic:<paket>`); abonelik isteğini (`purchase`) ne
+    siler ne değiştirir, ebeveyn ikisini de görür. Paket başına bekleyen tek istek vardır.
+  - Seviye 4 (§10): süs isteği seviye 4'ten eski uygulamaya gönderilmez.
+  - Plan cevabında `pendingCosmetics` bekleyen paketleri söyler (`pendingPurchase` ayrı kalır).
 
 ### 6. Sahte ödeme (test satın alma)
 
@@ -209,7 +217,7 @@ yeni tablo `app.entitlements`:
 ### 10. En eski desteklenen uygulama (QA 19 P4)
 
 - Uygulama her istekte kendi seviyesini `x-bargu-client` başlığında gönderir
-  (`@bargu/schemas` `CLIENT_LEVEL`, bu sürümde 2). Canlı bağlantıda aynı değer bağlantının sorgu
+  (`@bargu/schemas` `CLIENT_LEVEL`, bu sürümde 4). Canlı bağlantıda aynı değer bağlantının sorgu
   parametresindedir (`client`), çünkü eski sunucular kimlik nesnesindeki yeni alanı reddeder.
   Seviye göndermeyen uygulama 0 sayılır.
 - Sunucunun ortam değeri `MIN_CLIENT_LEVEL` (varsayılan 0: herkese hizmet). Değer uygulamanın
@@ -221,6 +229,11 @@ yeni tablo `app.entitlements`:
   - 0: seviye göndermeyen her uygulama (bu kapıdan öncekiler).
   - 1: duraklamış çemberi okur (32b0f2d ve sonrası; dilim 2a).
   - 2: ebeveyn görünümünde satın alma isteğini okur (dilim 2c).
+  - 3: etkinlik dışı çemberin buluşma belgesini okur ([ADR 0026](0026-meetings-in-any-circle.md)).
+  - 4: ebeveyn görünümünde süs paketi isteğini okur (dilim 3c, 2026-10-21). Sunucu bu isteği seviye
+    4'ten eski uygulamaya ne ebeveyn görünümünde ne ayar cevabında gönderir
+    (`CLIENT_LEVEL_FOR.cosmeticRequests`); seviye 2 ve 3 uygulamalar zaten tanımadıkları türü
+    atlar, yine de görmezler. `MIN_CLIENT_LEVEL` değişmedi (PM'e sorulur).
 - **İleri uyumluluk kuralı (PM kararı, 2026-10-16):**
   - Uygulama, cevaplarda ve olaylarda tanımadığı bir türü atlar; listenin ya da görünümün geri
     kalanı bozulmaz. Bundan sonraki her cevap şeması böyle yazılır (örnek: ebeveyn görünümündeki
@@ -252,7 +265,8 @@ yeni tablo `app.entitlements`:
   - `app.plus_active`, `app.circle_is_open`; işçi için `app.plans_ended_between` ve
     `app.circles_openness_of` (yalnızca evet/hayır, kimin ödediği değil);
   - yeni hesaba açılışta, var olan hesaplara migration anında 21 günlük deneme (tetikleyici).
-  - `guardian_requests` için `purchase` türü dilim 2c'de geldi (migration 0031, §5).
+  - `guardian_requests` için `purchase` türü dilim 2c'de geldi (migration 0031, §5), `cosmetic`
+    türü dilim 3c'de (migration 0037, §5).
 - **Eski uygulamalarla uyum (dilim 1):**
   - Telefon çember cevaplarını artık esnek okur; yeni bir alan atlanır, okuma bozulmaz.
   - Sunucu `paused` alanını yalnızca çember duraklamışken gönderir. Herkes migration anında

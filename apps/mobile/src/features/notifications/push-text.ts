@@ -30,6 +30,7 @@ const GUARDIAN_NOTICES: ReadonlySet<string> = new Set([
   'guardianSettings',
   'guardianNewMember',
   'guardianPurchase',
+  'guardianCosmetic',
 ]);
 
 /**
