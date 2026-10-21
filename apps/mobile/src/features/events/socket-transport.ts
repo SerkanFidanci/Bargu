@@ -22,6 +22,11 @@ export const LIVE_MESSAGES = [
   // "Neden eski?" (docs/ADR/0028)
   'state',
   'state.gone',
+  // Arrivals, departures, "geç kalıyorum", "Geldim" (docs/ADR/0016, 0026): handled since Faz 7 but
+  // never listened to, so an open app missed them (the server pushes only to closed apps).
+  'place',
+  // A friend's new quarter hour of history: an open history screen fetches again.
+  'history',
 ] as const;
 /** How long a request may take before the caller falls back (HTTP, or tries later). */
 const REQUEST_TIMEOUT_MS = 5_000;
