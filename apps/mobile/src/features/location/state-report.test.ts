@@ -1,5 +1,5 @@
 import { decryptMessage, ReplayGuard } from '@bargu/crypto';
-import type { BumpReply, PlaceEventRequest, StatePayload } from '@bargu/schemas';
+import type { MessageEnvelope, PublishReply, StatePayload } from '@bargu/schemas';
 
 import { verifiedBundle } from '../keys/bundle-cache';
 import { createLocationEngine, type SendCircle, toSendCircle } from './engine';
@@ -20,6 +20,8 @@ import { newestState, useStates, whyShown } from './why';
 const START = 1_800_000_000_000;
 const MINUTE = 60_000;
 const HEARTBEAT = SEND_RULES.heartbeatMs;
+/** The relay took it. */
+const accepted: PublishReply = { accepted: 1, refused: [] };
 
 function setup(circleCount = 2) {
   const me = somebody();
@@ -28,21 +30,25 @@ function setup(circleCount = 2) {
   for (const circle of full) exchangeKeys(circle, [me, friend]);
   const circles: SendCircle[] = full.map((circle) => toSendCircle(circle, me.userId));
   let settings: SharingSettings = DEFAULT_SHARING;
-  const sent: PlaceEventRequest[] = [];
+  const sent: MessageEnvelope[] = [];
+  /** What the owner's own card is told is being said, each time it changes. */
+  const sayings: ({ why: string; since: number } | null)[] = [];
   const outdated: string[][] = [];
-  let reply: (request: PlaceEventRequest) => Promise<BumpReply> = () =>
-    Promise.resolve({ ok: true });
+  let reply: (envelope: MessageEnvelope) => Promise<PublishReply> = () => Promise.resolve(accepted);
   const reporter = createStateReporter({
     keys: () => me.keys,
     device: () => me.device,
     audience: () => engine.audience(),
     holding: () => engine.holding(),
-    send: (request) => {
-      sent.push(request);
-      return reply(request);
+    send: (envelope) => {
+      sent.push(envelope);
+      return reply(envelope);
     },
     outdated: (circleIds) => {
       outdated.push(circleIds);
+    },
+    sending: (current) => {
+      sayings.push(current);
     },
   });
   const engine = createLocationEngine({
@@ -62,9 +68,8 @@ function setup(circleCount = 2) {
     },
   });
 
-  /** What the friend's phone opens from a request. */
-  const open = (request: PlaceEventRequest): StatePayload => {
-    const { envelope } = request;
+  /** What the friend's phone opens from a message. */
+  const open = (envelope: MessageEnvelope): StatePayload => {
     const circle = full.find((candidate) => candidate.id === envelope.circleId);
     const device = circle?.members.find((member) => member.userId === me.userId)?.device;
     const key = friend.keys.receivedKey(envelope.circleId, envelope.epoch, me.device.deviceId);
@@ -89,11 +94,12 @@ function setup(circleCount = 2) {
     full,
     circles,
     sent,
+    sayings,
     outdated,
     states: () => sent.map(open),
     open,
-    /** The circles the requests from `index` on went to. */
-    toCircles: (from = 0) => sent.slice(from).map((request) => request.envelope.circleId),
+    /** The circles the messages from `index` on went to. */
+    toCircles: (from = 0) => sent.slice(from).map((envelope) => envelope.circleId),
     share: (next: SharingSettings) => {
       settings = next;
     },
@@ -136,8 +142,6 @@ describe('the reason a phone gives (state)', () => {
     for (const state of t.states()) {
       expect(state).toEqual({ kind: 'state', why: 'saver', since: START, ts: START });
     }
-    // Nobody is notified: no sealed pushes ride along.
-    expect(t.sent.every((request) => request.pushes.length === 0)).toBe(true);
     t.reporter.reset();
   });
 
@@ -152,10 +156,10 @@ describe('the reason a phone gives (state)', () => {
     });
     await t.located();
     await t.reporter.set({ saver: true });
-    for (const request of t.sent) expect(friendsPhone.receive(request.envelope)).toBe('shown');
+    for (const envelope of t.sent) expect(friendsPhone.receive(envelope, 'state')).toBe('shown');
     // Their screen, twelve minutes on: the location (from START) is old, the reason is renewed.
     await jest.advanceTimersByTimeAsync(12 * MINUTE);
-    for (const request of t.sent.slice(1)) friendsPhone.receive(request.envelope);
+    for (const envelope of t.sent.slice(1)) friendsPhone.receive(envelope, 'state');
     const state = newestState(useStates.getState(), t.me.userId);
     expect(whyShown({ loc: { ts: START }, state, now: Date.now() })).toEqual({
       kind: 'saver',
@@ -403,6 +407,53 @@ describe('the reasons', () => {
   });
 });
 
+describe("what the owner's own card is told (nothing about it is a secret from them)", () => {
+  it('says what the circles hold while a reason is being told, and nothing before or after', async () => {
+    const t = setup();
+    await t.located();
+    expect(t.sayings).toEqual([]);
+    await t.reporter.set({ saver: true });
+    expect(t.sayings).toEqual([{ why: 'saver', since: START }]);
+    // A second circle hearing the same changes nothing for the card.
+    await jest.advanceTimersByTimeAsync(HEARTBEAT);
+    expect(t.sayings).toHaveLength(1);
+    await t.reporter.set({ permissionOff: true });
+    await jest.advanceTimersByTimeAsync(STATE_GAP_MS);
+    expect(t.sayings.at(-1)).toEqual({ why: 'permission', since: START + HEARTBEAT });
+    // Positions come in again as the reasons end, so the silence does not take over.
+    await t.engine.fix({ ...moved(GALATA, 400, Date.now()), ts: Date.now() });
+    await t.reporter.set({ permissionOff: false, saver: false });
+    await jest.advanceTimersByTimeAsync(STATE_GAP_MS);
+    expect(t.sayings.at(-1)).toBeNull();
+    t.reporter.reset();
+  });
+
+  it('says nothing while the reason has reached nobody, or once a ghost has begun', async () => {
+    const t = setup(1);
+    await t.located();
+    t.setReply(() => Promise.reject(new Error('offline')));
+    await t.reporter.set({ saver: true });
+    expect(t.sayings).toEqual([]);
+    t.setReply(() => Promise.resolve({ accepted: 1, refused: [] }));
+    await t.reporter.flush();
+    expect(t.sayings).toEqual([{ why: 'saver', since: START }]);
+    // A ghost: the circle is told nothing more, and the card does not claim it is.
+    t.share({ ...DEFAULT_SHARING, ghost: 'freeze' });
+    await t.engine.changed();
+    await settle();
+    expect(t.sayings.at(-1)).toBeNull();
+    t.reporter.reset();
+  });
+
+  it('is cleared with the sign-out', async () => {
+    const t = setup(1);
+    await t.located();
+    await t.reporter.set({ saver: true });
+    t.reporter.reset();
+    expect(t.sayings.at(-1)).toBeNull();
+  });
+});
+
 describe('when it does not get through', () => {
   it('tries again after a minute, and at once when the connection returns', async () => {
     const t = setup(1);
@@ -415,7 +466,7 @@ describe('when it does not get through', () => {
     await jest.advanceTimersByTimeAsync(1);
     expect(t.sent).toHaveLength(2);
     // Back online before the next try: it goes now.
-    t.setReply(() => Promise.resolve({ ok: true }));
+    t.setReply(() => Promise.resolve(accepted));
     await t.reporter.flush();
     expect(t.sent).toHaveLength(3);
     // Told: the heartbeat counts from here.
@@ -427,10 +478,13 @@ describe('when it does not get through', () => {
   it('asks for the circle again when the relay says the epoch moved on, and tries later', async () => {
     const t = setup(1);
     await t.located();
-    t.setReply(() => Promise.resolve<BumpReply>({ refused: 'EPOCH' }));
+    const circleId = nth(t.circles).id;
+    t.setReply(() =>
+      Promise.resolve({ accepted: 0, refused: [{ circleId, code: 'EPOCH' as const }] }),
+    );
     await t.reporter.set({ saver: true });
     expect(t.outdated).toEqual([[nth(t.circles).id]]);
-    t.setReply(() => Promise.resolve({ ok: true }));
+    t.setReply(() => Promise.resolve(accepted));
     await jest.advanceTimersByTimeAsync(RETRY_MS);
     expect(t.sent).toHaveLength(2);
     t.reporter.reset();
@@ -469,10 +523,9 @@ describe('what a state carries (privacy)', () => {
     expect(text).not.toContain(String(GALATA.lat).slice(0, 6));
     expect(text).not.toContain(String(GALATA.lng).slice(0, 6));
     // Nor does the wire: the envelope is ciphertext of one fixed size, and no push rides along.
-    for (const request of t.sent) {
-      expect(JSON.stringify(request)).not.toContain(String(GALATA.lat).slice(0, 6));
-      expect(request.pushes).toEqual([]);
-      expect(Math.ceil((request.envelope.ct.length * 3) / 4)).toBe(528);
+    for (const envelope of t.sent) {
+      expect(JSON.stringify(envelope)).not.toContain(String(GALATA.lat).slice(0, 6));
+      expect(Math.ceil((envelope.ct.length * 3) / 4)).toBe(528);
     }
     t.reporter.reset();
   });

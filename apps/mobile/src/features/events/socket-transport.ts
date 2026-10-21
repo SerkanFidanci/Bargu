@@ -19,6 +19,9 @@ export const LIVE_MESSAGES = [
   'profile',
   // docs/ADR/0025
   'look',
+  // "Neden eski?" (docs/ADR/0028)
+  'state',
+  'state.gone',
 ] as const;
 /** How long a request may take before the caller falls back (HTTP, or tries later). */
 const REQUEST_TIMEOUT_MS = 5_000;

@@ -62,9 +62,11 @@ export type Outcome = 'shown' | 'removed' | 'bumped' | 'waiting' | 'ignored';
  * cannot tell what a message is, so the phone binds the two. A message is shown only as the kind its
  * route is for; any other (a location sent through the poke or "Güvendeyim" route, which skip the
  * paused-circle check and the limits of the location route; a poke through the safe route) is
- * dropped. A route that is not known (nothing says it) never shows a "Güvendeyim" (docs/ADR/0029 §8).
+ * dropped. A route that is not known (nothing says it) never shows a "Güvendeyim" (docs/ADR/0029 §8)
+ * nor a `state` ("Neden eski?", docs/ADR/0028): the reason for an old location has a route of its
+ * own, and the other routes skip its paused-circle check and its limit.
  */
-export type Route = 'loc' | 'bump' | 'safe' | 'place' | 'status' | 'profile' | 'look';
+export type Route = 'loc' | 'bump' | 'safe' | 'place' | 'status' | 'profile' | 'look' | 'state';
 const ROUTE_KINDS: Readonly<Record<Route, readonly Payload['kind'][]>> = {
   loc: ['loc', 'share_stop'],
   bump: ['bump'],
@@ -73,11 +75,12 @@ const ROUTE_KINDS: Readonly<Record<Route, readonly Payload['kind'][]>> = {
   status: ['status'],
   profile: ['profile'],
   look: ['look'],
+  state: ['state'],
 };
 
 /** Whether a message of this kind may come by this route. */
 export function kindFitsRoute(kind: Payload['kind'], route: Route | undefined): boolean {
-  if (route === undefined) return kind !== 'safe';
+  if (route === undefined) return kind !== 'safe' && kind !== 'state';
   return ROUTE_KINDS[route].includes(kind);
 }
 
@@ -228,7 +231,9 @@ export function createReceiver({
   }
 
   function receive(envelope: MessageEnvelope, route?: Route): Outcome {
-    const waitKey = `${envelope.circleId}:${envelope.senderDeviceId}`;
+    // A reason waiting for a key has a place of its own: it must not push out the location that
+    // waits beside it (one per sender, the newest, for each).
+    const waitKey = `${envelope.circleId}:${envelope.senderDeviceId}${route === 'state' ? ':state' : ''}`;
     const circle = circles().find((candidate) => candidate.id === envelope.circleId);
     const sender = circle?.members.find(
       (member) => member.device?.bundle.deviceId === envelope.senderDeviceId,
@@ -420,6 +425,14 @@ export function createReceiver({
     /** The relay says a member's location is gone (left, removed, hidden). */
     gone(circleId: string, userId: string): void {
       remove(circleId, userId);
+    },
+
+    /** The relay says a member's reason is gone (they left the circle, or took their location back). */
+    stateGone(circleId: string, userId: string): void {
+      const states = useStates.getState();
+      const key = entryKey(circleId, userId);
+      if (states[key] === undefined) return;
+      replaceStates(Object.fromEntries(Object.entries(states).filter(([held]) => held !== key)));
     },
 
     /** Circles or members changed: only active members of active circles stay on the map. */

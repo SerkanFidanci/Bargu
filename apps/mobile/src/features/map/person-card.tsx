@@ -59,7 +59,7 @@ const DISMISS_PX = space.xxxl * 2;
 const COARSE_M = 500;
 const HEADER = avatarSize.lg;
 /** The icon beside why an old location is old (features/location/why.ts). */
-const WHY_ICONS: Record<MarkerWhy, LucideIcon> = {
+export const WHY_ICONS: Record<MarkerWhy, LucideIcon> = {
   saver: BatteryWarning,
   permission: MapPinOff,
   nofix: LocateOff,

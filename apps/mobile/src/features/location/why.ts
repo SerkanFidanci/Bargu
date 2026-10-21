@@ -28,6 +28,15 @@ export type ReceivedState = z.infer<typeof receivedStateSchema>;
 /** The latest `state` of each member per circle, keyed `${circleId}:${userId}` (screens read it). */
 export const useStates = create<Record<string, ReceivedState>>(() => ({}));
 
+/**
+ * What this phone is telling its circles about its own location right now (state-report.ts), or
+ * null when it tells them nothing: the user's own card shows it ("Arkadaşların seni şöyle
+ * görüyor"). Memory only.
+ */
+export const useMyWhy = create<{ current: { why: Why; since: number } | null }>(() => ({
+  current: null,
+}));
+
 /** What the screens say next to an old location. */
 export interface WhyShown {
   kind: Why | 'offline';

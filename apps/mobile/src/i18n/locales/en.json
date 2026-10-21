@@ -792,6 +792,7 @@
       "ghost": "Ghost on: your location goes to nobody",
       "nobody": "Your location goes to nobody right now",
       "seers": "Seeing your location: {{count}}",
+      "seenAs": "Your friends see you like this: {{what}}",
       "whoSees": "Who sees me",
       "status": "Status",
       "settings": "Settings"

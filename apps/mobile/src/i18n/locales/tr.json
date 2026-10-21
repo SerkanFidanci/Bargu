@@ -792,6 +792,7 @@
       "ghost": "Hayalet açık: konumun kimseye gitmiyor",
       "nobody": "Konumun şu an kimseye gitmiyor",
       "seers": "Konumunu görenler: {{count}}",
+      "seenAs": "Arkadaşların seni şöyle görüyor: {{what}}",
       "whoSees": "Kimler görüyor",
       "status": "Durum",
       "settings": "Ayarlar"

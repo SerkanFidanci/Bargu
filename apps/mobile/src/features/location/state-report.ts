@@ -1,5 +1,5 @@
 import { type DeviceKeys, encryptMessage } from '@bargu/crypto';
-import type { BumpReply, PlaceEventRequest, StatePayload } from '@bargu/schemas';
+import type { MessageEnvelope, PublishReply, StatePayload } from '@bargu/schemas';
 
 import type { KeyStore } from '../keys/key-store';
 import type { SendCircle } from './engine';
@@ -8,12 +8,15 @@ import type { Why } from './why';
 
 /**
  * No position of any kind for this long, with nothing else to blame: "Konum alınamıyor". Well
- * under the ten minutes after which a friend's pin turns grey, so the reason is there by then.
+ * under the ten minutes after which a friend's pin turns grey, so the reason is there by then. To
+ * be measured on a phone ("ayarlanacak", docs/ADR/0028).
  */
 export const NOFIX_AFTER_MS = 3 * 60_000;
 /**
- * The least between two messages to one circle. The relay allows 20 arrivals, departures and
- * reasons in 10 minutes per circle: a setting flipped back and forth never gets near that.
+ * The least between two messages to one circle. The relay allows three a minute per circle on the
+ * state route (RELAY_LIMITS.states): a setting flipped back and forth never gets near that, and one
+ * more is room for the message that goes out when the connection returns. To be tuned on a phone
+ * ("ayarlanacak", docs/ADR/0028).
  */
 export const STATE_GAP_MS = 45_000;
 /** After a message that did not get through (offline, refused, over the relay's limit). */
@@ -51,10 +54,16 @@ export interface ReporterDeps {
   audience: () => readonly SendCircle[];
   /** Some circle holds an old location of this phone that a reason could explain. */
   holding: () => boolean;
-  /** One message to one circle (the live-forward route of arrivals); throws when it did not get there. */
-  send: (request: PlaceEventRequest) => Promise<BumpReply>;
+  /** One message to one circle, by the state route; throws when it did not get there. */
+  send: (envelope: MessageEnvelope) => Promise<PublishReply>;
   /** The relay refused some circles (old epoch, no longer a member, paused): ask for them again. */
   outdated?: (circleIds: string[]) => void;
+  /**
+   * What the circles are being told now, or null: for the user's own card ("Arkadaşların seni
+   * şöyle görüyor"), so what a friend sees of this phone is not a secret from its owner. Called
+   * when it changes.
+   */
+  sending?: (current: { why: Why; since: number } | null) => void;
   now?: () => number;
 }
 
@@ -75,8 +84,9 @@ export function createStateReporter(deps: ReporterDeps) {
   let signals: Signals = NO_SIGNALS;
   let lastSample = now();
   let reason: { why: Why; since: number; silent: boolean } | null = null;
-  /** What each circle was last told, and when. */
-  const told = new Map<string, { why: Why; at: number }>();
+  /** What each circle was last told, since when that reason holds, and when it was told. */
+  const told = new Map<string, { why: Why; since: number; at: number }>();
+  let sendingKey = '';
   /** Not before this time may the circle be told again. */
   const nextAt = new Map<string, number>();
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -147,14 +157,11 @@ export function createStateReporter(deps: ReporterDeps) {
           sender: device,
           payload,
         }).envelope;
-        const reply = await deps.send({ envelope, pushes: [] });
-        if ('ok' in reply) {
-          accepted = true;
-        } else if (
-          reply.refused === 'EPOCH' ||
-          reply.refused === 'NOT_MEMBER' ||
-          reply.refused === 'PAUSED'
-        ) {
+        const reply = await deps.send(envelope);
+        const refusal = reply.refused.find((refused) => refused.circleId === circle.id)?.code;
+        if (refusal === undefined) {
+          accepted = reply.accepted > 0;
+        } else if (refusal === 'EPOCH' || refusal === 'NOT_MEMBER' || refusal === 'PAUSED') {
           outdated.push(circle.id);
         }
       } catch {
@@ -166,7 +173,7 @@ export function createStateReporter(deps: ReporterDeps) {
       } else {
         nextAt.set(circle.id, sentAt + STATE_GAP_MS);
         if (saying === null) told.delete(circle.id);
-        else told.set(circle.id, { why: saying.why, at: sentAt });
+        else told.set(circle.id, { why: saying.why, since: saying.since, at: sentAt });
       }
     }
     if (outdated.length > 0) deps.outdated?.(outdated);
@@ -177,6 +184,7 @@ export function createStateReporter(deps: ReporterDeps) {
     if (timer !== null) clearTimeout(timer);
     timer = null;
     const { wakeAt } = plan(now());
+    announce();
     if (wakeAt === null) return;
     timer = setTimeout(
       () => {
@@ -185,6 +193,16 @@ export function createStateReporter(deps: ReporterDeps) {
       },
       Math.max(0, wakeAt - now()),
     );
+  }
+
+  /** Tells the owner's own card what the circles hold of this phone now (the newest word). */
+  function announce(): void {
+    let newest: { why: Why; since: number; at: number } | null = null;
+    for (const entry of told.values()) if (newest === null || entry.at > newest.at) newest = entry;
+    const key = newest === null ? '' : `${newest.why}:${String(newest.since)}`;
+    if (key === sendingKey) return;
+    sendingKey = key;
+    deps.sending?.(newest === null ? null : { why: newest.why, since: newest.since });
   }
 
   function reconcile(): Promise<void> {
@@ -247,6 +265,7 @@ export function createStateReporter(deps: ReporterDeps) {
       lastSample = now();
       told.clear();
       nextAt.clear();
+      announce();
     },
   };
 }

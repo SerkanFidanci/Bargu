@@ -14,6 +14,8 @@ import {
   type PublishReply,
   publishReplySchema,
   safeEventSchema,
+  stateEventSchema,
+  stateGoneEventSchema,
   statusEventSchema,
   statusGoneEventSchema,
   statusSnapshotSchema,
@@ -83,6 +85,7 @@ import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix 
 import { timed } from './probe';
 import { createReceiver } from './receive';
 import { createStateReporter } from './state-report';
+import { useMyWhy } from './why';
 import {
   circleSharing,
   DEFAULT_SHARING,
@@ -184,6 +187,21 @@ async function publish(envelopes: MessageEnvelope[]): Promise<PublishReply> {
   return publishReplySchema.parse(
     await api.authed('/v1/locations', { method: 'POST', body: { envelopes } }),
   );
+}
+
+/** One `state` message: over the live connection when it is up, else over HTTP. */
+async function publishState(envelope: MessageEnvelope): Promise<PublishReply> {
+  const body = { envelopes: [envelope] };
+  const viaSocket = liveRequest('state', body);
+  if (viaSocket !== null) {
+    try {
+      const reply = publishReplySchema.safeParse(await viaSocket);
+      if (reply.success) return reply.data;
+    } catch {
+      // No answer in time: the HTTP path below decides.
+    }
+  }
+  return publishReplySchema.parse(await api.authed('/v1/states', { method: 'POST', body }));
 }
 
 async function withdraw(circleIds: string[]): Promise<void> {
@@ -372,18 +390,22 @@ export const locationEngine = createLocationEngine({
 
 /**
  * Why this phone's location may be old, told to the circles it shares with (`state` messages, no
- * position in them): the same live-forward route as arrivals, so the relay keeps nothing and the
- * members who are online see it at once. What it listens to is in state-signals.ts.
+ * position in them) over a route of its own (docs/ADR/0028): the live connection when it is up,
+ * else HTTP. The relay keeps the newest per circle, so a friend who connects later still learns
+ * it. What it listens to is in state-signals.ts.
  */
 export const stateReporter = createStateReporter({
   keys,
   device: () => useAuth.getState().device,
   audience: () => locationEngine.audience(),
   holding: () => isVaultOpen() && locationEngine.holding(),
-  send: async (request) =>
-    bumpReplySchema.parse(await api.authed('/v1/place-events', { method: 'POST', body: request })),
+  send: (envelope) => publishState(envelope),
   outdated: (circleIds) => {
     for (const circleId of circleIds) void circleSync.refresh(circleId).catch(() => undefined);
+  },
+  // The user's own card says what the circles are told (nothing about it is a secret from them).
+  sending: (current) => {
+    useMyWhy.setState({ current });
   },
 });
 
@@ -777,6 +799,13 @@ function handleLive(name: string, payload: unknown): void {
   } else if (name === 'look') {
     const parsed = statusEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope, 'look');
+  } else if (name === 'state') {
+    // Why a member's location is old: only as a `state`, and a `state` only by this route.
+    const parsed = stateEventSchema.safeParse(payload);
+    if (parsed.success) receiver.receive(parsed.data.envelope, 'state');
+  } else if (name === 'state.gone') {
+    const parsed = stateGoneEventSchema.safeParse(payload);
+    if (parsed.success) receiver.stateGone(parsed.data.circleId, parsed.data.userId);
   } else if (name === 'status') {
     const parsed = statusEventSchema.safeParse(payload);
     if (parsed.success) receiver.receive(parsed.data.envelope, 'status');
@@ -824,6 +853,8 @@ onOnline(() => {
       if (profiles.success) await receiver.receiveAll(profiles.data.envelopes, 'profile');
       const looks = statusSnapshotSchema.safeParse(await liveRequest('looks'));
       if (looks.success) await receiver.receiveAll(looks.data.envelopes, 'look');
+      const states = statusSnapshotSchema.safeParse(await liveRequest('states'));
+      if (states.success) await receiver.receiveAll(states.data.envelopes, 'state');
     } catch {
       // The next connection asks again; live messages keep coming meanwhile.
     }

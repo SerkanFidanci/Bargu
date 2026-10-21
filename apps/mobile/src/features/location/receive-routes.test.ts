@@ -3,6 +3,7 @@ import type { Circle, MessageEnvelope, Payload } from '@bargu/schemas';
 
 import { createReceiver, kindFitsRoute, type Route, useLocations } from './receive';
 import { circleOf, exchangeKeys, GALATA, memoryStore, type Person, somebody } from './test-support';
+import { useStates } from './why';
 
 /**
  * The relay forwards any message through the poke, "Güvendeyim" and place routes (it cannot read
@@ -32,6 +33,7 @@ const payloads = {
   profile: { kind: 'profile', photo: null, ts: NOW },
   look: { kind: 'look', ring: null, frame: null, pass: null, ts: NOW },
   stop: { kind: 'share_stop', ts: NOW },
+  state: { kind: 'state', why: 'saver', since: NOW - 60_000, ts: NOW },
 } as const satisfies Record<string, Payload>;
 
 interface World {
@@ -80,6 +82,7 @@ function world(overrides: Partial<Circle> = {}, exchange = true): World {
 
 beforeEach(() => {
   useLocations.setState({}, true);
+  useStates.setState({}, true);
 });
 
 describe('a message counts as the kind its route is for (QA-32 F-1, F-1.2)', () => {
@@ -160,6 +163,76 @@ describe('a message counts as the kind its route is for (QA-32 F-1, F-1.2)', () 
     expect(useLocations.getState()).toEqual({});
   });
 
+  it('shows a reason ("Neden eski?") only by the state route, which shows nothing else', () => {
+    const w = world();
+    expect(w.receiver.receive(w.send(payloads.state), 'state')).toBe('shown');
+    expect(Object.values(useStates.getState())).toHaveLength(1);
+    // By any other route, or none, it is dropped: those skip the state route's paused-circle check
+    // and its limit, and it must not be a way round them.
+    for (const route of [
+      'loc',
+      'bump',
+      'safe',
+      'place',
+      'status',
+      'profile',
+      'look',
+      undefined,
+    ] as const) {
+      useStates.setState({}, true);
+      const other = world();
+      expect(other.receiver.receive(other.send(payloads.state), route)).toBe('ignored');
+      expect(useStates.getState()).toEqual({});
+    }
+    // And nothing else counts on the state route.
+    for (const payload of [
+      payloads.loc,
+      payloads.stop,
+      payloads.bump,
+      payloads.safe,
+      payloads.place,
+      payloads.late,
+      payloads.arrived,
+      payloads.status,
+      payloads.profile,
+      payloads.look,
+    ]) {
+      const other = world();
+      expect(other.receiver.receive(other.send(payload), 'state')).toBe('ignored');
+      expect(other.heard).toEqual([]);
+    }
+    expect(useLocations.getState()).toEqual({});
+    expect(useStates.getState()).toEqual({});
+  });
+
+  it('does not take a reason sent through the location or poke route into a paused circle', () => {
+    const w = world({ paused: true });
+    expect(w.receiver.receive(w.send(payloads.state), 'loc')).toBe('ignored');
+    expect(w.receiver.receive(w.send(payloads.state), 'bump')).toBe('ignored');
+    expect(useStates.getState()).toEqual({});
+  });
+
+  it('keeps the route of a reason that waited for its key, beside the location that waits too', () => {
+    const waited = world({}, false);
+    const { bora, ayse, circle, receiver } = waited;
+    bora.keys.observe(circle);
+    expect(receiver.receive(waited.send(payloads.loc), 'loc')).toBe('waiting');
+    // The reason waits too, in a place of its own: it does not push the location out.
+    expect(receiver.receive(waited.send(payloads.state), 'state')).toBe('waiting');
+    bora.keys.accept(circle, ayse.keys.pendingDistributions(circle));
+    receiver.retryWaiting();
+    expect(Object.keys(useLocations.getState())).toHaveLength(1);
+    expect(Object.keys(useStates.getState())).toHaveLength(1);
+
+    // One that came by the wrong route and waited is dropped when it is tried again.
+    const other = world({}, false);
+    other.bora.keys.observe(other.circle);
+    expect(other.receiver.receive(other.send(payloads.state), 'bump')).toBe('waiting');
+    other.bora.keys.accept(other.circle, other.ayse.keys.pendingDistributions(other.circle));
+    other.receiver.retryWaiting();
+    expect(Object.keys(useStates.getState())).toHaveLength(1);
+  });
+
   it('is a plain table: only a safe kind fits the safe route, only on it, and an unknown route fits all else', () => {
     expect(kindFitsRoute('safe', 'safe')).toBe(true);
     expect(kindFitsRoute('safe', 'bump')).toBe(false);
@@ -170,5 +243,10 @@ describe('a message counts as the kind its route is for (QA-32 F-1, F-1.2)', () 
     // Callers that name no route (older tests, a batch of unknown origin) keep working for the rest.
     expect(kindFitsRoute('loc', undefined)).toBe(true);
     expect(kindFitsRoute('bump', undefined)).toBe(true);
+    // A reason is its own kind on its own route; no route at all never shows one.
+    expect(kindFitsRoute('state', 'state')).toBe(true);
+    expect(kindFitsRoute('state', 'loc')).toBe(false);
+    expect(kindFitsRoute('state', undefined)).toBe(false);
+    expect(kindFitsRoute('loc', 'state')).toBe(false);
   });
 });

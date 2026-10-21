@@ -24,9 +24,10 @@ import { useMyFix } from '../location/engine';
 import { seersOf, useSharing } from '../location/sharing';
 import { GhostControl } from '../location/sharing-card';
 import { useLocationPermission } from '../location/tracker';
+import { sinceTime, useMyWhy } from '../location/why';
 import { useMyStatus } from '../social/status';
 import { LOW_BATTERY, staleMinutes } from './people-layer';
-import { CardFrame, Fact } from './person-card';
+import { CardFrame, Fact, WHY_ICONS } from './person-card';
 import { closeCard, type ScreenPoint } from './person-focus';
 
 /**
@@ -46,9 +47,10 @@ export function MyCard({
   onHeight: (height: number) => void;
   onStatus: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const now = useNow();
+  const sendingWhy = useMyWhy((state) => state.current);
   const sharing = useSharing();
   const fix = useMyFix((state) => state.fix);
   const status = useMyStatus((state) => state.status);
@@ -100,6 +102,19 @@ export function MyCard({
       )}
       <View style={styles.facts}>
         <Fact icon={Eye} text={seersText} />
+        {/* What the circles are told about why the location is old, while one is being told. */}
+        {sendingWhy === null ? null : (
+          <Fact
+            testID="my-why"
+            icon={WHY_ICONS[sendingWhy.why]}
+            text={t('map.myCard.seenAs', {
+              what: t('map.card.whySince', {
+                why: t(`ui.marker.why.${sendingWhy.why}`),
+                time: sinceTime(sendingWhy.since, i18n.language),
+              }),
+            })}
+          />
+        )}
         {/* The battery as this phone reads it (−1 where it cannot: then not said). */}
         {level < 0 ? null : (
           <Fact

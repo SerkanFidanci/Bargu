@@ -5,6 +5,7 @@ import i18n from '@/i18n';
 
 import { DEFAULT_SHARING, useSharing } from '../location/sharing';
 import { type LocationPermission, useLocationPermission } from '../location/tracker';
+import { useMyWhy } from '../location/why';
 import { MyCard } from './my-card';
 
 // Native modules jest does not have on Linux (CI), though Windows resolves them.
@@ -135,6 +136,33 @@ describe('the user’s own card (the owner, 2026-10-21)', () => {
       <MyCard me={me} from={{ x: 0, y: 0 }} onHeight={jest.fn()} onStatus={jest.fn()} />,
     );
     expect(screen.getByText('Hayalet açık: konumun kimseye gitmiyor')).toBeTruthy();
+  });
+});
+
+describe('what the friends are told about why the location is old ("Neden eski?", docs/ADR/0028)', () => {
+  beforeEach(() => {
+    useMyWhy.setState({ current: null }, true);
+  });
+
+  it('says it on the card while a reason is being sent, and not otherwise', async () => {
+    mockCircles = [withFriend];
+    await render(
+      <MyCard me={me} from={{ x: 0, y: 0 }} onHeight={jest.fn()} onStatus={jest.fn()} />,
+    );
+    expect(screen.queryByTestId('my-why')).toBeNull();
+    await act(() => {
+      useMyWhy.setState({
+        current: { why: 'saver', since: new Date(2026, 9, 1, 14, 20).getTime() },
+      });
+    });
+    expect(screen.getByTestId('my-why')).toBeTruthy();
+    expect(
+      screen.getByText("Arkadaşların seni şöyle görüyor: Pil tasarrufu · 14:20'den beri"),
+    ).toBeTruthy();
+    await act(() => {
+      useMyWhy.setState({ current: null });
+    });
+    expect(screen.queryByTestId('my-why')).toBeNull();
   });
 });
 

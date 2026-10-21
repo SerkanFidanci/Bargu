@@ -190,6 +190,7 @@ describe('a reason from one phone to another', () => {
     expect(
       receiver.receive(
         stateFromBob({ kind: 'state', why, since: NOW - 5 * MINUTE, ts: NOW - MINUTE }),
+        'state',
       ),
     ).toBe('shown');
     expect(useStates.getState()[key()]).toMatchObject({
@@ -204,7 +205,7 @@ describe('a reason from one phone to another', () => {
 
   it('shows the label for each reason next to an old location, and drops it with a fresh one', () => {
     const receiver = receiverOf();
-    receiver.receive(locationFromBob(NOW - 40 * MINUTE));
+    receiver.receive(locationFromBob(NOW - 40 * MINUTE), 'loc');
     const shown = () => {
       const loc = useLocations.getState()[key()]?.loc;
       if (loc === undefined) throw new Error('no location');
@@ -215,18 +216,19 @@ describe('a reason from one phone to another', () => {
     for (const why of ['saver', 'permission', 'nofix'] as const) {
       receiver.receive(
         stateFromBob({ kind: 'state', why, since: NOW - 30 * MINUTE, ts: NOW - MINUTE }),
+        'state',
       );
       expect(shown()).toEqual({ kind: why, since: NOW - 30 * MINUTE });
     }
     // Their phone is back: a fresh location, and the label goes with it (the "none" may be late).
-    receiver.receive(locationFromBob(NOW - 5_000));
+    receiver.receive(locationFromBob(NOW - 5_000), 'loc');
     expect(shown()).toBeNull();
   });
 
   it('infers "offline" for a person never heard from after the location, with its time', () => {
     const receiver = receiverOf();
     const sentAt = NOW - 47 * MINUTE;
-    receiver.receive(locationFromBob(sentAt));
+    receiver.receive(locationFromBob(sentAt), 'loc');
     const loc = useLocations.getState()[key()]?.loc;
     expect(loc).toBeDefined();
     expect(whyShown({ loc: { ts: sentAt }, state: undefined, now: NOW })).toEqual({
@@ -249,8 +251,8 @@ describe('a reason from one phone to another', () => {
       since: NOW - 9 * MINUTE,
       ts: NOW - 8 * MINUTE,
     });
-    expect(receiver.receive(newer)).toBe('shown');
-    expect(receiver.receive(older)).toBe('ignored');
+    expect(receiver.receive(newer, 'state')).toBe('shown');
+    expect(receiver.receive(older, 'state')).toBe('ignored');
     expect(useStates.getState()[key()]?.why).toBe('nofix');
     // A clock ahead of this phone's would keep a reason alive for ever: it counts as now.
     const ahead = stateFromBob({
@@ -259,7 +261,7 @@ describe('a reason from one phone to another', () => {
       since: NOW + 5 * 3_600_000,
       ts: NOW + 5 * 3_600_000,
     });
-    receiver.receive(ahead);
+    receiver.receive(ahead, 'state');
     expect(useStates.getState()[key()]).toMatchObject({ why: 'saver', ts: NOW, since: NOW });
   });
 
@@ -277,16 +279,17 @@ describe('a reason from one phone to another', () => {
       since: NOW - 2 * MINUTE,
       ts: NOW - 2 * MINUTE,
     });
-    receiver.receive(none);
-    expect(receiver.receive(saver)).toBe('ignored');
+    receiver.receive(none, 'state');
+    expect(receiver.receive(saver, 'state')).toBe('ignored');
     expect(useStates.getState()[key()]?.why).toBe('none');
   });
 
   it('is kept across a restart, and goes with the location when the person stops sharing', () => {
     const first = receiverOf();
-    first.receive(locationFromBob(NOW - 40 * MINUTE));
+    first.receive(locationFromBob(NOW - 40 * MINUTE), 'loc');
     first.receive(
       stateFromBob({ kind: 'state', why: 'permission', since: NOW - MINUTE, ts: NOW - MINUTE }),
+      'state',
     );
     useStates.setState({}, true);
     useLocations.setState({}, true);
@@ -311,8 +314,8 @@ describe('a reason from one phone to another', () => {
       store: () => alice.store,
       now: () => NOW,
     });
-    receiver.receive(locationFromBob(NOW - MINUTE));
-    receiver.receive(stateFromBob({ kind: 'state', why: 'saver', since: NOW, ts: NOW }));
+    receiver.receive(locationFromBob(NOW - MINUTE), 'loc');
+    receiver.receive(stateFromBob({ kind: 'state', why: 'saver', since: NOW, ts: NOW }), 'state');
     expect(Object.keys(useStates.getState())).toHaveLength(1);
     const left: Circle = {
       ...circle,
@@ -330,16 +333,16 @@ describe('a reason from one phone to another', () => {
 
   it('sign-out takes everything', () => {
     const receiver = receiverOf(memoryStore());
-    receiver.receive(stateFromBob({ kind: 'state', why: 'saver', since: NOW, ts: NOW }));
+    receiver.receive(stateFromBob({ kind: 'state', why: 'saver', since: NOW, ts: NOW }), 'state');
     receiver.reset();
     expect(useStates.getState()).toEqual({});
   });
 
   it('does not touch the location that was shown', () => {
     const receiver = receiverOf();
-    receiver.receive(locationFromBob(NOW - 40 * MINUTE));
+    receiver.receive(locationFromBob(NOW - 40 * MINUTE), 'loc');
     const before = useLocations.getState()[key()];
-    receiver.receive(stateFromBob({ kind: 'state', why: 'nofix', since: NOW, ts: NOW }));
+    receiver.receive(stateFromBob({ kind: 'state', why: 'nofix', since: NOW, ts: NOW }), 'state');
     expect(useLocations.getState()[key()]).toEqual(before);
     expect(locPayload(GALATA, { level: 60, charging: false }).lat).toBe(before?.loc.lat);
   });
