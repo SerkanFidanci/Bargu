@@ -30,8 +30,10 @@ final class FixtureTests: XCTestCase {
     let sealedPush: SealedPushFixture
     let signedPush: PushFixture
     let noticePush: PushFixture
-    let serverNotice: PushFixture
+    let noticeKey: NoticeKeyFixture
+    let serverNotice: ServerNoticeFixture
     let serverNotices: [NoticeFixture]
+    let forgedNotices: [String: String]
     let safetyNumber: SafetyNumberFixture
 
     struct PushFixture: Decodable {
@@ -42,6 +44,19 @@ final class FixtureTests: XCTestCase {
     struct NoticeFixture: Decodable {
       let notice: String
       let sealed: String
+    }
+
+    struct NoticeKeyFixture: Decodable {
+      let kid: String
+      let publicKey: String
+    }
+
+    struct ServerNoticeFixture: Decodable {
+      let sealed: String
+      let body: String
+      let kid: String
+      let id: String
+      let issuedAt: UInt64
     }
 
     struct SenderKeyDistributionFixture: Decodable {
@@ -203,13 +218,19 @@ final class FixtureTests: XCTestCase {
     deviceId == alice.deviceId ? try? b64(alice.bundle.identityKey) : nil
   }
 
+  /// The server notice keys a build trusts: the fixtures' test key.
+  var trustedNoticeKeys: [String: Data] {
+    [Self.fixtures.noticeKey.kid: try! b64(Self.fixtures.noticeKey.publicKey)]
+  }
+
   func openPush(
     _ sealed: String, claimingRecipient recipient: Device? = nil,
-    senders: ((String) -> Data?)? = nil
+    senders: ((String) -> Data?)? = nil, noticeKeys: [String: Data]? = nil
   ) throws -> OpenedPush {
     try BarguProtocol.openPush(
       sealed, recipientDeviceId: (recipient ?? bob).deviceId,
-      recipientDhSecretKey: hex(bob.dhSecretKey), senderIdentityKey: senders ?? knownSender)
+      recipientDhSecretKey: hex(bob.dhSecretKey), senderIdentityKey: senders ?? knownSender,
+      serverNoticeKeys: noticeKeys ?? trustedNoticeKeys)
   }
 
   func testSignedPushOpensAndMatchesTheBody() throws {
@@ -224,22 +245,87 @@ final class FixtureTests: XCTestCase {
     XCTAssertEqual(opened.body.emoji, "🏠")
   }
 
-  func testServerNoticeOpensUnsigned() throws {
-    let opened = try openPush(Self.fixtures.noticePush.sealed)
-    XCTAssertNil(opened.senderDeviceId)
-    XCTAssertEqual(opened.body.kind, .notice)
-    XCTAssertEqual(opened.body.notice, "circleInvite")
+  /// QA-28 B-1: any member knows this device's DH key, so an unsigned "server notice" proves
+  /// nothing. The extension refuses it and keeps the content-free placeholder.
+  func testUnsignedServerNoticeIsRefused() throws {
+    XCTAssertThrowsError(try openPush(Self.fixtures.noticePush.sealed)) {
+      XCTAssertEqual($0 as? BarguCryptoError, .badSignature)
+    }
   }
 
-  /// The server signs its notices once it has a notice key (QA-28 B-1). This extension predates
-  /// that: it cannot read one and keeps the content-free placeholder (PushOpener returns nil).
-  func testSignedServerNoticeIsNotReadByThisExtension() throws {
-    let signed = [Self.fixtures.serverNotice.sealed] + Self.fixtures.serverNotices.map(\.sealed)
-    for sealed in signed {
-      XCTAssertThrowsError(try openPush(sealed)) {
-        XCTAssertEqual($0 as? BarguCryptoError, .malformed)
+  func testSignedServerNoticeOpensForThisDevice() throws {
+    let fixture = Self.fixtures.serverNotice
+    let opened = try openPush(fixture.sealed)
+    XCTAssertNil(opened.senderDeviceId)
+    XCTAssertEqual(
+      opened.body, try JSONDecoder().decode(PushBody.self, from: Data(fixture.body.utf8)))
+    XCTAssertEqual(
+      opened.notice, ServerNoticeStamp(kid: fixture.kid, id: fixture.id, issuedAt: fixture.issuedAt))
+    XCTAssertEqual(opened.body.ts, fixture.issuedAt)
+    // Signed for Bob's device: claiming another recipient breaks the signature.
+    XCTAssertThrowsError(try openPush(fixture.sealed, claimingRecipient: alice)) {
+      XCTAssertEqual($0 as? BarguCryptoError, .badSignature)
+    }
+    // A build that trusts no key (or another one) takes no notice.
+    XCTAssertThrowsError(try openPush(fixture.sealed, noticeKeys: [:])) {
+      XCTAssertEqual($0 as? BarguCryptoError, .keyMismatch)
+    }
+    let otherKey = try b64(alice.bundle.identityKey)
+    XCTAssertThrowsError(try openPush(fixture.sealed, noticeKeys: [fixture.kid: otherKey])) {
+      XCTAssertEqual($0 as? BarguCryptoError, .badSignature)
+    }
+  }
+
+  func testEveryServerNoticeKindVerifies() throws {
+    XCTAssertEqual(Self.fixtures.serverNotices.count, PushBody.notices.count + 1)
+    for fixture in Self.fixtures.serverNotices {
+      if PushBody.notices.contains(fixture.notice) {
+        let opened = try openPush(fixture.sealed)
+        XCTAssertEqual(opened.body.notice, fixture.notice)
+        XCTAssertNotNil(opened.notice)
+      } else {
+        // `watch` (background live mode) is never sent to an iPhone (apps/api push.worker.ts).
+        XCTAssertEqual(fixture.notice, "watch")
+        XCTAssertThrowsError(try openPush(fixture.sealed)) {
+          XCTAssertEqual($0 as? BarguCryptoError, .malformed)
+        }
       }
     }
+  }
+
+  /// What a member can forge from what they know: every one is refused.
+  func testForgedServerNoticesAreRefused() throws {
+    let expected: [String: BarguCryptoError] = [
+      "unsigned": .badSignature,
+      "wrongKey": .badSignature,
+      "unknownKid": .keyMismatch,
+      "otherRecipient": .badSignature,
+      "bodyChanged": .badSignature,
+    ]
+    XCTAssertEqual(Set(Self.fixtures.forgedNotices.keys), Set(expected.keys))
+    for (name, sealed) in Self.fixtures.forgedNotices {
+      XCTAssertThrowsError(try openPush(sealed), name) {
+        XCTAssertEqual($0 as? BarguCryptoError, expected[name], name)
+      }
+    }
+  }
+
+  func testSeenNoticesKeepIdsUntilTheyExpire() {
+    var seen = SeenNotices()
+    seen.remember("a", until: 2_000, now: 1_000)
+    XCTAssertTrue(seen.contains("a"))
+    seen.remember("b", until: 5_000, now: 3_000)
+    XCTAssertFalse(seen.contains("a"))
+    XCTAssertTrue(seen.contains("b"))
+    for index in 0..<(SeenNotices.keep + 5) {
+      seen.remember("n\(index)", until: 10_000 + UInt64(index), now: 3_000)
+    }
+    XCTAssertEqual(seen.until.count, SeenNotices.keep)
+    XCTAssertFalse(seen.contains("b"))
+    XCTAssertTrue(seen.contains("n\(SeenNotices.keep + 4)"))
+    let decoded = try? JSONDecoder().decode(
+      SeenNotices.self, from: JSONEncoder().encode(seen))
+    XCTAssertEqual(decoded, seen)
   }
 
   func testPushIsBoundToItsRecipientAndSender() throws {

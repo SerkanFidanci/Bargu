@@ -10,6 +10,13 @@ enum PushShare {
   struct Device: Decodable {
     let deviceId: String
     let dhSecretKey: String
+    /// The server notice keys this build trusts, kid → base64url (EXPO_PUBLIC_NOTICE_KEYS,
+    /// QA-28 B-1). Missing, as an older app shared it: no server notice is taken.
+    let noticeKeys: [String: String]?
+
+    var trustedNoticeKeys: [String: Data] {
+      (noticeKeys ?? [:]).compactMapValues { try? Encoding.base64url($0, length: 32) }
+    }
   }
 
   /// TypeScript `PushContacts` (push-contacts.ts); the recipients list is not needed here.
@@ -55,6 +62,24 @@ enum PushShare {
     else { return nil }
     return try? JSONDecoder().decode(type, from: data)
   }
+
+  /// Writes an item the extension keeps itself (the server notices it took), readable after the
+  /// first unlock and never synced, like the app's items. The app deletes it at sign-out.
+  static func write<T: Encodable>(_ item: String, _ value: T) {
+    guard let data = try? JSONEncoder().encode(value) else { return }
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+      kSecAttrAccount as String: Data(item.utf8),
+    ]
+    let update: [String: Any] = [kSecValueData as String: data]
+    if SecItemUpdate(query as CFDictionary, update as CFDictionary) == errSecItemNotFound {
+      var add = query
+      add[kSecValueData as String] = data
+      add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+      _ = SecItemAdd(add as CFDictionary, nil)
+    }
+  }
 }
 
 /// What a notification shows, or that it stays quiet.
@@ -63,16 +88,19 @@ enum ShownPush: Equatable {
   case muted
 }
 
-/// Opens a sealed notification (docs/PROTOCOL.md §7) and words it like the app does
+/// Opens a sealed notification (docs/PROTOCOL.md §9) and words it like the app does
 /// (src/features/notifications/push-text.ts, background-push.ts).
 enum PushOpener {
   /// A notification older than this when it arrives is not shown any more (app: PUSH_FRESH_MS).
   static let freshSeconds: Double = 3_600
 
+  /// A server notice counts only when signed for this device by a key this build trusts, fresh
+  /// and not `seen` before (QA-28 B-1); a notice taken is added to `seen`. Anything else keeps the
+  /// content-free placeholder.
   static func open(
     sealed: String, now: Date,
     device: PushShare.Device?, contacts: PushShare.Contacts?, mutes: PushShare.Mutes?,
-    history: [String]? = nil, live: [String]? = nil
+    history: [String]? = nil, live: [String]? = nil, seen: inout SeenNotices
   ) -> ShownPush? {
     guard let device, let contacts,
       let secret = try? Encoding.base64url(device.dhSecretKey, length: 32),
@@ -80,11 +108,18 @@ enum PushOpener {
         sealed, recipientDeviceId: device.deviceId, recipientDhSecretKey: secret,
         senderIdentityKey: { deviceId in
           contacts.devices[deviceId].flatMap { try? Encoding.base64url($0.identityKey, length: 32) }
-        })
+        },
+        serverNoticeKeys: device.trustedNoticeKeys)
     else { return nil }
     let body = opened.body
     guard now.timeIntervalSince1970 * 1000 - Double(body.ts) <= freshSeconds * 1000 else {
       return nil
+    }
+    if let notice = opened.notice {
+      guard !seen.contains(notice.id) else { return nil }
+      let nowMs = UInt64(max(0, now.timeIntervalSince1970 * 1000))
+      seen.remember(
+        notice.id, until: max(nowMs, notice.issuedAt) + UInt64(freshSeconds * 1000), now: nowMs)
     }
     let mutes = mutes ?? .none
     switch body.kind {

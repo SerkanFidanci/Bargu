@@ -189,6 +189,39 @@ public struct PushBody: Decodable, Equatable, Sendable {
 public struct OpenedPush: Equatable, Sendable {
   public let senderDeviceId: String?
   public let body: PushBody
+  /// The server's checked signature on a notice (docs/ADR/0016 Ek); nil for a member's push.
+  public let notice: ServerNoticeStamp?
+}
+
+/// What a signed server notice says of itself, once checked (TypeScript: `ServerNoticeStamp`).
+public struct ServerNoticeStamp: Equatable, Sendable {
+  public let kid: String
+  /// 16 random bytes, base64url: a second box with it is a replay.
+  public let id: String
+  /// When the server signed it (Unix ms); always the notice's own `ts`.
+  public let issuedAt: UInt64
+}
+
+/// Server notices this device already took, by id, until they could no longer pass as fresh
+/// (TypeScript: background-push.ts): a second box with the same id is a replay (QA-28 B-1).
+public struct SeenNotices: Codable, Equatable, Sendable {
+  public static let keep = 200
+  /// Notice id → until when it is kept (Unix ms).
+  public private(set) var until: [String: UInt64]
+
+  public init(until: [String: UInt64] = [:]) { self.until = until }
+
+  public func contains(_ id: String) -> Bool { until[id] != nil }
+
+  /// Forgets what expired before `now` and keeps `id` until `untilMs`, at most `keep` ids.
+  public mutating func remember(_ id: String, until untilMs: UInt64, now: UInt64) {
+    until = until.filter { $0.value >= now }
+    until[id] = untilMs
+    let extra = until.count - Self.keep
+    if extra > 0 {
+      for (old, _) in until.sorted(by: { $0.value < $1.value }).prefix(extra) { until[old] = nil }
+    }
+  }
 }
 
 enum Strict {
@@ -235,6 +268,7 @@ public enum BarguProtocol {
     static let pushKdf = "bargu/v1/push"
     static let pushSignature = "bargu/v1/push-sig"
     static let safetyNumber = "bargu/v1/safety"
+    static let serverNotice = "bargu/v1/server-notice"
 
     /// UTF-8 followed by a 0x00 terminator.
     static func bytes(_ label: String) -> Data { Data(label.utf8) + Data([0]) }
@@ -263,22 +297,31 @@ public enum BarguProtocol {
       block: pushPaddingBlock)
   }
 
-  /// Opens a notification sealed for this device (docs/PROTOCOL.md §7): a member's push must be
+  /// Opens a notification sealed for this device (docs/PROTOCOL.md §9): a member's push must be
   /// signed, for this very device, by the identity key the app trusts for the sending device
   /// (`senderIdentityKey` returns nil for unknown devices) and is never a notice; the server's
-  /// pushes can only be notices. The caller checks freshness (`ts`).
+  /// pushes can only be notices, signed for this very device by a notice key this build trusts
+  /// (`serverNoticeKeys`, kid → key). An unsigned notice is refused: any member knows this
+  /// device's DH key (QA-28 B-1). The caller checks freshness (`ts`) and replays (`notice.id`).
   public static func openPush(
     _ sealed: String,
     recipientDeviceId: String,
     recipientDhSecretKey: Data,
-    senderIdentityKey: (String) -> Data?
+    senderIdentityKey: (String) -> Data?,
+    serverNoticeKeys: [String: Data]
   ) throws -> OpenedPush {
     let inner = Data(try openSealed(sealed, recipientDhSecretKey: recipientDhSecretKey))
     let headerBytes = 1 + 16 + 64
     var senderDeviceId: String? = nil
+    var notice: ServerNoticeStamp? = nil
     let json: Data
     if inner.first == 0 {
-      json = inner.subdata(in: 1..<inner.count)
+      throw BarguCryptoError.badSignature
+    } else if inner.first == 2 {
+      let signed = try openServerNotice(
+        inner, recipientDeviceId: recipientDeviceId, keys: serverNoticeKeys)
+      json = signed.body
+      notice = signed.stamp
     } else if inner.first == 1, inner.count > headerBytes {
       let senderId = inner.subdata(in: 1..<17)
       let sender = Encoding.uuidString(senderId)
@@ -298,7 +341,39 @@ public enum BarguProtocol {
       throw BarguCryptoError.malformed
     }
     guard (senderDeviceId == nil) == (body.kind == .notice) else { throw BarguCryptoError.malformed }
-    return OpenedPush(senderDeviceId: senderDeviceId, body: body)
+    if let notice, notice.issuedAt != body.ts { throw BarguCryptoError.malformed }
+    return OpenedPush(senderDeviceId: senderDeviceId, body: body, notice: notice)
+  }
+
+  /// A signed server notice, `0x02 ‖ len(kid) ‖ kid ‖ issuedAt(8) ‖ id(16) ‖ sig(64) ‖ body`, whose
+  /// signature (TypeScript: server-notice.ts) covers `0x01 ‖ len(kid) ‖ kid ‖ recipientDeviceId(16)
+  /// ‖ issuedAt ‖ id ‖ body` under a key this build trusts.
+  static func openServerNotice(_ inner: Data, recipientDeviceId: String, keys: [String: Data])
+    throws -> (body: Data, stamp: ServerNoticeStamp)
+  {
+    guard inner.count > 2 else { throw BarguCryptoError.malformed }
+    let kidLength = Int(inner[1])
+    let idAt = 2 + kidLength + 8
+    let bodyAt = idAt + 16 + 64
+    guard (1...16).contains(kidLength), inner.count > bodyAt else { throw BarguCryptoError.malformed }
+    let kidBytes = inner.subdata(in: 2..<(2 + kidLength))
+    guard
+      kidBytes.allSatisfy({
+        (0x61...0x7a).contains($0) || (0x30...0x39).contains($0) || $0 == 0x2d
+      })
+    else { throw BarguCryptoError.malformed }
+    let issuedAtBytes = inner.subdata(in: (2 + kidLength)..<idAt)
+    let issuedAt = issuedAtBytes.reduce(UInt64(0)) { $0 << 8 | UInt64($1) }
+    guard issuedAt <= 9_007_199_254_740_991 else { throw BarguCryptoError.malformed }
+    let id = inner.subdata(in: idAt..<(idAt + 16))
+    let body = inner.subdata(in: bodyAt..<inner.count)
+    let kid = String(decoding: kidBytes, as: UTF8.self)
+    guard let key = keys[kid] else { throw BarguCryptoError.keyMismatch }
+    let signed =
+      Data([1, UInt8(kidLength)]) + kidBytes + (try Encoding.uuidBytes(recipientDeviceId))
+      + issuedAtBytes + id + body
+    try verify(Label.serverNotice, signed, inner.subdata(in: (idAt + 16)..<bodyAt), key)
+    return (body, ServerNoticeStamp(kid: kid, id: Encoding.base64urlEncode(id), issuedAt: issuedAt))
   }
 
   // MARK: - Messages
