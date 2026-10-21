@@ -2,7 +2,7 @@
 
 - Durum: Kabul edildi, 1. adım (PM, 2026-10-18). 3. adım (arka planda canlı mod): önizleme denemesi
   için onaylandı (PM, 2026-10-21); ölçümden sonra PM son onayı verirse kalıcı olur, o zamana kadar
-  yalnızca önizleme paketinde.
+  yalnızca önizleme paketinde. "Neden eski?" eki (2026-10-22): PM tasarımı onayladı.
 - Tarih: 2026-10-18
 - İlgili: [ADR 0002](0002-location-relay.md) (konum yolu), [ADR 0008](0008-design-system-and-map.md)
   (harita, hareket tokenları), [ADR 0027](0027-calm-mode-and-motion-budget.md) (sade mod)
@@ -326,3 +326,103 @@ yukarıdaki katmanla aynı kapı; üretim paketinde yok) ve açılış işi okun
   çeyrek saat başına bir anahtarda ve sınırlı; tekrar penceresi gönderici başına 64 numara; `useNow`
   ve `timerAt` zamanlayıcıları ekran açıp kapatmayla birikmez; 30 dakikalık, 5 saniyede bir gelen
   konum akışında kasanın anahtar sayısı ve boyutu sabit kalır (testler).
+
+## Ek (2026-10-22, Neden eski?)
+
+PM tasarımı onayladı. Gri pin "23 sa" yaşını söylüyor, nedenini söylemiyor: telefon pil tasarrufunda
+mı, konum izni mi kapandı, konum mu alınamıyor, yoksa telefon mu kapalı? Arkadaş bunu bilmeyince
+"neden güncellenmiyor" diye soruyor. Bu ek, nedeni telefonun kendisinin (sadece nedeni, konumsuz)
+söylemesini ve alıcının "çevrim dışı"yı sessizlikten çıkarmasını getirir.
+
+### Karar
+
+1. **Yeni mesaj türü `state`:** `{ kind: 'state', why: 'saver' | 'permission' | 'nofix' | 'none',
+since, ts }`.
+   - `saver`: telefon pil tasarrufunda, konum seyrek gelir. `permission`: konum izni kapalı ya da geri
+     alınmış. `nofix`: hiçbir konum alınamıyor (konum servisi kapalı, ya da 3 dakikadır hiçbir konum
+     gelmedi). `none`: neden bitti (alıcı etiketi bırakır).
+   - `since`: nedenin başladığı an (`none` için bittiği an); `ts`: mesajın anı.
+   - **Konum yok:** koordinat, doğruluk, hız, pil seviyesi yok; her mesaj gibi 512 bayta dolgulanır
+     (en büyük hâli testli). Zarf başka mesajlardan boyutla ayrılamaz.
+   - **Neden ayrı tür:** `loc` katı okunur (`strict`); ona alan eklemek, eski uygulamaların her konumu
+     reddetmesi demekti. `state` yeni bir tür olarak eklendi ve `look` ile `arrived` gibi **gevşek**
+     okunur: ileride bir telefon alan eklerse bu sürüm onu atar, mesajı reddetmez.
+   - **"Çevrim dışı" asla gönderilmez.** Gönderemeyen telefon kendi hakkında bir şey söyleyemez; alıcı
+     bunu sessizlikten çıkarır (aşağıda).
+2. **Telefonda neden nasıl bulunur** (`features/location/state-report.ts`, `state-signals.ts`): önce
+   izin, sonra konum servisi, sonra pil tasarrufu, en sonda sessizlik:
+   - `permission`: konum izni verilmemiş ya da geri alınmış **ve** bir arkadaşta bu telefonun eski bir
+     konumu var (hiç konum göndermemiş telefon için bir şey söylenmez).
+   - `nofix`: telefonun konum servisi kapalı (`hasServicesEnabledAsync`, uygulama öne gelince okunur),
+     ya da hiçbir ham konum gelmeden 3 dakika geçti (`NOFIX_AFTER_MS`; arkadaşın pini 10. dakikada
+     griye döner, neden o zamana kadar orada olsun). Sessizlikte `since` son konumun anıdır.
+   - `saver`: `Battery.isLowPowerModeEnabledAsync` ve sistemin olayı (`addLowPowerModeListener`);
+     sorgulama yok.
+   - Hepsi telefonda kalır; sunucuya ya da başkasına ayrıca söylenmez.
+3. **Ne zaman gider:**
+   - Neden başlayınca ya da değişince, çemberlerin her birine bir mesaj.
+   - Sürdükçe **5 dakikalık kalp atışıyla** (`SEND_RULES.heartbeatMs`) tekrar. Sunucu saklamaz;
+     tekrar, uygulamayı sonradan açan arkadaşın nedeni en geç 5 dakikada öğrenmesini ve alıcının
+     "yenilenmeyen neden düşer" kuralını mümkün kılar.
+   - Bitince bir `none` ("temizle"); alıcı etiketi bırakır. Sonra sessiz.
+   - Bir çembere en çok 45 saniyede bir (`STATE_GAP_MS`): sunucu varış, ayrılış ve neden mesajlarına
+     çember başına 10 dakikada 20 izin verir; açılıp kapanan bir ayar buna yaklaşamaz, son hâli söylenir.
+     Ulaşmayan mesaj 60 saniye sonra, bağlantı dönünce hemen yeniden denenir.
+   - **Sorgulama yoktur:** gönderme döngüsü ayar, izin, servis, pil tasarrufu, çember ve gelen konum
+     olaylarıyla başlar; kalp atışı ve sessizlik için yalnızca bir sonraki iş anına kurulan tek bir
+     zamanlayıcı vardır (CLAUDE.md "sorgulama yasak").
+4. **Hayalet, kaba, paylaşım:**
+   - **Hayalette hiçbir şey gitmez** (dondur ya da gizle): konumun gittiği çemberlerin listesi
+     (`engine.audience()`) boşsa neden de gitmez; hayalet başlarken "temizle" de gitmez. Dondurulmuş
+     konumun yanındaki etiket 10 dakika sonra kendiliğinden "Çevrim dışı"ya düşer. Bu, dondurulmuş
+     hayaletin **kapalı bir telefondan ayırt edilemez** olması demektir: istenen budur.
+   - **Kaba hassasiyette (mahalle, şehir) yalnızca neden gider:** mesaj zaten konumsuzdur, her çembere
+     aynıdır; kaba çemberin aldığı mesaj tam çemberinkiyle aynı baytları taşır (testli).
+   - Paylaşılmayan, süresi dolan, duraklı çembere (kimsenin ödemediği çember, ADR 0024) mesaj gitmez;
+     süre dolunca o çemberin **kalp atışı** da durur. Konum geri çekilince (`loc.gone`) alıcı o kişinin
+     nedenini de siler.
+5. **Taşıma: sunucu değişmedi.** `state`, varış, ayrılış ve "Geldim"in yolundan gider
+   (`POST /v1/place-events`, sunucuda canlı iletilir, hiçbir yerde saklanmaz, bildirim yok:
+   `pushes: []`). Sunucu şifreli zarfın türünü göremez; bu yolda `place_enter`, `late`, `arrived` ve
+   `state` ayırt edilemez. Çevrim içi üyeler canlı `place` olayı olarak alır, uygulama onu zaten
+   alıcıya verir.
+6. **Alıcı** (`features/location/why.ts`, `receive.ts`): her kişi ve çember için son `state` tutulur
+   (kasada, konum gibi; yeniden başlatmada geri gelir, kişi konumunu geri çekince silinir). Eski
+   `ts`'li mesaj yer değiştirmez; telefonun saatinin ilerisindeki `ts` "şimdi" sayılır (bir neden
+   sonsuza dek yaşamasın).
+   - **Etiket yalnızca eski konumun yanında** (konum 10 dakikadan eski, `STALE_AFTER_MS`): pin etiketi
+     ("23 dk · Pil tasarrufu") ve kişi kartı ("Pil tasarrufu · 14:20'den beri") ve birlikte duranların
+     penceresi. Taze konum gelince etiket kendiliğinden gider (`none` gecikse de).
+   - Metinler: "Pil tasarrufu", "Konum izni kapalı", "Konum alınamıyor" (tr + en).
+   - **Çevrim dışı çıkarımı:** konum eski ve **10 dakikadır** (iki kalp atışı kaçtı) o telefondan
+     hiçbir mesaj (konum ya da `state`) gelmedi, ve geçerli bir neden yoksa: "Çevrim dışı · 14:20'den
+     beri" (son mesajın yerel saati). Türkçede ek, sayının okunuşuna uyar (14:30'dan, 14:40'tan,
+     15:03'ten).
+   - **Bilinen neden çevrim dışını yener** ama yalnızca yenilendiği sürece: son `state` 10 dakikadan
+     eskiyse neden düşer ve çıkarım devreye girer (pil tasarrufunda ölen telefon "pil tasarrufunda"
+     kalmasın). `none` sonrası, konum henüz eskiyse etiket yok: telefon az önce konuştu.
+   - Ekran, durum değişikliğini mevcut yoldan alır: `place` olayı → alıcı → `useStates` → harita.
+     Zamanla geçen değişiklikler (neden 10 dakikada düşer, çevrim dışı başlar) yaşın yenilendiği
+     aynı yarım dakikalık saatten (`useNow`) çizilir; yeni zamanlayıcı yok.
+7. **Eski uygulamalar:** `state` bilinmeyen bir tür. Eski `decryptMessage` onu `MALFORMED` diye reddeder
+   (`payloadSchema` bilmiyor); alıcı her `BarguCryptoError`'ı sessizce `ignored` yapar: etiket yok, çökme
+   yok, günlük yok, tekrar penceresi ilerlemez. `loc` değişmedi, yani eski bir uygulama hiçbir konumu
+   kaçırmaz. Bu yüzden istemci seviyesi artırılmadı (`CLIENT_LEVEL` 3 kalır). Doğrulama: `82e9bf5`
+   anındaki açma kodunun birebir kopyası (`packages/crypto/test/legacy/message-82e9bf5.ts`)
+   `legacy-app.spec.ts`'te yeni `state` mesajlarını açmaya çalışır.
+8. **Bilinen sınır:** Android, izni geri alınan uygulamanın sürecini kapatır; "Konum izni kapalı"
+   ancak kullanıcı uygulamayı yeniden açınca (izin o zaman okunur) gider. Ondan önce arkadaş "Çevrim
+   dışı" görür; bu yanlış değildir, sadece daha az bilgi verir. Sunucu saklamadığı için uygulamayı geç
+   açan arkadaş nedeni, kalp atışı gelene kadar (en çok 5 dakika) "Çevrim dışı" olarak görebilir.
+
+### Sonuçlar
+
+- Gri pin artık "neden"i de söyler; sessizlik "Çevrim dışı · 14:20'den beri" diye adlandırılır.
+- Yeni bilgi (THREAT_MODEL): çember üyeleri nedeni (pil tasarrufu, izin kapalı, konum yok) ve başlangıç
+  saatini görür; sunucu belirli bir anda, dolgulu boyutta bir zarf görür.
+- Testler: şema (her neden, "offline" reddi, konum asla sağ kalmaz), kripto (gidiş-dönüş, aynı
+  boyut, eski uygulama atar), gönderen (her neden başlar, kalp atışıyla tekrar eder, biter; hayalette
+  hiçbir şey; kabada yalnızca neden; paylaşılmayan ve süresi dolan çembere hiçbir şey; sessizlik;
+  ulaşmayan mesaj), alıcı (her etiket, 10 dakikada çevrim dışı ve doğru saat metni, neden çevrim dışını
+  yener ve yenilenmezse düşer, taze konumla etiket gider, geç gelen eski mesaj, yeniden başlatma),
+  gizlilik (hiçbir `state`'te koordinat yok), ekranlar (pin etiketi, kişi kartı, grup penceresi).

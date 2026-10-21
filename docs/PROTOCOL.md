@@ -164,7 +164,7 @@ dolgu → JSON → şema. Tekrar penceresi yalnızca başarılı çözmeden sonr
 ## 6. İçerik (payload)
 
 Zod ayrık birleşimi (`kind`), bilinmeyen alan reddedilir ([`packages/schemas`](../packages/schemas));
-`profile` ve `look` bilinmeyen alanı atar (ADR 0024 §10), bilinmeyen tür `MALFORMED` olur ve
+`profile`, `look` ve `state` bilinmeyen alanı atar (ADR 0024 §10), bilinmeyen tür `MALFORMED` olur ve
 alıcı yok sayar:
 
 | `kind`        | Alanlar                                                                                   |
@@ -180,6 +180,7 @@ alıcı yok sayar:
 | `late`        | `meetAt, minutes (1–600), ts`: buluşmaya gecikme (ADR 0018)                               |
 | `look`        | `ring, frame` (kimlik ya da `null`), `pass` (geçiş belgesi ya da `null`), `ts` (ADR 0025) |
 | `safe`        | `id` (16 bayt, base64url), `lat, lng, acc, bat (0–100), ts`: Güvendeyim (ADR 0029)        |
+| `state`       | `why` (`saver`, `permission`, `nofix`, `none`), `since, ts`: konum neden eski (ADR 0028)  |
 
 **Güvendeyim (ADR 0029).** `safe`, sunucuda tutulmayan, tek seferlik bir mesajdır; dürtme gibi
 `POST /v1/safe` ile (canlı bağlantı yok, yalnızca HTTP) gider ve çevrimiçi üyelere canlı `safe` olayı
@@ -197,6 +198,17 @@ aynı çemberde, aynı gönderenden ve aynı `id` ile gelen demektir. Sunucu zar
 yolundan yalnızca `safe`, `safe` yalnızca `safe` yolundan, konum yalnızca konum yolundan, ADR 0029 §10)
 ve bir gönderenin bir çemberdeki mesajlarından kayan saatte en çok 6'sını gösterir, kalanını tek sessiz
 satıra katlar. Saati 5 dakikadan fazla ileri olan mesaj düşer.
+
+**Neden eski? (`state`, ADR 0028 Ek).** Telefon, konumunun neden eski olabileceğini çemberlerine ayrı
+bir tür olarak söyler: `saver` pil tasarrufu, `permission` konum izni kapalı, `nofix` konum
+alınamıyor, `none` neden bitti. Konum, doğruluk, hız ya da pil seviyesi taşımaz; her mesaj gibi 512
+bayta dolgulanır. Ayrı tür olmasının nedeni `loc`'un katı okunmasıdır: ona alan eklemek eski
+uygulamaların her konumu reddetmesi demekti; `state`'i tanımayan eski uygulama `MALFORMED` sayıp
+sessizce atar (`packages/crypto/test/legacy-app.spec.ts`). Neden başlayınca ya da değişince, sürdükçe
+5 dakikada bir ve bitince (`none`) gönderilir; hayalette, kaba ve tam hassasiyette de yalnızca bu
+(konumsuz) mesaj; konumun gitmediği çembere hiç gitmez. "Çevrim dışı" gönderilmez, alıcı sessizlikten
+çıkarır. Taşıma: varış, ayrılış ve "Geldim" ile aynı `POST /v1/place-events` yolu (canlı iletilir,
+saklanmaz, bildirim yok); sunucu türü göremez.
 
 **Saklanan mesaj (yer).** Bir çemberin yeri, son kaydeden üyenin gönderen anahtarıyla şifrelenmiş
 `place` mesajı olarak sunucuda kalır. Üyeler onu yeni mesajlardan çok sonra tekrar açtığı için
