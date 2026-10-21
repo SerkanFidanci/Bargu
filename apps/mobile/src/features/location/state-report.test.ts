@@ -8,7 +8,9 @@ import {
   createStateReporter,
   NOFIX_AFTER_MS,
   reasonOf,
-  RETRY_MS,
+  RETRY_BASE_MS,
+  RETRY_MAX_MS,
+  retryDelay,
   STATE_GAP_MS,
 } from './state-report';
 import { SEND_RULES } from './send';
@@ -31,6 +33,8 @@ function setup(circleCount = 2) {
   const circles: SendCircle[] = full.map((circle) => toSendCircle(circle, me.userId));
   let settings: SharingSettings = DEFAULT_SHARING;
   const sent: MessageEnvelope[] = [];
+  /** When each message was tried, in milliseconds after the start. */
+  const attempts: number[] = [];
   /** What the owner's own card is told is being said, each time it changes. */
   const sayings: ({ why: string; since: number } | null)[] = [];
   const outdated: string[][] = [];
@@ -41,6 +45,7 @@ function setup(circleCount = 2) {
     audience: () => engine.audience(),
     holding: () => engine.holding(),
     send: (envelope) => {
+      attempts.push(Date.now() - START);
       sent.push(envelope);
       return reply(envelope);
     },
@@ -94,6 +99,7 @@ function setup(circleCount = 2) {
     full,
     circles,
     sent,
+    attempts,
     sayings,
     outdated,
     states: () => sent.map(open),
@@ -435,7 +441,7 @@ describe("what the owner's own card is told (nothing about it is a secret from t
     await t.reporter.set({ saver: true });
     expect(t.sayings).toEqual([]);
     t.setReply(() => Promise.resolve({ accepted: 1, refused: [] }));
-    await t.reporter.flush();
+    await jest.advanceTimersByTimeAsync(RETRY_BASE_MS);
     expect(t.sayings).toEqual([{ why: 'saver', since: START }]);
     // A ghost: the circle is told nothing more, and the card does not claim it is.
     t.share({ ...DEFAULT_SHARING, ghost: 'freeze' });
@@ -454,24 +460,110 @@ describe("what the owner's own card is told (nothing about it is a secret from t
   });
 });
 
-describe('when it does not get through', () => {
-  it('tries again after a minute, and at once when the connection returns', async () => {
+describe('when it does not get through (backoff, QA-33 N-1)', () => {
+  const SECOND = 1_000;
+
+  it('waits 2 s, 4 s, 8 s… up to 5 minutes, one step longer for each failure in a row', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 40].map(retryDelay)).toEqual([
+      2 * SECOND,
+      4 * SECOND,
+      8 * SECOND,
+      16 * SECOND,
+      32 * SECOND,
+      64 * SECOND,
+      128 * SECOND,
+      256 * SECOND,
+      RETRY_MAX_MS,
+      RETRY_MAX_MS,
+      RETRY_MAX_MS,
+    ]);
+    expect(retryDelay(1)).toBe(RETRY_BASE_MS);
+    // Nonsense in is still a wait, never zero or infinite.
+    expect(retryDelay(0)).toBe(RETRY_BASE_MS);
+  });
+
+  it('tries again at the sequence of waits, then every 5 minutes, while it keeps failing', async () => {
     const t = setup(1);
     await t.located();
     t.setReply(() => Promise.reject(new Error('offline')));
     await t.reporter.set({ saver: true });
-    expect(t.sent).toHaveLength(1);
-    await jest.advanceTimersByTimeAsync(RETRY_MS - 1);
-    expect(t.sent).toHaveLength(1);
-    await jest.advanceTimersByTimeAsync(1);
-    expect(t.sent).toHaveLength(2);
-    // Back online before the next try: it goes now.
+    await jest.advanceTimersByTimeAsync(1_200 * SECOND);
+    expect(t.attempts.map((ms) => ms / SECOND)).toEqual([
+      0, 2, 6, 14, 30, 62, 126, 254, 510, 810, 1_110,
+    ]);
+    t.reporter.reset();
+  });
+
+  it('starts again at 2 s after a message got through', async () => {
+    const t = setup(1);
+    await t.located();
+    t.setReply(() => Promise.reject(new Error('offline')));
+    await t.reporter.set({ saver: true });
+    // Three failures (at 0, 2 and 6 s); the fourth try, at 14 s, finds the connection back.
+    await jest.advanceTimersByTimeAsync(13 * SECOND);
     t.setReply(() => Promise.resolve(accepted));
+    await jest.advanceTimersByTimeAsync(SECOND);
+    expect(t.attempts.map((ms) => ms / SECOND)).toEqual([0, 2, 6, 14]);
+    // Told: the heartbeat counts from there; no more tries meanwhile.
+    await jest.advanceTimersByTimeAsync(60 * SECOND);
+    expect(t.attempts).toHaveLength(4);
+    // The next failure begins at the first step again, not where the last run ended.
+    t.setReply(() => Promise.reject(new Error('offline')));
+    await t.reporter.set({ permissionOff: true });
+    await jest.advanceTimersByTimeAsync(0);
+    const before = t.attempts.length;
+    expect(before).toBe(5);
+    const failedAt = nth(t.attempts, before - 1);
+    await jest.advanceTimersByTimeAsync(RETRY_BASE_MS);
+    expect(t.attempts.length).toBe(before + 1);
+    expect(nth(t.attempts, before) - failedAt).toBe(RETRY_BASE_MS);
+    t.reporter.reset();
+  });
+
+  it('makes a few requests, not one for every return, when the connection comes and goes', async () => {
+    const t = setup(1);
+    await t.located();
+    t.setReply(() => Promise.reject(new Error('offline')));
+    await t.reporter.set({ saver: true });
+    // The connection "returns" every two seconds for a minute, and drops each time.
+    for (let i = 0; i < 30; i += 1) {
+      await jest.advanceTimersByTimeAsync(2 * SECOND);
+      await t.reporter.flush();
+    }
+    expect(t.attempts.map((ms) => ms / SECOND)).toEqual([0, 2, 6, 14, 30]);
+    t.reporter.reset();
+  });
+
+  it('asks once for all the circles when the relay cannot be reached, not once for each', async () => {
+    const t = setup(3);
+    await t.located();
+    t.setReply(() => Promise.reject(new Error('offline')));
+    await t.reporter.set({ saver: true });
+    expect(t.attempts).toHaveLength(1);
+    await jest.advanceTimersByTimeAsync(RETRY_BASE_MS);
+    expect(t.attempts).toHaveLength(2);
+    // Back: all three are told, in one go.
+    t.setReply(() => Promise.resolve(accepted));
+    await jest.advanceTimersByTimeAsync(4 * SECOND);
+    expect(t.attempts).toHaveLength(5);
+    expect(new Set(t.toCircles(2)).size).toBe(3);
+    t.reporter.reset();
+  });
+
+  it('goes out when the connection returns after the wait, with no other trigger', async () => {
+    const t = setup(1);
+    await t.located();
+    t.setReply(() => Promise.reject(new Error('offline')));
+    await t.reporter.set({ saver: true });
+    t.setReply(() => Promise.resolve(accepted));
+    // Still inside the wait: nothing yet, whatever the connection says.
     await t.reporter.flush();
-    expect(t.sent).toHaveLength(3);
+    expect(t.attempts).toHaveLength(1);
+    await jest.advanceTimersByTimeAsync(RETRY_BASE_MS);
+    expect(t.attempts).toHaveLength(2);
     // Told: the heartbeat counts from here.
     await jest.advanceTimersByTimeAsync(HEARTBEAT);
-    expect(t.sent).toHaveLength(4);
+    expect(t.attempts).toHaveLength(3);
     t.reporter.reset();
   });
 
@@ -485,7 +577,7 @@ describe('when it does not get through', () => {
     await t.reporter.set({ saver: true });
     expect(t.outdated).toEqual([[nth(t.circles).id]]);
     t.setReply(() => Promise.resolve(accepted));
-    await jest.advanceTimersByTimeAsync(RETRY_MS);
+    await jest.advanceTimersByTimeAsync(RETRY_BASE_MS);
     expect(t.sent).toHaveLength(2);
     t.reporter.reset();
   });

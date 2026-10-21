@@ -19,8 +19,20 @@ export const NOFIX_AFTER_MS = 3 * 60_000;
  * ("ayarlanacak", docs/ADR/0028).
  */
 export const STATE_GAP_MS = 45_000;
-/** After a message that did not get through (offline, refused, over the relay's limit). */
-export const RETRY_MS = 60_000;
+/**
+ * After a message that did not get through (offline, refused, over the relay's limit) the same
+ * circle waits 2 seconds, then 4, 8, 16… up to 5 minutes, one step longer for each failure in a
+ * row, and starts again at 2 seconds after a message that got through. A connection that flaps
+ * (a request that never reaches the server, over and over) costs a few requests, not one for
+ * every flap. To be tuned on a phone ("ayarlanacak", docs/ADR/0028).
+ */
+export const RETRY_BASE_MS = 2_000;
+export const RETRY_MAX_MS = 5 * 60_000;
+
+/** How long to wait after the n-th failure in a row (n from 1): 2 s, 4 s, 8 s… capped. */
+export function retryDelay(failures: number): number {
+  return Math.min(RETRY_BASE_MS * 2 ** Math.max(0, failures - 1), RETRY_MAX_MS);
+}
 
 /** What the phone knows about itself that keeps its location from being fresh. */
 export interface Signals {
@@ -89,6 +101,8 @@ export function createStateReporter(deps: ReporterDeps) {
   let sendingKey = '';
   /** Not before this time may the circle be told again. */
   const nextAt = new Map<string, number>();
+  /** How many messages to the circle failed in a row (the wait grows with it, retryDelay). */
+  const failures = new Map<string, number>();
   let timer: ReturnType<typeof setTimeout> | null = null;
   let running: Promise<void> | null = null;
   /** How many times a pass was asked for; a pass that sees it moved on runs once more. */
@@ -112,6 +126,7 @@ export function createStateReporter(deps: ReporterDeps) {
     const ids = new Set(circles.map((circle) => circle.id));
     for (const id of [...told.keys()]) if (!ids.has(id)) told.delete(id);
     for (const id of [...nextAt.keys()]) if (!ids.has(id)) nextAt.delete(id);
+    for (const id of [...failures.keys()]) if (!ids.has(id)) failures.delete(id);
     const due: SendCircle[] = [];
     let wakeAt: number | null = null;
     const wake = (when: number) => {
@@ -137,13 +152,26 @@ export function createStateReporter(deps: ReporterDeps) {
     return { due, wakeAt };
   }
 
+  /** A message to this circle did not get through: it waits one step longer than the last time. */
+  function fail(circleId: string, at: number): void {
+    const count = (failures.get(circleId) ?? 0) + 1;
+    failures.set(circleId, count);
+    nextAt.set(circleId, at + retryDelay(count));
+  }
+
   async function pass(): Promise<void> {
     const { due } = plan(now());
     const device = deps.device();
     if (due.length === 0 || device === null) return;
     const saying = reason;
     const outdated: string[] = [];
+    let unreachable = false;
     for (const circle of due) {
+      if (unreachable) {
+        // The request before this one never reached the relay: this one would not either.
+        fail(circle.id, now());
+        continue;
+      }
       const at = now();
       const payload: StatePayload =
         saying === null
@@ -165,12 +193,14 @@ export function createStateReporter(deps: ReporterDeps) {
           outdated.push(circle.id);
         }
       } catch {
-        // Offline or refused: tried again after RETRY_MS, or at once when the connection returns.
+        // Offline: it did not get there. The next circle is not tried until the wait is over.
+        unreachable = true;
       }
       const sentAt = now();
       if (!accepted) {
-        nextAt.set(circle.id, sentAt + RETRY_MS);
+        fail(circle.id, sentAt);
       } else {
+        failures.delete(circle.id);
         nextAt.set(circle.id, sentAt + STATE_GAP_MS);
         if (saying === null) told.delete(circle.id);
         else told.set(circle.id, { why: saying.why, since: saying.since, at: sentAt });
@@ -245,9 +275,11 @@ export function createStateReporter(deps: ReporterDeps) {
       return reconcile();
     },
 
-    /** Back online: what did not get through goes out now. */
+    /**
+     * The connection returned: what is due goes out now. A wait after a failure is kept (retryDelay):
+     * a connection that comes and goes would otherwise make a request at every return.
+     */
     flush(): Promise<void> {
-      nextAt.clear();
       return reconcile();
     },
 
@@ -265,6 +297,7 @@ export function createStateReporter(deps: ReporterDeps) {
       lastSample = now();
       told.clear();
       nextAt.clear();
+      failures.clear();
       announce();
     },
   };
