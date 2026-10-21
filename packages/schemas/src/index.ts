@@ -216,6 +216,13 @@ export {
   type SafeRequest,
   type StatusPublish,
 } from './locations.js';
+export {
+  LIVE_EVENTS,
+  SERVER_EVENT_TYPES,
+  STREAM_EVENT,
+  type LiveEvent,
+  type ServerEventType,
+} from './event-names.js';
 export { type WeatherSnapshot, weatherEventSchema, weatherSnapshotSchema } from './weather.js';
 export { photoSchema, photoUploadSchema, type Photo } from './photos.js';
 export {
