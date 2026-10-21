@@ -32,7 +32,19 @@ import { as, circleWith, type Person, person, consentToHistory } from './support
 // Somewhere in Istanbul: the test proves these numbers never reach the server in any form.
 const LAT = 41.008_237;
 const LNG = 28.978_359;
-const COORDINATE_TEXTS = ['41.008', '28.978', '41,008', '28,978', '4100824', '2897836'];
+/**
+ * The coordinates as they would appear if they leaked, in any form: not inside another number, nor
+ * a time's seconds ("13:16:41.008…" once failed this test by chance, CI 39606444369). A JSON
+ * value ("lat":41.008) still counts.
+ */
+const COORDINATE_LEAKS: readonly (readonly [string, RegExp])[] = [
+  ['41.008', /(?<!\d)(?<!\d:)41\.008/],
+  ['28.978', /(?<!\d)(?<!\d:)28\.978/],
+  ['41,008', /(?<!\d)(?<!\d:)41,008/],
+  ['28,978', /(?<!\d)(?<!\d:)28,978/],
+  ['4100824', /(?<!\d)(?<!\d:)4100824/],
+  ['2897836', /(?<!\d)(?<!\d:)2897836/],
+];
 
 let test: TestApp;
 let url: string;
@@ -220,10 +232,10 @@ describe('location relay', () => {
     }
     expect(redisDump.join('\n')).toContain(circle.id);
     expect(logs).toContain('/v1/locations');
-    for (const text of COORDINATE_TEXTS) {
-      expect(redisDump.join('\n'), `redis: ${text}`).not.toContain(text);
-      expect(databaseDump.join('\n'), `database: ${text}`).not.toContain(text);
-      expect(logs, `logs: ${text}`).not.toContain(text);
+    for (const [text, leak] of COORDINATE_LEAKS) {
+      expect(redisDump.join('\n'), `redis: ${text}`).not.toMatch(leak);
+      expect(databaseDump.join('\n'), `database: ${text}`).not.toMatch(leak);
+      expect(logs, `logs: ${text}`).not.toMatch(leak);
     }
   });
 
