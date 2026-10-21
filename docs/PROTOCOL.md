@@ -191,7 +191,12 @@ Duraklamış çemberde çalışır, hak denetimi yoktur. Gönderen ve çember ba
 `(gönderen, çember, id)` 24 saat içinde ikinci kez gelirse sunucu `{ "ok": true }` der ve bir şey
 göndermez; yalnızca `pseudonym(EMAIL_LOOKUP_KEY, "safe-id", gönderen:çember:id)` özetini `1` değeriyle
 24 saat saklar. Cevap `{ "ok": true }` ya da `{ "refused": INVALID | NOT_MEMBER | EPOCH | RATE_LIMITED }`.
-Alıcı `id`'yi görüp bir kez gösterir (tekrar penceresi zarfı, `id` mesajı sayar).
+Alıcı `id`'yi görüp bir kez gösterir (tekrar penceresi zarfı, `id` mesajı sayar); aynı mesaj yalnızca
+aynı çemberde, aynı gönderenden ve aynı `id` ile gelen demektir. Sunucu zarfın içini göremediği için
+`/v1/safe`, `/v1/bumps` ve `/v1/place-events` her zarfı iletir; **alıcı türü yola bağlar** (`safe`
+yolundan yalnızca `safe`, `safe` yalnızca `safe` yolundan, konum yalnızca konum yolundan, ADR 0029 §10)
+ve bir gönderenin bir çemberdeki mesajlarından kayan saatte en çok 6'sını gösterir, kalanını tek sessiz
+satıra katlar. Saati 5 dakikadan fazla ileri olan mesaj düşer.
 
 **Saklanan mesaj (yer).** Bir çemberin yeri, son kaydeden üyenin gönderen anahtarıyla şifrelenmiş
 `place` mesajı olarak sunucuda kalır. Üyeler onu yeni mesajlardan çok sonra tekrar açtığı için

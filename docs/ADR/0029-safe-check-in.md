@@ -120,10 +120,16 @@ imzalanmışa `NOT_MEMBER` / `INVALID`. Gövde: `{ id, envelope, pushes? }`.
 - **Hız sınırı:** gönderen ve çember başına saatte 6. Tekrar (aşağıda) sayılmaz.
 - **Teslim:** çevrimiçi üyelere canlı `safe` olayı; çevrimdışı üyelerin yalnızca güncel cihazına, cihaz
   başına bir kez mühürlü bildirim (QA 21 B-2 kuralı, öbür üyelerin bildirimleriyle aynı yol).
-- **24 saatlik tekrar koruması:** sunucunun saklayabildiği tek şey Redis'te `safe:{özet}` = `1`, 24 saat
-  ömürlü. Özet, sunucunun anahtarlı takma adıdır (`pseudonym`, `EMAIL_LOOKUP_KEY`) ve
-  `gönderen:çember:id` değerinden çıkar. İçerik, alıcı listesi, zaman, çember ya da kullanıcı kimliği
-  yok; özetten bunlara geri gidilmez. Aynı `id` aynı gönderenden aynı çembere 24 saat içinde gelirse
+- **Sunucuda bir mesajdan kalanlar (Redis, ikisi de):**
+  1. **24 saatlik tekrar koruması:** `safe:{özet}` = `1`, 24 saat ömürlü. Özet, sunucunun anahtarlı
+     takma adıdır (`pseudonym`, `EMAIL_LOOKUP_KEY`) ve `gönderen:çember:id` değerinden çıkar. Anahtarda
+     içerik, alıcı listesi, zaman, çember ya da kullanıcı kimliği yok; özetten bunlara geri gidilmez.
+  2. **Saatlik hız sayacı:** `rl:safe:<gönderen>:<çember>`, 1 saat ömürlü bir sayı (öbür uçların
+     sayaçlarıyla aynı türden: `rl:bump:…`). Anahtarında gönderenin ve çemberin kimliği düz yazılıdır
+     (sunucu bunu istekten zaten bilir); değeri yalnızca bir sayıdır. İçerik, konum, `id`, metin yok. Bu
+     sayaç bu ADR'nin ilk yazımında anılmamıştı (QA-32).
+
+  Aynı `id` aynı gönderenden aynı çembere 24 saat içinde gelirse
   cevap `{ ok: true }` döner ve **hiçbir şey yeniden gönderilmez**. İki istek aynı anda gelirse
   `SET NX` ikisinden yalnızca birine izin verir. Teslim hata verirse özet silinir, tekrar sormak
   işe yarar. Reddedilen (hız sınırı, üye değil, eski epoch) mesaj hiçbir iz bırakmaz.
@@ -143,23 +149,53 @@ iOS bildirim eklentisi (Swift) `safe` türünü bilmez; bilinmeyen tür "geçers
 içeriksiz yer tutucuyu bırakır. APNs Apple hesabı gelene kadar zaten kapalı; iOS yayınından önce
 eklentiye tür ve ortak test vektörleri eklenir (PM'e raporda takip işi olarak yazıldı).
 
+### 10. Alıcı telefonun kuralları (QA-32)
+
+Sunucu hiçbir mesajın içini göremez ve `/v1/bumps`, `/v1/safe`, `/v1/place-events` ona gelen her zarfı
+iletir; üstelik bunlar duraklamış çember denetimini ve konum ucunun sınırlarını atlar. Sınır bu yüzden
+alıcıdadır:
+
+1. **Tür yola bağlanır (canlı yol).** Telefon, olayın adından mesajın hangi yoldan geldiğini bilir
+   (`safe`, `bump`, `loc`, `place`, `status`, `profile`, `look`) ve çözülen türün o yolun türü olmasını
+   ister (`receive.ts`, `ROUTE_KINDS`). Başka yoldan gelen `safe` (ör. dürtme yolundan, sınırı aşmak
+   için) **hiçbir yerde `safe` sayılmaz**, düşer; `safe` yolundan gelen `safe` olmayan (bir konum, bir
+   dürtme) düşer. Böylece `/v1/safe` ya da `/v1/bumps` ile duraklamış bir çembere canlı konum
+   yollanamaz; çözülüp kayda geçen ama gösterilmeyen mesaj tekrar penceresini ilerletir, başka bir şey
+   yapmaz. Anahtar bekleyen mesaj yolunu da saklar. Bildirimde yol bilinmez (bu, Google ve Apple'ın
+   göreceği bir üst bilgi olurdu), bu yüzden orada yalnızca 2. kural geçerlidir.
+2. **Saatte en çok 6 gösterim.** Bir gönderenin bir çemberdeki mesajlarından kayan saatte ilk 6'sı
+   gösterilir, kalanı **tek bir sessiz satıra** katlanır: açık uygulamada tek bir düz satır (titreşimsiz,
+   yalnızca ilk katlanan için), uygulama kapalıyken yer değiştiren tek bir bildirim, sessiz kanalda
+   (düşük önem: ses ve titreşim yok). Katlanan mesajın yeri tutulmaz. Sayım telefonun gördüklerinin
+   varış saatiyledir (göndericinin saatine bağlı değil) ve canlı yolla bildirim yolu için ortaktır.
+   Bu, sessize almanın yerine geçmez: Güvendeyim hâlâ susturulmaz.
+3. **Tekrar `çember:gönderen:id` ile anılır.** Eskiden yalnızca `id` idi; bir üye bir `id`'yi önce
+   yollayıp gerçek mesajı "tekrar" gösterebilirdi (F-2).
+4. **Gelecek tarihli mesaj en çok 5 dakika ileride kabul edilir** (sunucu haberleriyle aynı pay);
+   ötesi düşer, kimlik de harcanmaz. Bir gün öncesine kadar haberdir.
+
 ## Tehditler
 
-| Tehdit                                                  | Önlem                                                                                                                                                         |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sunucu konumu, adı ya da "iyiyim" metnini görür         | Zarf E2EE; bildirimde konum yok, ad ve metin telefonda yazılır; Redis'te yalnızca özet; entegrasyon testi Redis, veritabanı, kuyruk ve log'u tarar            |
-| Sunucu "Ayşe iyiyim dedi" uydurur                       | Bildirim gönderen cihazın kimliğiyle imzalı, alıcıya bağlı; telefon yalnızca güvendiği cihazı kabul eder (ADR 0016)                                           |
-| Sunucu ya da ağ aynı mesajı tekrar tekrar teslim eder   | Zarfta tekrar penceresi; mesajda `id` ve alıcıda "bir kez göster"; bildirim kutusu ve `id` ayrı ayrı                                                          |
-| Kaba hassasiyetli çemberin ince konum alması            | Hassasiyet çember başına gönderende uygulanır; kuyrukta da ince konum yok; testle kanıtlı                                                                     |
-| Hayalet modda yanlışlıkla konum gitmesi                 | Gönderirken açık onay; onay yoksa kuyruğa girmez; hayalet olduğu gibi kalır                                                                                   |
-| Üyenin Güvendeyim ile sunucuyu ya da öbürlerini boğması | Gönderen ve çember başına saatte 6; yeni `id` ile de aşılamaz; bildirim cihaz başına bir; boyut sınırı                                                        |
-| Üyenin `/v1/safe` ile başka türde mesaj yollaması       | Sunucu türü göremez (dürtmedeki gibi). Alıcı türü çözülen içerikten alır; duraklamış çemberde canlı konum alıcıda gösterilmez; sınır dürtmeden dar (saatte 6) |
-| `id` tahmini ya da başkasının tekrar korumasını bozma   | Özet gönderen ve çemberi de kapsar; yabancı bir `id` başkasının mesajını engelleyemez                                                                         |
+| Tehdit                                                  | Önlem                                                                                                                                                                |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sunucu konumu, adı ya da "iyiyim" metnini görür         | Zarf E2EE; bildirimde konum yok, ad ve metin telefonda yazılır; Redis'te yalnızca özet ve saatlik sayaç; entegrasyon testi Redis, veritabanı, kuyruk ve log'u tarar  |
+| Sunucu "Ayşe iyiyim dedi" uydurur                       | Bildirim gönderen cihazın kimliğiyle imzalı, alıcıya bağlı; telefon yalnızca güvendiği cihazı kabul eder (ADR 0016)                                                  |
+| Sunucu ya da ağ aynı mesajı tekrar tekrar teslim eder   | Zarfta tekrar penceresi; mesajda `id` ve alıcıda "bir kez göster"; bildirim kutusu ve `id` ayrı ayrı                                                                 |
+| Kaba hassasiyetli çemberin ince konum alması            | Hassasiyet çember başına gönderende uygulanır; kuyrukta da ince konum yok; testle kanıtlı                                                                            |
+| Hayalet modda yanlışlıkla konum gitmesi                 | Gönderirken açık onay; onay yoksa kuyruğa girmez; hayalet olduğu gibi kalır                                                                                          |
+| Üyenin Güvendeyim ile sunucuyu ya da öbürlerini boğması | Gönderen ve çember başına saatte 6; yeni `id` ile de aşılamaz; bildirim cihaz başına bir; boyut sınırı                                                               |
+| Üyenin `/v1/safe` ile başka türde mesaj yollaması       | Sunucu türü göremez (dürtmedeki gibi). Alıcı türü yola bağlar (§10): `safe` yolundan gelen bir konum ya da dürtme düşer, duraklamış çemberde canlı konum gösterilmez |
+| `safe`'i dürtme yolundan yollayıp 6/saat sınırını aşma  | Sunucu sınırı yalnız `/v1/safe`'te. Alıcı, `safe` olmayan yoldan gelen `safe`'i düşürür; bildirimde yol bilinmez, orada saatte 6 gösterim sınırı geçerlidir (§10)    |
+| Bir üyenin başkasının `id`'sini önce kullanması         | Alıcının tekrar belleği `çember:gönderen:id`'dir; başka gönderenin aynı `id`'si gerçek mesajı engellemez (§10)                                                       |
+| Saati ileri bir mesaj                                   | En çok 5 dakika ileri kabul edilir, ötesi düşer (§10)                                                                                                                |
+| `id` tahmini ya da başkasının tekrar korumasını bozma   | Özet gönderen ve çemberi de kapsar; yabancı bir `id` başkasının mesajını engelleyemez                                                                                |
 
 ## Sonuçlar
 
 - Sunucu şunu öğrenir: üye X, çember Y'ye, şu dakikada bir `safe` gönderdi (ve hangi cihazlara bildirim
-  gittiği). Konumu, pili, metni, `id`'yi (özet dışında) saklamaz.
+  gittiği). Konumu, pili, metni, `id`'yi (özet dışında) saklamaz. Redis'te mesajdan kalan iki şey var:
+  24 saatlik özet (`safe:…`) ve 1 saatlik hız sayacı (`rl:safe:<gönderen>:<çember>`); ikisinde de içerik
+  yok (§7).
 - Google ve Apple yalnızca bildirimin zamanını ve dolgulu boyutunu görür.
 - **Kabul edilen sınırlar:**
   - Uygulaması kapalı üye metni ve yeri bildirimin kutusundan alır; sunucuda kopya yoktur. Bildirim
