@@ -99,6 +99,23 @@ describe('parseEnv', () => {
       'a signing key that is not 32 bytes',
       { ...base, ENTITLEMENT_SIGNING_KEY: 'short', ENTITLEMENT_SIGNING_KID: 'stg-1' },
     ],
+    // QA-28 B-1: the same for the notice key, and it is a key of its own.
+    ['a notice key without its id', { ...base, NOTICE_SIGNING_KEY: 'q'.repeat(43) }],
+    ['a notice key id without the key', { ...base, NOTICE_SIGNING_KID: 'stg-n1' }],
+    [
+      'a notice key that is not 32 bytes',
+      { ...base, NOTICE_SIGNING_KEY: 'short', NOTICE_SIGNING_KID: 'stg-n1' },
+    ],
+    [
+      'the cosmetic key reused for notices',
+      {
+        ...base,
+        ENTITLEMENT_SIGNING_KEY: 'q'.repeat(43),
+        ENTITLEMENT_SIGNING_KID: 'stg-1',
+        NOTICE_SIGNING_KEY: 'q'.repeat(43),
+        NOTICE_SIGNING_KID: 'stg-n1',
+      },
+    ],
     [
       'production with a localhost account page',
       { ...production, WEB_ORIGIN: 'http://localhost:3000' },
@@ -133,6 +150,21 @@ describe('parseEnv', () => {
     }
     expect(message).toContain('DATABASE_URL');
     expect(message).not.toContain('s3cret-pass');
+  });
+
+  it('reads the notice key apart from the cosmetic key, empty meaning unset (QA-28 B-1)', () => {
+    const env = parseEnv({
+      ...base,
+      ENTITLEMENT_SIGNING_KEY: key('q'),
+      ENTITLEMENT_SIGNING_KID: 'stg-1',
+      NOTICE_SIGNING_KEY: key('r'),
+      NOTICE_SIGNING_KID: 'stg-n1',
+    });
+    expect(env.NOTICE_SIGNING_KEY).toHaveLength(32);
+    expect(env.NOTICE_SIGNING_KID).toBe('stg-n1');
+    const unset = parseEnv({ ...base, NOTICE_SIGNING_KEY: '', NOTICE_SIGNING_KID: '' });
+    expect(unset.NOTICE_SIGNING_KEY).toBeUndefined();
+    expect(unset.NOTICE_SIGNING_KID).toBeUndefined();
   });
 
   it('keeps the background live notice off unless turned on, with limits that can be set (ADR 0028)', () => {

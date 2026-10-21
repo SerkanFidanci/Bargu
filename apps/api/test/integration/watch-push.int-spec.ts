@@ -172,7 +172,8 @@ describe('the silent watch notice (docs/ADR/0028 step 3)', () => {
     // The queued job: the recipient and the circle.
     expect(Object.keys(job).sort()).toEqual(['circleId', 'notice', 'type', 'userId']);
 
-    const sealed = sealedFor(job, targetOf(bora.userId, bora.device), 1_800_000_000_000);
+    // Unsigned here (no notice key): signing is server-notices.int-spec's.
+    const sealed = sealedFor(job, targetOf(bora.userId, bora.device), null, 1_800_000_000_000);
     if (sealed === null) throw new Error('not sealed');
     const opened = openPush({
       recipient: bora.device,
@@ -231,7 +232,7 @@ describe('the silent watch notice (docs/ADR/0028 step 3)', () => {
     const target = await tokens.targetOf(bora.userId);
     expect(target?.deviceId).toBe(next.device.deviceId);
     if (target === null) throw new Error('no target');
-    const sealed = sealedFor(job, target);
+    const sealed = sealedFor(job, target, null);
     if (sealed === null) throw new Error('not sealed');
     expect(
       openPush({ recipient: next.device, sealed, senderIdentityKey: () => null }).body,

@@ -133,6 +133,22 @@ export const envSchema = z
         .regex(/^[a-z0-9-]{1,16}$/)
         .optional(),
     ),
+    /**
+     * Signs the server's own notices (QA-28 B-1, docs/ADR/0016 Ek): an Ed25519 seed of its own,
+     * never the cosmetic key, and its id the apps know it by (EXPO_PUBLIC_NOTICE_KEYS). Without
+     * one, notices go unsigned: apps that check drop them. Both or neither; empty is unset.
+     */
+    NOTICE_SIGNING_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      secretKey.optional(),
+    ),
+    NOTICE_SIGNING_KID: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z
+        .string()
+        .regex(/^[a-z0-9-]{1,16}$/)
+        .optional(),
+    ),
 
     ANDROID_PACKAGE: androidPackage.default('app.bargu'),
     /** Signing certificates of the Android app (assetlinks.json, Play Integrity check). */
@@ -241,6 +257,26 @@ export const envSchema = z
         code: 'custom',
         path: ['ENTITLEMENT_SIGNING_KID'],
         message: 'goes with ENTITLEMENT_SIGNING_KEY: both or neither',
+      });
+    }
+    if ((env.NOTICE_SIGNING_KEY === undefined) !== (env.NOTICE_SIGNING_KID === undefined)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['NOTICE_SIGNING_KID'],
+        message: 'goes with NOTICE_SIGNING_KEY: both or neither',
+      });
+    }
+    // One key, one purpose: a leaked cosmetic key must not also forge the server's notices.
+    const cosmeticKey = env.ENTITLEMENT_SIGNING_KEY;
+    if (
+      env.NOTICE_SIGNING_KEY !== undefined &&
+      cosmeticKey !== undefined &&
+      Buffer.from(env.NOTICE_SIGNING_KEY).equals(Buffer.from(cosmeticKey))
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['NOTICE_SIGNING_KEY'],
+        message: 'must not be the same key as ENTITLEMENT_SIGNING_KEY',
       });
     }
     // A production build without an explicit APP_ENV would silently get development shortcuts.

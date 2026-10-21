@@ -134,6 +134,7 @@ describe('what the worker sends', () => {
     const sealed = sealedFor(
       { type: 'notice', userId: target.userId, notice: 'circleInvite', circleId },
       target,
+      null,
       1_000,
     );
     expect(sealed).not.toBeNull();
@@ -143,12 +144,13 @@ describe('what the worker sends', () => {
     ).toEqual({
       senderDeviceId: null,
       body: { kind: 'notice', notice: 'circleInvite', circleId, ts: 1_000 },
+      serverSignature: null,
     });
   });
 
   it("carries a member's sealed box only to the device it was made for", () => {
     const job = { type: 'sealed', userId: target.userId, sealed: 'AQ-x' } as const;
-    expect(sealedFor({ ...job, deviceId: target.deviceId }, target)).toBe('AQ-x');
-    expect(sealedFor({ ...job, deviceId: randomUuid() }, target)).toBeNull();
+    expect(sealedFor({ ...job, deviceId: target.deviceId }, target, null)).toBe('AQ-x');
+    expect(sealedFor({ ...job, deviceId: randomUuid() }, target, null)).toBeNull();
   });
 });

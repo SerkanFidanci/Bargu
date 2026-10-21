@@ -64,6 +64,10 @@ x-app-env: &app-env
   # Signs cosmetic passes (docs/ADR/0025): staging's own key, generated on the server into .env.
   ENTITLEMENT_SIGNING_KEY: ${ENTITLEMENT_SIGNING_KEY:-}
   ENTITLEMENT_SIGNING_KID: ${ENTITLEMENT_SIGNING_KID:-}
+  # Signs the server's notices (QA-28 B-1, docs/ADR/0016 Ek): a key of its own, generated on the
+  # server into .env by infra/staging/notice-key.sh. Empty: notices go unsigned.
+  NOTICE_SIGNING_KEY: ${NOTICE_SIGNING_KEY:-}
+  NOTICE_SIGNING_KID: ${NOTICE_SIGNING_KID:-}
 
 services:
   migrate:

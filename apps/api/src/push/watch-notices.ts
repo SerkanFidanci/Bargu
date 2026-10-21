@@ -35,7 +35,8 @@ return 1
  * The silent `watch` notice of background live mode (docs/ADR/0028 step 3): when someone looks at
  * a circle on the map, the members whose app is closed are woken once, so their phone can send
  * every second for a little while. The notice names the circle and nothing else (no watcher, no
- * device, no signature): it says no more than the live `watch` event the connected members get.
+ * device; only the server's own signature, QA-28 B-1): it says no more than the live `watch` event
+ * the connected members get.
  *
  * The allowance is per recipient, whoever and however many watch: at most one notice every
  * `WATCH_PUSH_MIN_SECONDS` and `WATCH_PUSH_PER_HOUR` in any hour (a sliding window). It is also
