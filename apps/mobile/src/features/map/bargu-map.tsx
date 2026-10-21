@@ -84,6 +84,9 @@ export function BarguMap({
         else camera.current?.easeTo({ center: at, padding, duration: duration.slow });
       },
       fitTo(bounds, bottom) {
+        // Asked to look somewhere: the first position of this phone no longer pulls the camera
+        // back to it (a tapped "Güvendeyim" opening the app shows its place, ADR 0029).
+        focused.current = true;
         const margin = 48;
         const padding = {
           top: (insets.top ?? 0) + margin,

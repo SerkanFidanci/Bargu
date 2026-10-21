@@ -22,6 +22,7 @@ import { circleSharing, isSharingWith, type SharingSettings } from '../location/
 import type { PushContacts } from '../notifications/push-contacts';
 import { sealPushes } from '../places/presence';
 import type { KeyValueStore } from '../storage/vault';
+import { keepSpot, type SafeSpot } from './safe-spot';
 
 /**
  * "Güvendeyim" on this phone (docs/ADR/0029): one tap tells the circles the user picked that they
@@ -181,10 +182,13 @@ export function rememberSafe(store: KeyValueStore, id: string): boolean {
   return true;
 }
 
-/** What the open app shows of a message that came live, or null (too old, repeated, unknown). */
+/**
+ * What the open app shows of a message that came live, or null (too old, repeated, unknown): the
+ * words, and the place, which is also kept for a day like one from a notification (safe-spot.ts).
+ */
 export interface ReceivedSafe {
   text: string;
-  location: { lat: number; lng: number };
+  spot: SafeSpot;
 }
 
 export function receiveSafe(input: {
@@ -202,10 +206,19 @@ export function receiveSafe(input: {
     ?.members.find((candidate) => candidate.userId === userId && candidate.status === 'active');
   if (member === undefined) return null;
   if (!rememberSafe(store, safe.id)) return null;
-  return {
-    text: safeWords({ name: memberName(member), bat: safe.bat, ts: safe.ts, now }),
-    location: { lat: safe.lat, lng: safe.lng },
+  const name = memberName(member);
+  const spot: SafeSpot = {
+    id: safe.id,
+    circleId,
+    name,
+    lat: safe.lat,
+    lng: safe.lng,
+    acc: safe.acc,
+    bat: safe.bat,
+    ts: safe.ts,
   };
+  keepSpot(store, spot, now);
+  return { text: safeWords({ name, bat: safe.bat, ts: safe.ts, now }), spot };
 }
 
 // ---- Sending -------------------------------------------------------------------------------
@@ -302,11 +315,17 @@ export function createSafeCheckIns(deps: SafeDeps) {
       sender: device,
       payload,
     });
+    // The place goes in the notification too (sealed for each device, signed): a phone whose app is
+    // closed shows it when the notification is tapped, and the server keeps no copy (ADR 0029 §5).
+    // The same coordinates as in the message, so the same precision: this circle's.
     const pushes = sealPushes(deps.recipients(circle.id), device, {
       kind: 'safe',
       circleId: circle.id,
       id: item.id,
       bat: item.bat,
+      lat: item.lat,
+      lng: item.lng,
+      acc: item.acc,
       ts: item.ts,
     });
     return { id: item.id, envelope, pushes };

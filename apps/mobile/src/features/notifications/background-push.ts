@@ -11,6 +11,7 @@ import { ensureSession } from '../live/live-session';
 import { backgroundLive } from '../location/background-live/slot';
 import { loadSharing, seenThere } from '../location/sharing';
 import { rememberSafe, SAFE_FRESH_MS } from '../social/safe';
+import { keepSpot, showSpot } from '../social/safe-spot';
 import { vault } from '../storage/vault';
 import { isMuted, loadMutes } from './mutes';
 import { identityOf, loadContacts } from './push-contacts';
@@ -93,6 +94,10 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
   const { body } = opened;
   // The message itself may have reached the open app first (or the other way round): once.
   if (body.kind === 'safe' && !rememberSafe(store, body.id)) return 'duplicate';
+  // Where they are, if the notification carries it: kept on this phone for a day (the vault is
+  // encrypted), and nowhere else. Tapping the notification, or the line in the open app, shows it.
+  const spot = shown.spot;
+  if (spot !== undefined) keepSpot(store, spot, now);
   if (
     shown.fromUserId !== null &&
     // Never muted: a person's "I'm safe" is not a poke, and a safety message is not to be missed.
@@ -110,14 +115,27 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
     return 'muted';
   }
   if (AppState.currentState === 'active') {
-    toast.info(body.kind === 'place' ? `${shown.title} · ${shown.body}` : shown.body);
+    if (spot !== undefined) {
+      toast.notice(shown.body, 'success', () => {
+        showSpot(spot);
+      });
+    } else {
+      toast.info(body.kind === 'place' ? `${shown.title} · ${shown.body}` : shown.body);
+    }
     return 'inApp';
   }
   await Notifications.scheduleNotificationAsync({
     content: {
       title: shown.title,
       body: shown.body,
-      data: shown.route === undefined ? { circleId: shown.circleId } : { route: shown.route },
+      // The data names the message, never the place: that stays in the vault, not in the
+      // system's notification store.
+      data:
+        shown.route !== undefined
+          ? { route: shown.route }
+          : spot === undefined
+            ? { circleId: shown.circleId }
+            : { circleId: shown.circleId, safe: spot.id },
     },
     trigger: { channelId: shown.channel },
   });

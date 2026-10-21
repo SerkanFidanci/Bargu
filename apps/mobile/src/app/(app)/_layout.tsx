@@ -6,6 +6,7 @@ import { usePushNotifications } from '@/features/notifications/use-push';
 import { usePrivacyGate } from '@/features/account/privacy-gate';
 import { useLookSession } from '@/features/cosmetics/look-wiring';
 import { useAppLock } from '@/features/security/app-lock';
+import { useSafeSpotNavigation } from '@/features/social/use-safe-spot';
 // Guardian links follow their events (docs/ADR/0023 §4).
 import '@/features/guardians/guardians-session';
 // The plan follows its events; the trial reminder follows the plan (docs/ADR/0024).
@@ -21,6 +22,8 @@ export default function AppLayout() {
   const ready = useLiveSession();
   // Right after sign-in: ask for notifications once and register this phone.
   usePushNotifications(ready);
+  // A tapped "Güvendeyim" shows the place on the map: what stands over the map makes way.
+  useSafeSpotNavigation();
   // Then the location: permission, the location service, live mode (Faz 5).
   useLocationSession(ready);
   // The looks on the map pin: the own pass renewed, the look told to circles (docs/ADR/0025).

@@ -216,12 +216,24 @@ describe('Güvendeyim (docs/ADR/0029)', () => {
     expect(safeReplySchema.safeParse({ refused: 'WHATEVER' }).success).toBe(false);
   });
 
-  it('has a notification body with the battery but no location, no name, no text', () => {
+  it('has a notification body with the battery, no name and no text; the place whole or not at all', () => {
     const body = { kind: 'safe', circleId: uuid, id, bat: 45, ts: 1 };
+    // From a phone before the place was in it: the words only.
     expect(pushBodySchema.parse(body)).toEqual(body);
+    // With the place (docs/ADR/0029 §5): where, at that circle's precision, and how sure.
+    const placed = { ...body, lat: 41.0256, lng: 28.9742, acc: 8 };
+    expect(pushBodySchema.parse(placed)).toEqual(placed);
     for (const bad of [
       { ...body, lat: 41 },
       { ...body, lng: 29 },
+      { ...body, acc: 8 },
+      { ...body, lat: 41, lng: 29 },
+      { ...placed, acc: undefined },
+      { ...placed, lat: 90.5 },
+      { ...placed, lng: -181 },
+      { ...placed, acc: -1 },
+      { ...placed, name: 'Ayşe' },
+      { ...placed, spd: 1 },
       { ...body, name: 'Ayşe' },
       { ...body, bat: 120 },
       { ...body, id: 'x' },

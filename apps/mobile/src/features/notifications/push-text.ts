@@ -4,6 +4,7 @@ import i18n from '@/i18n';
 
 import type { SeenThere } from '../location/sharing';
 import { safeWords } from '../social/safe';
+import type { SafeSpot } from '../social/safe-spot';
 
 import { MEETINGS_CHANNEL, PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
 import type { PushContacts } from './push-contacts';
@@ -18,6 +19,11 @@ export interface ShownPush {
   fromUserId: string | null;
   /** Tapping opens this screen instead of the circle (guardian notices name a link). */
   route?: 'guardians';
+  /**
+   * "Güvendeyim" with a place (docs/ADR/0029 §5): the phone keeps it for a day, and tapping the
+   * notification shows it on the map.
+   */
+  spot?: SafeSpot;
 }
 
 const GUARDIAN_NOTICES: ReadonlySet<string> = new Set([
@@ -113,6 +119,21 @@ export function pushText(
       circleId: body.circleId,
       channel: SOCIAL_CHANNEL,
       fromUserId: sender.userId,
+      // From a phone before the place was in the notification, there is only the words.
+      ...(body.lat === undefined || body.lng === undefined || body.acc === undefined
+        ? {}
+        : {
+            spot: {
+              id: body.id,
+              circleId: body.circleId,
+              name: sender.name,
+              lat: body.lat,
+              lng: body.lng,
+              acc: body.acc,
+              bat: body.bat,
+              ts: body.ts,
+            },
+          }),
     };
   }
   if (body.kind === 'late') {

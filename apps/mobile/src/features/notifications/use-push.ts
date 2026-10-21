@@ -6,8 +6,16 @@ import { AppState, Platform } from 'react-native';
 import i18n, { resolveLanguage } from '@/i18n';
 
 import { api } from '../auth/auth-store';
+import { openSpot } from '../social/safe-spot';
+import { isVaultOpen, vault } from '../storage/vault';
 import { registerPushTask } from './background-push';
-import { circleOfResponse, enablePush, type PushState, routeOfResponse } from './push';
+import {
+  circleOfResponse,
+  enablePush,
+  type PushState,
+  routeOfResponse,
+  safeOfResponse,
+} from './push';
 
 /** The server sends this phone its notices in this language, to this token (apps/api push). */
 async function register(token: string): Promise<void> {
@@ -27,6 +35,10 @@ function open(response: Notifications.NotificationResponse): void {
     router.push(route);
     return;
   }
+  // "Güvendeyim" with a place: the map looks at it (a dot or a circle, docs/ADR/0029 §5). A place
+  // a day old is gone from the vault: then the circle opens as for any notification.
+  const safe = safeOfResponse(response);
+  if (safe !== null && isVaultOpen() && openSpot(vault(), safe, Date.now())) return;
   const circleId = circleOfResponse(response);
   if (circleId !== null) router.push({ pathname: '/circle/[id]', params: { id: circleId } });
 }

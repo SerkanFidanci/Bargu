@@ -1,3 +1,4 @@
+import { safeIdSchema } from '@bargu/schemas';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
@@ -116,6 +117,17 @@ export function routeOfResponse(
   if (route === 'guardians') return '/guardians';
   if (route === 'plus') return '/plus';
   return null;
+}
+
+/**
+ * The "Güvendeyim" message a tapped notification is about (docs/ADR/0029 §5): its place is in the
+ * vault, never in the notification, so this is only the message's id.
+ */
+export function safeOfResponse(response: Notifications.NotificationResponse): string | null {
+  const data: unknown = response.notification.request.content.data;
+  if (typeof data !== 'object' || data === null) return null;
+  const parsed = safeIdSchema.safeParse((data as Record<string, unknown>).safe);
+  return parsed.success ? parsed.data : null;
 }
 
 export function circleOfResponse(response: Notifications.NotificationResponse): string | null {

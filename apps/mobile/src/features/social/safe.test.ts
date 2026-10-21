@@ -33,6 +33,7 @@ import {
   safeRows,
   safeWords,
 } from './safe';
+import { spotOf } from './safe-spot';
 
 const NOW = 1_800_000_000_000;
 const MIN = 60_000;
@@ -189,8 +190,31 @@ describe('telling the circles (docs/ADR/0029)', () => {
     });
     expect(opened).toEqual({
       senderDeviceId: w.ayse.device.deviceId,
-      body: { kind: 'safe', circleId: w.home.id, id: toHome.id, bat: 45, ts: NOW },
+      // The place is in it, the same as in the message (this circle's precision), and no name or text.
+      body: {
+        kind: 'safe',
+        circleId: w.home.id,
+        id: toHome.id,
+        bat: 45,
+        lat: GALATA.lat,
+        lng: GALATA.lng,
+        acc: 8,
+        ts: NOW,
+      },
       serverSignature: null,
+    });
+    // The coarse circle's notification has the coarse place only, the same as its message.
+    const clubPush = nth(toClub.pushes ?? []);
+    const clubOpened = openPush({
+      recipient: w.bora.device,
+      sealed: clubPush.sealed,
+      senderIdentityKey: (deviceId) => identityOf(contacts, deviceId),
+    });
+    expect(clubOpened.body).toMatchObject({
+      kind: 'safe',
+      lat: cell.lat,
+      lng: cell.lng,
+      acc: cell.acc,
     });
     // Nothing waits afterwards.
     expect(queued(w.ayse.store)).toEqual([]);
@@ -555,10 +579,19 @@ describe('what the receiving phone writes', () => {
       safe,
       now: NOW + MIN,
     };
-    expect(receiveSafe(input)).toEqual({
-      text: 'Test: İyiyim ✓ · %45',
-      location: { lat: 41, lng: 29 },
-    });
+    const spot = {
+      id: safe.id,
+      circleId: w.home.id,
+      name: 'Test',
+      lat: 41,
+      lng: 29,
+      acc: 8,
+      bat: 45,
+      ts: NOW,
+    };
+    expect(receiveSafe(input)).toEqual({ text: 'Test: İyiyim ✓ · %45', spot });
+    // The place is kept on the phone (a tap on the line shows it) and nowhere else.
+    expect(spotOf(store, safe.id, NOW + MIN)).toEqual(spot);
     // The same message again: the open app and the notification, or a repeat from the server.
     expect(receiveSafe(input)).toBeNull();
     expect(rememberSafe(store, safe.id)).toBe(false);

@@ -43,6 +43,8 @@ import { meetingPoints } from '@/features/plan/meeting-points';
 import { MeetingPointsLayer } from '@/features/plan/meeting-points-layer';
 import { MeSheet } from '@/features/home/sheets';
 import { takeReturn } from '@/features/home/sheet-return';
+import { clearSpot, spotBounds, useSafeSpot } from '@/features/social/safe-spot';
+import { SafeSpotLayer } from '@/features/social/safe-spot-layer';
 import { SafeSheet } from '@/features/social/safe-sheet';
 import { StatusSheet } from '@/features/social/status-sheet';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
@@ -152,6 +154,13 @@ export default function HomeScreen() {
     });
   }, [cell, i18n.language, lookups]);
   const cardOpen = usePersonFocus((state) => state.selected !== null);
+  // A tapped "Güvendeyim" (a notification, or its line): the map looks at where they are, the
+  // circle whole or a street round the dot (docs/ADR/0029 §5). Also when it opened the app.
+  const spotRequest = useSafeSpot((state) => state.request);
+  useEffect(() => {
+    const spot = useSafeSpot.getState().spot;
+    if (spot !== null) map.current?.fitTo(spotBounds(spot), 0);
+  }, [spotRequest]);
   const next = nextMeeting(points, now);
   const nextCircle =
     next === null
@@ -189,6 +198,7 @@ export default function HomeScreen() {
             ref={map}
             onPress={() => {
               people.onMapPress();
+              clearSpot();
               setWake((count) => count + 1);
             }}
             insets={{
@@ -204,6 +214,7 @@ export default function HomeScreen() {
           >
             <PlacesLayer except={meetingPlaces} />
             <MeetingPointsLayer points={points} now={now} />
+            <SafeSpotLayer />
             <PeopleLayer
               me={me.data}
               circles={circleList.data ?? []}

@@ -830,6 +830,7 @@
     "title": "Güvendeyim",
     "intro": "Seçtiğin çemberlere bir kez haber ver: iyisin, neredesin ve pilin ne kadar. Şifreli gider.",
     "coarse": "yaklaşık konum",
+    "spot": "{{name}} iyiyim dedi, buradan",
     "unshared": "konum şu an paylaşılmıyor",
     "send": "İyiyim, gönder",
     "sendCount": "İyiyim, gönder ({{count}})",

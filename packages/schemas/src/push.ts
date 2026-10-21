@@ -52,8 +52,11 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
     })
     .strict(),
   z.object({ kind: z.literal('bump'), circleId: z.uuid(), ts: timestamp }).strict(),
-  // "Güvendeyim" (docs/ADR/0029): the receiving phone writes "Ali: İyiyim ✓ · %45" from it. No
-  // location: that travels only in the encrypted message. `id` is the message's own, so a phone
+  // "Güvendeyim" (docs/ADR/0029): the receiving phone writes "Ali: İyiyim ✓ · %45" from it, and
+  // keeps where they are (at that circle's precision) for a day, so a phone whose app is closed
+  // can show the place when the notification is tapped. The location is in the sealed box only:
+  // Google and Apple see its size and time. Whole or not at all (`lat`, `lng` and `acc` go
+  // together; a push from before the location has none). `id` is the message's own, so a phone
   // that gets both the message and this shows it once. `ts` is when the sender tapped.
   z
     .object({
@@ -61,9 +64,19 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
       circleId: z.uuid(),
       id: safeIdSchema,
       bat: z.number().int().min(0).max(100),
+      lat: z.number().min(-90).max(90).optional(),
+      lng: z.number().min(-180).max(180).optional(),
+      /** Accuracy radius in metres. */
+      acc: z.number().nonnegative().max(1_000_000).optional(),
       ts: timestamp,
     })
-    .strict(),
+    .strict()
+    .refine(
+      (body) =>
+        [body.lat, body.lng, body.acc].every((part) => part === undefined) ||
+        [body.lat, body.lng, body.acc].every((part) => part !== undefined),
+      'a location is lat, lng and acc together',
+    ),
   /** "Ali will be about 10 minutes late" to the event's meeting (docs/ADR/0018). */
   z
     .object({

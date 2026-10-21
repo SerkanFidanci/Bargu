@@ -12,11 +12,11 @@ import { circleSync, keys } from '../live/live-session';
 import { useMyFix } from '../location/engine';
 import { useSharing } from '../location/sharing';
 import { currentFix, lastKnownFix } from '../location/tracker';
-import { openDirections } from '../map/person-actions';
 import { loadContacts } from '../notifications/push-contacts';
 import { queryClient } from '../query-client';
 import { isVaultOpen, vault } from '../storage/vault';
 import { createSafeCheckIns, loadChoice, receiveSafe, type SafeFix } from './safe';
+import { loadSpots, resetSpot, showSpot } from './safe-spot';
 
 /** How many "Güvendeyim" messages wait for a connection (the sheet says so). */
 export const useSafeWaiting = create<{ count: number }>(() => ({ count: 0 }));
@@ -77,10 +77,17 @@ export function rememberedChoice(): string[] | null {
   return isVaultOpen() ? loadChoice(vault()) : null;
 }
 
+/** The app starting: what waits to be sent is counted, and the places a day old are deleted. */
+export function restoreSafe(): void {
+  safeCheckIns.restore();
+  loadSpots(vault(), Date.now());
+}
+
 /**
  * Someone told this circle they are safe, and this phone is open: a line with who, the battery
- * and (when it came late) the time; tapping it opens their place in the phone's maps app, at the
- * precision they chose for this circle. Once per message, however it came.
+ * and (when it came late) the time; tapping it shows their place on Bargu's own map, at the
+ * precision they chose for this circle (a dot, or a circle with its accuracy). Once per message,
+ * however it came.
  */
 export function receivedSafe(circleId: string, userId: string, safe: SafePayload): void {
   const shown = receiveSafe({
@@ -94,10 +101,11 @@ export function receivedSafe(circleId: string, userId: string, safe: SafePayload
   if (shown === null) return;
   feedback('success');
   toast.notice(shown.text, 'success', () => {
-    void openDirections(shown.location).catch(() => undefined);
+    showSpot(shown.spot);
   });
 }
 
 onSignedOut(() => {
   safeCheckIns.reset();
+  resetSpot();
 });

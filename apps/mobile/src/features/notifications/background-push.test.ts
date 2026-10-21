@@ -16,8 +16,18 @@ import { toast } from '@/ui/toast';
 import { backgroundLive } from '../location/background-live/slot';
 import { memoryStore } from '../location/test-support';
 import { rememberSafe, SAFE_FRESH_MS } from '../social/safe';
+import {
+  loadSpots,
+  openSpot,
+  resetSpot,
+  SPOT_KEEP_MS,
+  spotOf,
+  spotShape,
+  useSafeSpot,
+} from '../social/safe-spot';
 import { PUSH_FRESH_MS, showPush, WATCH_FRESH_MS } from './background-push';
 import { saveMutes } from './mutes';
+import { safeOfResponse } from './push';
 import { type PushContacts, saveContacts } from './push-contacts';
 
 const mockDevice = generateDeviceKeys(randomUuid());
@@ -27,12 +37,14 @@ const mockStore = memoryStore();
 jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn(() => Promise.resolve('id')),
   registerTaskAsync: jest.fn(() => Promise.resolve()),
+  // push.ts (which reads what a tapped notification names) sets the foreground handler on load.
+  setNotificationHandler: jest.fn(),
 }));
 jest.mock('expo-task-manager', () => ({
   defineTask: jest.fn(),
   isTaskRegisteredAsync: jest.fn(() => Promise.resolve(true)),
 }));
-jest.mock('@/ui/toast', () => ({ toast: { info: jest.fn() } }));
+jest.mock('@/ui/toast', () => ({ toast: { info: jest.fn(), notice: jest.fn() } }));
 jest.mock('../auth/auth-store', () => ({
   useAuth: { getState: () => ({ device: mockDevice }) },
 }));
@@ -63,6 +75,7 @@ const pushTask = jest.mocked(TaskManager.defineTask).mock.calls[0]?.[1];
 
 const scheduled = Notifications.scheduleNotificationAsync as jest.Mock;
 const toasted = toast.info as jest.Mock;
+const toastNotice = toast.notice as jest.Mock;
 const mockNotice = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
 
 function appIs(state: 'active' | 'background') {
@@ -311,5 +324,103 @@ describe('Güvendeyim from a member (docs/ADR/0029)', () => {
     }
     expect(scheduled).not.toHaveBeenCalled();
     expect(toasted).not.toHaveBeenCalled();
+  });
+
+  describe('with the place in the notification (docs/ADR/0029 §5)', () => {
+    const exact = { lat: 41.025_612_345, lng: 28.974_212_345, acc: 8 };
+    const tapped = (data: unknown) =>
+      ({ notification: { request: { content: { data } } } }) as unknown as Parameters<
+        typeof safeOfResponse
+      >[0];
+    /** What the system shows when the notification is tapped: the data the app scheduled it with. */
+    const dataOf = () => {
+      const call = scheduled.mock.calls[0] as [{ content: { data: unknown } }] | undefined;
+      return call?.[0].content.data;
+    };
+
+    beforeEach(() => {
+      resetSpot();
+    });
+
+    it('keeps the place on the phone, for a day, in the vault and nowhere else', async () => {
+      expect(await showPush(fromAyse(safe(exact)), NOW + 60_000)).toBe('shown');
+      const spot = spotOf(mockStore, messageId, NOW + 60_000);
+      expect(spot).toEqual({
+        id: messageId,
+        circleId,
+        name: 'Ayşe',
+        ...exact,
+        bat: 45,
+        ts: NOW,
+      });
+      // A day after the message was made it is deleted from the vault, not only left unshown.
+      expect(loadSpots(mockStore, NOW + SPOT_KEEP_MS + 1)).toEqual([]);
+      expect(mockStore.keys().filter((key) => key.startsWith('safe:spots'))).toEqual([]);
+    });
+
+    it('names the message in the notification, never the place', async () => {
+      await showPush(fromAyse(safe(exact)), NOW + 60_000);
+      expect(dataOf()).toEqual({ circleId, safe: messageId });
+      // Nothing the system keeps of the notification has a coordinate in it.
+      expect(JSON.stringify(scheduled.mock.calls)).not.toMatch(/41\.02|28\.97/);
+    });
+
+    it('opens the map at that point when tapped: a dot for an exact place', async () => {
+      await showPush(fromAyse(safe(exact)), NOW + 60_000);
+      const id = safeOfResponse(tapped(dataOf()));
+      expect(id).toBe(messageId);
+      expect(openSpot(mockStore, id ?? '', NOW + 2 * 60_000)).toBe(true);
+      const shown = useSafeSpot.getState().spot;
+      expect(shown).toMatchObject(exact);
+      expect(spotShape(shown?.acc ?? 0)).toBe('dot');
+    });
+
+    it('opens the map at that point when tapped: a circle with its accuracy for a coarse place', async () => {
+      const coarse = { lat: 41.0, lng: 29.0, acc: 708 };
+      await showPush(fromAyse(safe({ ...coarse, id: 'AAAAAAAAAAAAAAAAAAAAAQ' })), NOW);
+      const id = safeOfResponse(tapped(dataOf()));
+      expect(openSpot(mockStore, id ?? '', NOW)).toBe(true);
+      const shown = useSafeSpot.getState().spot;
+      expect(shown).toMatchObject(coarse);
+      expect(spotShape(shown?.acc ?? 0)).toBe('circle');
+    });
+
+    it('opens the circle instead when the place is gone (a day old) or the data names no message', async () => {
+      await showPush(fromAyse(safe(exact)), NOW);
+      expect(openSpot(mockStore, messageId, NOW + SPOT_KEEP_MS + 1)).toBe(false);
+      expect(safeOfResponse(tapped({ circleId }))).toBeNull();
+      expect(safeOfResponse(tapped({ circleId, safe: 'not an id' }))).toBeNull();
+      expect(safeOfResponse(tapped(null))).toBeNull();
+      expect(safeOfResponse(tapped('x'))).toBeNull();
+    });
+
+    it('is a line in the open app whose tap shows the place', async () => {
+      appIs('active');
+      expect(await showPush(fromAyse(safe(exact)), NOW + 60_000)).toBe('inApp');
+      expect(toastNotice).toHaveBeenCalledWith(
+        'Ayşe: İyiyim ✓ · %45',
+        'success',
+        expect.any(Function),
+      );
+      const call = toastNotice.mock.calls[0] as [string, string, () => void] | undefined;
+      call?.[2]();
+      expect(useSafeSpot.getState().spot).toMatchObject(exact);
+    });
+
+    it('keeps its place once, whichever of the message and the notification comes first, and still is never muted', async () => {
+      saveMutes(mockStore, {
+        people: { [ayseUserId]: { places: true, pokes: true } },
+        places: {},
+      });
+      expect(await showPush(fromAyse(safe(exact)), NOW)).toBe('shown');
+      expect(await showPush(fromAyse(safe(exact)), NOW)).toBe('duplicate');
+      expect(loadSpots(mockStore, NOW)).toHaveLength(1);
+    });
+
+    it('keeps no place when the notification has none (a phone from before)', async () => {
+      expect(await showPush(fromAyse(safe()), NOW)).toBe('shown');
+      expect(loadSpots(mockStore, NOW)).toEqual([]);
+      expect(dataOf()).toEqual({ circleId });
+    });
   });
 });

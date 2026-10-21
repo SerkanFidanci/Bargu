@@ -830,6 +830,7 @@
     "title": "I'm safe",
     "intro": "Tell the circles you pick, once: you are okay, where you are and your battery. It goes encrypted.",
     "coarse": "approximate location",
+    "spot": "{{name}} said they are safe, from here",
     "unshared": "location not shared right now",
     "send": "I'm safe, send",
     "sendCount": "I'm safe, send ({{count}})",

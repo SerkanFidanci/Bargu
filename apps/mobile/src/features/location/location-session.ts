@@ -70,7 +70,7 @@ import {
 import { queryClient } from '../query-client';
 import { publishProfile, receivedProfile, resetPhotos, restorePhotos } from '../profile/photo';
 import { receivePoke } from '../social/poke';
-import { receivedSafe, safeCheckIns } from '../social/safe-session';
+import { receivedSafe, restoreSafe, safeCheckIns } from '../social/safe-session';
 import {
   pruneStatuses,
   receivedStatus,
@@ -711,7 +711,7 @@ function restoreNow(): void {
     planSharingReminder();
     shareSeenWithExtension(loadSharingSettings());
     watchSharingEnd();
-    safeCheckIns.restore();
+    restoreSafe();
   }
   if (isVaultOpen() && vault().get(SHARING_REVIEW_KEY) === '1') {
     useSharingReview.setState({ pending: true });

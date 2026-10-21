@@ -1,12 +1,19 @@
 import type { Me, WeatherSnapshot } from '@bargu/schemas';
 import { act, render } from '@testing-library/react-native';
-import { Profiler, type ReactNode } from 'react';
+import { Profiler, type ReactNode, type Ref } from 'react';
 
 import HomeScreen from '@/app/(app)/index';
 import '@/i18n';
 import { useMyFix } from '@/features/location/engine';
 import type { Fix } from '@/features/location/send';
 import { GALATA, moved } from '@/features/location/test-support';
+import {
+  type SafeSpot,
+  resetSpot,
+  showSpot,
+  spotBounds,
+  useSafeSpot,
+} from '@/features/social/safe-spot';
 import { useWeather } from '@/features/weather/weather';
 
 /**
@@ -62,6 +69,7 @@ jest.mock('@/features/circles/circles-sheet', () => ({ CirclesSheet: () => null 
 jest.mock('@/features/social/status-sheet', () => ({ StatusSheet: () => null }));
 jest.mock('@/features/social/safe-sheet', () => ({ SafeSheet: () => null }));
 jest.mock('@/features/home/safe-button', () => ({ SafeButton: () => null }));
+jest.mock('@/features/social/safe-spot-layer', () => ({ SafeSpotLayer: () => null }));
 jest.mock('@/features/location/location-banner', () => ({ LocationBanner: () => null }));
 jest.mock('@/features/location/new-phone-card', () => ({ NewPhoneCard: () => null }));
 jest.mock('@/features/location/sharing-reminder-card', () => ({
@@ -90,18 +98,40 @@ jest.mock('@/ui/confetti', () => ({
 }));
 // The map: draws its children, and hands the test what it was given (`mockMap.onSettle` is the
 // map reporting where the camera stopped).
-const mockMap: { onSettle: ((view: { center: [number, number]; zoom: number }) => void) | null } = {
+const mockMap: {
+  onSettle: ((view: { center: [number, number]; zoom: number }) => void) | null;
+  onPress: (() => void) | null;
+} = {
   onSettle: null,
+  onPress: null,
 };
-jest.mock('@/features/map/bargu-map', () => ({
-  BarguMap: (props: {
-    children?: ReactNode;
-    onSettle?: (view: { center: [number, number]; zoom: number }) => void;
-  }) => {
-    mockMap.onSettle = props.onSettle ?? null;
-    return props.children ?? null;
-  },
-}));
+// What the screen asks of the camera (a tapped "Güvendeyim" shows its place).
+const mockFitTo = jest.fn();
+jest.mock('@/features/map/bargu-map', () => {
+  const { useImperativeHandle } = jest.requireActual<typeof import('react')>('react');
+  return {
+    BarguMap: (props: {
+      children?: ReactNode;
+      onSettle?: (view: { center: [number, number]; zoom: number }) => void;
+      onPress?: () => void;
+      ref?: Ref<unknown>;
+    }) => {
+      mockMap.onSettle = props.onSettle ?? null;
+      mockMap.onPress = props.onPress ?? null;
+      useImperativeHandle(
+        props.ref,
+        () => ({
+          fitTo: mockFitTo,
+          focusOn: () => undefined,
+          placeName: () => Promise.resolve(null),
+          townName: () => Promise.resolve(null),
+        }),
+        [],
+      );
+      return props.children ?? null;
+    },
+  };
+});
 
 const mockMe: Me = {
   userId: '0190f7a4-1111-7111-8111-000000000001',
@@ -161,6 +191,9 @@ async function aMinuteOfPositions(from: Fix = GALATA): Promise<void> {
 beforeEach(() => {
   commits = 0;
   mockMap.onSettle = null;
+  mockMap.onPress = null;
+  mockFitTo.mockClear();
+  resetSpot();
   useMyFix.setState({ fix: null, since: null });
   useWeather.setState({ snapshot });
 });
@@ -209,5 +242,51 @@ describe('the home screen and the phone’s own position every second (QA 27 B-2
     const after = commits;
     await aMinuteOfPositions(there);
     expect(commits - after).toBe(0);
+  });
+});
+
+describe('a tapped "Güvendeyim" and the map (docs/ADR/0029 §5)', () => {
+  const spot: SafeSpot = {
+    id: 'AAAAAAAAAAAAAAAAAAAAAA',
+    circleId: '0190f7a4-5b6c-7d8e-9f01-23456789abcd',
+    name: 'Ayşe',
+    lat: 41.0256,
+    lng: 28.9742,
+    acc: 708,
+    bat: 45,
+    ts: Date.now(),
+  };
+
+  it('looks at the place when one is asked for: its circle whole, and again for each ask', async () => {
+    await drawHome();
+    expect(mockFitTo).not.toHaveBeenCalled();
+    await act(() => {
+      showSpot(spot);
+    });
+    expect(mockFitTo).toHaveBeenCalledTimes(1);
+    expect(mockFitTo).toHaveBeenLastCalledWith(spotBounds(spot), 0);
+    await act(() => {
+      showSpot(spot);
+    });
+    expect(mockFitTo).toHaveBeenCalledTimes(2);
+  });
+
+  it('looks at it at once when the tap opened the app (the place was asked for before the map)', async () => {
+    showSpot(spot);
+    await drawHome();
+    expect(mockFitTo).toHaveBeenCalledWith(spotBounds(spot), 0);
+  });
+
+  it('takes the place away with a tap on the map, and does not look at it again for that', async () => {
+    await drawHome();
+    await act(() => {
+      showSpot(spot);
+    });
+    mockFitTo.mockClear();
+    await act(() => {
+      mockMap.onPress?.();
+    });
+    expect(useSafeSpot.getState().spot).toBeNull();
+    expect(mockFitTo).not.toHaveBeenCalled();
   });
 });

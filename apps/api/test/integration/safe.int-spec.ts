@@ -218,7 +218,10 @@ async function queuedFor(userId: string): Promise<{ deviceId: string; sealed: st
   );
 }
 
-/** A notification from `from` for one member's device, sealed as the phone does. */
+/**
+ * A notification from `from` for one member's device, sealed as the phone does: with the place in
+ * it (docs/ADR/0029 §5), which is what the server must never be able to read.
+ */
 function pushFor(from: Person, circle: Circle, to: Person, id: string): DevicePushes {
   const device = circle.members.find((member) => member.userId === to.userId)?.device;
   if (device === undefined || device === null) throw new Error('no device');
@@ -229,7 +232,16 @@ function pushFor(from: Person, circle: Circle, to: Person, id: string): DevicePu
       sealed: sealPush({
         recipient: verifyDeviceKeyBundle(device.bundle),
         sender: from.device,
-        body: { kind: 'safe', circleId: circle.id, id, bat: 45, ts: Date.now() },
+        body: {
+          kind: 'safe',
+          circleId: circle.id,
+          id,
+          bat: 45,
+          lat: LAT,
+          lng: LNG,
+          acc: 9,
+          ts: Date.now(),
+        },
       }),
     },
   ];
@@ -571,6 +583,9 @@ describe('Güvendeyim (docs/ADR/0029)', () => {
       circleId: circle.id,
       id: message.id,
       bat: 45,
+      lat: LAT,
+      lng: LNG,
+      acc: 9,
     });
     // And Can's phone cannot open Bora's box.
     expect(() =>
@@ -580,6 +595,44 @@ describe('Güvendeyim (docs/ADR/0029)', () => {
         senderIdentityKey: trusted,
       }),
     ).toThrow();
+  });
+
+  it('carries the place to a closed app inside the sealed notification, and leaves it plain nowhere', async () => {
+    const [ayse, bora] = await Promise.all([person(test), person(test)]);
+    const circle = await circleWith(test, ayse, bora);
+    const message = phone(ayse, circle).safe();
+    const pushes = pushFor(ayse, circle, bora, message.id);
+
+    // Bora has no connection: the notification is all he gets, and the place is in it.
+    expect((await sendSafe(ayse, { ...message, pushes })).json()).toEqual({ ok: true });
+    const [box] = await queuedFor(bora.userId);
+    expect(box?.sealed).toBe(pushes[0]?.sealed);
+    const opened = openPush({
+      recipient: bora.device,
+      sealed: box?.sealed ?? '',
+      senderIdentityKey: (deviceId) =>
+        deviceId === ayse.device.deviceId ? ayse.device.identity.publicKey : null,
+    });
+    expect(opened.body).toMatchObject({ kind: 'safe', lat: LAT, lng: LNG, acc: 9 });
+
+    // The same coordinates are in no readable form anywhere the server keeps anything: Redis, every
+    // table of the database, the job queue (which holds only the box), and the logs at their most
+    // verbose, in the forms relay.int-spec looks for.
+    const everything = await dumpEverything(test);
+    const { rows } = await test.admin.query<{ dump: string }>(
+      `SELECT data::text AS dump FROM pgboss.job WHERE name = 'push.send'`,
+    );
+    const queue = rows.map((row) => row.dump).join('\n');
+    expect(queue).toContain(box?.sealed ?? 'no box');
+    for (const [text, leak] of COORDINATE_LEAKS) {
+      expect(everything, `everything: ${text}`).not.toMatch(leak);
+      expect(queue, `queue: ${text}`).not.toMatch(leak);
+      expect(logs, `logs: ${text}`).not.toMatch(leak);
+    }
+    // Nor the box in the logs at all: a request's body is never written.
+    expect(logs).not.toContain(box?.sealed ?? 'no box');
+    // The words are Bora's phone's to write: nothing of them is in the box or the queue.
+    for (const words of WORDS) expect(queue).not.toMatch(words);
   });
 
   it('lets a message go when it could not be delivered, so asking again still works', async () => {
