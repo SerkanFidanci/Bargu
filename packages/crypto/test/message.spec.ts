@@ -80,6 +80,10 @@ describe('encryptMessage / decryptMessage', () => {
       { kind: 'place_exit', placeId: ids.place, ts: 3 },
       { kind: 'share_stop', ts: 4 },
       { kind: 'status', emoji: '🚲', text: 'Yoldayım', expiresAt: 9, ts: 5 },
+      { kind: 'state', why: 'saver', since: 6, ts: 7 },
+      { kind: 'state', why: 'permission', since: 6, ts: 8 },
+      { kind: 'state', why: 'nofix', since: 6, ts: 9 },
+      { kind: 'state', why: 'none', since: 10, ts: 10 },
     ] satisfies Payload[]) {
       const { envelope, nextState } = encryptMessage({ state, sender: alice, payload });
       expect(envelope.seq).toBe(state.nextSeq);
@@ -170,6 +174,9 @@ describe('encryptMessage / decryptMessage', () => {
         bat: 100,
         ts: maxTs,
       },
+      // A reason, not a position ("Neden eski?", docs/ADR/0028): the longest reason and times.
+      { kind: 'state', why: 'permission', since: maxTs, ts: maxTs },
+      { kind: 'state', why: 'none', since: 0, ts: 0 },
       // The largest look (docs/ADR/0025): every id at its longest, as many packs as a pass names.
       {
         kind: 'look',
@@ -436,5 +443,15 @@ describe('a newer phone (forward compatibility, ADR 0024 §10)', () => {
 
   it('refuses a kind this version does not know (the receiver ignores it)', () => {
     expect(codeOf(() => decrypt(forge({ kind: 'look', ts: 1 })))).toBe('MALFORMED');
+  });
+
+  it('reads a state, dropping a field this version does not know, and refuses a position in it', () => {
+    const state = { kind: 'state', why: 'saver', since: 1, ts: 2 };
+    expect(decrypt(forge({ ...state, flight: true }))).toEqual(state);
+    // A position put into a state by a modified app does not come out the other side.
+    const read = decrypt(forge({ ...state, lat: 41.0082, lng: 28.9784, acc: 5 }));
+    expect(JSON.stringify(read)).not.toMatch(/lat|lng|acc/);
+    // "offline" is never a reason a phone says about itself.
+    expect(codeOf(() => decrypt(forge({ ...state, why: 'offline' })))).toBe('MALFORMED');
   });
 });

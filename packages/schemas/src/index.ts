@@ -17,9 +17,11 @@ export {
   arrivedPayloadSchema,
   safeIdSchema,
   safePayloadSchema,
+  statePayloadSchema,
   MAX_POLL_OPTIONS,
   PLACE_NAME_MAX,
   PLACE_RADIUS_M,
+  STATE_WHY,
   type LocPayload,
   type DocPayload,
   type Payload,
@@ -27,6 +29,8 @@ export {
   type PlanPayload,
   type PollPayload,
   type SafePayload,
+  type StatePayload,
+  type StateWhy,
   type VotePayload,
 } from './payload.js';
 export {

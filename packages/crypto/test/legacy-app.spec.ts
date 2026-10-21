@@ -1,15 +1,25 @@
-import { PUSH_NOTICES, pushBodySchema, type PushBody } from '@bargu/schemas';
+import {
+  type Payload,
+  PUSH_NOTICES,
+  pushBodySchema,
+  type PushBody,
+  STATE_WHY,
+} from '@bargu/schemas';
 import { describe, expect, it } from 'vitest';
 
 import { BarguCryptoError } from '../src/errors.js';
+import { createSenderState, decryptMessage, encryptMessage } from '../src/message.js';
 import { randomBytes } from '../src/primitives.js';
 import { openPush, sealPush } from '../src/push.js';
+import { ReplayGuard } from '../src/replay.js';
+import { generateSenderKey } from '../src/sender-key.js';
+import { decryptMessageAt82e9bf5 } from './legacy/message-82e9bf5.js';
 import {
   type BodySchema,
   openPush as openPushAt028ab2e,
   openPushWith,
 } from './legacy/push-028ab2e.js';
-import { ids, testDevice } from './helpers.js';
+import { ids, locationPayload, publicKeysOf, testDevice } from './helpers.js';
 
 // QA-28 B-1, the rollout: the server signs its notices as soon as it has a notice key, while apps
 // built before (028ab2e and older) are still installed. What does such an app do with one?
@@ -109,5 +119,72 @@ describe('an app from before Güvendeyim', () => {
     const stranger = testDevice(ids.carolDevice, 5);
     const forged = sealPush({ recipient: toBob, sender: stranger, body: safe });
     expect(() => old(forged)).toThrow(BarguCryptoError);
+  });
+});
+
+// "Neden eski?" (docs/ADR/0028): a phone tells why its location is old in a new message kind,
+// `state`. Apps built before it (82e9bf5 and older) are still installed. What do they do with one?
+describe('an app from before the state message (82e9bf5)', () => {
+  const senderKey = generateSenderKey({
+    circleId: ids.circle,
+    epoch: 2,
+    senderDeviceId: ids.aliceDevice,
+  });
+  const aliceKeys = publicKeysOf(alice);
+  const seal = (payload: Payload) =>
+    encryptMessage({ state: createSenderState(senderKey), sender: alice, payload }).envelope;
+
+  /** What the old app's opening code throws, or 'opened'. */
+  function oldOutcome(envelope: unknown, replay = new ReplayGuard()): string {
+    try {
+      decryptMessageAt82e9bf5({ envelope, senderKey, sender: aliceKeys, replay });
+      return 'opened';
+    } catch (error) {
+      // Anything but a BarguCryptoError would be a crash risk worth knowing about.
+      return error instanceof BarguCryptoError ? error.code : 'UNEXPECTED';
+    }
+  }
+
+  it.each(STATE_WHY)(
+    'drops a %s state silently: its own MALFORMED error, which its receiver already catches',
+    (why) => {
+      const state: Payload = { kind: 'state', why, since: NOW - 60_000, ts: NOW };
+      const envelope = seal(state);
+      // The old schema has no such kind. Its receiver (apps/mobile location/receive.ts) turns every
+      // BarguCryptoError into 'ignored': nothing shown, nothing done, nothing logged.
+      expect(oldOutcome(envelope)).toBe('MALFORMED');
+      // The new code opens the very same message.
+      const opened = decryptMessage({
+        envelope,
+        senderKey,
+        sender: aliceKeys,
+        replay: new ReplayGuard(),
+      });
+      expect(opened).toEqual(state);
+    },
+  );
+
+  it('does not let a dropped state spoil what comes after it', () => {
+    const replay = new ReplayGuard();
+    const state = seal({ kind: 'state', why: 'saver', since: NOW - 1_000, ts: NOW });
+    expect(oldOutcome(state, replay)).toBe('MALFORMED');
+    // Its window did not move for the message it could not read; the location after it opens.
+    const next = encryptMessage({
+      state: { senderKey, nextSeq: 1 },
+      sender: alice,
+      payload: locationPayload,
+    }).envelope;
+    expect(oldOutcome(next, replay)).toBe('opened');
+  });
+
+  it('keeps opening what it opened before', () => {
+    for (const payload of [
+      locationPayload,
+      { kind: 'bump', ts: NOW },
+      { kind: 'share_stop', ts: NOW },
+      { kind: 'arrived', meetAt: NOW, ts: NOW },
+    ] satisfies Payload[]) {
+      expect(oldOutcome(seal(payload))).toBe('opened');
+    }
   });
 });

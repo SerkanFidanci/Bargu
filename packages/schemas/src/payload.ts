@@ -45,6 +45,31 @@ export const locPayloadSchema = z
  */
 export const safeIdSchema = z.string().regex(/^[A-Za-z0-9_-]{21}[AQgw]$/);
 
+/**
+ * Why a phone's last location is old (docs/ADR/0028 "Neden eski?"): `saver` the phone is in battery
+ * saver and reports rarely, `permission` the location permission is off or was taken back, `nofix`
+ * no position can be had (location services off, nothing coming in). `none`: it no longer applies.
+ * "Offline" is never here: the receiver infers it from silence, so a phone that cannot send says
+ * nothing about itself.
+ */
+export const STATE_WHY = ['saver', 'permission', 'nofix', 'none'] as const;
+export type StateWhy = (typeof STATE_WHY)[number];
+
+/**
+ * A reason, not a position (docs/ADR/0028 "Neden eski?"): a separate kind and not a field of `loc`,
+ * which is read strictly (an older app would refuse every location that carried it). Carries no
+ * coordinates, accuracy, speed or battery; padded like every message. `since`: when this reason
+ * began (or, for `none`, when it ended). Read leniently like `look`, so a field a newer phone adds
+ * does not make older ones refuse it; an older app that does not know the kind drops it whole.
+ */
+export const statePayloadSchema = z.object({
+  kind: z.literal('state'),
+  why: z.enum(STATE_WHY),
+  since: timestamp,
+  ts: timestamp,
+});
+export type StatePayload = z.infer<typeof statePayloadSchema>;
+
 export const bumpPayloadSchema = z.object({ kind: z.literal('bump'), ts: timestamp }).strict();
 
 export const placeEnterPayloadSchema = z
@@ -282,6 +307,7 @@ export const payloadSchema = z.discriminatedUnion('kind', [
   lookPayloadSchema,
   arrivedPayloadSchema,
   safePayloadSchema,
+  statePayloadSchema,
 ]);
 
 /**

@@ -48,6 +48,34 @@ describe('payloadSchema', () => {
   });
 });
 
+describe('state payload (docs/ADR/0028, "Neden eski?")', () => {
+  const state = { kind: 'state', why: 'saver', since: 1_791_880_000_000, ts: 1_791_880_300_000 };
+
+  it.each(['saver', 'permission', 'nofix', 'none'])('accepts the reason %s', (why) => {
+    expect(payloadSchema.parse({ ...state, why })).toEqual({ ...state, why });
+  });
+
+  it.each([
+    [
+      '"offline" as a reason (the receiver infers it, nobody sends it)',
+      { ...state, why: 'offline' },
+    ],
+    ['an unknown reason', { ...state, why: 'airplane' }],
+    ['no reason', { kind: 'state', since: 1, ts: 1 }],
+    ['no start', { kind: 'state', why: 'saver', ts: 1 }],
+    ['a negative start', { ...state, since: -1 }],
+    ['a fractional time', { ...state, ts: 1.5 }],
+  ])('rejects %s', (_, payload) => {
+    expect(payloadSchema.safeParse(payload).success).toBe(false);
+  });
+
+  it('is read leniently: a field a newer phone adds is dropped, and a position never survives', () => {
+    const read = payloadSchema.parse({ ...state, lat: 41.0082, lng: 28.9784, acc: 5, extra: true });
+    expect(read).toEqual(state);
+    expect(Object.keys(read).sort()).toEqual(['kind', 'since', 'ts', 'why']);
+  });
+});
+
 describe('wire schemas', () => {
   const envelope = {
     v: 1,
