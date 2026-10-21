@@ -6,22 +6,32 @@
 #   ssh bargu-server 'sh -s -- --dry-run' < infra/staging/apply-pending.sh
 #   ssh bargu-server 'sh -s' < infra/staging/apply-pending.sh
 #
+# Options (after `sh -s --`):
+#   --dry-run          only list what would happen
+#   --check-notice-key (run from the repo, as a file) is the copy of notice-key.sh in here still
+#                      the same as infra/staging/notice-key.sh?
+#
 # What it does (each step is announced in Turkish first, and says "zaten yapılmış" when there is
 # nothing left to do; running it twice changes nothing the second time):
 #   0. warns first (the very first line): the phones must have the new APK before this runs
 #   1. timestamped backup of .env and compose.yml (only when one of them is about to change)
 #   2. .env: MIN_CLIENT_LEVEL=4 (slice 3c raised the app's CLIENT_LEVEL to 4)
 #   3. compose.yml: the three WATCH_PUSH lines after BILLING_TEST (as in infra/staging/compose.yml)
-#   4. owner and modes: deploy:deploy, .env 0600, compose.yml 0640
-#   5. world.pmtiles: the low-detail world map (Protomaps build, zoom 0-6) next to turkey.pmtiles
-#   6. nginx: no long cache for 404s under /map/ (a phone that asks before world.pmtiles exists
+#   4. the server's notice signing key (infra/staging/notice-key.sh, embedded below because the
+#      owner runs ONE script): key in .env, its two lines in compose.yml, the public half in
+#      /opt/bargu/staging/notice-public-key.txt; the private key is never printed
+#   5. owner and modes: deploy:deploy, .env 0600, compose.yml 0640
+#   6. world.pmtiles: the low-detail world map (Protomaps build, zoom 0-6) next to turkey.pmtiles
+#   7. nginx: no long cache for 404s under /map/ (a phone that asks before world.pmtiles exists
 #      must not be told to keep the 404 for a day), and one Cache-Control line on every answer
 #      (a 416 got two): two small edits in the installed Bargu site file (or, if the first
 #      version of this fix is in it, its map block replaced), nginx -t on the WHOLE configuration,
 #      then a reload (never a restart: this nginx also serves other sites)
-#   7. docker compose up -d --wait worker api (only when they do not run the new settings yet)
-#   8. final check: MIN_CLIENT_LEVEL and WATCH_PUSH* inside the api container, /health/live, the
-#      world.pmtiles size, and the Cache-Control of a 404 and of a 416 under /map/
+#   8. docker compose up -d --wait worker api (only when they do not run the new settings yet,
+#      the new signing key included)
+#   9. final check: MIN_CLIENT_LEVEL, WATCH_PUSH* and the key id inside the api container,
+#      /health/live, the world.pmtiles size, the public key line and whether a service log shows
+#      it, and the Cache-Control of a 404 and of a 416 under /map/
 #
 # Rules it keeps:
 #   - It writes only under /opt/bargu/staging and /srv/bargu-map, plus one exact file, the installed
@@ -30,7 +40,11 @@
 #     with a Turkish message) any other path after resolving ".." and symlinks. Nothing of the
 #     other project on the server (rastamen), and no other nginx file, is touched.
 #   - It never prints secrets: .env is only edited, never shown; the container check shows nothing
-#     but MIN_CLIENT_LEVEL and WATCH_PUSH* lines.
+#     but MIN_CLIENT_LEVEL, WATCH_PUSH* and NOTICE_SIGNING_KID (a key id, not a secret) lines; of
+#     the notice key only its public half is ever shown.
+#   - The notice key step runs notice-key.sh as a child, whose writes do not go through guard().
+#     So the script first refuses (before calling it) when any path it writes is a symlink, and
+#     it keeps only the child's own "notice-key: ..." lines.
 #   - --dry-run changes nothing: no backup, no write, no download, no restart.
 #   - If the new files do not pass `docker compose config`, or the services do not come up, the
 #     backups are put back; so is the nginx site file if `nginx -t` fails (no reload then).
@@ -59,19 +73,25 @@ NGINX_SITE_LINK=/etc/nginx/sites-enabled/bargu-staging
 NGINX_NEW="$STACK_DIR/bargu-staging.nginx.new"
 NGINX_BAK="$STACK_DIR/bargu-staging.nginx.bak"
 
+# The key notice-key.sh makes (its public half, for the app build, is written next to .env).
+NOTICE_PUBLIC="$STACK_DIR/notice-public-key.txt"
+
 WANT_LEVEL=4
-WARNING_LINE="Önce bütün telefonlara yeni APK'yı (seviye $WANT_LEVEL) kur; bu betik eski sürümleri kapatır."
 WORLD_MAXZOOM=6
 WORLD_FRESH_MINUTES=10080 # 7 days
 OWNER=deploy:deploy
 
 DRY_RUN=false
+CHECK_EMBED=false
 STARTED=false
 BACKUP_STAMP=""
 NEED_ENV=false
 NEED_COMPOSE=false
+NEED_NOTICE=false
 MAP_FAILED=false
 NGINX_FAILED=false
+NOTICE_FAILED=false
+NOTICE_CHANGED=false
 CHECK_FAILED=false
 ALLOW_SITE=false
 
@@ -197,10 +217,11 @@ compose() {
   (cd "$STACK_DIR" && docker compose --env-file .env --env-file image.env "$@" </dev/null)
 }
 
-# The lines of a container's environment we may show; every other line is dropped here.
+# The lines of a container's environment we may show; every other line is dropped here. The key id
+# of the notice key (NOTICE_SIGNING_KID) is no secret; the key itself (..._KEY) is never matched.
 show_env() { # container-id
   docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$1" </dev/null |
-    grep -E '^(MIN_CLIENT_LEVEL|WATCH_PUSH[A-Z_]*)=' || true
+    grep -E '^(MIN_CLIENT_LEVEL|WATCH_PUSH[A-Z_]*|NOTICE_SIGNING_KID)=' || true
 }
 
 size_text() { # file
@@ -263,13 +284,32 @@ world_is_fresh() {
   [ -f "$WORLD_FILE" ] && [ -n "$(find "$WORLD_FILE" -mmin "-$WORLD_FRESH_MINUTES" 2>/dev/null)" ]
 }
 
-# Does this service already run with the new settings?
+# The notice key as .env, compose.yml and the public file have it. Only presence is tested here;
+# the value of NOTICE_SIGNING_KEY is never read into the script.
+notice_has_key() {
+  grep -q '^NOTICE_SIGNING_KEY=.' "$ENV_FILE" && grep -q '^NOTICE_SIGNING_KID=.' "$ENV_FILE"
+}
+notice_compose_ok() {
+  grep -q '^  NOTICE_SIGNING_KEY:' "$COMPOSE_FILE"
+}
+notice_public_ok() { # the public file is there and is `kid:43 base64url characters`
+  [ -s "$NOTICE_PUBLIC" ] && head -n 1 "$NOTICE_PUBLIC" | grep -Eq '^[A-Za-z0-9._-]{1,40}:[A-Za-z0-9_-]{43}$'
+}
+notice_kid() { # the key id (public)
+  sed -n 's/^NOTICE_SIGNING_KID=//p' "$ENV_FILE" | tail -n 1
+}
+
+# Does this service already run with the new settings (the notice key included, once there is one)?
 runtime_ok() { # service
   cid=$(compose ps -q "$1" 2>/dev/null || true)
   [ -n "$cid" ] || return 1
   lines=$(show_env "$cid")
   printf '%s\n' "$lines" | grep -qxF "MIN_CLIENT_LEVEL=$WANT_LEVEL" || return 1
   printf '%s\n' "$lines" | grep -q '^WATCH_PUSH=' || return 1
+  if notice_has_key; then
+    want_kid=$(notice_kid)
+    printf '%s\n' "$lines" | grep -qxF "NOTICE_SIGNING_KID=$want_kid" || return 1
+  fi
 }
 
 # ---- cleaning up ------------------------------------------------------------------------------
@@ -278,7 +318,7 @@ cleanup() {
   code=$?
   trap - EXIT
   if $STARTED && ! $DRY_RUN; then
-    for leftover in "$ENV_FILE.new.$$" "$COMPOSE_FILE.new.$$" "$NGINX_NEW.$$" "$WORLD_PART"; do
+    for leftover in "$ENV_FILE.new.$$" "$COMPOSE_FILE.new.$$" "$NGINX_NEW.$$" "$NOTICE_PUBLIC.tmp" "$WORLD_PART"; do
       if [ -e "$leftover" ]; then safe_rm "$leftover"; fi
     done
   fi
@@ -291,6 +331,8 @@ undo_and_die() { # message
     safe_cp "$ENV_FILE.bak-$BACKUP_STAMP" "$ENV_FILE"
     safe_cp "$COMPOSE_FILE.bak-$BACKUP_STAMP" "$COMPOSE_FILE"
     say "    Yedekler geri yüklendi (.bak-$BACKUP_STAMP)."
+    # The key that was put back out of .env must not stay announced in the public file.
+    if $NOTICE_CHANGED && ! notice_has_key; then safe_rm "$NOTICE_PUBLIC"; fi
   fi
   die "$1"
 }
@@ -313,6 +355,7 @@ preflight() {
   done
 
   if env_is_done; then NEED_ENV=false; else NEED_ENV=true; fi
+  if notice_has_key && notice_compose_ok && notice_public_ok; then NEED_NOTICE=false; else NEED_NOTICE=true; fi
   if compose_is_done; then
     NEED_COMPOSE=false
   else
@@ -327,8 +370,8 @@ preflight() {
 }
 
 step_backup() {
-  step "1/8" "Yedek: .env ve compose.yml, değişmeden önce tarih damgalı kopya"
-  if ! $NEED_ENV && ! $NEED_COMPOSE; then
+  step "1/9" "Yedek: .env ve compose.yml, değişmeden önce tarih damgalı kopya"
+  if ! $NEED_ENV && ! $NEED_COMPOSE && ! $NEED_NOTICE; then
     note "zaten yapılmış: değiştirilecek bir şey yok, yeni yedek alınmadı"
     return 0
   fi
@@ -347,7 +390,7 @@ step_backup() {
 }
 
 step_env() {
-  step "2/8" ".env: MIN_CLIENT_LEVEL=$WANT_LEVEL (daha eski uygulama sürümleri güncelleme ister)"
+  step "2/9" ".env: MIN_CLIENT_LEVEL=$WANT_LEVEL (daha eski uygulama sürümleri güncelleme ister)"
   if ! $NEED_ENV; then
     note "zaten yapılmış: MIN_CLIENT_LEVEL=$WANT_LEVEL"
     return 0
@@ -372,7 +415,7 @@ step_env() {
 }
 
 step_compose() {
-  step "3/8" "compose.yml: WATCH_PUSH üç satırı (arka plan canlı modu), BILLING_TEST satırından sonra"
+  step "3/9" "compose.yml: WATCH_PUSH üç satırı (arka plan canlı modu), BILLING_TEST satırından sonra"
   if ! $NEED_COMPOSE; then
     note "zaten yapılmış: WATCH_PUSH satırları compose.yml içinde var"
     return 0
@@ -412,8 +455,241 @@ step_validate() {
   fi
 }
 
+# infra/staging/notice-key.sh, byte for byte. It is here because the owner runs ONE script, which
+# cannot fetch a second file; `sh apply-pending.sh --check-notice-key` (run from the repo) says
+# whether this copy still equals the file. It is run as a child of its own (see run_notice_key).
+notice_key_script() {
+  cat <<'NOTICE_KEY_SCRIPT_END'
+#!/bin/sh
+# Staging's server notice signing key (QA-28 B-1, docs/ADR/0016 Ek), made ON the server, once.
+# Run as root by apply-pending.sh; safe to run again (a key that is there is kept as it is).
+#
+#   sh notice-key.sh             adds NOTICE_SIGNING_KEY and NOTICE_SIGNING_KID=stg-n1 to .env when
+#                                the key is missing, and writes the public key for the app build
+#   sh notice-key.sh --dry-run   says what it would do and writes nothing
+#
+# The 32-byte seed comes from openssl's random generator. It lives only in this shell's memory and
+# in .env (0600, deploy:deploy, after a backup), and is never printed, logged or put on a command
+# line (printf is a shell builtin). Only the public half leaves, as `stg-n1:<base64url>`, in
+# notice-public-key.txt (0644) for EXPO_PUBLIC_NOTICE_KEYS in apps/mobile/eas.json. Writes only
+# under /opt/bargu/staging. The API and the worker read the key on their next start (restarting
+# them is the caller's); the worker's start log then shows the same public key line.
+set -eu
+umask 077
+
+STACK_DIR=/opt/bargu/staging
+ENV_FILE="$STACK_DIR/.env"
+COMPOSE_FILE="$STACK_DIR/compose.yml"
+PUBLIC_FILE="$STACK_DIR/notice-public-key.txt"
+KID=stg-n1
+# DER of an Ed25519 public key (RFC 8410, SubjectPublicKeyInfo) before its 32 bytes.
+PUBLIC_PREFIX=302a300506032b6570032100
+
+say() { printf 'notice-key: %s\n' "$*"; }
+fail() {
+  printf 'notice-key: %s\n' "$*" >&2
+  exit 1
+}
+
+dry_run=0
+case "${1:-}" in
+  --dry-run) dry_run=1 ;;
+  '') ;;
+  *)
+    echo "kullanım: notice-key.sh [--dry-run]" >&2
+    exit 64
+    ;;
+esac
+
+[ -f "$ENV_FILE" ] || fail "$ENV_FILE yok"
+command -v openssl >/dev/null 2>&1 || fail "openssl yok"
+
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+is_key() { printf '%s' "$1" | grep -Eq '^[A-Za-z0-9_-]{43}$'; }
+
+# The seed (base64url, from memory) as an Ed25519 private key in PKCS#8 DER (RFC 8410): a fixed
+# 16-byte prefix (octal escapes: POSIX printf has no \x), then the 32 bytes.
+seed_der() {
+  printf '\060\056\002\001\000\060\005\006\003\053\145\160\004\042\004\040'
+  printf '%s=' "$1" | tr '_-' '/+' | openssl base64 -d -A
+}
+
+# The public key of a seed, base64url; fails unless openssl gives a 44-byte Ed25519 SPKI.
+public_of() {
+  spki=$(seed_der "$1" | openssl pkey -inform DER -pubout -outform DER | od -An -v -tx1 | tr -d ' \n')
+  [ "${#spki}" -eq 88 ] || return 1
+  case "$spki" in
+    "$PUBLIC_PREFIX"*) ;;
+    *) return 1 ;;
+  esac
+  seed_der "$1" | openssl pkey -inform DER -pubout -outform DER | tail -c 32 | b64url
+}
+
+existing=$(sed -n 's/^NOTICE_SIGNING_KEY=//p' "$ENV_FILE" | tail -n 1)
+existing_kid=$(sed -n 's/^NOTICE_SIGNING_KID=//p' "$ENV_FILE" | tail -n 1)
+
+if [ -n "$existing" ]; then
+  is_key "$existing" || fail ".env'deki NOTICE_SIGNING_KEY 32 baytlık base64url değil; elle bak"
+  [ -n "$existing_kid" ] || fail ".env'de NOTICE_SIGNING_KEY var ama NOTICE_SIGNING_KID yok; elle bak"
+  seed=$existing
+  kid=$existing_kid
+  say "NOTICE_SIGNING_KEY zaten var ($kid): değiştirilmedi"
+elif [ "$dry_run" -eq 1 ]; then
+  say "NOTICE_SIGNING_KEY yok: üretilecek; .env yedeklenip NOTICE_SIGNING_KEY ve NOTICE_SIGNING_KID=$KID eklenecek (0600, deploy:deploy)"
+  seed=''
+  kid=$KID
+else
+  seed=$(openssl rand 32 | b64url)
+  is_key "$seed" || fail "anahtar üretilemedi"
+  kid=$KID
+  # Checked before anything is written: openssl must make a public key of it.
+  public_of "$seed" >/dev/null || fail "açık anahtar çıkarılamadı; hiçbir şey yazılmadı"
+  backup="$ENV_FILE.bak-$(date +%Y%m%d%H%M%S)"
+  cp -p "$ENV_FILE" "$backup"
+  sed -i '/^NOTICE_SIGNING_KEY=/d; /^NOTICE_SIGNING_KID=/d' "$ENV_FILE"
+  [ -z "$(tail -c 1 "$ENV_FILE")" ] || printf '\n' >>"$ENV_FILE"
+  printf 'NOTICE_SIGNING_KEY=%s\nNOTICE_SIGNING_KID=%s\n' "$seed" "$kid" >>"$ENV_FILE"
+  chown deploy:deploy "$ENV_FILE"
+  chmod 0600 "$ENV_FILE"
+  say "NOTICE_SIGNING_KEY üretildi ve .env'e eklendi ($kid); yedek: $backup"
+fi
+
+if [ -n "$seed" ]; then
+  public=$(public_of "$seed") || fail "açık anahtar çıkarılamadı"
+  is_key "$public" || fail "açık anahtar çıkarılamadı"
+  if [ "$dry_run" -eq 1 ]; then
+    say "$PUBLIC_FILE yazılacak: $kid:$public"
+  else
+    printf '%s:%s\n' "$kid" "$public" >"$PUBLIC_FILE.tmp"
+    chmod 0644 "$PUBLIC_FILE.tmp"
+    mv -f "$PUBLIC_FILE.tmp" "$PUBLIC_FILE"
+    say "açık anahtar $PUBLIC_FILE dosyasında: $kid:$public"
+  fi
+else
+  say "$PUBLIC_FILE yeni anahtarın açık yarısıyla yazılacak"
+fi
+
+# The containers see the key only if compose.yml passes it (infra/staging/compose.yml has the two
+# lines; an older copy on the server gets them after ENTITLEMENT_SIGNING_KID).
+if [ -f "$COMPOSE_FILE" ] && ! grep -q '^  NOTICE_SIGNING_KEY:' "$COMPOSE_FILE"; then
+  if ! grep -q '^  ENTITLEMENT_SIGNING_KID:' "$COMPOSE_FILE"; then
+    say "uyarı: compose.yml NOTICE_SIGNING_KEY'i geçirmiyor; repo'daki infra/staging/compose.yml ile güncelle"
+  elif [ "$dry_run" -eq 1 ]; then
+    say "compose.yml'e NOTICE_SIGNING_KEY ve NOTICE_SIGNING_KID satırları eklenecek"
+  else
+    cp -p "$COMPOSE_FILE" "$COMPOSE_FILE.bak-$(date +%Y%m%d%H%M%S)"
+    sed -i '/^  ENTITLEMENT_SIGNING_KID:/a\  NOTICE_SIGNING_KEY: ${NOTICE_SIGNING_KEY:-}\n  NOTICE_SIGNING_KID: ${NOTICE_SIGNING_KID:-}' "$COMPOSE_FILE"
+    chown deploy:deploy "$COMPOSE_FILE"
+    chmod 0640 "$COMPOSE_FILE"
+    say "compose.yml NOTICE_SIGNING_KEY ve NOTICE_SIGNING_KID'i geçiriyor"
+  fi
+fi
+
+if [ "$dry_run" -eq 1 ]; then
+  say "deneme: hiçbir şey yazılmadı"
+else
+  say "api ve worker yeniden başlayınca sunucu haberleri imzalı gider"
+fi
+NOTICE_KEY_SCRIPT_END
+}
+
+# Runs the embedded notice-key.sh with the given arguments (--dry-run, or none) and keeps its
+# answer in NOTICE_OUT, only the lines it prefixes with "notice-key: " (anything else, an openssl
+# complaint say, is dropped, so nothing unforeseen can reach the screen). Its script text is an
+# argument of sh -c, so its stdin is /dev/null and no command of it can eat our script.
+run_notice_key() {
+  if NOTICE_OUT=$(sh -c "$(notice_key_script)" notice-key.sh "$@" </dev/null 2>&1); then
+    notice_rc=0
+  else
+    notice_rc=$?
+  fi
+  NOTICE_OUT=$(printf '%s\n' "$NOTICE_OUT" | grep '^notice-key: ' || true)
+  return "$notice_rc"
+}
+
+show_notice_out() {
+  printf '%s\n' "$NOTICE_OUT" | while read -r out_line; do note "$out_line"; done
+}
+
+step_notice() {
+  step "4/9" "Sunucu haberlerinin imza anahtarı: NOTICE_SIGNING_KEY (.env), compose satırları, açık anahtar dosyası"
+  # The child's writes do not go through guard(): refuse here, before calling it, when any path it
+  # writes is a symlink (.env and compose.yml were checked in preflight; the backups it makes are
+  # new files named with the time, so no link may sit under that name either).
+  for target in "$NOTICE_PUBLIC" "$NOTICE_PUBLIC.tmp" "$ENV_FILE".bak-* "$COMPOSE_FILE".bak-*; do
+    if [ -L "$target" ]; then
+      problem "$target bir kısayol (symlink); notice-key.sh oraya yazmasın diye çağrılmadı"
+      NOTICE_FAILED=true
+      return 0
+    fi
+  done
+  if ! command -v openssl >/dev/null 2>&1; then
+    problem "openssl bulunamadı; anahtar üretilemez, bu adım atlandı"
+    NOTICE_FAILED=true
+    return 0
+  fi
+  # Complete on disk: is the public file also the one THIS key gives? (the child's own dry run
+  # says what it would write; a mismatch is rewritten, the key itself is kept)
+  if ! $NEED_NOTICE; then
+    if run_notice_key --dry-run; then
+      derived=$(printf '%s\n' "$NOTICE_OUT" | sed -n 's/^notice-key: .*notice-public-key\.txt yazılacak: //p' | head -n 1)
+      if [ -n "$derived" ] && [ "$derived" != "$(head -n 1 "$NOTICE_PUBLIC")" ]; then
+        NEED_NOTICE=true
+        note "açık anahtar dosyası bu anahtarın açık yarısıyla uyuşmuyor, yeniden yazılacak"
+      fi
+    else
+      problem "notice-key.sh --dry-run hata verdi (anahtar bozuk olabilir); elle bak:"
+      show_notice_out
+      NOTICE_FAILED=true
+      return 0
+    fi
+  fi
+  if ! $NEED_NOTICE; then
+    note "zaten yapılmış: anahtar .env içinde ($(notice_kid)), compose.yml onu geçiriyor, açık anahtar dosyası güncel"
+    return 0
+  fi
+  if $DRY_RUN; then
+    note "yapılacak: notice-key.sh --dry-run'ın dediği (bu betiğin içindeki kopyası):"
+    if run_notice_key --dry-run; then show_notice_out; else
+      problem "notice-key.sh --dry-run hata verdi:"
+      show_notice_out
+      NOTICE_FAILED=true
+    fi
+    note "yapılacak: api ve worker yeni anahtarla yeniden başlatılacak (8. adım); gizli anahtar yalnız .env'e yazılır, hiçbir yerde gösterilmez"
+    return 0
+  fi
+  note "çalışıyor: notice-key.sh (anahtar sunucuda üretilir, yalnız .env'e yazılır; ekrana çıkmaz)"
+  if [ -n "$BACKUP_STAMP" ]; then
+    # notice-key.sh names its own backups by the second: not the second of ours (it would
+    # overwrite our copy of the original files with the half-edited ones).
+    while [ "$(date +%Y%m%d%H%M%S)" = "$BACKUP_STAMP" ]; do sleep 1; done
+  fi
+  if run_notice_key; then
+    show_notice_out
+  else
+    problem "notice-key.sh hata verdi:"
+    show_notice_out
+    NOTICE_FAILED=true
+    return 0
+  fi
+  NOTICE_CHANGED=true
+  # Its backups copy the mode of what they copy; the .env one holds secrets: private in any case.
+  for kept in "$ENV_FILE".bak-*; do
+    if [ -f "$kept" ]; then safe_perms "$OWNER" 0600 "$kept"; fi
+  done
+  for kept in "$COMPOSE_FILE".bak-*; do
+    if [ -f "$kept" ]; then safe_perms "$OWNER" 0640 "$kept"; fi
+  done
+  if notice_has_key && notice_compose_ok && notice_public_ok; then
+    note "yapıldı: anahtar .env'de, compose.yml onu geçiriyor, açık anahtar $NOTICE_PUBLIC dosyasında"
+  else
+    problem "notice-key.sh bitti ama bir şey eksik: anahtar .env'de $(if notice_has_key; then echo var; else echo yok; fi), compose satırları $(if notice_compose_ok; then echo var; else echo yok; fi), açık anahtar dosyası $(if notice_public_ok; then echo tamam; else echo eksik; fi) (compose.yml eski olabilir: repo'daki infra/staging/compose.yml ile güncelle)"
+    NOTICE_FAILED=true
+  fi
+}
+
 step_perms() {
-  step "4/8" "Sahip ve izinler: $OWNER; .env 0600; compose.yml 0640"
+  step "5/9" "Sahip ve izinler: $OWNER; .env 0600; compose.yml 0640"
   fix=false
   if ! perms_ok "$ENV_FILE" 600; then fix=true; fi
   if ! perms_ok "$COMPOSE_FILE" 640; then fix=true; fi
@@ -445,7 +721,7 @@ extract_world() { # YYYYMMDD
 }
 
 step_world() {
-  step "5/8" "Dünya haritası: $WORLD_FILE (düşük ayrıntı, yakınlaştırma 0-$WORLD_MAXZOOM)"
+  step "6/9" "Dünya haritası: $WORLD_FILE (düşük ayrıntı, yakınlaştırma 0-$WORLD_MAXZOOM)"
   if world_is_fresh; then
     note "zaten yapılmış: dosya var ve 7 günden yeni ($(size_text "$WORLD_FILE"))"
     return 0
@@ -490,7 +766,7 @@ step_world() {
 }
 
 step_nginx() {
-  step "6/8" "nginx: /map/ altında 404, 416 ve Range yanıtları önbelleğe alınmasın (Cache-Control: no-store, tek satır)"
+  step "7/9" "nginx: /map/ altında 404, 416 ve Range yanıtları önbelleğe alınmasın (Cache-Control: no-store, tek satır)"
   if [ ! -f "$NGINX_SITE" ]; then
     problem "$NGINX_SITE yok (infra/vps/setup-nginx.sh çalıştırılmamış olabilir); nginx'e dokunulmadı"
     NGINX_FAILED=true
@@ -625,7 +901,7 @@ step_nginx() {
 }
 
 step_restart() {
-  step "7/8" "api ve worker yeniden başlatılıyor (yeni ayarları okusunlar)"
+  step "8/9" "api ve worker yeniden başlatılıyor (yeni ayarları okusunlar)"
   if runtime_ok api && runtime_ok worker; then
     note "zaten yapılmış: api ve worker şu an MIN_CLIENT_LEVEL=$WANT_LEVEL ve WATCH_PUSH ile çalışıyor, yeniden başlatmaya gerek yok"
     return 0
@@ -643,6 +919,7 @@ step_restart() {
     safe_cp "$ENV_FILE.bak-$BACKUP_STAMP" "$ENV_FILE"
     safe_cp "$COMPOSE_FILE.bak-$BACKUP_STAMP" "$COMPOSE_FILE"
     note "yedekler geri yüklendi (.bak-$BACKUP_STAMP), eski ayarlarla yeniden başlatılıyor"
+    if $NOTICE_CHANGED && ! notice_has_key; then safe_rm "$NOTICE_PUBLIC"; fi
     compose up -d --wait --wait-timeout 120 worker api || true
   fi
   note "Günlük için: cd $STACK_DIR && docker compose --env-file .env --env-file image.env logs --tail 50 api worker"
@@ -696,7 +973,7 @@ check_cache_header() { # label path code tries [curl arguments]
   note "$cc_label: HTTP ${code:-?}, Cache-Control: ${cache:-yok} ($lines satır)"
   if [ "$code" = "$cc_code" ] && { [ "$cache" != no-store ] || [ "$lines" != 1 ]; }; then
     if $DRY_RUN; then
-      note "(şu an böyle; 6. adım bunu düzeltecek)"
+      note "(şu an böyle; 7. adım bunu düzeltecek)"
     else
       problem "$cc_label hâlâ önbelleğe alınabilir ya da birden çok Cache-Control satırı var (tek satır: no-store olmalı)"
       CHECK_FAILED=true
@@ -717,12 +994,41 @@ check_map_cache() { # tries
   fi
 }
 
+# The public half of the notice key (public: safe to show) and whether a service log shows it, i.e.
+# whether the server signs. Only the public line is ever printed, never a log line.
+check_notice_signing() { # tries
+  if ! notice_public_ok; then
+    note "açık anahtar: $NOTICE_PUBLIC yok ya da biçimi bozuk"
+    return 0
+  fi
+  public_line=$(head -n 1 "$NOTICE_PUBLIC")
+  note "açık anahtar satırı (apps/mobile/eas.json EXPO_PUBLIC_NOTICE_KEYS için): $public_line"
+  tries=0
+  while :; do
+    for svc in worker api; do
+      if compose logs --no-color --tail 500 "$svc" 2>/dev/null | grep -qF -- "$public_line"; then
+        note "imza: $svc günlüğünde '$public_line' satırı var, sunucu haberleri imzalıyor"
+        return 0
+      fi
+    done
+    tries=$((tries + 1))
+    if [ "$tries" -ge "$1" ]; then break; fi
+    sleep 1
+  done
+  if $DRY_RUN; then
+    note "imza: günlükte bu satır yok (anahtar henüz eklenmemiş ya da servisler yeniden başlamamış olabilir)"
+  else
+    problem "imza: api ve worker günlüğünde '$public_line' satırı yok; sunucu imzalamıyor olabilir (servisler anahtardan sonra yeniden başlamadı mı?)"
+    CHECK_FAILED=true
+  fi
+}
+
 step_check() {
   if $DRY_RUN; then
-    step "8/8" "Son kontrol (kuru çalıştırmada yalnızca şu anki durum gösterilir)"
+    step "9/9" "Son kontrol (kuru çalıştırmada yalnızca şu anki durum gösterilir)"
     wait_tries=1
   else
-    step "8/8" "Son kontrol: api ayarları, /health/live, world.pmtiles boyutu, /map/ 404 ve 416 başlıkları"
+    step "9/9" "Son kontrol: api ayarları, /health/live, world.pmtiles boyutu, açık anahtar, /map/ 404 ve 416 başlıkları"
     wait_tries=10
   fi
   cid=$(compose ps -q api 2>/dev/null || true)
@@ -730,9 +1036,10 @@ step_check() {
     problem "api konteyneri çalışmıyor"
     CHECK_FAILED=true
   else
-    note "api konteynerindeki ayarlar (yalnızca MIN_CLIENT_LEVEL ve WATCH_PUSH*):"
+    note "api konteynerindeki ayarlar (yalnızca MIN_CLIENT_LEVEL, WATCH_PUSH* ve NOTICE_SIGNING_KID):"
     show_env "$cid" | while read -r env_line; do note "  $env_line"; done
   fi
+  if notice_has_key || $NOTICE_CHANGED; then check_notice_signing "$wait_tries"; else note "açık anahtar: sunucuda imza anahtarı yok"; fi
   if ! health_check "$wait_tries"; then
     problem "/health/live cevap vermedi"
     CHECK_FAILED=true
@@ -745,20 +1052,36 @@ step_check() {
   if [ -f "$NGINX_SITE" ]; then check_map_cache "$wait_tries"; fi
 }
 
+usage() { # message
+  say "$1" >&2
+  say "Kullanım: sh -s [-- [--dry-run]] < apply-pending.sh" >&2
+  exit 64
+}
+
 main() {
-  for arg in "$@"; do
-    case "$arg" in
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
       --dry-run) DRY_RUN=true ;;
-      *)
-        say "Kullanım: sh -s [-- --dry-run] < apply-pending.sh" >&2
-        exit 64
-        ;;
+      --check-notice-key) CHECK_EMBED=true ;;
+      *) usage "Bilinmeyen seçenek: $1" ;;
     esac
+    shift
   done
+
+  if $CHECK_EMBED; then
+    # Run from the repo as a file: is the notice-key.sh inside this script the file beside it?
+    beside="$(dirname "$0")/notice-key.sh"
+    if [ ! -f "$beside" ]; then die "$beside yok; bu seçenek betik bir dosya olarak, depodan çalıştırılınca işler."; fi
+    if notice_key_script | cmp -s - "$beside"; then
+      say "notice-key.sh kopyası güncel: apply-pending.sh içindeki metin $beside ile aynı."
+      return 0
+    fi
+    die "apply-pending.sh içindeki notice-key.sh kopyası $beside dosyasından FARKLI: kopyayı yenile."
+  fi
 
   # The very first line, in the dry run and the real run alike. The script cannot know which app
   # versions the phones run; whoever runs it must have seen to that.
-  say "$WARNING_LINE"
+  say "Önce bütün telefonlara yeni APK'yı (seviye $WANT_LEVEL) kur; bu betik eski sürümleri kapatır."
   say "Bargu staging: bekleyen değişiklikler"
   if $DRY_RUN; then
     say "KURU ÇALIŞTIRMA: ne yapılacağı yazılır, hiçbir şey değiştirilmez (yedek, yazma, indirme, yeniden başlatma yok)."
@@ -775,6 +1098,7 @@ main() {
   step_backup
   step_env
   step_compose
+  step_notice
   step_validate
   step_perms
   step_world
@@ -784,11 +1108,11 @@ main() {
 
   printf '\n'
   if $DRY_RUN; then
-    say "Kuru çalıştırma bitti, hiçbir şey değiştirilmedi. Gerçek çalıştırma: ssh bargu-server 'sh -s' < infra/staging/apply-pending.sh"
-    if $MAP_FAILED || $NGINX_FAILED; then exit 1; fi
+    say "Kuru çalıştırma bitti, hiçbir şey değiştirilmedi. Gerçek çalıştırma: aynı komut, --dry-run olmadan (ssh bargu-server 'sh -s' < infra/staging/apply-pending.sh)"
+    if $MAP_FAILED || $NGINX_FAILED || $NOTICE_FAILED; then exit 1; fi
     return 0
   fi
-  if $MAP_FAILED || $NGINX_FAILED || $CHECK_FAILED; then
+  if $MAP_FAILED || $NGINX_FAILED || $NOTICE_FAILED || $CHECK_FAILED; then
     die "Bitti ama bir şey eksik kaldı (yukarıdaki SORUN satırlarına bakın). Scripti yeniden çalıştırmak güvenlidir."
   fi
   say "Bitti. Her şey yerinde."

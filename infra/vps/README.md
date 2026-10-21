@@ -86,17 +86,29 @@ bu betik eski sürümleri kapatır." Betik telefonların sürümünü bilemez; A
 Adımlar:
 
 1. `.env` ve `compose.yml` tarih damgalı yedeklenir (`.env.bak-…`, `compose.yml.bak-…`; sadece bir
-   şey değişecekse).
+   şey değişecekse; `notice-key.sh` kendi yedeğini ayrıca alır).
 2. `.env` içinde `MIN_CLIENT_LEVEL=4` yapılır (seviye 4'ten eski uygulama sürümleri güncelleme
    ister).
 3. `compose.yml` içinde `BILLING_TEST` satırından sonra üç `WATCH_PUSH*` satırı eklenir (arka plan
    canlı modu); sonra `docker compose config` ile doğrulanır, bozuksa yedekler geri konur.
-4. Sahip ve izinler düzeltilir: `deploy:deploy`, `.env` 0600, `compose.yml` 0640.
-5. Düşük ayrıntılı dünya haritası indirilir: `/srv/bargu-map/public/tiles/world.pmtiles` (Protomaps
+4. Sunucu haberlerinin imza anahtarı ([`notice-key.sh`](../staging/notice-key.sh), QA-28 B-1,
+   [ADR 0016](../../docs/ADR/0016-sealed-push-notifications.md)): `.env` içinde
+   `NOTICE_SIGNING_KEY` yoksa sunucuda üretilir (`NOTICE_SIGNING_KID=stg-n1`), `compose.yml` onu iki
+   satırla geçirir, açık yarısı `/opt/bargu/staging/notice-public-key.txt` dosyasına yazılır
+   (`apps/mobile/eas.json` → `EXPO_PUBLIC_NOTICE_KEYS` için). **Gizli anahtar hiçbir yerde
+   gösterilmez**, yalnız `.env`'de durur. Kuru çalıştırmada `notice-key.sh --dry-run` çalışır ve
+   hiçbir şey yazılmaz. Anahtar yeni eklendiyse 8. adım api ve worker'ı yeniden başlatır, sunucu
+   imzalamaya başlar. `notice-key.sh` betiğin İÇİNDE gömülüdür (tek betik çalıştırılıyor);
+   depodan `sh infra/staging/apply-pending.sh --check-notice-key` gömülü kopyanın dosyayla aynı
+   olup olmadığını söyler (`notice-key.sh` değişirse kopya yenilenmeli). Onun yazdığı yollar koruma
+   fonksiyonundan geçmediği için, betik onu çağırmadan önce o yollardan biri kısayol (symlink) ise
+   reddeder.
+5. Sahip ve izinler düzeltilir: `deploy:deploy`, `.env` 0600, `compose.yml` 0640.
+6. Düşük ayrıntılı dünya haritası indirilir: `/srv/bargu-map/public/tiles/world.pmtiles` (Protomaps
    günlük yapısı, yakınlaştırma 0-6, yaklaşık 45 MB; bugünün yapısı yoksa dünkü; 7 günden yeniyse
    atlanır). Dosya yokken uygulama haritası bugünkü gibi çalışır
    ([ADR 0008](../../docs/ADR/0008-design-system-and-map.md)).
-6. nginx: `/map/` altında bulunamayan dosyanın (404) önbelleğe alınması kapatılır. Eskiden
+7. nginx: `/map/` altında bulunamayan dosyanın (404) önbelleğe alınması kapatılır. Eskiden
    `add_header Cache-Control "public, max-age=86400" always` her yanıta, 404'e de, bir gün
    önbellek yazıyordu; `world.pmtiles` yokken sorulan telefonlar dosya gelse de bir gün haritayı
    göremezdi. Şimdi tam dosya (200) ve doğrulaması (304) uzun önbellek, geri kalanı (404, 403 ve
@@ -112,10 +124,13 @@ Adımlar:
    veriyor** (rastamen): önce `nginx -t` bütün yapılandırmayı denetler, bozuksa yedek geri konur ve
    reload yapılmaz; sonra yalnız `systemctl reload nginx` (asla restart). Aynı değişiklik
    `setup-nginx.sh` ile yeni kurulumlara da gelir (şablon güncellendi).
-7. `docker compose up -d --wait worker api` (sadece yeni ayarlarla çalışmıyorlarsa).
-8. Son kontrol: api konteynerindeki `MIN_CLIENT_LEVEL` ve `WATCH_PUSH*` değerleri (başka hiçbir
-   değer ve gizli bilgi yazılmaz), `/health/live`, `world.pmtiles` boyutu ve `/map/` altındaki
-   404 ile 416'nın `Cache-Control` başlığı (tek satır `no-store` olmalı).
+8. `docker compose up -d --wait worker api` (sadece yeni ayarlarla çalışmıyorlarsa; yeni imza
+   anahtarı da bunlardan biridir).
+9. Son kontrol: api konteynerindeki `MIN_CLIENT_LEVEL`, `WATCH_PUSH*` ve `NOTICE_SIGNING_KID`
+   değerleri (başka hiçbir değer ve gizli bilgi yazılmaz), `/health/live`, `world.pmtiles` boyutu,
+   açık anahtar satırı (`stg-n1:…`, herkese açık) ve worker/api günlüğünde o satırın görünüp
+   görünmediği (sunucu imzalıyor mu), `/map/` altındaki 404 ile 416'nın `Cache-Control` başlığı
+   (tek satır `no-store` olmalı).
 
 Güvenlik: script **sadece** `/opt/bargu/staging` ve `/srv/bargu-map` içine yazar, bir tek istisnayla:
 kurulu Bargu nginx site dosyası, **tam yol eşleşmesiyle** (ön ek değil; `/etc/nginx` altında başka
