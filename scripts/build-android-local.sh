@@ -5,6 +5,12 @@
 # copied into the throwaway container, never anywhere else), so the APK installs over EAS builds.
 #
 #   scripts/build-android-local.sh [commit]        (default: HEAD; uncommitted changes are left out)
+#   ABIS=armeabi-v7a,arm64-v8a,x86,x86_64 scripts/build-android-local.sh [commit]
+#
+# Only today's phones (arm64-v8a) by default (the owner, 2026-10-21): the native code is compiled
+# once instead of four times and the APK is smaller, so building and uploading are quicker. Old
+# 32-bit phones and emulators need the ABIS above. Store builds are EAS production builds and are
+# not affected.
 #
 # Needs Docker and, for push notifications, the Firebase file at apps/mobile/google-services.json
 # (git-ignored; on EAS it is a secret file variable that local builds cannot read).
@@ -41,11 +47,17 @@ docker run --rm \
   -v bargu-gradle-cache:/root/.gradle \
   -v bargu-pnpm-store:/root/.local/share/pnpm/store \
   "${firebase[@]}" \
-  -e COMMIT="$commit" -e EAS_CLI="$EAS_CLI" -e PNPM="$PNPM" \
+  -e COMMIT="$commit" -e EAS_CLI="$EAS_CLI" -e PNPM="$PNPM" -e ABIS="${ABIS:-arm64-v8a}" \
   -e EXPO_NO_TELEMETRY=1 -e CI=1 \
   -e GRADLE_USER_HOME=/root/.gradle -e npm_config_store_dir=/root/.local/share/pnpm/store \
   "$IMAGE" bash -euo pipefail -c '
     mkdir -p /root/.expo && cp /host-expo/state.json /root/.expo/state.json
+    # Which CPUs to build for: user Gradle properties outrank those of the project, and are written
+    # on every run (the Gradle volume outlives the container).
+    props=/root/.gradle/gradle.properties
+    { grep -v "^reactNativeArchitectures=" "$props" 2>/dev/null || true; echo "reactNativeArchitectures=$ABIS"; } > /tmp/gradle.properties
+    mv /tmp/gradle.properties "$props"
+    echo "build-android-local: ABIs $ABIS"
     git config --global --add safe.directory "*"
     git clone -q /src.git /work && cd /work && git checkout -q "$COMMIT"
     npm install -g --silent "$PNPM"
