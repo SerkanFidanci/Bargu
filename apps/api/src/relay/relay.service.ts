@@ -1,11 +1,13 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { verifyMessageEnvelope } from '@bargu/crypto';
+import { pseudonym, verifyMessageEnvelope } from '@bargu/crypto';
 import type { BumpReply, DevicePushes, MessageEnvelope, PublishReply } from '@bargu/schemas';
 import { messageEnvelopeSchema, RELAY_REFUSALS } from '@bargu/schemas';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
+import { ENV } from '../config/config.module.js';
+import type { Env } from '../config/env.js';
 import { circleMembers, circles } from '../db/schema.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService } from '../infra/database/database.service.js';
@@ -30,7 +32,17 @@ export const RELAY_LIMITS = {
   statuses: { limit: 6, windowSeconds: 60 },
   /** Arrivals and departures per device and circle (a phone notices them, debounced). */
   placeEvents: { limit: 20, windowSeconds: 600 },
+  /** "Güvendeyim" per sender and circle (docs/ADR/0029): a person says it now and then. */
+  safes: { limit: 6, windowSeconds: 3600 },
 } as const;
+
+/**
+ * How long the server remembers that a "Güvendeyim" message was done (docs/ADR/0029): a phone that
+ * did not hear the answer sends the same message again (same id), and that is not sent twice.
+ */
+export const SAFE_GUARD_SECONDS = 24 * 3600;
+/** What the server keeps of it: `safe:{hash}`, a hash of (sender, circle, id) and the value 1. */
+export const SAFE_GUARD_PREFIX = 'safe:';
 
 interface Limit {
   limit: number;
@@ -123,6 +135,7 @@ export class RelayService {
     private readonly limiter: RateLimiter,
     private readonly notifier: Notifier,
     private readonly watchNotices: WatchNotices,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   publish(auth: AuthContext, envelopes: MessageEnvelope[]): Promise<PublishReply> {
@@ -292,16 +305,78 @@ export class RelayService {
         ? 'PAUSED'
         : await this.check(auth, envelope, membership, limitKey, limit);
     if (code !== null || membership === undefined) return { refused: code ?? 'NOT_MEMBER' };
+    await this.deliver(auth, envelope, membership, pushes, event);
+    return { ok: true };
+  }
+
+  /**
+   * To the circle's other members: the message at once to those who are online, and the sealed
+   * notifications only for the others, each to that member's current device, once (QA 21 B-2).
+   */
+  private async deliver(
+    auth: AuthContext,
+    envelope: MessageEnvelope,
+    membership: Membership,
+    pushes: DevicePushes,
+    event: string,
+  ): Promise<void> {
     this.events.emitLive(membership.others, event, { envelope });
-    // Notifications only for members of this circle whose app is not connected, each to that
-    // member's current device, once (QA 21 B-2).
-    if (pushes.length > 0) {
-      const online = await this.events.online(membership.others);
-      const offline = membership.others.filter((userId) => !online.has(userId));
-      const devices = await this.database.asUser(auth.userId, (tx) =>
-        currentDevices(tx, envelope.circleId, offline),
-      );
-      await this.notifier.forward(pushes, devices);
+    if (pushes.length === 0) return;
+    const online = await this.events.online(membership.others);
+    const offline = membership.others.filter((userId) => !online.has(userId));
+    const devices = await this.database.asUser(auth.userId, (tx) =>
+      currentDevices(tx, envelope.circleId, offline),
+    );
+    await this.notifier.forward(pushes, devices);
+  }
+
+  /**
+   * "Güvendeyim" (docs/ADR/0029): forwarded like a poke, never stored, but done once however often
+   * it is asked. It works in a paused circle and for an account without a plan (a safety feature
+   * is always free); a stranger or a non-member is refused first, with nothing remembered.
+   *
+   * The same `id` from the same sender in the same circle within a day is answered `ok` and sent
+   * no more: the phone that sent it did not hear the answer and asks again, or it is back online
+   * with a message it already sent. All the server keeps of a message is a hash of (sender, circle,
+   * id) with the value 1 for a day: no content, no recipients, no time. A message that fails after
+   * it was claimed (the server could not deliver it) is let go, so asking again can still work.
+   */
+  async safe(
+    auth: AuthContext,
+    id: string,
+    envelope: MessageEnvelope,
+    pushes: DevicePushes = [],
+  ): Promise<BumpReply> {
+    const membership = (await this.memberships(auth.userId, [envelope.circleId])).get(
+      envelope.circleId,
+    );
+    const refusal = this.verify(auth, envelope, membership);
+    if (refusal !== null || membership === undefined) return { refused: refusal ?? 'NOT_MEMBER' };
+
+    const guard = `${SAFE_GUARD_PREFIX}${pseudonym(
+      this.env.EMAIL_LOOKUP_KEY,
+      'safe-id',
+      `${auth.userId}:${envelope.circleId}:${id}`,
+    )}`;
+    // Done already: nothing to send, nothing counted against the allowance.
+    if ((await this.redis.exists(guard)) === 1) return { ok: true };
+
+    const limitKey = `safe:${auth.userId}:${envelope.circleId}`;
+    const { limit, windowSeconds } = RELAY_LIMITS.safes;
+    if (!(await this.limiter.hit(limitKey, limit, windowSeconds)).allowed) {
+      return { refused: 'RATE_LIMITED' };
+    }
+    // Two asks at once: one of them claims it, the other finds it done.
+    const claimed = await this.redis.set(guard, '1', { NX: true, EX: SAFE_GUARD_SECONDS });
+    if (claimed === null) {
+      await this.limiter.refund(limitKey);
+      return { ok: true };
+    }
+    try {
+      await this.deliver(auth, envelope, membership, pushes, 'safe');
+    } catch (error) {
+      await this.redis.del(guard);
+      throw error;
     }
     return { ok: true };
   }
@@ -378,6 +453,21 @@ export class RelayService {
     }
   }
 
+  /** Whether the envelope is the caller's own, from a member of the circle, in a current epoch. */
+  private verify(
+    auth: AuthContext,
+    envelope: MessageEnvelope,
+    membership: Membership | undefined,
+  ): Refusal | null {
+    if (envelope.senderDeviceId !== auth.deviceId) return 'INVALID';
+    if (!verifyMessageEnvelope(envelope, auth.identityKey)) return 'INVALID';
+    if (membership === undefined) return 'NOT_MEMBER';
+    if (envelope.epoch > membership.epoch || envelope.epoch < membership.epoch - ACCEPTED_EPOCHS) {
+      return 'EPOCH';
+    }
+    return null;
+  }
+
   private async check(
     auth: AuthContext,
     envelope: MessageEnvelope,
@@ -385,12 +475,8 @@ export class RelayService {
     limitKey: string,
     limit: Limit,
   ): Promise<Refusal | null> {
-    if (envelope.senderDeviceId !== auth.deviceId) return 'INVALID';
-    if (!verifyMessageEnvelope(envelope, auth.identityKey)) return 'INVALID';
-    if (membership === undefined) return 'NOT_MEMBER';
-    if (envelope.epoch > membership.epoch || envelope.epoch < membership.epoch - ACCEPTED_EPOCHS) {
-      return 'EPOCH';
-    }
+    const refusal = this.verify(auth, envelope, membership);
+    if (refusal !== null) return refusal;
     const hit = await this.limiter.hit(
       `${limitKey}:${envelope.circleId}`,
       limit.limit,
