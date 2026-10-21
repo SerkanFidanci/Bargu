@@ -3,9 +3,19 @@ import {
   deliveredEventSchema,
   resumeReplySchema,
   type ServerEvent,
+  type ServerEventType,
 } from '@bargu/schemas';
 
 import type { KeyValueStore } from '../storage/vault';
+
+/**
+ * Durable event types the server publishes that the app deliberately does nothing with, and why
+ * (none today: every type has a handler). event-contract.test.ts fails for a type that is neither
+ * handled nor listed here, and for a listed type that has a handler.
+ */
+export const INTENTIONALLY_NOT_HANDLED_EVENTS = {} as const satisfies Partial<
+  Record<ServerEventType, string>
+>;
 
 /** The live connection as the stream needs it; socket.io in the app, a fake in tests. */
 export interface Transport {
