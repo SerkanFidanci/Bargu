@@ -91,3 +91,22 @@ Seçenekler:
 - **Silme ölçütü (QA Faz 8 G10, bilgi):** Süpürme, çeyreğin başlangıcına bakar: bir çeyreğin son
   noktası sunucuda 14 gün 15 dakikaya, süpürme aralığıyla en çok 14 gün 25 dakikaya kadar kalabilir.
   "İki hafta" bu yuvarlamayla okunmalı.
+
+## Ek (2026-10-22): telefondaki kendi iz
+
+- **Bulgu (kodlama oturumu, kod taraması):** Telefon kendi izini kasada tutar
+  (`history:mine:<çeyrek saat>`); çemberdeki "Geçmişimi gör" ve dışa aktarma bunu okur. Bu iz rıza
+  geri çekilince ve son çemberde geçmiş kapanınca silinmiyordu. Ekran ise "Rızan geri çekildi;
+  geçmiş kapatıldı ve silindi" diyordu. 14 günlük budama da yalnız kayıt sürerken çalışıyordu;
+  kayıt durunca eski iz çıkışa kadar telefonda kalıyordu (şifreli kasada, hiçbir yere gitmeden).
+- **Düzeltme (`8c8e0c7`, seviye 5 APK'sı):**
+  - Rıza geri çekilince ("Geçmişimi de sil") kendi iz tümüyle silinir.
+  - Bir çemberde geçmiş kapanınca, o an kayıt yapan başka çember kalmadıysa kendi iz silinir.
+  - Kayıt olmasa da 14 günden eski çeyrekler kasa açılınca ve her paylaşım değişikliğinde budanır.
+  - Testler düzeltmesiz kırılır (mutasyonla denendi).
+- **Sınır:** "Kayıt yapan çember", o an kayıt yapanlara bakar. Geçmişi açık ama o an hayalette olan
+  bir çember sayılmaz; o yüzden başka bir çemberde geçmiş kapanınca iz yine silinir. Gizlilik
+  yönünde bir yan etki.
+- **Kendi konum geçmişi** (yalnız telefonda, 30 gün ya da 1 yıl) ayrı bir özelliktir ve ayrı bir
+  depoda tutulur: [ADR 0030](0030-own-location-history.md). Bu ekin kuralları yalnız çember
+  geçmişinin yerel aynası içindir.
