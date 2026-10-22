@@ -1,5 +1,5 @@
 import type { Circle } from '@bargu/schemas';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { Linking } from 'react-native';
 
@@ -27,8 +27,10 @@ jest.mock('@/features/circles/queries', () => ({
   useCircle: () => mockCircle.current,
 }));
 const mockStart = jest.fn<Promise<boolean>, [unknown, unknown]>(() => Promise.resolve(true));
+const mockAnswer = jest.fn<Promise<boolean>, [string, string]>(() => Promise.resolve(true));
 jest.mock('@/features/plan/plan-actions', () => ({
   startMeeting: (circle: unknown, meeting: unknown) => mockStart(circle, meeting),
+  answerMeeting: (circleId: string, answer: string) => mockAnswer(circleId, answer),
   mayRunMeeting: () => false,
   endMeeting: jest.fn(),
   closePoll: jest.fn(),
@@ -172,6 +174,44 @@ describe('a meeting on its own screen (docs/ADR/0026 §4)', () => {
     await fireEvent.press(screen.getByTestId('meeting-directions'));
     expect(open).toHaveBeenCalledWith(expect.stringContaining('41.03,28.95'));
     open.mockRestore();
+  });
+
+  it('lets each member answer, and shows what the others said (ADR 0026 Ek 2)', async () => {
+    const AYSE = '0190f7a4-1111-7111-8111-0000000000a5';
+    const member = (userId: string, displayName: string) => ({
+      userId,
+      role: 'member' as const,
+      status: 'active' as const,
+      username: null,
+      displayName,
+      avatar: null,
+      device: null,
+    });
+    mockCircle.current = { ...family, members: [member(ME, 'Ben'), member(AYSE, 'Ayşe')] };
+    const meetAt = Date.now() + 3600_000;
+    const ayseAnswer = '0190f7a4-3333-7333-8333-0000000000a5';
+    useDocs.setState({
+      [docKey(CIRCLE, CIRCLE)]: {
+        circleId: CIRCLE,
+        version: 1,
+        shared: true,
+        authorId: ME,
+        payload: { kind: 'plan', id: CIRCLE, meetAt, placeId: HOME, by: ME, ts: 1 },
+      },
+      [docKey(CIRCLE, ayseAnswer)]: {
+        circleId: CIRCLE,
+        version: 1,
+        shared: false,
+        authorId: AYSE,
+        payload: { kind: 'vote', id: ayseAnswer, pollId: CIRCLE, choices: [1], ts: 1 },
+      },
+    });
+    await render(<MeetingScreen />);
+    expect(screen.getByTestId('meeting-answers')).toBeTruthy();
+    expect(within(screen.getByTestId(`meeting-answer-${AYSE}`)).getByText('Belki')).toBeTruthy();
+    expect(screen.getByTestId('meeting-answer-counts')).toHaveTextContent('0 geliyor · 1 belki');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Geliyorum' }));
+    expect(mockAnswer).toHaveBeenCalledWith(CIRCLE, 'going');
   });
 
   it('says so when the circle is gone', async () => {

@@ -234,6 +234,12 @@ penceresiz açılır, `ts` yalnızca büyür, silineni telefon geri almaz. Oy ki
 `UUIDv8(SHA-256("bargu/v1/vote-id\0" ‖ pollId ‖ userId))` (sürüm 8, varyant 10): alıcı, oyun onu
 imzalayan kişinin kimliğiyle dosyalandığını denetler.
 
+**Buluşmaya katılım yanıtı (ADR 0026 Ek 2).** Etkinlik dışı çemberde "Geliyorum / Belki /
+Gelemiyorum" aynı `vote` belgesidir: `pollId` buluşmanın belge kimliği (çemberin kimliği),
+`choices` tek eleman (0 Geliyorum, 1 Belki, 2 Gelemiyorum), kimlik `voteId(çember, kişi)`. Sunucu
+yalnız o çemberin o an var olan buluşmasına, üyenin kendi yanıtı olarak yazdırır; buluşma silinince
+yanıtlar da gider. Anketler bu oyları saymaz (oyları anketin kimliğini taşır).
+
 **Konum geçmişi (ADR 0019).** Paylaşanın izi, çember başına çeyrek saatlik `trail` parçaları
 (`from` = çeyreğin başı, `points` = 1–250 nokta `[saniye, enlem×1e5, boylam×1e5, doğruluk]`, `ts`)
 olarak, çeyreğin başladığı epoch'ın **geçmiş anahtarıyla** şifrelenir:
@@ -330,6 +336,8 @@ gövde (JSON) = { kind: "place", circleId, placeId, event: "enter" | "exit", nam
              | { kind: "safe", circleId, id, bat, lat?, lng?, acc?, ts }   (ADR 0029: ad yok, metin yok)
              | { kind: "late", circleId, minutes, ts }
              | { kind: "meeting", circleId, name, emoji, meetAt, ts }
+             | { kind: "meetingAnswer", circleId, answer: 0|1|2, going, maybe, ts }   (Ek 2: başlatana)
+             | { kind: "meetingMoved", circleId, name, emoji, meetAt, ts }   (Ek 2: gelenlere)
              | { kind: "notice", notice, circleId, ts }
 ```
 

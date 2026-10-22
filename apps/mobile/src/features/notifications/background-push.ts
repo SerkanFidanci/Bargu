@@ -4,13 +4,21 @@ import * as TaskManager from 'expo-task-manager';
 import { AppState } from 'react-native';
 import { z } from 'zod';
 
+import i18n from '@/i18n';
 import { toast } from '@/ui/toast';
 
 import { useAuth } from '../auth/auth-store';
 import { ensureSession } from '../live/live-session';
 import { backgroundLive } from '../location/background-live/slot';
 import { loadSharing, seenThere } from '../location/sharing';
-import { admitSafe, rememberSafe, SAFE_FRESH_MS, safeAge, safeFoldedWords } from '../social/safe';
+import {
+  admitRate,
+  admitSafe,
+  rememberSafe,
+  SAFE_FRESH_MS,
+  safeAge,
+  safeFoldedWords,
+} from '../social/safe';
 import { keepSpot, showSpot } from '../social/safe-spot';
 import { vault } from '../storage/vault';
 import { SAFE_QUIET_CHANNEL } from './channels';
@@ -29,6 +37,9 @@ export const PUSH_FRESH_MS = 60 * 60_000;
  * The server also has Google drop it after two minutes.
  */
 export const WATCH_FRESH_MS = 2 * 60_000;
+/** Answers to a meeting shown per sender and circle in a rolling hour (docs/ADR/0026 Ek 2). */
+const ANSWERS_SHOWN_PER_HOUR = 3;
+const ANSWERS_RATE_KEY = 'meeting:answers:rate:v1';
 /** The last boxes opened, so a message delivered twice shows once. */
 const SEEN_KEY = 'push:seen:v1';
 const SEEN_KEEP = 50;
@@ -163,6 +174,37 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
       return 'folded';
     }
   }
+  // Answers to a meeting: three an hour from one person in one circle, then one quiet line
+  // (docs/ADR/0026 Ek 2), like "Güvendeyim" above.
+  if (body.kind === 'meetingAnswer' && shown.fromUserId !== null) {
+    const admission = admitRate(
+      store,
+      ANSWERS_RATE_KEY,
+      ANSWERS_SHOWN_PER_HOUR,
+      body.circleId,
+      shown.fromUserId,
+      now,
+    );
+    if (!admission.show) {
+      if (admission.folded > 1) return 'folded';
+      const summary = i18n.t('notifications.meetingAnswersFolded', { name: shown.fromName ?? '' });
+      if (AppState.currentState === 'active') {
+        toast.info(summary);
+        return 'folded';
+      }
+      await Notifications.scheduleNotificationAsync({
+        identifier: `answers-folded:${body.circleId}:${shown.fromUserId}`,
+        content: {
+          title: shown.title,
+          body: summary,
+          data: { circleId: body.circleId },
+          sound: false,
+        },
+        trigger: { channelId: SAFE_QUIET_CHANNEL },
+      });
+      return 'folded';
+    }
+  }
   // Where they are, if the notification carries it: kept on this phone for a day (the vault is
   // encrypted), and nowhere else. Tapping the notification, or the line in the open app, shows it.
   const spot = shown.spot;
@@ -176,8 +218,16 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
       loadMutes(store),
       body.kind === 'place'
         ? { kind: 'place', placeId: body.placeId }
-        : // A meeting's notices are muted with its "will be late" ones.
-          { kind: body.kind === 'late' || body.kind === 'meeting' ? 'late' : 'bump' },
+        : // A meeting's notices (started, answered, moved) are muted with its "will be late" ones.
+          {
+            kind:
+              body.kind === 'late' ||
+              body.kind === 'meeting' ||
+              body.kind === 'meetingAnswer' ||
+              body.kind === 'meetingMoved'
+                ? 'late'
+                : 'bump',
+          },
       shown.fromUserId,
     )
   ) {

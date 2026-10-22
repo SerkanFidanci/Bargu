@@ -535,7 +535,10 @@
       "later": "Şimdi değil"
     },
     "accountChannel": "Hesap ve Bargu+",
-    "meeting": "{{name}} buluşma başlattı: {{time}} · {{place}}"
+    "meeting": "{{name}} buluşma başlattı: {{time}} · {{place}}",
+    "meetingAnswer": "{{name}}: {{answer}} · {{going}} geliyor, {{maybe}} belki",
+    "meetingMoved": "{{name}} buluşmayı değiştirdi: {{place}}, {{time}}. Hâlâ geliyor musun?",
+    "meetingAnswersFolded": "{{name}} yanıtını birkaç kez değiştirdi"
   },
   "location": {
     "service": {
@@ -1263,7 +1266,16 @@
     "endBodyPlace": "Buluşma herkes için hemen biter. Bu buluşma için eklenen yer de silinir; istersen sakla.",
     "endKeepPlace": "Bitir, yeri sakla",
     "keepPlace": "Bitince yeri sakla",
-    "keepPlaceHint": "Bu yer buluşma için eklendi. Kapalıysa buluşma bitince yer de silinir."
+    "keepPlaceHint": "Bu yer buluşma için eklendi. Kapalıysa buluşma bitince yer de silinir.",
+    "answers": {
+      "title": "Geliyor musun?",
+      "going": "Geliyorum",
+      "maybe": "Belki",
+      "not": "Gelemiyorum",
+      "none": "Yanıt yok",
+      "counts": "{{going}} geliyor · {{maybe}} belki",
+      "who": "Kim ne dedi"
+    }
   },
   "notificationPrefs": {
     "title": "Bildirim tercihleri",

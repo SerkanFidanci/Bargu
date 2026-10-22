@@ -1,6 +1,8 @@
 import type { LocPayload, PlanPayload, PollPayload, VotePayload } from '@bargu/schemas';
 
 import {
+  answerCounts,
+  answersOf,
   approachRate,
   arrivalAt,
   arrivals,
@@ -354,5 +356,35 @@ describe('meeting times', () => {
       four + 60 * MIN,
     ]);
     expect(meetingTimes(now, now)).toEqual([]);
+  });
+});
+
+describe('answers to a meeting (docs/ADR/0026 Ek 2)', () => {
+  const circleId = '0190f7a4-1111-7111-8111-0000000000c1';
+  const pollId = '0190f7a4-1111-7111-8111-0000000000d1';
+  const vote = (authorId: string, choice: number, poll = circleId): Doc => ({
+    circleId,
+    version: 1,
+    shared: false,
+    authorId,
+    payload: { kind: 'vote', id: `${authorId}-${poll}`, pollId: poll, choices: [choice], ts: 1 },
+  });
+
+  it("read each member's answer from votes on the meeting, never a poll's votes", () => {
+    const all = {
+      a: vote('ayse', 0),
+      b: vote('bora', 1),
+      c: vote('can', 2),
+      d: vote('deniz', 0, pollId),
+      e: vote('ece', 7),
+    };
+    const answers = answersOf(all, circleId);
+    expect([...answers]).toEqual([
+      ['ayse', 'going'],
+      ['bora', 'maybe'],
+      ['can', 'not'],
+    ]);
+    expect(answerCounts(answers)).toEqual({ going: 1, maybe: 1, not: 1 });
+    expect(answersOf(all, '0190f7a4-1111-7111-8111-0000000000c2').size).toBe(0);
   });
 });

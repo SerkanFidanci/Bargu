@@ -1,5 +1,5 @@
 import { randomUuid, voteId } from '@bargu/crypto';
-import type { Circle, PlanPayload, PollPayload, VotePayload } from '@bargu/schemas';
+import type { Circle, PlanPayload, PollPayload, PushBody, VotePayload } from '@bargu/schemas';
 
 import i18n from '@/i18n';
 import { toast } from '@/ui/toast';
@@ -8,11 +8,20 @@ import { useAuth } from '../auth/auth-store';
 import { loadContacts } from '../notifications/push-contacts';
 import { usePlaces } from '../places/places';
 import { places } from '../places/places-session';
+import { sealPushes } from '../places/presence';
 import { vault } from '../storage/vault';
 import { docKey, type DocSaveResult, useDocs } from './docs';
 import { docs } from './docs-session';
 import { meetingStartPushes } from './meeting';
-import { type Doc, tally, withChoice } from './plan-model';
+import {
+  answerCounts,
+  answersOf,
+  type Doc,
+  MEETING_ANSWERS,
+  type MeetingAnswer,
+  tally,
+  withChoice,
+} from './plan-model';
 
 /** Tells how a save went; true when it went through. */
 function told(result: DocSaveResult, saved?: string): boolean {
@@ -119,7 +128,7 @@ export async function setMeeting(
   change: Pick<PlanPayload, 'meetAt' | 'placeId'>,
 ): Promise<boolean> {
   const before = planOf(circleId);
-  const moved =
+  const leftPlace =
     change.placeId !== undefined &&
     change.placeId !== before.placeId &&
     before.placeGoes !== undefined;
@@ -127,13 +136,86 @@ export async function setMeeting(
   const next: PlanPayload = {
     ...rest,
     ...change,
-    ...(moved ? {} : placeGoes === undefined ? {} : { placeGoes }),
+    ...(leftPlace ? {} : placeGoes === undefined ? {} : { placeGoes }),
   };
-  const saved = told(await docs.save(circleId, next), i18n.t('plan.saved'));
-  if (saved && moved && placeGoes === true && before.placeId !== undefined) {
+  const saved = told(
+    await docs.save(circleId, next, movedNotices(before, next)),
+    i18n.t('plan.saved'),
+  );
+  if (saved && leftPlace && placeGoes === true && before.placeId !== undefined) {
     await forgetMeetingPlace(before.placeId);
   }
   return saved;
+}
+
+/** This phone's sealed notices for the given members' devices in a circle (none: undefined). */
+function pushesTo(circleId: string, to: ReadonlySet<string>, body: PushBody) {
+  const device = useAuth.getState().device;
+  if (device === null || to.size === 0) return undefined;
+  const recipients = (loadContacts(vault()).recipients[circleId] ?? []).filter((recipient) =>
+    to.has(recipient.userId),
+  );
+  return recipients.length === 0 ? undefined : sealPushes(recipients, device, body);
+}
+
+/**
+ * A meeting whose time or place changed: "moved to 18:30, still coming?" to those who said
+ * Geliyorum or Belki (docs/ADR/0026 Ek 2), never to this user.
+ */
+function movedNotices(before: PlanPayload, next: PlanPayload) {
+  const moved =
+    (next.meetAt !== undefined && next.meetAt !== before.meetAt) ||
+    (next.placeId !== undefined && next.placeId !== before.placeId);
+  const place = next.placeId === undefined ? undefined : usePlaces.getState()[next.placeId];
+  const me = useAuth.getState().userId;
+  if (!moved || next.meetAt === undefined || place === undefined) return {};
+  const coming = new Set(
+    [...answersOf(useDocs.getState(), next.id)]
+      .filter(([userId, answer]) => userId !== me && answer !== 'not')
+      .map(([userId]) => userId),
+  );
+  const pushes = pushesTo(next.id, coming, {
+    kind: 'meetingMoved',
+    circleId: next.id,
+    name: place.name,
+    emoji: place.emoji,
+    meetAt: next.meetAt,
+    ts: Date.now(),
+  });
+  return pushes === undefined ? {} : { pushes, moved: true };
+}
+
+/**
+ * "Geliyorum / Belki / Gelemiyorum" to a circle's meeting (docs/ADR/0026 Ek 2): a vote whose poll
+ * is the meeting, changed in place. Its starter hears who said what and how many come, unless the
+ * starter is this user.
+ */
+export async function answerMeeting(circleId: string, answer: MeetingAnswer): Promise<boolean> {
+  const me = useAuth.getState().userId;
+  if (me === null) return told('failed');
+  const starter = planOf(circleId).by;
+  const choice = MEETING_ANSWERS.indexOf(answer);
+  const { going, maybe } = answerCounts(
+    new Map(answersOf(useDocs.getState(), circleId)).set(me, answer),
+  );
+  const pushes =
+    starter === undefined || starter === me
+      ? undefined
+      : pushesTo(circleId, new Set([starter]), {
+          kind: 'meetingAnswer',
+          circleId,
+          answer: choice,
+          going,
+          maybe,
+          ts: Date.now(),
+        });
+  return told(
+    await docs.save(
+      circleId,
+      { kind: 'vote', id: voteId(circleId, me), pollId: circleId, choices: [choice], ts: 0 },
+      pushes === undefined ? {} : { pushes },
+    ),
+  );
 }
 
 /** "Keep the place" (the starter): the place added for the meeting stays when it ends, or not. */

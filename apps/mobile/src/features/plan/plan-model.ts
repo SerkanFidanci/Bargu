@@ -358,3 +358,34 @@ export function meetingTimes(now: number, endsAt: number): number[] {
   for (let at = first; at <= endsAt; at += MEETING.stepMs) times.push(at);
   return times;
 }
+
+/** Answers to a meeting outside an event (docs/ADR/0026 Ek 2), by the vote's one choice. */
+export const MEETING_ANSWERS = ['going', 'maybe', 'not'] as const;
+export type MeetingAnswer = (typeof MEETING_ANSWERS)[number];
+
+/**
+ * Each member's answer to the circle's meeting: a vote whose poll is the meeting (its id is the
+ * circle's), filed under its voter (docs.ts). Polls never count these: their votes name the poll.
+ */
+export function answersOf(
+  all: Readonly<Record<string, Doc>>,
+  circleId: string,
+): ReadonlyMap<string, MeetingAnswer> {
+  const answers = new Map<string, MeetingAnswer>();
+  for (const doc of Object.values(all)) {
+    const vote = doc.payload;
+    if (doc.circleId !== circleId || vote.kind !== 'vote' || vote.pollId !== circleId) continue;
+    const answer = MEETING_ANSWERS[vote.choices[0] ?? -1];
+    if (answer !== undefined) answers.set(doc.authorId, answer);
+  }
+  return answers;
+}
+
+/** How many gave each answer. */
+export function answerCounts(
+  answers: ReadonlyMap<string, MeetingAnswer>,
+): Record<MeetingAnswer, number> {
+  const counts = { going: 0, maybe: 0, not: 0 };
+  for (const answer of answers.values()) counts[answer] += 1;
+  return counts;
+}

@@ -21,7 +21,8 @@ import { Text } from '@/ui/text';
 
 import { endClock } from '../circles/event-ui';
 import type { MeetingPoint } from '../plan/meeting-points';
-import { headcount } from '../plan/plan-model';
+import { useDocs } from '../plan/docs';
+import { answerCounts, answersOf, headcount } from '../plan/plan-model';
 import { useArrivals } from '../plan/use-arrivals';
 import { isVaultOpen, vault } from '../storage/vault';
 import { countdown, nextMeeting, type TimedPoint } from './shortcuts-model';
@@ -88,6 +89,12 @@ function Chip({
   useCelebrateOnce(`${circle.id}:${String(point.meetAt)}`, count.allThereExactly);
 
   const where = `${point.place.emoji} ${point.place.name}`;
+  // Before its time, a meeting outside an event says how many said they come (ADR 0026 Ek 2).
+  const answers = answerCounts(answersOf(useDocs(), circle.id));
+  const answered =
+    circle.kind !== 'event' && answers.going + answers.maybe > 0
+      ? t('meeting.answers.counts', answers)
+      : null;
   const everyone = count.total > 1 && count.there === count.total;
   const lead = (
     phase === 'now'
@@ -98,7 +105,7 @@ function Chip({
             : t('meeting.chip.there', { there: count.there, total: count.total }),
           everyone || count.coming === 0 ? null : t('meeting.chip.coming', { count: count.coming }),
         ]
-      : [where, endClock(point.meetAt, now, i18n.language)]
+      : [where, endClock(point.meetAt, now, i18n.language), answered]
   ).filter((part) => part !== null);
   // The minutes left, rolling in as they change (the rest of the text stays still).
   const left =

@@ -150,6 +150,44 @@ export function pushText(
       fromUserId: sender.userId,
     };
   }
+  if (body.kind === 'meetingAnswer') {
+    // Someone answered the meeting this user started (docs/ADR/0026 Ek 2): who said what, and how
+    // many come.
+    const circle = contacts.circles[body.circleId]?.name;
+    const answer = (['going', 'maybe', 'not'] as const)[body.answer] ?? 'going';
+    return {
+      title: circle ?? 'Bargu',
+      body: i18n.t('notifications.meetingAnswer', {
+        name: sender.name,
+        answer: i18n.t(`meeting.answers.${answer}`),
+        going: body.going,
+        maybe: body.maybe,
+      }),
+      circleId: body.circleId,
+      channel: MEETINGS_CHANNEL,
+      fromUserId: sender.userId,
+      fromName: sender.name,
+    };
+  }
+  if (body.kind === 'meetingMoved') {
+    // A meeting this user said they would come to moved (Ek 2): where and when now, still coming?
+    const circle = contacts.circles[body.circleId]?.name;
+    const time = new Date(body.meetAt).toLocaleTimeString(i18n.language, {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return {
+      title: circle ?? 'Bargu',
+      body: i18n.t('notifications.meetingMoved', {
+        name: sender.name,
+        time,
+        place: `${body.emoji} ${body.name}`,
+      }),
+      circleId: body.circleId,
+      channel: MEETINGS_CHANNEL,
+      fromUserId: sender.userId,
+    };
+  }
   if (body.kind === 'meeting') {
     // A member started a meeting in the circle (docs/ADR/0026 §6): who, when and where.
     const circle = contacts.circles[body.circleId]?.name;

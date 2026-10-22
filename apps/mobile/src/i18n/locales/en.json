@@ -535,7 +535,10 @@
       "later": "Not now"
     },
     "accountChannel": "Account and Bargu+",
-    "meeting": "{{name}} started a meeting: {{time}} · {{place}}"
+    "meeting": "{{name}} started a meeting: {{time}} · {{place}}",
+    "meetingAnswer": "{{name}}: {{answer}} · {{going}} coming, {{maybe}} maybe",
+    "meetingMoved": "{{name}} changed the meeting: {{place}}, {{time}}. Still coming?",
+    "meetingAnswersFolded": "{{name}} changed their answer a few times"
   },
   "location": {
     "service": {
@@ -1263,7 +1266,16 @@
     "endBodyPlace": "The meeting ends for everyone at once. The place added for it goes too, unless you keep it.",
     "endKeepPlace": "End, keep the place",
     "keepPlace": "Keep the place afterwards",
-    "keepPlaceHint": "This place was added for the meeting. Off, it goes when the meeting ends."
+    "keepPlaceHint": "This place was added for the meeting. Off, it goes when the meeting ends.",
+    "answers": {
+      "title": "Are you coming?",
+      "going": "Coming",
+      "maybe": "Maybe",
+      "not": "Can't come",
+      "none": "No answer",
+      "counts": "{{going}} coming · {{maybe}} maybe",
+      "who": "Who said what"
+    }
   },
   "notificationPrefs": {
     "title": "Notification preferences",

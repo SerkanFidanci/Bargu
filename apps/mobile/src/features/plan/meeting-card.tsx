@@ -38,6 +38,7 @@ import { type Meeting, meetingOf, useMeetingChoices } from './meeting';
 import { PlaceIcon, PlaceSheet, PollSheet, TimeSheet, timeRange } from './meeting-sheets';
 import {
   closePoll,
+  answerMeeting,
   endMeeting,
   keepMeetingPlace,
   mayRunMeeting,
@@ -46,7 +47,18 @@ import {
   vote,
   votesOf,
 } from './plan-actions';
-import { type Arrival, type Doc, inEtaWindow, MEETING, tally, type TravelMode } from './plan-model';
+import {
+  answerCounts,
+  answersOf,
+  type Arrival,
+  type Doc,
+  inEtaWindow,
+  MEETING,
+  MEETING_ANSWERS,
+  type MeetingAnswer,
+  tally,
+  type TravelMode,
+} from './plan-model';
 import { useArrivals } from './use-arrivals';
 
 /**
@@ -184,6 +196,7 @@ export function MeetingCard({ circle }: { circle: Circle }) {
         />
       ) : null}
 
+      {!event && plan?.kind === 'plan' ? <MeetingAnswers circle={circle} me={me} /> : null}
       {meeting !== null && inEtaWindow(meeting.meetAt, now) ? (
         <ArrivalsBoard circle={circle} meeting={meeting} me={me} now={now} />
       ) : null}
@@ -385,6 +398,54 @@ function PollCard({ circle, poll, me }: { circle: Circle; poll: PollPayload; me:
 }
 
 /** "Kim ne zaman orada?": everyone's arrival, as their own phones estimate it. */
+/**
+ * "Geliyorum / Belki / Gelemiyorum" (docs/ADR/0026 Ek 2): this user's answer, how many come, and
+ * what each other member said. Everyone in the circle sees the answers.
+ */
+function MeetingAnswers({ circle, me }: { circle: Circle; me: string }) {
+  const { t } = useTranslation();
+  const docs = useDocs();
+  const answers = answersOf(docs, circle.id);
+  const others = circle.members.filter(
+    (member) => member.status === 'active' && member.userId !== me,
+  );
+  return (
+    <View style={styles.answers} testID="meeting-answers">
+      <SectionTitle>{t('meeting.answers.title')}</SectionTitle>
+      <Segmented<MeetingAnswer | 'none'>
+        testID="meeting-answer"
+        label={t('meeting.answers.title')}
+        options={MEETING_ANSWERS.map((answer) => ({
+          value: answer,
+          label: t(`meeting.answers.${answer}`),
+        }))}
+        value={answers.get(me) ?? 'none'}
+        onChange={(answer) => {
+          if (answer !== 'none') void answerMeeting(circle.id, answer);
+        }}
+      />
+      <Text variant="caption" color="textMuted" testID="meeting-answer-counts">
+        {t('meeting.answers.counts', answerCounts(answers))}
+      </Text>
+      {others.map((member) => {
+        const answer = answers.get(member.userId);
+        const name = memberName(member);
+        return (
+          <ListRow
+            key={member.userId}
+            testID={`meeting-answer-${member.userId}`}
+            leading={<Avatar avatar={member.avatar} name={name} userId={member.userId} size="sm" />}
+            title={name}
+            subtitle={
+              answer === undefined ? t('meeting.answers.none') : t(`meeting.answers.${answer}`)
+            }
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 function ArrivalsBoard({
   circle,
   meeting,
@@ -554,6 +615,7 @@ function MyWay({ circle, meetAt }: { circle: Circle; meetAt: number }) {
 }
 
 const styles = StyleSheet.create({
+  answers: { gap: space.sm },
   card: { gap: space.sm },
   round: {
     width: space.xxl,

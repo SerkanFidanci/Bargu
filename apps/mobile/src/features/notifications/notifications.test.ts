@@ -74,6 +74,25 @@ describe('notification texts', () => {
     expect(shown?.body).toMatch(/^Test buluşma başlattı: 17[:.]30 · 🏠 Ev$/);
   });
 
+  it('word an answer to a meeting for its starter, and a moved meeting (docs/ADR/0026 Ek 2)', () => {
+    const answered = pushText(
+      { kind: 'meetingAnswer', circleId: circle.id, answer: 1, going: 3, maybe: 1, ts: 1 },
+      ada.device.deviceId,
+      contacts,
+    );
+    expect(answered).toMatchObject({ channel: 'meetings', fromUserId: ada.userId });
+    expect(answered?.body).toBe('Test: Belki · 3 geliyor, 1 belki');
+    const meetAt = new Date(2026, 9, 16, 18, 30).getTime();
+    const moved = pushText(
+      { kind: 'meetingMoved', circleId: circle.id, name: 'Ev', emoji: '🏠', meetAt, ts: 1 },
+      ada.device.deviceId,
+      contacts,
+    );
+    expect(moved).toMatchObject({ channel: 'meetings', fromUserId: ada.userId });
+    expect(moved?.body.startsWith('Test buluşmayı değiştirdi: 🏠 Ev, 18')).toBe(true);
+    expect(moved?.body.endsWith('30. Hâlâ geliyor musun?')).toBe(true);
+  });
+
   it("word the server's notices themselves, with the circle's name when known", () => {
     expect(
       pushText(

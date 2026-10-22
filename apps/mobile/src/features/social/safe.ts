@@ -208,7 +208,22 @@ export function admitSafe(
   userId: string,
   now: number,
 ): Admission {
-  const raw = store.get(SAFE_RATE_KEY);
+  return admitRate(store, SAFE_RATE_KEY, SAFE_SHOWN_PER_HOUR, circleId, userId, now);
+}
+
+/**
+ * The same rolling-hour count for another kind of message, kept under its own vault key: the first
+ * `perHour` from one sender in one circle are shown, the rest folded (a meeting's answers, Ek 2).
+ */
+export function admitRate(
+  store: KeyValueStore,
+  rateKey: string,
+  perHour: number,
+  circleId: string,
+  userId: string,
+  now: number,
+): Admission {
+  const raw = store.get(rateKey);
   const parsed = rateSchema.safeParse(raw === undefined ? {} : JSON.parse(raw));
   const recent = (times: readonly number[]) => times.filter((time) => now - time < RATE_WINDOW_MS);
   const key = `${circleId}:${userId}`;
@@ -220,11 +235,11 @@ export function admitSafe(
     .filter(([name, entry]) => name !== key && entry.shown.length + entry.folded.length > 0)
     .slice(-(RATE_KEEP - 1));
   const mine = all.find(([name]) => name === key)?.[1] ?? { shown: [], folded: [] };
-  const show = mine.shown.length < SAFE_SHOWN_PER_HOUR;
+  const show = mine.shown.length < perHour;
   const next = show
     ? { shown: [...mine.shown, now], folded: mine.folded }
     : { shown: mine.shown, folded: [...mine.folded, now] };
-  store.set(SAFE_RATE_KEY, JSON.stringify(Object.fromEntries([...others, [key, next]])));
+  store.set(rateKey, JSON.stringify(Object.fromEntries([...others, [key, next]])));
   return show ? { show: true } : { show: false, folded: next.folded.length };
 }
 

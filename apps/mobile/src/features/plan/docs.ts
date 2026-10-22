@@ -122,7 +122,8 @@ function mayReseal(circle: Circle, doc: Doc, me: string | null): boolean {
 
 /** What a save sends along: outside an event the meeting says its end (docs/ADR/0026 §2). */
 function extraOf(circle: Circle, payload: DocPayload): DocExtra | null {
-  if (circle.kind === 'event') return {};
+  // An answer goes with its meeting: it names no end (docs/ADR/0026 Ek 2).
+  if (circle.kind === 'event' || payload.kind === 'vote') return {};
   const endsAt = payload.kind === 'plan' ? meetingEnd(payload) : null;
   return endsAt === null ? null : { endsAt };
 }
@@ -365,7 +366,7 @@ export function createDocs(deps: DocsDeps) {
     async save(
       circleId: string,
       draft: DocPayload,
-      options: { pushes?: DevicePushes; retried?: boolean } = {},
+      options: { pushes?: DevicePushes; moved?: boolean; retried?: boolean } = {},
     ): Promise<DocSaveResult> {
       restore();
       const device = deps.device();
@@ -376,10 +377,18 @@ export function createDocs(deps: DocsDeps) {
       const held = useDocs.getState()[key];
       const payload: DocPayload = { ...draft, ts: Math.max(now(), (held?.payload.ts ?? 0) + 1) };
       const shared = payload.kind !== 'vote';
-      if (circle.kind !== 'event' && payload.kind !== 'plan') return 'forbidden';
+      // Outside an event the meeting, and answers to it (docs/ADR/0026 Ek 2).
+      const answer = payload.kind === 'vote' && payload.pollId === circleId;
+      if (circle.kind !== 'event' && payload.kind !== 'plan' && !answer) return 'forbidden';
       const extra = extraOf(circle, payload);
       if (extra === null) return 'failed';
-      if (held === undefined && options.pushes !== undefined) extra.pushes = options.pushes;
+      // Notices go when a meeting starts, with an answer, and when a meeting moves (Ek 2).
+      if (
+        options.pushes !== undefined &&
+        (held === undefined || payload.kind === 'vote' || options.moved === true)
+      ) {
+        extra.pushes = options.pushes;
+      }
       try {
         const version = await deps.api.put(
           circleId,

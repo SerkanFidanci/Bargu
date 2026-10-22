@@ -98,6 +98,31 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
       ts: timestamp,
     })
     .strict(),
+  // An answer to a meeting outside an event, for its starter (docs/ADR/0026 Ek 2): 0 Geliyorum,
+  // 1 Belki, 2 Gelemiyorum, and how many come and maybe come with it. Signed by the answering
+  // member's phone.
+  z
+    .object({
+      kind: z.literal('meetingAnswer'),
+      circleId: z.uuid(),
+      answer: z.number().int().min(0).max(2),
+      going: z.number().int().min(0).max(10_000),
+      maybe: z.number().int().min(0).max(10_000),
+      ts: timestamp,
+    })
+    .strict(),
+  // The meeting moved (its time or place), for those who said Geliyorum or Belki (Ek 2): where and
+  // when now. Signed by the phone of whoever moved it.
+  z
+    .object({
+      kind: z.literal('meetingMoved'),
+      circleId: z.uuid(),
+      name: placeNameSchema,
+      emoji: placeEmojiSchema,
+      meetAt: timestamp,
+      ts: timestamp,
+    })
+    .strict(),
   z
     .object({
       kind: z.literal('notice'),

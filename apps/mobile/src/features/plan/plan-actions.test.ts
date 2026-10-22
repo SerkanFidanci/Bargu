@@ -1,4 +1,5 @@
-import type { PlanPayload } from '@bargu/schemas';
+import { generateDeviceKeys, randomUuid, voteId } from '@bargu/crypto';
+import type { DocPayload, PlanPayload } from '@bargu/schemas';
 
 jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
@@ -24,22 +25,42 @@ jest.mock('../storage/vault', () => ({
   }),
 }));
 // What the actions ask of the documents and the places: recorded, always granted.
-const mockSave = jest.fn<Promise<'saved'>, [string, PlanPayload]>(() => Promise.resolve('saved'));
+const mockSave = jest.fn<Promise<'saved'>, [string, DocPayload, object?]>(() =>
+  Promise.resolve('saved'),
+);
 const mockRemove = jest.fn<Promise<boolean>, [string, string]>(() => Promise.resolve(true));
 const mockForget = jest.fn<Promise<boolean>, [{ id: string }]>(() => Promise.resolve(true));
 jest.mock('./docs-session', () => ({
   docs: {
-    save: (circleId: string, plan: PlanPayload) => mockSave(circleId, plan),
+    save: (circleId: string, doc: DocPayload, options?: object) =>
+      mockSave(circleId, doc, ...(options === undefined ? [] : [options])),
     remove: (circleId: string, id: string) => mockRemove(circleId, id),
   },
 }));
 jest.mock('../places/places-session', () => ({
   places: { remove: (place: { id: string }) => mockForget(place) },
 }));
+// Who has a phone in the circle, and what this phone seals for them (the notice's body, readable).
+const mockRecipients: { userId: string; deviceId: string; dhKey: string }[] = [];
+jest.mock('../notifications/push-contacts', () => ({
+  loadContacts: () => ({
+    devices: {},
+    circles: {},
+    recipients: { '00000000-0000-4000-8000-000000000001': mockRecipients },
+  }),
+}));
+jest.mock('../places/presence', () => ({
+  sealPushes: (
+    recipients: { userId: string; deviceId: string }[],
+    _device: unknown,
+    body: unknown,
+  ) => recipients.map((recipient) => ({ ...recipient, sealed: JSON.stringify(body) })),
+}));
 
+import { useAuth } from '../auth/auth-store';
 import { usePlaces } from '../places/places';
 import { docKey, useDocs } from './docs';
-import { endMeeting, keepMeetingPlace, setMeeting } from './plan-actions';
+import { answerMeeting, endMeeting, keepMeetingPlace, setMeeting } from './plan-actions';
 
 const CIRCLE = '00000000-0000-4000-8000-000000000001';
 const ME = '00000000-0000-4000-8000-000000000002';
@@ -124,7 +145,84 @@ describe('the place added for a meeting (docs/ADR/0026 Ek 1)', () => {
     expect(mockSave).toHaveBeenLastCalledWith(
       CIRCLE,
       expect.objectContaining({ meetAt: 2, placeGoes: true }),
+      expect.anything(),
     );
     expect(mockForget).not.toHaveBeenCalled();
+  });
+});
+
+const STARTER = '00000000-0000-4000-8000-000000000003';
+const OTHER = '00000000-0000-4000-8000-000000000004';
+const CANNOT = '00000000-0000-4000-8000-000000000005';
+
+function holdAnswer(userId: string, choice: number): void {
+  const id = voteId(CIRCLE, userId);
+  const payload: DocPayload = { kind: 'vote', id, pollId: CIRCLE, choices: [choice], ts: 1 };
+  useDocs.setState({
+    [docKey(CIRCLE, id)]: {
+      circleId: CIRCLE,
+      version: 1,
+      shared: false,
+      authorId: userId,
+      payload,
+    },
+  });
+}
+
+/** Whom the notices of a save went to, and what they said. */
+function noticesOf(call: number): { to: string[]; body: Record<string, unknown> | null } {
+  const options = mockSave.mock.calls[call]?.[2] as
+    { pushes?: { userId: string; sealed: string }[]; moved?: boolean } | undefined;
+  const pushes = options?.pushes ?? [];
+  const first = pushes[0];
+  return {
+    to: pushes.map((push) => push.userId),
+    body: first === undefined ? null : (JSON.parse(first.sealed) as Record<string, unknown>),
+  };
+}
+
+describe('answers to a meeting (docs/ADR/0026 Ek 2)', () => {
+  beforeEach(() => {
+    useAuth.setState({ userId: ME, device: generateDeviceKeys(randomUuid()) });
+    mockRecipients.splice(0, mockRecipients.length);
+    for (const userId of [STARTER, OTHER, CANNOT]) {
+      mockRecipients.push({ userId, deviceId: `device-${userId}`, dhKey: 'x' });
+    }
+  });
+
+  it('are a vote on the meeting, in place, and its starter hears how many come', async () => {
+    holdMeeting({ placeId: HOME, by: STARTER });
+    holdAnswer(OTHER, 0);
+    expect(await answerMeeting(CIRCLE, 'maybe')).toBe(true);
+    expect(mockSave).toHaveBeenCalledWith(
+      CIRCLE,
+      { kind: 'vote', id: voteId(CIRCLE, ME), pollId: CIRCLE, choices: [1], ts: 0 },
+      expect.objectContaining({ pushes: expect.any(Array) as unknown }),
+    );
+    const sent = noticesOf(0);
+    expect(sent.to).toEqual([STARTER]);
+    expect(sent.body).toMatchObject({ kind: 'meetingAnswer', answer: 1, going: 1, maybe: 1 });
+  });
+
+  it('tell nobody when the starter answers their own meeting', async () => {
+    holdMeeting({ placeId: HOME, by: ME });
+    await answerMeeting(CIRCLE, 'going');
+    expect(noticesOf(0).to).toEqual([]);
+  });
+
+  it('hear a moved meeting: those who said they come, not who cannot, nor this user', async () => {
+    holdMeeting({ placeId: HOME, by: STARTER });
+    holdAnswer(OTHER, 0);
+    holdAnswer(CANNOT, 2);
+    holdAnswer(ME, 0);
+    await setMeeting(CIRCLE, { meetAt: 2 });
+    const sent = noticesOf(0);
+    expect(sent.to).toEqual([OTHER]);
+    expect(sent.body).toMatchObject({ kind: 'meetingMoved', name: 'Ev', meetAt: 2 });
+    expect(mockSave.mock.calls[0]?.[2]).toMatchObject({ moved: true });
+    // Nothing moved (the same time again): no notice.
+    mockSave.mockClear();
+    await setMeeting(CIRCLE, { meetAt: 1 });
+    expect(noticesOf(0).to).toEqual([]);
   });
 });
