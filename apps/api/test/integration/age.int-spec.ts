@@ -117,7 +117,13 @@ describe('the age band (docs/ADR/0023)', () => {
     const pair = await friends(teen, adult);
     const seen = await as(test, adult, 'GET', `/v1/circles/${pair.id}`);
     expect(seen.body).not.toContain('15-17');
-    expect(seen.body).not.toContain('age');
+    // No field about age at any depth. Not a search for the letters "age" in the whole body: the
+    // members' keys are random base64 and once in a while hold them (CI run 39782089816).
+    const fieldsOf = (value: unknown): string[] =>
+      value !== null && typeof value === 'object'
+        ? Object.entries(value).flatMap(([field, inner]) => [field, ...fieldsOf(inner)])
+        : [];
+    expect(fieldsOf(seen.json()).filter((field) => /^age|ageband|band$/i.test(field))).toEqual([]);
   });
 });
 
