@@ -217,4 +217,51 @@ describe('KeyStore', () => {
     store.prune(circleId, null);
     expect(store.historyKey(circleId, 5, bob.device.deviceId)).toBeNull();
   });
+
+  describe('forgetting the devices of a person no circle is shared with any more', () => {
+    it('deletes their sender keys, history keys and place in who our key went to, and no one else', () => {
+      const bob = somebody();
+      const carol = somebody();
+      const memory = memoryStore();
+      const store = new KeyStore(memory, me);
+      const circle = circleOf(circleId, 3, [card(me), card(bob), card(carol)]);
+      store.observe(circle);
+      store.accept(circle, [
+        keyFrom(bob, me, circle).distribution,
+        keyFrom(carol, me, circle).distribution,
+      ]);
+      store.markSent(circle, store.pendingDistributions(circle));
+      const sentTo = () =>
+        (JSON.parse(memory.get(`own:${circleId}:3`) ?? '{}') as { sentTo?: string[] }).sentTo;
+      expect(store.receivedKey(circleId, 3, bob.device.deviceId)).not.toBeNull();
+      expect(sentTo()).toEqual(
+        expect.arrayContaining([bob.device.deviceId, carol.device.deviceId]),
+      );
+
+      store.forgetDevices(new Set([bob.device.deviceId]));
+
+      expect(store.receivedKey(circleId, 3, bob.device.deviceId)).toBeNull();
+      expect(store.historyKey(circleId, 3, bob.device.deviceId)).toBeNull();
+      expect(sentTo()).toEqual([carol.device.deviceId]);
+      expect(store.receivedKey(circleId, 3, carol.device.deviceId)).not.toBeNull();
+      expect(store.historyKey(circleId, 3, carol.device.deviceId)).not.toBeNull();
+    });
+
+    it('never deletes the trust record', () => {
+      const bob = somebody();
+      const store = new KeyStore(memoryStore(), me);
+      store.observe(circleOf(circleId, 1, [card(me), card(bob)]));
+      store.markVerified(bob.userId, card(bob).device?.bundle.identityKey ?? '');
+      store.forgetDevices(new Set([bob.device.deviceId]));
+      expect(store.trust(bob.userId)).toBe('verified');
+      expect(store.identity(bob.userId)).not.toBeNull();
+    });
+  });
+
+  it('keeps who it shares circles with, and the devices they were met with', () => {
+    const store = new KeyStore(memoryStore(), me);
+    expect(store.knownPeople()).toEqual({});
+    store.rememberPeople({ bob: ['d1', 'd2'] });
+    expect(store.knownPeople()).toEqual({ bob: ['d1', 'd2'] });
+  });
 });

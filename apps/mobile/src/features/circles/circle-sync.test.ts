@@ -15,7 +15,7 @@ import { ApiError } from '../auth/api-client';
 import { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
 import { circlesKey } from './circle-cache';
-import { createCircleSync, useCircleKeys } from './circle-sync';
+import { createCircleSync, type DepartedPerson, useCircleKeys } from './circle-sync';
 import type { circlesApi } from './circles-api';
 import type { Notice } from './notices';
 
@@ -79,6 +79,24 @@ function setup() {
   const notify = jest.fn<undefined, [Notice[]]>();
   const firstLoad = jest.fn<undefined, [Circle[]]>();
   const gone = jest.fn<undefined, [(circleId: string) => boolean]>();
+  const departed = jest.fn<undefined, [readonly DepartedPerson[]]>();
+  /** A phone that starts again with the same vault: nothing in memory, the same account. */
+  const restart = () => {
+    const fresh = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
+    return {
+      queryClient: fresh,
+      sync: createCircleSync({
+        queryClient: fresh,
+        api: api as unknown as typeof circlesApi,
+        keys: () => store,
+        notify,
+        firstLoad,
+        gone,
+        departed,
+        now: () => NOW,
+      }),
+    };
+  };
   // No garbage-collection timers: they would outlive the test.
   const queryClient = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } });
   const sync = createCircleSync({
@@ -88,6 +106,7 @@ function setup() {
     notify,
     firstLoad,
     gone,
+    departed,
     now: () => NOW,
   });
   /** Bob's sender key for the circle, wrapped for this phone. */
@@ -101,7 +120,21 @@ function setup() {
       sender: bob.device,
       recipient: verifyDeviceKeyBundle(exportDeviceKeyBundle(me.device)),
     });
-  return { me, bob, circle, api, store, queryClient, sync, fromBob, notify, firstLoad, gone };
+  return {
+    me,
+    bob,
+    circle,
+    api,
+    store,
+    queryClient,
+    sync,
+    restart,
+    fromBob,
+    notify,
+    firstLoad,
+    gone,
+    departed,
+  };
 }
 
 describe('circle sync', () => {
@@ -285,5 +318,178 @@ describe('circle sync', () => {
     expect(notify).toHaveBeenLastCalledWith([
       { kind: 'keyChanged', circleId: circle.id, names: ['Test'] },
     ]);
+  });
+});
+
+// A person is forgotten (features/location/forget-person.ts) when the LAST circle this phone shares
+// with them goes, and not a moment before.
+describe('people no circle is shared with any more', () => {
+  /** Two circles with Bob in both, the full list loaded. */
+  async function withBobTwice() {
+    const s = setup();
+    const friends: Circle = { ...s.circle, id: randomUuid(), kind: 'friends', name: 'Ev' };
+    s.api.list.mockResolvedValue([s.circle, friends]);
+    await s.sync.reload();
+    return { ...s, friends };
+  }
+  const bobAlone = (s: { bob: { userId: string; device: { deviceId: string } } }) => [
+    { userId: s.bob.userId, deviceIds: [s.bob.device.deviceId] },
+  ];
+
+  it('tells nothing while one shared circle remains, and tells once when the last one goes', async () => {
+    const s = await withBobTwice();
+    expect(s.store.knownPeople()).toEqual({ [s.bob.userId]: [s.bob.device.deviceId] });
+
+    await s.sync.apply([{ type: 'circle.gone', circleId: s.circle.id }]);
+    expect(s.departed).not.toHaveBeenCalled();
+    expect(s.store.knownPeople()).toEqual({ [s.bob.userId]: [s.bob.device.deviceId] });
+
+    await s.sync.apply([{ type: 'circle.gone', circleId: s.friends.id }]);
+    expect(s.departed).toHaveBeenCalledTimes(1);
+    expect(s.departed).toHaveBeenCalledWith(bobAlone(s));
+    expect(s.store.knownPeople()).toEqual({});
+  });
+
+  it('when the person leaves or is removed: only when no other shared circle has them', async () => {
+    const s = await withBobTwice();
+    const without = (circle: Circle): Circle => ({ ...circle, members: [card(s.me)] });
+    s.api.get.mockImplementation((circleId: string) =>
+      Promise.resolve(without(circleId === s.circle.id ? s.circle : s.friends)),
+    );
+
+    await s.sync.apply([{ type: 'circle.changed', circleId: s.circle.id, epoch: 3 }]);
+    expect(s.departed).not.toHaveBeenCalled();
+
+    await s.sync.apply([{ type: 'circle.changed', circleId: s.friends.id, epoch: 3 }]);
+    expect(s.departed).toHaveBeenCalledTimes(1);
+    expect(s.departed).toHaveBeenCalledWith(bobAlone(s));
+  });
+
+  it('when this phone removes them itself (the circle comes back from the action)', async () => {
+    const s = await withBobTwice();
+    await s.sync.adopt({ ...s.circle, members: [card(s.me)] });
+    expect(s.departed).not.toHaveBeenCalled();
+    await s.sync.adopt({ ...s.friends, members: [card(s.me)] });
+    expect(s.departed).toHaveBeenCalledWith(bobAlone(s));
+  });
+
+  it('when this phone leaves the circles (leave, decline, an event over)', async () => {
+    const s = await withBobTwice();
+    s.sync.drop(s.circle.id);
+    expect(s.departed).not.toHaveBeenCalled();
+    s.sync.drop(s.friends.id);
+    expect(s.departed).toHaveBeenCalledWith(bobAlone(s));
+  });
+
+  it('when a circle ends and the list is loaded again (circles.reload)', async () => {
+    const s = await withBobTwice();
+    s.api.list.mockResolvedValueOnce([s.friends]);
+    await s.sync.apply([{ type: 'circles.reload' }]);
+    expect(s.departed).not.toHaveBeenCalled();
+    s.api.list.mockResolvedValueOnce([]);
+    await s.sync.apply([{ type: 'circles.reload' }]);
+    expect(s.departed).toHaveBeenCalledWith(bobAlone(s));
+  });
+
+  it('when they left while the app was closed: found from what was remembered, at the first list', async () => {
+    const s = await withBobTwice();
+    // The phone starts again with the same vault. Before the list is loaded the cache holds some
+    // circles at most, so nothing counts as having left...
+    const again = s.restart();
+    again.sync.drop(s.circle.id);
+    again.sync.drop(s.friends.id);
+    expect(s.departed).not.toHaveBeenCalled();
+    // ...the full list says Bob is in none of them.
+    s.api.list.mockResolvedValueOnce([]);
+    await again.sync.reload();
+    expect(s.departed).toHaveBeenCalledTimes(1);
+    expect(s.departed).toHaveBeenCalledWith(bobAlone(s));
+  });
+
+  it('remembers every phone a person was met with, and tells all of them', async () => {
+    const s = await withBobTwice();
+    const bobAgain = { userId: s.bob.userId, device: generateDeviceKeys(randomUuid()) };
+    s.api.get.mockImplementation((circleId: string) =>
+      Promise.resolve({
+        ...(circleId === s.circle.id ? s.circle : s.friends),
+        members: [card(s.me), card(bobAgain)],
+      }),
+    );
+    await s.sync.apply([
+      { type: 'circle.changed', circleId: s.circle.id, epoch: 3 },
+      { type: 'circle.changed', circleId: s.friends.id, epoch: 3 },
+    ]);
+    s.api.list.mockResolvedValueOnce([]);
+    await s.sync.reload();
+    const [people] = s.departed.mock.calls.at(-1) ?? [];
+    expect(people?.[0]?.deviceIds).toEqual(
+      expect.arrayContaining([s.bob.device.deviceId, bobAgain.device.deviceId]),
+    );
+  });
+
+  it('does not count someone only invited, or a circle this phone is only invited to', async () => {
+    const s = setup();
+    const carol = somebody();
+    const invitedMember: Circle = {
+      ...s.circle,
+      members: [card(s.me), { ...card(carol), status: 'invited', device: null }],
+    };
+    const invitedMe: Circle = {
+      ...s.circle,
+      id: randomUuid(),
+      myStatus: 'invited',
+      members: [{ ...card(s.me), status: 'invited', device: null }, card(carol)],
+    };
+    s.api.list.mockResolvedValue([invitedMember, invitedMe]);
+    await s.sync.reload();
+    expect(s.store.knownPeople()).toEqual({});
+    expect(s.departed).not.toHaveBeenCalled();
+  });
+
+  it('starts over for someone who is shared with again', async () => {
+    const s = await withBobTwice();
+    s.sync.drop(s.circle.id);
+    s.sync.drop(s.friends.id);
+    expect(s.departed).toHaveBeenCalledTimes(1);
+    s.api.list.mockResolvedValue([s.circle]);
+    await s.sync.reload();
+    expect(s.store.knownPeople()).toEqual({ [s.bob.userId]: [s.bob.device.deviceId] });
+    s.sync.drop(s.circle.id);
+    expect(s.departed).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps them remembered when forgetting failed, and tries again at the next change', async () => {
+    const s = await withBobTwice();
+    s.departed.mockImplementationOnce(() => {
+      throw new Error('vault closed');
+    });
+    s.sync.drop(s.circle.id);
+    // The circle operation itself goes through; the person is still on the list.
+    s.sync.drop(s.friends.id);
+    expect(s.departed).toHaveBeenCalledTimes(1);
+    expect(s.store.knownPeople()).toEqual({ [s.bob.userId]: [s.bob.device.deviceId] });
+
+    s.api.list.mockResolvedValueOnce([]);
+    await s.sync.reload();
+    expect(s.departed).toHaveBeenCalledTimes(2);
+    expect(s.store.knownPeople()).toEqual({});
+  });
+
+  it('never touches the trust record: a changed key is noticed when they are met again', async () => {
+    const s = await withBobTwice();
+    s.sync.drop(s.circle.id);
+    s.sync.drop(s.friends.id);
+    expect(s.departed).toHaveBeenCalledTimes(1);
+    expect(s.store.identity(s.bob.userId)).toEqual({
+      key: s.circle.members[1]?.device?.bundle.identityKey,
+      verified: false,
+      changedTo: null,
+    });
+
+    // The same person is met again, with another identity key: it is NOT taken for a first use.
+    const bobAgain = { userId: s.bob.userId, device: generateDeviceKeys(randomUuid()) };
+    const back: Circle = { ...s.circle, members: [card(s.me), card(bobAgain)] };
+    expect(s.store.observe(back)).toEqual([s.bob.userId]);
+    expect(s.store.trust(s.bob.userId)).toBe('changed');
   });
 });

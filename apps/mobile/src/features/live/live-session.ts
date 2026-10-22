@@ -9,7 +9,7 @@ import { env } from '@/config/env';
 import { api, bootstrapAuth, onSignedOut, sessionRevoked, useAuth } from '../auth/auth-store';
 import { announce } from '../circles/announce';
 import { circlesKey } from '../circles/circle-cache';
-import { createCircleSync } from '../circles/circle-sync';
+import { createCircleSync, type DepartedPerson } from '../circles/circle-sync';
 import { endedEvents, nextEventEnd } from '../circles/event-time';
 import { circlesApi } from '../circles/circles-api';
 import { EventStream } from '../events/event-stream';
@@ -92,6 +92,20 @@ export function onCirclesGone(
   return () => goneListeners.delete(listener);
 }
 
+const departedListeners = new Set<(people: readonly DepartedPerson[]) => void>();
+
+/**
+ * People this phone shares no circle with any more, as circle-sync found it (see
+ * CircleSyncDeps.departed): everything local about them is deleted by the listener. Returns the
+ * unsubscribe.
+ */
+export function onPeopleDeparted(
+  listener: (people: readonly DepartedPerson[]) => void,
+): () => void {
+  departedListeners.add(listener);
+  return () => departedListeners.delete(listener);
+}
+
 export const circleSync = createCircleSync({
   queryClient,
   api: circlesApi,
@@ -102,6 +116,9 @@ export const circleSync = createCircleSync({
   },
   gone: (isGone) => {
     for (const listener of goneListeners) listener(isGone);
+  },
+  departed: (people) => {
+    for (const listener of departedListeners) listener(people);
   },
 });
 

@@ -1,6 +1,6 @@
 import { exportDeviceKeyBundle, generateDeviceKeys, randomUuid } from '@bargu/crypto';
 
-import { forgetCheckedBundles, verifiedBundle } from './bundle-cache';
+import { forgetBundlesOf, forgetCheckedBundles, verifiedBundle } from './bundle-cache';
 
 const checks = { count: 0 };
 jest.mock('@bargu/crypto', () => {
@@ -51,6 +51,19 @@ describe('checked device bundles', () => {
     expect(() => verifiedBundle(forged)).toThrow();
     expect(() => verifiedBundle(forged)).toThrow();
     expect(checks.count).toBe(2);
+  });
+
+  it('of a person no circle is shared with any more are forgotten, and only theirs', () => {
+    const gone = bundleOf();
+    const stays = bundleOf();
+    verifiedBundle(gone);
+    verifiedBundle(stays);
+    forgetBundlesOf(new Set([gone.deviceId]));
+    checks.count = 0;
+    verifiedBundle(stays);
+    expect(checks.count).toBe(0);
+    verifiedBundle(gone);
+    expect(checks.count).toBe(1);
   });
 
   it('keep a bounded number, the oldest going first', () => {

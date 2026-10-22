@@ -24,6 +24,31 @@ export interface CircleKeyStatus {
 
 export const useCircleKeys = create<Record<string, CircleKeyStatus>>(() => ({}));
 
+/** A person this phone shares no circle with any more, and the devices they were met with. */
+export interface DepartedPerson {
+  userId: string;
+  deviceIds: readonly string[];
+}
+
+/**
+ * Everyone this phone shares an active circle with (both active in it), with the devices they have
+ * now. A person who is only invited, or in a circle this phone is only invited to, is not shared with:
+ * nothing of theirs reaches this phone.
+ */
+function sharedWith(circles: readonly Circle[], store: KeyStore): Map<string, Set<string>> {
+  const shared = new Map<string, Set<string>>();
+  for (const circle of circles) {
+    if (circle.myStatus !== 'active') continue;
+    for (const member of circle.members) {
+      if (member.status !== 'active' || store.isMe(member.userId)) continue;
+      const devices = shared.get(member.userId) ?? new Set<string>();
+      if (member.device !== null) devices.add(member.device.bundle.deviceId);
+      shared.set(member.userId, devices);
+    }
+  }
+  return shared;
+}
+
 export interface CircleSyncDeps {
   queryClient: QueryClient;
   api: typeof circlesApi;
@@ -42,6 +67,15 @@ export interface CircleSyncDeps {
    * which may hold only some circles before the list arrives.
    */
   gone?: (isGone: (circleId: string) => boolean) => void;
+  /**
+   * People this phone shares no circle with any more: the last circle they shared with it went
+   * (they left or were removed, this phone left, a circle ended, an event over). Called once for
+   * them, and everything local about them is deleted there (features/location/forget-person.ts).
+   * Never while some shared circle remains, and never before the full circle list has been loaded
+   * once (a partial cache is not a departure). If it throws, the person is still remembered and
+   * the next change of the circle list tries again.
+   */
+  departed?: (people: readonly DepartedPerson[]) => void;
   now?: () => number;
 }
 
@@ -58,9 +92,16 @@ export function createCircleSync({
   notify = () => undefined,
   firstLoad = () => undefined,
   gone = () => undefined,
+  departed = () => undefined,
   now = Date.now,
 }: CircleSyncDeps) {
   const queues = new Map<string, Promise<void>>();
+  /**
+   * The key store of the account whose full circle list this run has loaded (null before the first
+   * `reload`, and a new store after a sign-out). Until then the cache may hold only some circles, so
+   * nobody can be told to have left.
+   */
+  let listed: KeyStore | null = null;
   /** Rekey asked once per circle and epoch per run (the server decides; no loops). */
   const rekeysAsked = new Set<string>();
 
@@ -102,6 +143,33 @@ export function createCircleSync({
     useCircleKeys.setState({ [circle.id]: { ready, waitingFor, trust } });
   }
 
+  /**
+   * After the circle list changed: the people this phone shares no circle with any more are handed
+   * to `departed`, once. `keys().knownPeople()` is who was shared with before (and the devices they
+   * were met with, which the circle list no longer shows once they are gone).
+   */
+  function settlePeople(): void {
+    const store = keys();
+    if (listed !== store) return;
+    const circles = queryClient.getQueryData<Circle[]>(circlesKey);
+    if (circles === undefined) return;
+    try {
+      const before = store.knownPeople();
+      const shared = sharedWith(circles, store);
+      const left = Object.entries(before)
+        .filter(([userId]) => !shared.has(userId))
+        .map(([userId, deviceIds]) => ({ userId, deviceIds }));
+      if (left.length > 0) departed(left);
+      const next: Record<string, string[]> = {};
+      for (const [userId, devices] of shared) {
+        next[userId] = [...new Set([...(before[userId] ?? []), ...devices])];
+      }
+      store.rememberPeople(next);
+    } catch {
+      // Not remembered as forgotten: the next change of the circle list tries again.
+    }
+  }
+
   function forget(circleId: string): void {
     gone((id) => id === circleId);
     removeCircle(queryClient, circleId);
@@ -110,6 +178,7 @@ export function createCircleSync({
       (current) => Object.fromEntries(Object.entries(current).filter(([id]) => id !== circleId)),
       true,
     );
+    settlePeople();
   }
 
   /** The circle as the server has it now; null (and forgotten here) when we are no longer in it. */
@@ -117,6 +186,7 @@ export function createCircleSync({
     try {
       const circle = await api.get(circleId);
       upsertCircle(queryClient, circle);
+      settlePeople();
       return circle;
     } catch (error) {
       if (isApiError(error, 'NOT_FOUND', 'FORBIDDEN')) {
@@ -173,6 +243,7 @@ export function createCircleSync({
       rekeysAsked.add(askKey);
       const next = await api.rekey(circle.id);
       upsertCircle(queryClient, next);
+      settlePeople();
       if (next.epoch !== circle.epoch) {
         await syncKeys(next, false, attempt);
         return;
@@ -185,6 +256,7 @@ export function createCircleSync({
     /** After the user's own action returned the circle (create, accept, invite, remove…). */
     adopt(circle: Circle): Promise<void> {
       upsertCircle(queryClient, circle);
+      settlePeople();
       remember(circle, false);
       return serial(circle.id, () => syncKeys(circle, circle.myStatus === 'active'));
     },
@@ -299,8 +371,12 @@ export function createCircleSync({
         if (!circles.some((circle) => circle.id === circleId)) forget(circleId);
       }
       // Also what this phone kept about circles it had no keys for any more.
-      const listed = new Set(circles.map((circle) => circle.id));
-      gone((circleId) => !listed.has(circleId));
+      const listedIds = new Set(circles.map((circle) => circle.id));
+      gone((circleId) => !listedIds.has(circleId));
+      // The full list is known: from now on a person missing from it has really left, and so does
+      // one who left while the app was closed (the people remembered from last time).
+      listed = store;
+      settlePeople();
       // What happened while the app was closed is announced once; the very first load only records.
       for (const circle of circles) remember(circle, true);
       store.markNoticesReady();

@@ -39,7 +39,11 @@ const identitySchema = z
   .strict();
 export type KnownIdentity = z.infer<typeof identitySchema>;
 
+/** Who this phone shares circles with → the devices they were met with (see `knownPeople`). */
+const peopleSchema = z.record(z.string(), z.array(z.string()));
+
 const k = {
+  people: 'people:v1',
   own: (circleId: string, epoch: number) => `own:${circleId}:${String(epoch)}`,
   seq: (circleId: string, epoch: number) => `seq:${circleId}:${String(epoch)}`,
   received: (circleId: string, epoch: number, senderDeviceId: string) =>
@@ -140,6 +144,41 @@ export class KeyStore {
     const known = this.identity(userId);
     if ((known?.changedTo ?? null) !== null) return 'changed';
     return known?.verified === true ? 'verified' : 'unverified';
+  }
+
+  /**
+   * The people this phone shares at least one circle with, each with the devices they were met with:
+   * what it takes to forget a person completely once the last shared circle is gone (the other
+   * records name a device, not the person behind it). Kept in step by circle-sync; empty on a phone
+   * that has not loaded its circles yet.
+   */
+  knownPeople(): Record<string, string[]> {
+    return read(this.store, k.people, peopleSchema) ?? {};
+  }
+
+  rememberPeople(people: Record<string, string[]>): void {
+    this.store.set(k.people, JSON.stringify(people));
+  }
+
+  /**
+   * Deletes what this phone holds from these devices, which belong to a person it shares no circle
+   * with any more: their sender keys (messages and history), and their place in the lists of who
+   * this phone sent its own key to. Not the identity record (`identity:`): that stays on purpose,
+   * it is what notices a changed key if the person is met again (docs/PROTOCOL.md).
+   */
+  forgetDevices(deviceIds: ReadonlySet<string>): void {
+    for (const key of this.store.keys()) {
+      const [kind, , , deviceId] = key.split(':');
+      if ((kind === 'recv' || kind === 'hist') && deviceId !== undefined) {
+        if (deviceIds.has(deviceId)) this.store.delete(key);
+      } else if (kind === 'own') {
+        const stored = read(this.store, key, ownSchema);
+        if (stored?.sentTo.some((sent) => deviceIds.has(sent)) === true) {
+          const sentTo = stored.sentTo.filter((sent) => !deviceIds.has(sent));
+          this.store.set(key, JSON.stringify({ ...stored, sentTo }));
+        }
+      }
+    }
   }
 
   /** Circles this phone holds key state for (to drop the ones that are gone after a reload). */

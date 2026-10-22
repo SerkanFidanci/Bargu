@@ -31,6 +31,16 @@ export function verifiedBundle(bundle: DeviceKeyBundle): DevicePublicKeys {
 }
 
 /**
+ * The checked bundles of these devices go: they belong to a person this phone shares no circle with
+ * any more (features/location/forget-person.ts). The key starts with the device id.
+ */
+export function forgetBundlesOf(deviceIds: ReadonlySet<string>): void {
+  for (const id of [...checked.keys()]) {
+    if (deviceIds.has(id.slice(0, id.indexOf('|')))) checked.delete(id);
+  }
+}
+
+/**
  * Nothing of one account carries over. Called when a session ends on this phone (auth-store's
  * `endLocally`: sign-out, account deletion, a session the server closed), and by tests.
  */
