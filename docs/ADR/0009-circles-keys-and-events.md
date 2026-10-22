@@ -160,7 +160,9 @@ yayından önce kapatıldı ve her biri testle korunuyor:
 `bargu://i/<token>` bir mesajlaşma uygulamasında önizleme vermez, uygulaması olmayan kişi bir şey
 görmez. Bu ekle davet bağlantıları HTTPS olarak da açılır: `https://<davet sunucusu>/i/<token>`
 (arkadaş, çember, etkinlik) ve `/g/<token>` (ebeveyn isteği). Token'ın kendisi, 24 saat ve tek
-kullanım kuralları yukarıdaki gibi kalır.
+kullanım kuralları yukarıdaki gibi kalır. (Paylaşılan bağlantının biçimi aynı gün Ek 2 ile
+değişti: token yola değil parçaya girer, `https://<sunucu>/i#<token>`. Aşağıdaki sayfa, başlık,
+hız sınırı ve süzgeç kuralları iki biçim için de geçerlidir.)
 
 ### Davet sayfası
 
@@ -211,8 +213,8 @@ yanıta eklenir.
 ### Android App Links
 
 - `app.config.ts`: davet sunucusu verilmişse `https://<sunucu>/i/*` ve `/g/*` için `autoVerify`
-  niyet filtresi eklenir. Sunucu yapılandırmadan gelir (`EXPO_PUBLIC_INVITE_HOST`); biçimi yanlışsa
-  derleme durur.
+  niyet filtresi eklenir (Ek 2'de `/i` ve `/g` tam yolları da eklendi). Sunucu yapılandırmadan gelir
+  (`EXPO_PUBLIC_INVITE_HOST`); biçimi yanlışsa derleme durur.
 - API `/.well-known/assetlinks.json` sunar: paket adı (`ANDROID_PACKAGE`) ve uygulamanın imza
   sertifikasının SHA-256 parmak izi ya da izleri (`ANDROID_CERT_SHA256`, virgülle). Parmak izi
   **açık bilgidir** (her APK sertifikasını taşır). Ortam başına ayarlanır; Play'in imza anahtarı
@@ -259,8 +261,91 @@ Davet sunucusu olmayan build'de (production, şimdilik) hiçbir https bağlantı
 
 ### Bu adımın dışında kalan
 
-- Paylaşılan bağlantı ve QR hâlâ `bargu://i/<token>`: `Invite.link` ve `guardianLink` değişmedi.
-  Kartın bir mesajlaşma uygulamasında görünmesi için paylaşım metni https bağlantısını taşımalı;
-  bu QR'ın içeriğini, uygulamadaki tarayıcıyı ve eski uygulamaları etkiler, ayrı bir karardır.
+- Paylaşılan bağlantı ve QR bu adımda hâlâ `bargu://i/<token>` idi; https biçimine geçiş Ek 2'de.
 - `ANDROID_CERT_SHA256` hâlâ Play Integrity denetiminin de sertifika listesidir; preview
   sertifikasını eklemek staging'de (`DEVICE_ATTESTATION=optional`) bir şey bozmaz.
+
+## Ek 2 (2026-10-22, paylaşılan bağlantıda token parçada)
+
+Yoldaki token (`/i/<token>`) HTTP isteğinin parçasıdır: sunucuya gider, nginx erişim kaydına,
+paylaşımlı sunucunun kayıtlarına ve mesajlaşma uygulamalarının önizleme sunucularına (Meta, Telegram)
+düşer. Adresin `#` sonrası (parça) ise istekte hiç yer almaz. Paylaşılan bağlantı bu yüzden
+**token'ı parçada taşır**; Ek'teki sayfa, başlık ve süzgeç kuralları geçerli kalır.
+
+### Biçim
+
+- Arkadaş, çember ve etkinlik daveti: `https://<davet sunucusu>/i#<token>`.
+  Ebeveyn isteği (çocuğun kodu): `https://<davet sunucusu>/g#<token>`.
+- API'nin `Invite.link` ve `GuardianCode.link` alanları (ve QR kodu) bu biçimdedir; sunucu adı
+  `INVITE_HOST`'tan gelir (`inviteLink`, `guardianLink`). Başka bir paylaşım bağlantısı yoktur.
+  QR ~55 yerine ~80 karakter taşır.
+- Uygulama **üç biçimi** okur: `bargu://i/<token>`, `https://<sunucu>/i/<token>` (geçiş süresince
+  korunur) ve `https://<sunucu>/i#<token>` (`/g` için de). **Yalnızca üçüncüyü paylaşır** (sunucunun
+  verdiği `link`).
+
+### Sunucu: parçayı hiç görmez
+
+- `GET /i` ve `GET /g` aynı genel sayfayı verir, `/i/<token>` sayfasıyla bayt bayt aynı (aynı
+  başlıklar, aynı kart, aynı hız bütçesi). Sayfa parçayı okumaz: sayfada betik yok, sunucu da parçayı
+  almaz. Eski `/i/<token>` ve `/g/<token>` olduğu gibi çalışır.
+- Sınır: "Uygulamada aç" bağlantısı boş `href`'tir ve tarayıcı bunu çözerken parçayı atar
+  (`new URL('', 'https://a/i#t')` → `https://a/i`), yani token'ı taşımaz. Uygulama kurulu ve
+  doğrulanmışsa bağlantıya dokununca zaten uygulama açılır, sayfa yalnızca uygulamasız ya da
+  doğrulamasız durum içindir. Parçayı okuyup düğmeye aktaracak bir betik "sayfa parçayı okumaz"
+  kuralıyla çelişir; eklenmedi.
+
+### Uygulama: tek ayrıştırıcı, sıkı kurallar
+
+Dışarıdan gelen her bağlantı (`+native-intent`) ve taranan ya da yapıştırılan her kod
+(`inviteTokenFrom`, `guardianTokenFrom`) tek yerde okunur: `parseBarguLink`
+(`features/links/incoming-link.ts`). Parçalı biçim için:
+
+- tam olarak bir `#` ve yalnızca davet sunucusunun `/i` ya da `/g` yolundan hemen sonra; token 43
+  karakterlik base64url biçiminde olmalı;
+- ana ekrana düşenler: ikinci `#`, boş parça, token biçimine uymayan ya da çok uzun parça (256
+  karakterlik bağlantı sınırı ayrıştırmadan önce uygulanır), `%23` (her `%`), sorgu (parçadan önce ya
+  da sonra), başka yol (`/i/#…`, `/i/<token>#…`, `/hesap#…`), başka sunucu, benzer sunucu,
+  kullanıcı bilgisi, port, http, `bargu://` ya da çıplak yol üzerinde parça;
+- sunucu adı bütün olarak karşılaştırılır; davet sunucusu olmayan build'de hiçbir https bağlantısı
+  geçmez.
+
+### Android App Links
+
+- Niyet filtresi yolu **tam** eşleştirir: `path` `/i` ve `/g` (paylaşılan biçim) ile `pathPrefix`
+  `/i/` ve `/g/` (eski biçim). Yalnızca `pathPrefix` `/i` seçilmedi: `/invite/card.png` gibi her
+  şeyi uygulamaya yönlendirirdi. Tek bir `autoVerify` filtresidir; doğrulama sunucu başınadır,
+  yola bakmaz.
+- Android bir niyet filtresini şemaya, sunucuya ve yola göre eşleştirir; parçayı yok sayar ve
+  niyetin verisinde olduğu gibi bırakır. `app.config.ts`'in ürettiği filtre testte Android'in
+  kuralıyla denendi (`/i#<token>`, `/i`, `/i/<token>` açar; `/`, `/hesap`, `/invite/card.png`,
+  `/ii`, başka sunucu ve http açmaz).
+
+### Parça uygulamaya ulaşıyor mu? (kaynaktan doğrulandı)
+
+- react-native 0.86.3, `ReactAndroid` `IntentModule.kt`: `getInitialURL` niyetin verisini
+  `uri.toString()` ile verir; çalışan uygulamaya yeni niyet `DeviceEventManagerModule.
+emitNewIntentReceived` ile `url` olayı olarak yine `uri.toString()` ile gider. Dokunulan
+  bağlantının `Uri.toString()` değeri parçası dahil bağlantının tamamıdır.
+- expo-router 57.0.25: Android'de başlangıç adresi RN `Linking.getInitialURL` (150 ms zaman aşımıyla),
+  sonraki niyetler `Linking.addEventListener('url')` ile gelir; ikisi de dizgeyi değiştirmeden
+  `redirectSystemPath`'e verir (`getLinkingConfig.js`, `link/linking.js`). expo-linking bu yolda
+  yok. Dönen göreli yol (`/i/<token>`) yönlendiriciye olduğu gibi geçer.
+- Gerçekçi niyet verisi (`https://<sunucu>/i#<token>`) ile expo-router'ın kendi `getInitialURL` ve
+  `subscribe` işlevlerinden geçen test var (`native-intent-https.test.ts`).
+- **Cihazda denenmedi**: Chrome'un ve mesajlaşma uygulamalarının bağlantıyı uygulamaya parçasıyla
+  devrettiği telefonda görülecek.
+
+### Günlükler
+
+Token yeni biçimde API'nin günlüğünde (zaten yalnızca rota deseni yazılır), nginx erişim kaydında
+(zaten kapalı; maskeleme ayrı iş) ve önizleme sunucularında yoktur: hepsi yolsuz genel sayfayı görür.
+Eski yol biçimindeki bağlantıların token'ı yola düşmeye devam eder; yeni bağlantı bu biçimde
+üretilmez ve bir davet 24 saatte biter.
+
+### Dikkat edilecekler
+
+- Eski uygulamalar yeni `link`i paylaşabilir ama yeni QR'ı tarayamaz (`bargu://` bekler) ve https
+  bağlantıyı açmaz (niyet filtresi yok). `MIN_CLIENT_LEVEL` kararı proje sahibinindir.
+- Production profili (`eas.json`) şimdilik `EXPO_PUBLIC_INVITE_HOST` taşımıyor; production API'si ise
+  `INVITE_HOST` ister ve https bağlantı üretir. Kalıcı alan adı (K12) gelince ikisi aynı değerle
+  birlikte ayarlanmalı, yoksa production uygulaması kendi QR'ını okuyamaz.
