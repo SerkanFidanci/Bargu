@@ -4,8 +4,8 @@ import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { billingApi } from '@/features/billing/billing-api';
 import { planKey, usePlan } from '@/features/billing/plan';
+import { testBillingOf, useTestBilling } from '@/features/billing/test-slot';
 import { errorMessage } from '@/features/errors';
 import { space, useTheme } from '@/theme';
 import { Button } from '@/ui/button';
@@ -33,9 +33,13 @@ export function BillingDevScreen() {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
   const plan = usePlan();
+  // A build can have the developer tools without test billing (EXPO_PUBLIC_TEST_BILLING).
+  const tester = useTestBilling((state) => state.api);
   const run = useMutation({
-    mutationFn: (step: { kind: 'buy'; product: 'plus_month' | 'plus_year' } | TestSimulate) =>
-      'product' in step ? billingApi.testPurchase(step.product) : billingApi.simulate(step.action),
+    mutationFn: (step: { kind: 'buy'; product: 'plus_month' | 'plus_year' } | TestSimulate) => {
+      const billing = testBillingOf(tester);
+      return 'product' in step ? billing.purchase(step.product) : billing.simulate(step.action);
+    },
     onSuccess: (next) => {
       queryClient.setQueryData(planKey, next);
       toast.success(t('dev.billing.done', { plan: t(`dev.billing.plan_${next.plan}`) }));

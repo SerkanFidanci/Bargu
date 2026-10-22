@@ -12,6 +12,7 @@ import {
 import { StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
 import { ApiError } from '@/features/auth/api-client';
+import { useTestBilling } from '@/features/billing/test-slot';
 import i18n from '@/i18n';
 import { lightColors } from '@/theme/colors';
 import { useToasts } from '@/ui/toast';
@@ -58,9 +59,6 @@ const mockPurchase = jest.fn<Promise<Plan>, [string]>();
 const mockChoose = jest.fn<Promise<void>, [{ ring: string | null; frame: string | null }]>();
 const mockRefresh = jest.fn<Promise<void>, [boolean | undefined]>();
 
-jest.mock('@/features/billing/billing-api', () => ({
-  billingApi: { testPurchase: (product: string) => mockPurchase(product) },
-}));
 jest.mock('@/features/billing/plan', () => {
   const { useQuery } =
     jest.requireActual<typeof import('@tanstack/react-query')>('@tanstack/react-query');
@@ -140,6 +138,13 @@ beforeEach(() => {
   mockPlan = plan([]);
   mockBand = '18+';
   mockPurchase.mockImplementation(() => Promise.resolve(plan(['rings'])));
+  // A development or preview build has test billing in its slot (features/billing/test-billing.ts).
+  useTestBilling.setState({
+    api: {
+      purchase: (product) => mockPurchase(product),
+      simulate: () => Promise.reject(new Error('unused')),
+    },
+  });
   mockChoose.mockImplementation(() => Promise.resolve());
   mockRefresh.mockImplementation(() => Promise.resolve());
   useMyLook.setState({ choice: { ring: null, frame: null }, pass: null, look: null });
@@ -384,6 +389,17 @@ describe('"Pin süsleri" in Görünüm ve harita (docs/ADR/0025, the pin addendu
     await show();
     expect(await screen.findAllByText(/ebeveyn onayı gerekiyor/)).toHaveLength(2);
     expect(screen.queryByTestId('pack-buy-rings')).toBeNull();
+  });
+
+  it('in a production build (no test billing in the bundle) offers no purchase, even if the server says it is on', async () => {
+    useTestBilling.setState({ api: null });
+    mockPlan = plan([], true);
+    await show();
+    expect(
+      await screen.findAllByText('Satın alma yakında: mağaza bağlantısı henüz yok.'),
+    ).toHaveLength(2);
+    expect(screen.queryByTestId('pack-buy-rings')).toBeNull();
+    expect(mockPurchase).not.toHaveBeenCalled();
   });
 
   it('shows an error when buying fails otherwise, and keeps the pack to buy', async () => {

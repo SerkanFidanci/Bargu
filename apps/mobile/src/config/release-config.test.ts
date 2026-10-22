@@ -87,6 +87,15 @@ describe('EAS build profiles', () => {
     expect(config.android).not.toHaveProperty('versionCode');
   });
 
+  it('turns test billing and the developer tools on for development and preview only', () => {
+    for (const name of ['development', 'preview']) {
+      expect(profile(name).env).toMatchObject({
+        EXPO_PUBLIC_DEV_TOOLS: '1',
+        EXPO_PUBLIC_TEST_BILLING: '1',
+      });
+    }
+  });
+
   it('turns no developer or staging flag on for production', () => {
     const base = profile('base').env ?? {};
     const production = profile('production').env ?? {};

@@ -26,6 +26,14 @@ if (__DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1') {
   void import('./src/features/dev/tools');
 }
 
+// Test billing (a purchase with no payment, docs/ADR/0024), in development and preview builds only.
+// Same way: a constant condition, so a production bundle has no code that could make a test
+// purchase and not even the two server paths (scripts/check-bundle.mjs). Without it the Bargu+
+// screen and the pin packs say that buying comes through Google Play.
+if (__DEV__ || process.env.EXPO_PUBLIC_TEST_BILLING === '1') {
+  void import('./src/features/billing/test-billing');
+}
+
 // Background live mode (docs/ADR/0028 step 3): the same way, in preview builds only until the
 // owner's phone trial and the PM's approval. A production bundle has no code of it; there a
 // `watch` notice is dropped (src/features/notifications/background-push.ts).

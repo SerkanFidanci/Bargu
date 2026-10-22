@@ -23,7 +23,7 @@ import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 
 import { ageKey, fetchAge, isMinor } from '../account/age-api';
-import { billingApi } from '../billing/billing-api';
+import { testBillingOf, useTestBilling } from '../billing/test-slot';
 import { planKey, usePlan } from '../billing/plan';
 import { priceText } from '../billing/plan-model';
 import { errorMessage, isApiError } from '../errors';
@@ -79,7 +79,9 @@ export function PinLooks() {
   };
   const shown: LookChoice = { ring: shownPart('rings'), frame: shownPart('frames') };
   const look = previewOf(shown);
-  const testing = plan.data?.testBilling === true;
+  // Only development and preview builds have test billing (features/billing/test-billing.ts).
+  const tester = useTestBilling((state) => state.api);
+  const testing = tester !== null && plan.data?.testBilling === true;
 
   const pick = (pack: CosmeticPack, id: string | null) => {
     const part = PART[pack];
@@ -92,7 +94,7 @@ export function PinLooks() {
   };
 
   const buy = useMutation({
-    mutationFn: (pack: CosmeticPack) => billingApi.testPurchase(`cosmetic:${pack}`),
+    mutationFn: (pack: CosmeticPack) => testBillingOf(tester).purchase(`cosmetic:${pack}`),
     onSuccess: (next, pack) => {
       queryClient.setQueryData(planKey, next);
       // The new pack is in the next pass; the style tried goes to circles with it.
@@ -118,7 +120,7 @@ export function PinLooks() {
   // answers 403 GUARDIAN_APPROVAL; the plan's `pendingCosmetics` says what waits, on every phone of
   // theirs, and follows a parent's answer through plan.changed (no polling).
   const ask = useMutation({
-    mutationFn: (pack: CosmeticPack) => billingApi.testPurchase(`cosmetic:${pack}`),
+    mutationFn: (pack: CosmeticPack) => testBillingOf(tester).purchase(`cosmetic:${pack}`),
     // A pack they already have needs no one's yes: the server just answers the plan.
     onSuccess: (next) => {
       queryClient.setQueryData(planKey, next);

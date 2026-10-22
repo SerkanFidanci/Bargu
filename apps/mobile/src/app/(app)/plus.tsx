@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { ageKey, fetchAge, isMinor } from '@/features/account/age-api';
-import { billingApi } from '@/features/billing/billing-api';
+import { testBillingOf, useTestBilling } from '@/features/billing/test-slot';
 import { planKey, usePlan } from '@/features/billing/plan';
 import { daysLeft, PLUS_PRICES, priceText, yearlySaving } from '@/features/billing/plan-model';
 import { errorMessage, isApiError } from '@/features/errors';
@@ -29,9 +29,11 @@ const ALWAYS_FREE = ['join', 'safety'] as const;
 
 /**
  * Bargu+ (docs/ADR/0024): what it gives, the two plans with the yearly one first, the account's
- * plan now, and cancelling in one tap. Where the server has test billing on (staging, preview
- * builds) buying is a test purchase with no payment and the screen says so on a band; elsewhere,
- * until a store is connected, buying is not offered yet. 15-17 needs a parent's yes.
+ * plan now, and cancelling in one tap. In a build with test billing (development, preview) where the
+ * server has it on (staging), buying is a test purchase with no payment and the screen says so on a
+ * band; in a production build, and until a store is connected, buying is not offered: "coming
+ * soon through Google Play". A production bundle has no code that could make a test purchase.
+ * 15-17 needs a parent's yes.
  */
 export default function PlusScreen() {
   const { t, i18n } = useTranslation();
@@ -43,12 +45,14 @@ export default function PlusScreen() {
   const age = useQuery({ queryKey: ageKey, queryFn: fetchAge });
   const teen = isMinor(age.data);
   const [choice, setChoice] = useState<PlusProduct>('plus_year');
+  // Only development and preview builds have test billing (features/billing/test-billing.ts).
+  const tester = useTestBilling((state) => state.api);
 
   const settled = (next: Plan) => {
     queryClient.setQueryData(planKey, next);
   };
   const buy = useMutation({
-    mutationFn: (product: PlusProduct) => billingApi.testPurchase(product),
+    mutationFn: (product: PlusProduct) => testBillingOf(tester).purchase(product),
     onSuccess: (next) => {
       settled(next);
       feedback('success');
@@ -62,7 +66,7 @@ export default function PlusScreen() {
   // 15-17 (docs/ADR/0024 §5): the purchase is asked of a parent; the server says it waits (403
   // GUARDIAN_APPROVAL) and the plan's `pendingPurchase` follows through plan.changed.
   const ask = useMutation({
-    mutationFn: (product: PlusProduct) => billingApi.testPurchase(product),
+    mutationFn: (product: PlusProduct) => testBillingOf(tester).purchase(product),
     onSuccess: settled,
     onError: (error) => {
       if (isApiError(error, 'GUARDIAN_APPROVAL')) {
@@ -74,7 +78,7 @@ export default function PlusScreen() {
     },
   });
   const cancel = useMutation({
-    mutationFn: () => billingApi.simulate('cancel'),
+    mutationFn: () => testBillingOf(tester).simulate('cancel'),
     onSuccess: (next) => {
       settled(next);
       toast.info(t('plus.cancelled'));
@@ -116,8 +120,10 @@ export default function PlusScreen() {
     price: priceText(PLUS_PRICES[product], i18n.language),
     per: product === 'plus_year' ? t('plus.perYear') : t('plus.perMonth'),
   });
-  const testing = current?.testBilling === true;
-  const cancellable = subscribed && current.autoRenew && current.source === 'test';
+  // The build has test billing and the server has it on; a production build never does.
+  const testing = tester !== null && current?.testBilling === true;
+  const cancellable =
+    tester !== null && subscribed && current.autoRenew && current.source === 'test';
 
   const offer = (product: PlusProduct) => {
     const chosen = product === choice;

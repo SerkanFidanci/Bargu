@@ -1,9 +1,10 @@
 // Looks for developer tools in a built JavaScript bundle (apps/mobile/README.md "Mağaza sürümü").
 //
 // A production app must not carry the developer rows, the fake people on the map, the measurement
-// overlay with its stall meter, the crypto benchmark, the component gallery or the test billing:
-// index.ts loads them behind `process.env.EXPO_PUBLIC_DEV_TOOLS`, a constant when a release bundle
-// is built, so Metro drops them. This script proves it on a real bundle:
+// overlay with its stall meter, the crypto benchmark, the component gallery, or the test billing
+// (a purchase with no payment, and the two server paths that make it): index.ts loads them behind
+// `process.env.EXPO_PUBLIC_DEV_TOOLS` and `process.env.EXPO_PUBLIC_TEST_BILLING`, constants when a
+// release bundle is built, so Metro drops them. This script proves it on a real bundle:
 //
 //   pnpm check:bundle               exports twice (production, then with the flags) and checks both
 //   pnpm check:bundle production    `expo export` WITHOUT the developer flags: every marker must be absent
@@ -39,6 +40,10 @@ const CODE_MARKERS = [
   '0190f7a4-5b6c-7d8e-9f01-23456789abcd',
   '0190f7a4-0000-7000-8000-00000000a11c',
   '0190f7a4-0000-7000-8000-000000000b0b',
+  // features/billing/test-billing.ts: the two routes of a purchase with no payment. A production
+  // app must never be able to call them, so not even their paths may be in the bundle.
+  '/v1/billing/test/purchase',
+  '/v1/billing/test/simulate',
 ];
 
 /** A text shorter than this could be anywhere. */
@@ -110,6 +115,7 @@ function exportBundle(flagsOn) {
     EXPO_NO_TELEMETRY: '1',
     CI: '1',
     EXPO_PUBLIC_DEV_TOOLS: flagsOn ? '1' : '',
+    EXPO_PUBLIC_TEST_BILLING: flagsOn ? '1' : '',
     EXPO_PUBLIC_BG_LIVE: flagsOn ? '1' : '',
   };
   const run = spawnSync(

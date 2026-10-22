@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ApiError } from '@/features/auth/api-client';
+import { useTestBilling } from '@/features/billing/test-slot';
 import i18n from '@/i18n';
 
 jest.mock('@/config/env', () => ({
@@ -40,12 +41,18 @@ const mockSimulate = jest.fn<Promise<Plan>, [string]>(() =>
   Promise.resolve({ ...yearly, autoRenew: false }),
 );
 jest.mock('@/features/billing/billing-api', () => ({
-  billingApi: {
-    plan: () => Promise.resolve(mockPlan),
-    testPurchase: (product: string) => mockPurchase(product),
-    simulate: (action: string) => mockSimulate(action),
-  },
+  billingApi: { plan: () => Promise.resolve(mockPlan) },
 }));
+// A development or preview build has test billing in its slot (features/billing/test-billing.ts); a
+// production build leaves the slot empty (the tests below say which).
+const withTestBilling = () => {
+  useTestBilling.setState({
+    api: {
+      purchase: (product) => mockPurchase(product),
+      simulate: (action) => mockSimulate(action),
+    },
+  });
+};
 jest.mock('@/features/billing/plan', () => {
   const { useQuery } =
     jest.requireActual<typeof import('@tanstack/react-query')>('@tanstack/react-query');
@@ -85,6 +92,10 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPlan = trial(true);
   mockBand = '18+';
+  withTestBilling();
+});
+afterEach(() => {
+  useTestBilling.setState({ api: null });
 });
 
 describe('Bargu+ (docs/ADR/0024 §9)', () => {
@@ -110,9 +121,52 @@ describe('Bargu+ (docs/ADR/0024 §9)', () => {
   it('offers no purchase where the server has no test billing, nor to 15-17', async () => {
     mockPlan = trial(false);
     await show();
-    expect(await screen.findByText(/Satın alma yakında/)).toBeTruthy();
+    expect(await screen.findByText('Yakında Google Play üzerinden')).toBeTruthy();
     expect(screen.queryByTestId('plus-test-band')).toBeNull();
     expect(screen.queryByTestId('plus-buy')).toBeNull();
+  });
+
+  it('in English says the same: coming soon through Google Play', async () => {
+    mockPlan = trial(false);
+    await i18n.changeLanguage('en');
+    const { unmount } = await show();
+    expect(await screen.findByText('Coming soon through Google Play')).toBeTruthy();
+    // Back to Turkish only once the screen is gone (a mounted screen would re-draw outside act).
+    await unmount();
+    await i18n.changeLanguage('tr');
+  });
+
+  describe('in a production build (no test billing in its bundle)', () => {
+    beforeEach(() => {
+      useTestBilling.setState({ api: null });
+    });
+
+    it('says coming soon through Google Play and offers no purchase, even if the server says test billing is on', async () => {
+      mockPlan = trial(true);
+      await show();
+      expect(await screen.findByText('Yakında Google Play üzerinden')).toBeTruthy();
+      expect(screen.queryByTestId('plus-test-band')).toBeNull();
+      expect(screen.queryByTestId('plus-buy')).toBeNull();
+      expect(mockPurchase).not.toHaveBeenCalled();
+      expect(mockSimulate).not.toHaveBeenCalled();
+    });
+
+    it('does not offer a 15-17 account to ask a parent either: nothing could be bought', async () => {
+      mockBand = '15-17';
+      mockPlan = trial(true);
+      await show();
+      expect(await screen.findByText(/ebeveyn onayı gerekiyor/)).toBeTruthy();
+      expect(screen.queryByTestId('plus-ask')).toBeNull();
+      expect(mockPurchase).not.toHaveBeenCalled();
+    });
+
+    it('offers no cancel for a plan an old test build started', async () => {
+      mockPlan = yearly;
+      await show();
+      expect(await screen.findByTestId('plus-status')).toBeTruthy();
+      expect(screen.queryByTestId('plus-cancel')).toBeNull();
+      expect(mockSimulate).not.toHaveBeenCalled();
+    });
   });
 
   it('lets a 15-17 account ask a parent instead of buying (docs/ADR/0024 §5)', async () => {
