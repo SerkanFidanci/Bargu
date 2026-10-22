@@ -48,6 +48,17 @@ export function personMutes(mutes: Mutes, userId: string): { places: boolean; po
   return mutes.people[userId] ?? { places: false, pokes: false };
 }
 
+/**
+ * The person's entry deleted altogether ("Listeden kaldır" for someone no circle is shared with
+ * any more: the entry is only their user id and the two flags, and the user may let it go).
+ */
+export function withoutPersonMuted(mutes: Mutes, userId: string): Mutes {
+  return {
+    ...mutes,
+    people: Object.fromEntries(Object.entries(mutes.people).filter(([id]) => id !== userId)),
+  };
+}
+
 export function withPersonMuted(
   mutes: Mutes,
   userId: string,

@@ -11,7 +11,7 @@ import { useLooks } from '../cosmetics/look-session';
 import { useHistoryPings } from '../history/history-api';
 import { forgetCheckedBundles, verifiedBundle } from '../keys/bundle-cache';
 import { updateMutes } from '../notifications/mute-session';
-import { loadMutes, NO_MUTES, withPersonMuted } from '../notifications/mutes';
+import { isMuted, loadMutes, NO_MUTES, useMutes, withPersonMuted } from '../notifications/mutes';
 import { useArrived, useLates } from '../plan/meeting';
 import { usePokes } from '../social/poke';
 import { receiveSafe } from '../social/safe';
@@ -300,7 +300,7 @@ describe('a person this phone shares no circle with any more is forgotten', () =
   ];
 
   it.each(ways)(
-    'keeps all of it while one shared circle remains; then, when %s, deletes all of it',
+    'keeps all of it while one shared circle remains; then, when %s, deletes all of it but the mute',
     async (_name, lastCircleGoes) => {
       const w = world();
       await w.sync.reload();
@@ -314,13 +314,34 @@ describe('a person this phone shares no circle with any more is forgotten', () =
       expect(holds(w, w.bob)).toEqual(EVERYTHING);
       expect(holds(w, w.dana)).toEqual(EVERYTHING);
 
-      // The last one goes: he is gone from this phone, and Dana (whose circle stays) is untouched.
+      // The last one goes: he is gone from this phone, except the user's own mute (below), and
+      // Dana (whose circle stays) is untouched.
       await lastCircleGoes(w);
-      expect(holds(w, w.bob)).toEqual([]);
+      expect(holds(w, w.bob)).toEqual(['mute']);
       expect(holds(w, w.dana)).toEqual(EVERYTHING);
       expect(w.me.keys.knownPeople()).toEqual({ [w.dana.userId]: [w.dana.device.deviceId] });
     },
   );
+
+  it('keeps the mute the user set: only the user id and the flags, and it still silences him', async () => {
+    const w = world();
+    await w.sync.reload();
+    seed(w, w.bob, w.home, 0);
+    const before = loadMutes(w.me.store).people[w.bob.userId];
+    expect(before).toEqual({ places: false, pokes: true });
+
+    await w.sync.apply([{ type: 'circle.gone', circleId: w.club.id }]);
+    await w.sync.apply([{ type: 'circle.gone', circleId: w.home.id }]);
+    expect(holds(w, w.bob)).toEqual(['mute']);
+
+    // The same entry, in the vault and in memory, and nothing else about him in it.
+    expect(loadMutes(w.me.store).people[w.bob.userId]).toEqual(before);
+    expect(useMutes.getState().people[w.bob.userId]).toEqual(before);
+    expect(Object.keys(before ?? {}).sort()).toEqual(['places', 'pokes']);
+    // If he invites this phone again, his pokes are still quiet.
+    expect(isMuted(loadMutes(w.me.store), { kind: 'bump' }, w.bob.userId)).toBe(true);
+    expect(isMuted(loadMutes(w.me.store), { kind: 'bump' }, w.dana.userId)).toBe(false);
+  });
 
   it('keeps the trust record: the same person met again with another key is not a first use', async () => {
     const w = world();
@@ -331,7 +352,7 @@ describe('a person this phone shares no circle with any more is forgotten', () =
 
     await w.sync.apply([{ type: 'circle.gone', circleId: w.club.id }]);
     await w.sync.apply([{ type: 'circle.gone', circleId: w.home.id }]);
-    expect(holds(w, w.bob)).toEqual([]);
+    expect(holds(w, w.bob)).toEqual(['mute']);
 
     // What stays is a public identity key and whether it was compared in person: no name, no content.
     expect(w.me.keys.identity(w.bob.userId)).toEqual(known);

@@ -1371,12 +1371,14 @@
     "places": "Muted places",
     "noneTitle": "You have muted nobody",
     "noneBody": "Tap someone on the map and the bell on their card.",
-    "someone": "Someone no longer in your circles",
+    "someone": "Someone you no longer share a circle with",
     "somePlace": "A deleted place",
     "comings": "Arrivals and departures",
     "pokes": "Pokes",
     "unmute": "Unmute",
     "unmuteLabel": "Turns notifications from {{name}} back on",
+    "removeFromList": "Remove from list",
+    "removeFromListLabel": "Deletes this person's mute from the list",
     "howTo": "You mute a person with the bell on their card on the map, a place on its own screen. Muting is for this phone only."
   },
   "settingsLocation": {

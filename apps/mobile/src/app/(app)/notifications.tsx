@@ -5,7 +5,12 @@ import { Linking, StyleSheet, View } from 'react-native';
 import { memberName } from '@/features/circles/names';
 import { useCircles } from '@/features/circles/queries';
 import { loadMuteSettings, updateMutes } from '@/features/notifications/mute-session';
-import { useMutes, withPersonMuted, withPlaceMuted } from '@/features/notifications/mutes';
+import {
+  useMutes,
+  withoutPersonMuted,
+  withPersonMuted,
+  withPlaceMuted,
+} from '@/features/notifications/mutes';
 import { usePushState } from '@/features/notifications/push';
 import { askForPush } from '@/features/notifications/use-push';
 import { usePlaces } from '@/features/places/places';
@@ -85,27 +90,57 @@ export default function NotificationsScreen() {
         ]
           .filter((part) => part !== null)
           .join(' · ');
+        const unmute = (
+          <Button
+            testID={`unmute-${userId}`}
+            label={t('notificationPrefs.unmute')}
+            accessibilityHint={t('notificationPrefs.unmuteLabel', { name })}
+            variant="secondary"
+            fill={false}
+            onPress={() => {
+              updateMutes((all) => withPersonMuted(all, userId, { places: false, pokes: false }));
+            }}
+          />
+        );
+        // Nobody this phone shares a circle with any more: only the user id and the mute are left
+        // (forget-person.ts keeps it, because the mute is the user's own protection should they be
+        // invited again). Its sound can come back, or the entry can be let go.
+        if (card === undefined) {
+          return (
+            <ListRow
+              key={userId}
+              testID={`muted-${userId}`}
+              actions
+              leading={<BellOff color={colors.textMuted} size={22} strokeWidth={2.25} />}
+              title={name}
+              titleLines={2}
+              subtitle={what}
+              trailing={
+                <View style={styles.actions}>
+                  {unmute}
+                  <Button
+                    testID={`remove-${userId}`}
+                    label={t('notificationPrefs.removeFromList')}
+                    accessibilityHint={t('notificationPrefs.removeFromListLabel')}
+                    variant="secondary"
+                    fill={false}
+                    onPress={() => {
+                      updateMutes((all) => withoutPersonMuted(all, userId));
+                    }}
+                  />
+                </View>
+              }
+            />
+          );
+        }
         return (
           <ListRow
             key={userId}
             testID={`muted-${userId}`}
-            leading={<Avatar avatar={card?.avatar ?? null} name={name} userId={userId} size="sm" />}
+            leading={<Avatar avatar={card.avatar} name={name} userId={userId} size="sm" />}
             title={name}
             subtitle={what}
-            trailing={
-              <Button
-                testID={`unmute-${userId}`}
-                label={t('notificationPrefs.unmute')}
-                accessibilityHint={t('notificationPrefs.unmuteLabel', { name })}
-                variant="secondary"
-                fill={false}
-                onPress={() => {
-                  updateMutes((all) =>
-                    withPersonMuted(all, userId, { places: false, pokes: false }),
-                  );
-                }}
-              />
-            }
+            trailing={unmute}
           />
         );
       })}
@@ -148,5 +183,6 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   card: { padding: space.lg, borderRadius: radius.lg, gap: space.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  actions: { gap: space.xs, alignItems: 'flex-end' },
   flex: { flex: 1 },
 });

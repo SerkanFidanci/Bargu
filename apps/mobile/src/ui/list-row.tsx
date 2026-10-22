@@ -10,6 +10,8 @@ export interface ListRowProps {
   /** Avatar or icon on the left. */
   leading: ReactNode;
   title: string;
+  /** How many lines the title may take (a long one next to buttons); one by default. */
+  titleLines?: number;
   subtitle?: string | undefined;
   /** Badge, buttons or a chevron on the right. */
   trailing?: ReactNode;
@@ -28,6 +30,7 @@ export interface ListRowProps {
 export function ListRow({
   leading,
   title,
+  titleLines = 1,
   subtitle,
   trailing,
   onPress,
@@ -40,7 +43,7 @@ export function ListRow({
     <>
       {leading}
       <View style={styles.text}>
-        <Text variant="bodyStrong" numberOfLines={1}>
+        <Text variant="bodyStrong" numberOfLines={titleLines}>
           {title}
         </Text>
         {subtitle === undefined ? null : (

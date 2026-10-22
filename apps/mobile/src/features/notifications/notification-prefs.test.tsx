@@ -94,3 +94,62 @@ describe('notification preferences (UX düzeni 9)', () => {
     expect(screen.getByTestId('push-settings')).toBeTruthy();
   });
 });
+
+// A mute is the user's own protection, so it outlives the shared circle (forget-person.ts): what is
+// left of such a person is a user id and the flags, listed without a name or a photo.
+describe('a muted person no circle is shared with any more', () => {
+  const GONE = '0190a8a0-0000-7000-8000-0000000000e2';
+  const muted = () =>
+    withPersonMuted(withPersonMuted(NO_MUTES, BEN, { pokes: true }), GONE, {
+      places: true,
+      pokes: true,
+    });
+
+  it('is listed as that, without a name, and keeps its flags', async () => {
+    useMutes.setState(muted(), true);
+    await render(<NotificationsScreen />);
+    expect(screen.getByText('Ortak çemberiniz olmayan bir kişi')).toBeTruthy();
+    expect(screen.getByTestId(`muted-${GONE}`)).toBeTruthy();
+    expect(screen.getAllByText('Varışlar ve ayrılışlar · Dürtmeler')).toHaveLength(1);
+    // Someone still shared with is named, and has no "remove from list".
+    expect(screen.getByText('Ben')).toBeTruthy();
+    expect(screen.getByTestId(`unmute-${BEN}`)).toBeTruthy();
+    expect(screen.queryByTestId(`remove-${BEN}`)).toBeNull();
+  });
+
+  it('gets its sound back with "Sesi aç"', async () => {
+    useMutes.setState(muted(), true);
+    await render(<NotificationsScreen />);
+    // One for Ben and one for the person nobody shares a circle with.
+    expect(screen.getAllByText('Sesi aç')).toHaveLength(2);
+    await fireEvent.press(screen.getByTestId(`unmute-${GONE}`));
+    expect(useMutes.getState().people[GONE]).toBeUndefined();
+    expect(screen.queryByTestId(`muted-${GONE}`)).toBeNull();
+    // The other person's mute is not touched.
+    expect(useMutes.getState().people[BEN]).toEqual({ places: false, pokes: true });
+  });
+
+  it('is deleted from the list with "Listeden kaldır", and only that entry', async () => {
+    useMutes.setState(muted(), true);
+    await render(<NotificationsScreen />);
+    expect(screen.getByText('Listeden kaldır')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId(`remove-${GONE}`));
+    expect(useMutes.getState().people[GONE]).toBeUndefined();
+    expect(Object.keys(useMutes.getState().people)).toEqual([BEN]);
+    expect(screen.queryByTestId(`muted-${GONE}`)).toBeNull();
+    expect(screen.getByTestId(`muted-${BEN}`)).toBeTruthy();
+  });
+
+  it('reads the same in English', async () => {
+    await i18n.changeLanguage('en');
+    try {
+      useMutes.setState(muted(), true);
+      await render(<NotificationsScreen />);
+      expect(screen.getByText('Someone you no longer share a circle with')).toBeTruthy();
+      expect(screen.getAllByText('Unmute').length).toBeGreaterThan(0);
+      expect(screen.getByText('Remove from list')).toBeTruthy();
+    } finally {
+      await i18n.changeLanguage('tr');
+    }
+  });
+});

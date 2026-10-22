@@ -4,8 +4,6 @@ import { useHistoryPings } from '../history/history-api';
 import { forgetViewer } from '../history/viewers';
 import { forgetBundlesOf } from '../keys/bundle-cache';
 import type { KeyStore } from '../keys/key-store';
-import { loadMuteSettings, updateMutes } from '../notifications/mute-session';
-import { withPersonMuted } from '../notifications/mutes';
 import { useArrived, useLates } from '../plan/meeting';
 import { forgetPhotoOf } from '../profile/photo';
 import { forgetPokesOf } from '../social/poke';
@@ -37,17 +35,23 @@ function withoutPerson<T>(held: Readonly<Record<string, T>>, userId: string): Re
  *  - the places of their "Güvendeyim" messages and the memory of which were shown;
  *  - their sender keys and history keys, the replay windows of their devices, messages that waited
  *    for their key, and their checked bundles in memory (the history itself is never kept here);
- *  - what this phone remembered about them: when they poked, were late or arrived, that they were
- *    known as someone who sees this phone, and the notification switches set for them;
+ *  - what this phone remembered about them: when they poked, were late or arrived, and that they
+ *    were known as someone who sees this phone;
  *
  * The record of who they were met with (`KeyStore.knownPeople`) goes in circle-sync, once all of
  * this succeeded: until then it is what makes the next change of the circle list try again.
  *
- * NOT the trust record (`KeyStore.identity`: their public identity key, whether it was compared in
- * person, whether it changed). It stays on purpose: it is what notices a changed key if the same
- * person is met again; without it a swapped key would pass as "first use". It holds no name and no
- * content, only a public-key fingerprint (docs/PROTOCOL.md). Sign-out and account deletion do wipe
- * it (the whole vault goes).
+ * Two things stay on purpose (docs/PROTOCOL.md, both go with the whole vault at sign-out and when
+ * the account is deleted):
+ *  - the trust record (`KeyStore.identity`: their public identity key, whether it was compared in
+ *    person, whether it changed). It is what notices a changed key if the same person is met again;
+ *    without it a swapped key would pass as "first use". No name and no content, only a public-key
+ *    fingerprint;
+ *  - the notification switches the user set for them (`mutes.people[userId]`: the user id and the
+ *    mute flags, no name, no content). A mute is the user's own protective choice: if someone who
+ *    bothered them invites them again, the earlier mute must still hold. The notification
+ *    preferences screen lists such an entry as "someone you no longer share a circle with", with
+ *    "Sesi aç" and "Listeden kaldır".
  *
  * Every step runs even if another fails; then it throws, and circle-sync asks again at the next
  * change of the circle list.
@@ -91,11 +95,6 @@ export function forgetPerson(deps: PersonForgetterDeps, who: DepartedPerson): vo
     () => {
       forgetMember(store(), userId);
       forgetViewer(store(), userId);
-    },
-    () => {
-      if (userId in loadMuteSettings().people) {
-        updateMutes((current) => withPersonMuted(current, userId, { places: false, pokes: false }));
-      }
     },
   ];
   let failed = false;

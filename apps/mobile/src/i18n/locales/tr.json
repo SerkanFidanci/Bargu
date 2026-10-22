@@ -1371,12 +1371,14 @@
     "places": "Sessize alınan yerler",
     "noneTitle": "Kimseyi sessize almadın",
     "noneBody": "Haritada birine dokun, kartındaki zile bas.",
-    "someone": "Artık çemberlerinde olmayan biri",
+    "someone": "Ortak çemberiniz olmayan bir kişi",
     "somePlace": "Silinmiş bir yer",
     "comings": "Varışlar ve ayrılışlar",
     "pokes": "Dürtmeler",
     "unmute": "Sesi aç",
     "unmuteLabel": "{{name}} için bildirimler yeniden açılır",
+    "removeFromList": "Listeden kaldır",
+    "removeFromListLabel": "Bu kişinin sessize alma kaydı listeden silinir",
     "howTo": "Bir kişiyi haritada kartındaki zilden, bir yeri kendi ekranından sessize alırsın. Sessize almak yalnızca bu telefonda geçerli."
   },
   "settingsLocation": {
