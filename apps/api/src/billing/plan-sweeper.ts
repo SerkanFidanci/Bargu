@@ -13,7 +13,7 @@ import { withSweepLock } from '../infra/redis/sweep-lock.js';
 import { PlanEvents } from './plan-events.js';
 
 /** How often the worker looks for plans that ran out (docs/ADR/0024 §2). */
-export const PLAN_SWEEP_MS = 60_000;
+const PLAN_SWEEP_MS = 60_000;
 const LOCK_KEY = 'plans:sweep:lock';
 /** Up to when the last round looked (Unix ms); the next one starts there, so none is missed. */
 export const PLANS_SWEPT_KEY = 'plans:swept-until';

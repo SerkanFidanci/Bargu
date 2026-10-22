@@ -13,7 +13,7 @@ import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 import { withSweepLock } from '../infra/redis/sweep-lock.js';
 
 /** How often the worker ends what is due (docs/ADR/0023 §4). */
-export const GUARDIAN_SWEEP_MS = 10 * 60_000;
+const GUARDIAN_SWEEP_MS = 10 * 60_000;
 const LOCK_KEY = 'guardians:sweep:lock';
 
 /**

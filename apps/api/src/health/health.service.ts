@@ -4,7 +4,7 @@ import type { Pool } from 'pg';
 import { PG_POOL } from '../infra/database/database.module.js';
 import { REDIS, type RedisClient } from '../infra/redis/redis.module.js';
 
-export type DependencyStatus = 'up' | 'down';
+type DependencyStatus = 'up' | 'down';
 
 export interface ReadinessReport {
   status: 'ok' | 'unavailable';

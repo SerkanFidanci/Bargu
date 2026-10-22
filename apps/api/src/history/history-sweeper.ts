@@ -12,7 +12,7 @@ import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 import { withSweepLock } from '../infra/redis/sweep-lock.js';
 
 /** How often the worker deletes history older than two weeks. */
-export const HISTORY_SWEEP_MS = 10 * 60_000;
+const HISTORY_SWEEP_MS = 10 * 60_000;
 /** One worker sweeps per round, even if several run. */
 const LOCK_KEY = 'history:sweep:lock';
 /** app.expire_history() deletes at most this many per call. */

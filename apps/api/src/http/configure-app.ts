@@ -11,7 +11,7 @@ const JSON_CONTENT_TYPE = /^application\/json(;|$)/i;
  * The app's routes, which an app too old for the server may not use (QA 19 P4). Not the account
  * web page's (a browser sends no level) and not the event socket (checked at its handshake).
  */
-export function servesOnlyNewApps(url: string): boolean {
+function servesOnlyNewApps(url: string): boolean {
   return url.startsWith('/v1/') && !url.startsWith('/v1/web/') && !url.startsWith('/v1/events');
 }
 

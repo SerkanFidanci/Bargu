@@ -15,7 +15,7 @@ import {
 } from './app-attest.js';
 import { PlayIntegrityVerifier } from './play-integrity.js';
 
-export const ATTESTATION_CHALLENGE_TTL_SECONDS = 5 * 60;
+const ATTESTATION_CHALLENGE_TTL_SECONDS = 5 * 60;
 export type AttestationKind = 'app_attest' | 'play_integrity';
 
 /** Replaced in tests: a test CA instead of Apple's, a fake Google API. */

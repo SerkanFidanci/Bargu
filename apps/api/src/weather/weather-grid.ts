@@ -17,7 +17,7 @@ export function gridPoints(grid = WEATHER_GRID): { lat: number; lng: number }[] 
 }
 
 /** What is asked of Open-Meteo for each point (current conditions only). */
-export const WEATHER_FIELDS = [
+const WEATHER_FIELDS = [
   'weather_code',
   'is_day',
   'temperature_2m',

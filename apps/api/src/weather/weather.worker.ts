@@ -15,7 +15,7 @@ import { forecastUrl, openMeteoResponseSchema, toSnapshot } from './weather-grid
 export const WEATHER_KEY = 'weather:snapshot';
 export const WEATHER_CHANNEL = 'weather';
 /** How often the grid is fetched; conditions change slowly. */
-export const WEATHER_REFRESH_MS = 30 * 60_000;
+const WEATHER_REFRESH_MS = 30 * 60_000;
 /** A snapshot older than this is dropped (the phones then show no weather rather than old). */
 const WEATHER_TTL_SECONDS = 3 * 3600;
 /** One worker fetches per period, even if several run. */

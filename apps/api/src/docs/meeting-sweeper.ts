@@ -13,7 +13,7 @@ import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 import { withSweepLock } from '../infra/redis/sweep-lock.js';
 
 /** How often the worker deletes meetings past their end (docs/ADR/0026 §2). */
-export const MEETING_SWEEP_MS = 60_000;
+const MEETING_SWEEP_MS = 60_000;
 const LOCK_KEY = 'meetings:sweep:lock';
 
 /** Row of app.expire_circle_meetings (migration 0032). */

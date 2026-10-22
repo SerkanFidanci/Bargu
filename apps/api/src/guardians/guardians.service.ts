@@ -34,15 +34,15 @@ import { Notifier } from '../push/notifier.js';
 
 const HOUR = 3600;
 /** How long someone who came into the child's circles shows as new on the view. */
-export const NEW_MEMBER_MS = 7 * 24 * 3600_000;
+const NEW_MEMBER_MS = 7 * 24 * 3600_000;
 /** Codes shown and codes looked at, per account. */
-export const GUARDIAN_LIMITS = { codesPerHour: 20, previewsPerHour: 60, usagePerHour: 60 } as const;
+const GUARDIAN_LIMITS = { codesPerHour: 20, previewsPerHour: 60, usagePerHour: 60 } as const;
 /**
  * What the QR code and the shared link carry; opens the app at the parent's yes. Like an invite
  * (invites.service inviteLink), the invite page's own address with the token in the fragment:
  * `https://<host>/g#<token>` (docs/ADR/0009 Ek 2).
  */
-export const guardianLink = (host: string, token: string) => `https://${host}/g#${token}`;
+const guardianLink = (host: string, token: string) => `https://${host}/g#${token}`;
 
 const emojis: ReadonlySet<string> = new Set(AVATAR_EMOJIS);
 

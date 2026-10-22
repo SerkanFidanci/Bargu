@@ -11,7 +11,7 @@ import { AccessTokens } from './access-tokens.js';
 import type { AuthContext, AuthedRequest } from './request-context.js';
 import { RequestSignatures } from './request-signatures.js';
 
-export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 3600 * 1000;
+const REFRESH_TOKEN_TTL_MS = 30 * 24 * 3600 * 1000;
 /**
  * A rotated token presented again within this window, while its successor is still unused, is a
  * retry after a lost response (mobile networks), not theft: the chain continues from it once.

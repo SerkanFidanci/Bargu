@@ -8,7 +8,7 @@ import { DatabaseService } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 
 /** Looking people up by username before adding them: allowed, but not in bulk. */
-export const PROFILE_LOOKUPS_PER_HOUR = 120;
+const PROFILE_LOOKUPS_PER_HOUR = 120;
 
 const emojis: ReadonlySet<string> = new Set(AVATAR_EMOJIS);
 

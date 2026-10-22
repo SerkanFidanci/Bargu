@@ -14,7 +14,7 @@ const SEAL_CONTEXT = 'job/email';
  * A login code (`otp`), the account web page's code (`web`, docs/ADR/0021), or its "recognise
  * this browser" link (`web-unlock`, QA 4 K2b; the challenge id is the link's id).
  */
-export const emailJobSchema = z
+const emailJobSchema = z
   .object({
     kind: z.enum(['otp', 'web', 'web-unlock']),
     to: z.email(),
@@ -25,8 +25,8 @@ export const emailJobSchema = z
 export type EmailJob = z.infer<typeof emailJobSchema>;
 
 /** What is stored in the queue: only a sealed blob, no address in clear. */
-export const queuedEmailSchema = z.object({ v: z.literal(1), box: z.string() }).strict();
-export type QueuedEmail = z.infer<typeof queuedEmailSchema>;
+const queuedEmailSchema = z.object({ v: z.literal(1), box: z.string() }).strict();
+type QueuedEmail = z.infer<typeof queuedEmailSchema>;
 
 @Injectable()
 export class EmailJobs {

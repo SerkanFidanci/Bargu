@@ -22,7 +22,7 @@ import { DatabaseService, type Tx } from '../infra/database/database.service.js'
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 import type { AuthContext } from './request-context.js';
 
-export const PASSKEY_CHALLENGE_TTL_SECONDS = 5 * 60;
+const PASSKEY_CHALLENGE_TTL_SECONDS = 5 * 60;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const userIdBytes = (userId: string) =>

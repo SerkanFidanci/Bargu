@@ -15,9 +15,9 @@ import type { AuthContext } from '../auth/request-context.js';
 import { REDIS, type RedisClient } from '../infra/redis/redis.client.js';
 
 /** A user's missed events are kept this long (BARGU_PLAN §3.4: 24-hour stream). */
-export const EVENT_RETENTION_SECONDS = 24 * 3600;
+const EVENT_RETENTION_SECONDS = 24 * 3600;
 /** At most this many are kept per user; a phone further behind reloads everything (snapshot). */
-export const EVENT_STREAM_LENGTH = 500;
+const EVENT_STREAM_LENGTH = 500;
 
 const streamKey = (userId: string) => `ev:${userId}`;
 
@@ -25,7 +25,7 @@ const streamKey = (userId: string) => `ev:${userId}`;
  * Stored events go to connected phones through this channel, from whichever process stored them:
  * the worker (which has no sockets) and every API instance alike (QA Faz 8 D2).
  */
-export const LIVE_CHANNEL = 'events:live';
+const LIVE_CHANNEL = 'events:live';
 const liveSchema = z
   .object({ deliveries: z.array(z.object({ userId: z.uuid(), delivered: deliveredEventSchema })) })
   .strict();

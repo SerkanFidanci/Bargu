@@ -20,7 +20,7 @@ const SENSITIVE_KEYS = [
  * Log redaction (CLAUDE.md: location, tokens, emails and push tokens are never logged).
  * Request bodies are not logged at all; these paths are a safety net for structured log calls.
  */
-export const REDACT_PATHS: readonly string[] = [
+const REDACT_PATHS: readonly string[] = [
   'req.headers.authorization',
   'req.headers.cookie',
   'req.headers["x-bargu-sig"]',

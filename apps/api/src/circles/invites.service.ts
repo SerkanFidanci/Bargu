@@ -15,13 +15,13 @@ import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { CirclesService, othersActive } from './circles.service.js';
 
 /** Invite links live a day and work once (BARGU_PLAN Faz 4: single use, time-limited). */
-export const INVITE_TTL_MS = 24 * 3600 * 1000;
+const INVITE_TTL_MS = 24 * 3600 * 1000;
 /**
  * An event's QR code (BARGU_PLAN Faz 8) lets up to this many people join, until the event ends:
  * one code shown at the event (docs/ADR/0017).
  */
 export const EVENT_INVITE_USES = 50;
-export const INVITE_LIMITS = { createdPerHour: 30, previewsPerHour: 120 } as const;
+const INVITE_LIMITS = { createdPerHour: 30, previewsPerHour: 120 } as const;
 /**
  * What the QR code and shared link carry (docs/ADR/0009 Ek 2, 2026-10-22): the invite page's own
  * address with the token in the FRAGMENT, `https://<host>/i#<token>`. A fragment never goes in an
@@ -29,7 +29,7 @@ export const INVITE_LIMITS = { createdPerHour: 30, previewsPerHour: 120 } as con
  * logs (a token in the path would reach all of them). A messaging app shows the card of the page,
  * and the app, when it is installed and verified, opens the link (Android App Links).
  */
-export const inviteLink = (host: string, token: string) => `https://${host}/i#${token}`;
+const inviteLink = (host: string, token: string) => `https://${host}/i#${token}`;
 
 const HOUR = 3600;
 const emojis: ReadonlySet<string> = new Set(AVATAR_EMOJIS);

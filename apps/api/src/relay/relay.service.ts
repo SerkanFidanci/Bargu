@@ -23,11 +23,11 @@ import { currentDevices, Notifier } from '../push/notifier.js';
 import { WatchNotices } from '../push/watch-notices.js';
 
 /** A location is kept 24 hours after it was sent, then it is gone (BARGU_PLAN §1: no history). */
-export const LOCATION_TTL_SECONDS = 24 * 3600;
+const LOCATION_TTL_SECONDS = 24 * 3600;
 /** The protocol accepts the current epoch and the two before it (PROTOCOL §5). */
 const ACCEPTED_EPOCHS = 2;
 
-export const RELAY_LIMITS = {
+const RELAY_LIMITS = {
   /** Per device and circle: live mode sends one a second; a little room for bursts. */
   publishes: { limit: 3, windowSeconds: 2 },
   /** "I am looking at this circle": renewed every minute while the map is open. */
@@ -54,7 +54,7 @@ export const RELAY_LIMITS = {
  */
 export const SAFE_GUARD_SECONDS = 24 * 3600;
 /** What the server keeps of it: `safe:{hash}`, a hash of (sender, circle, id) and the value 1. */
-export const SAFE_GUARD_PREFIX = 'safe:';
+const SAFE_GUARD_PREFIX = 'safe:';
 
 interface Limit {
   limit: number;
@@ -75,7 +75,7 @@ const lookKey = (circleId: string) => `look:${circleId}`;
  */
 const stateKey = (circleId: string) => `state:${circleId}`;
 /** Phones publish their profile again on every new epoch; this keeps it for quiet circles. */
-export const PROFILE_TTL_SECONDS = 30 * 24 * 3600;
+const PROFILE_TTL_SECONDS = 30 * 24 * 3600;
 /** A reason explains a location, which is kept this long and no longer. */
 export const STATE_TTL_SECONDS = LOCATION_TTL_SECONDS;
 

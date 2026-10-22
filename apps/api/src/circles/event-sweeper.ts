@@ -11,7 +11,7 @@ import { withSweepLock } from '../infra/redis/sweep-lock.js';
 import { EventExpiry } from './event-expiry.js';
 
 /** How often the worker looks for event circles that have ended (phones end them on time). */
-export const EVENT_SWEEP_MS = 30_000;
+const EVENT_SWEEP_MS = 30_000;
 /** One worker sweeps per round, even if several run. */
 const LOCK_KEY = 'events:sweep:lock';
 

@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
-export const serviceAccountSchema = z.object({
+const serviceAccountSchema = z.object({
   client_email: z.email(),
   private_key: z.string().includes('PRIVATE KEY'),
   project_id: z.string().min(1).optional(),

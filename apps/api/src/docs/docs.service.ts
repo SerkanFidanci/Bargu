@@ -19,13 +19,13 @@ import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { currentDevices, Notifier } from '../push/notifier.js';
 
 /** Saves and deletes per user: voting and planning are taps, re-sealing an event a few dozen. */
-export const DOC_LIMITS = {
+const DOC_LIMITS = {
   saves: { limit: 120, windowSeconds: 60 },
   /** Notices of a meeting started outside an event, per member (docs/ADR/0026 §6). */
   meetingNotices: { limit: 6, windowSeconds: 3600 },
 } as const;
 /** How far ahead a meeting outside an event may end (migration 0032 says the same). */
-export const MEETING_MAX_AHEAD_MS = 8 * 24 * 3600_000;
+const MEETING_MAX_AHEAD_MS = 8 * 24 * 3600_000;
 
 const HOUR_MS = 3600_000;
 

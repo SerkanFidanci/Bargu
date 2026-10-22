@@ -30,15 +30,15 @@ import { EmailJobs } from '../jobs/email-jobs.js';
 import { AuthKeys } from './auth-keys.js';
 import { ClientLimits, DAY } from './client-limits.js';
 
-export const WEB_CODE_TTL_SECONDS = 10 * 60;
-export const WEB_SESSION_TTL_SECONDS = 10 * 60;
+const WEB_CODE_TTL_SECONDS = 10 * 60;
+const WEB_SESSION_TTL_SECONDS = 10 * 60;
 /** How long a browser that came in with a code is remembered, and how many per account. */
-export const WEB_REMEMBER_TTL_SECONDS = 180 * 24 * 3600;
+const WEB_REMEMBER_TTL_SECONDS = 180 * 24 * 3600;
 const WEB_REMEMBERED_MAX = 5;
 /** How long the emailed "recognise this browser" link works (QA 4 K2b); at most one a day. */
-export const WEB_UNLOCK_TTL_SECONDS = DAY;
+const WEB_UNLOCK_TTL_SECONDS = DAY;
 /** A challenge dies after this many wrong codes. */
-export const WEB_MAX_ATTEMPTS = 3;
+const WEB_MAX_ATTEMPTS = 3;
 /**
  * Budgets per address AND network (the client's IPv4 or IPv6 /48, as a keyed pseudonym), so that
  * someone who knows only the address cannot use up its owner's codes or tries from elsewhere (a

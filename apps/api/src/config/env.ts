@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { parseServiceAccount } from '../infra/google/service-account.js';
 
-export const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
+const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 
 const ipAddress = z.union([z.ipv4(), z.ipv6()]);
 const proxyAddress = z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()]);
@@ -82,7 +82,7 @@ const androidPackage = z
     return segments.length >= 2 && segments.every((segment) => PACKAGE_SEGMENT.test(segment));
   }, 'expected a package name such as app.bargu');
 
-export const envSchema = z
+const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     /** Where this runs; decides which shortcuts are allowed (staging may skip attestation). */

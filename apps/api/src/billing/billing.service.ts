@@ -35,11 +35,11 @@ const PERIOD_MS: Record<PlusProduct, number> = {
   plus_year: 365 * DAY_MS,
 };
 /** A failed payment: the plan holds this long before it runs out (docs/ADR/0024 §3). */
-export const GRACE_MS = 7 * DAY_MS;
+const GRACE_MS = 7 * DAY_MS;
 /** Test purchases and simulations per account and hour. */
-export const BILLING_TEST_LIMIT = 60;
+const BILLING_TEST_LIMIT = 60;
 /** Cosmetic passes per account and hour: one is enough for 15 days (docs/ADR/0025). */
-export const COSMETIC_PASS_LIMIT = 30;
+const COSMETIC_PASS_LIMIT = 30;
 
 type Row = typeof entitlements.$inferSelect;
 const PLUS = new Set(['trial', 'plus_month', 'plus_year']);

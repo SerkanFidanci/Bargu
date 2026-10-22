@@ -61,12 +61,12 @@ export async function currentDevices(
 const WATCH_JOB_SECONDS = 60;
 
 /** The same news about the same circle reaches a phone at most once a minute. */
-export const PUSH_THROTTLE_SECONDS = 60;
+const PUSH_THROTTLE_SECONDS = 60;
 /**
  * Guardian notices others can cause (a request to approve, someone new near the child) reach a
  * parent at most this often an hour, however many accounts cause them (QA 5b/5c S-3).
  */
-export const GUARDIAN_NOTICES_PER_HOUR = 30;
+const GUARDIAN_NOTICES_PER_HOUR = 30;
 
 /**
  * Queues push notifications for people who should hear about something (the worker sends them).

@@ -16,7 +16,7 @@ import { DatabaseService, type Tx } from '../infra/database/database.service.js'
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 
 /** Saves and deletes per user: editing a place is a handful of taps, re-sealing a few dozen. */
-export const PLACE_LIMITS = { saves: { limit: 60, windowSeconds: 60 } } as const;
+const PLACE_LIMITS = { saves: { limit: 60, windowSeconds: 60 } } as const;
 
 /**
  * A circle's places (BARGU_PLAN §4.3 "Yerler", docs/ADR/0015). Each is the signed, encrypted

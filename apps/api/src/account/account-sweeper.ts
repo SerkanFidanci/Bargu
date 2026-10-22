@@ -15,7 +15,7 @@ import { AccountPurge } from './account-purge.js';
  * catches what that could not finish (docs/ADR/0022: at most 7 days, in practice minutes). The
  * same round deletes security events past their 90 days.
  */
-export const ACCOUNT_SWEEP_MS = 5 * 60_000;
+const ACCOUNT_SWEEP_MS = 5 * 60_000;
 const LOCK_KEY = 'accounts:sweep:lock';
 
 @Injectable()

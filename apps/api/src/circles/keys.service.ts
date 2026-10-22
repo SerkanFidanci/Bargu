@@ -16,8 +16,8 @@ import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { CirclesService } from './circles.service.js';
 
 /** The protocol accepts the current epoch and the two before it (PROTOCOL §5, epoch floor). */
-export const RETAINED_EPOCHS = 2;
-export const KEY_LIMITS = { uploadsPerHour: 240 } as const;
+const RETAINED_EPOCHS = 2;
+const KEY_LIMITS = { uploadsPerHour: 240 } as const;
 
 const HOUR = 3600;
 

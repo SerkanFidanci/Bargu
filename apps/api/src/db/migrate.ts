@@ -8,7 +8,7 @@ import { PgBoss } from 'pg-boss';
 import { JOBS_SCHEMA, QUEUE_DEFINITIONS } from '../jobs/queues.js';
 
 /** Owns every table; NOLOGIN, reachable only through SET ROLE by the migrator. */
-export const OWNER_ROLE = 'bargu_owner';
+const OWNER_ROLE = 'bargu_owner';
 /** The only role the API and worker log in with: no ownership, no RLS bypass. */
 export const APP_ROLE = 'bargu_app';
 

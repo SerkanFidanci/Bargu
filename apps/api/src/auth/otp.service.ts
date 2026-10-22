@@ -17,7 +17,7 @@ import { EmailJobs } from '../jobs/email-jobs.js';
 import { AuthKeys } from './auth-keys.js';
 import { ClientLimits, DAY, HOUR } from './client-limits.js';
 
-export const OTP_TTL_SECONDS = 10 * 60;
+const OTP_TTL_SECONDS = 10 * 60;
 /** A challenge dies after 3 wrong codes (4-digit codes, docs/ADR/0012). */
 export const OTP_MAX_ATTEMPTS = 3;
 export const OTP_LIMITS = {

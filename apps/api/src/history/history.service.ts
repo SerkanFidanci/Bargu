@@ -21,7 +21,7 @@ import { RateLimiter } from '../infra/redis/rate-limiter.js';
  * Pieces per user: a quarter hour per circle normally; a phone that was offline sends what
  * waited, a little at a time.
  */
-export const HISTORY_LIMITS = {
+const HISTORY_LIMITS = {
   puts: { limit: 120, windowSeconds: 60 },
   /** Reads per user: a day of someone's history at a time, as the app asks (QA Faz 8 G3). */
   lists: { limit: 30, windowSeconds: 60 },
