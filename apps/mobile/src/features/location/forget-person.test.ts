@@ -37,6 +37,9 @@ jest.mock('../storage/vault', () => ({ isVaultOpen: () => true, vault: () => moc
 jest.mock('../notifications/extension-share', () => ({
   shareMutesWithExtension: () => Promise.resolve(),
 }));
+// Native modules that only exist on a phone (the test does not use them; the app imports them).
+jest.mock('expo-image-manipulator', () => ({ ImageManipulator: {}, SaveFormat: {} }));
+jest.mock('expo-image-picker', () => ({}));
 
 const SAFE_IDS = ['aaaaaaaaaaaaaaaaaaaaaA', 'bbbbbbbbbbbbbbbbbbbbbA'] as const;
 
