@@ -5,19 +5,19 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                                                                                                                  |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                                                                           |
-| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                                                                          |
-| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                                                                           |
-| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)                                                                  |
-| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)                                                                  |
-| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)                                                                          |
-| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                                                                                        |
-| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                                                                                       |
-| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                                                                             |
-| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)                                                                          |
-| Faz 9B — Para modeli & Bargu+    | ✅ PM onayı 2026-10-22 (kod ve testler); telefon denemeleri, kullanılabilirlik testi ve betik sahipte; seviye 5 APK'sı betiği bekliyor |
+| Faz                              | Durum                                                                                                                                              |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                                                                                       |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                                                                                      |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                                                                                       |
+| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)                                                                              |
+| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)                                                                              |
+| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)                                                                                      |
+| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                                                                                                    |
+| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                                                                                                   |
+| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                                                                                         |
+| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)                                                                                      |
+| Faz 9B — Para modeli & Bargu+    | ✅ PM onayı 2026-10-22 (kod ve testler); telefon denemeleri ve kullanılabilirlik testi sahipte; seviye 5 APK'sı hazır (`869a7af`), kurulum sahipte |
 
 ## Ortamlar
 
@@ -50,7 +50,7 @@ durma süresi etiketi), [ADR 0029](ADR/0029-safe-check-in.md) (Güvendeyim). Pro
 - seviye 5 APK'sıyla telefon denemeleri (56 ve sonrası, Güvendeyim uçak modu, arka planda canlı
   konum, yeniden başlatma bildirimi);
 - 3 kişiyle kullanılabilirlik testi;
-- betiğin iki kez çalıştırılması.
+- betiğin seviye 5 ile ikinci çalıştırılması (ilki 2026-10-22'de yapıldı).
 
 Bunlar kapalı testten önce şart. Faz 10'a geçilmedi: kalan işleri sahip ve Play hesabı istiyor;
 sahibin kuralı gereği yeni özellik de yok.
@@ -299,8 +299,12 @@ kapalı testten önce.
 
 ### Staging
 
-- `APP_ENV=staging`, `BILLING_TEST=on` (API, işçi ve migrate), `MIN_CLIENT_LEVEL` verilmedi (0),
-  `ENTITLEMENT_SIGNING_KEY` ve `ENTITLEMENT_SIGNING_KID=stg-1` yalnızca sunucudaki `.env`'de.
+- `APP_ENV=staging`, `BILLING_TEST=on` (API, işçi ve migrate), `MIN_CLIENT_LEVEL=4` (2026-10-22),
+  `WATCH_PUSH=on` (90 sn, saatte 20), `NOTICE_SIGNING_KID=stg-n1`; `ENTITLEMENT_SIGNING_KEY`,
+  `NOTICE_SIGNING_KEY` ve `ENTITLEMENT_SIGNING_KID=stg-1` yalnızca sunucudaki `.env`'de.
+- 2026-10-22: `apply-pending.sh` çalıştırıldı (sahibin açık isteğiyle kodlama oturumu, ssh adımı
+  sahibin onayıyla): 9 adım tamam; dünya haritası (43 MB), nginx'te `/map/` 404'ü `no-store`,
+  `/i/` ve `/g/` erişim günlüğünde yok; nginx yalnız reload edildi.
 - Sunucudaki `compose.yml` yedekleriyle güncellendi (deploy onu kopyalamaz).
 - Test botu v13: istemci seviyesi 3 gönderir, giriş kodunu 4 haneli okur. Sahibin isteğiyle "tur"
   kipinde: 1–2 dakikada bir rastgele yürüyüş, koşu, bisiklet, araba, yarış arabası (140 km/sa),
@@ -314,9 +318,8 @@ API'den bağlanır.
 
 ### Kalan açıklar
 
-1. `MIN_CLIENT_LEVEL` hâlâ 0. 2'yi atlayıp bütün telefonlar buluşma APK'sına geçince doğrudan 3
-   yapılacak, en geç 1 Kasım (denemeler bitmeden). Açmadan önce PM'e sorulur. Eski APK'lar 426'yı
-   tanımaz, yalnızca genel hata gösterir.
+1. `MIN_CLIENT_LEVEL` 4 (2026-10-22). Seviye 5 APK'sı bütün telefonlara kurulunca 5 yapılacak
+   (aşağıda, Senden gerekenler). Seviye 4'ten eski APK'lar "Yeni sürüm gerekiyor" der.
 2. Gerçek mağaza yok: fiyatlar tahmin, satın alma yalnızca test. Silip yeniden kaydolan yeni deneme
    alır (kabul; Faz 10'da mağazanın kendi denemesine taşınır).
 3. A-1: çember duraklayınca yazılmış ama gönderilmemiş yerel geçmiş parçaları ilk sonraki konuma
@@ -382,14 +385,15 @@ API'den bağlanır.
     retleri çıkarsa sırası: çalışan servisin isteğini güncelleyen küçük bir yerel modül (yeni izin
     yok), olmazsa arka planda 5 sn. Arka plan konum izni ayrı bir ürün kararı (sahip). Android
     görünmez yüksek öncelikli FCM mesajlarını zamanla düşürebilir. iOS'a gönderilmiyor (iOS dilimi).
-29. C2 sunucusu staging'de kapalı: `WATCH_PUSH` satırları sunucudaki compose'da yok (deploy onu
-    kopyalamaz); sahibin komutu bekleniyor. Ölçüm sayaçlarını sıfırlama düğmesi bir sonraki APK'da.
+29. ~~C2 sunucusu staging'de kapalı~~: 2026-10-22'den beri açık (`WATCH_PUSH=on`). Telefonda
+    denenmedi.
 30. 3b: üretimde süs görünmez (üretim anahtarı Faz 10); 15–17 süs isteği 3c'de. Süs boyutları
     (halka kalınlığı, parıltı, neon) telefonda görülmeden tahmin.
 31. Worklet denetimi bileşen içinde tanımlı yardımcıları hâlâ izlemiyor (yalnız üst düzey tanımlar).
-32. Sahte sunucu haberi: telefon tarafı betikten sonraki APK'da; şu an çemberlerde yalnız sahip ve
-    bot var. Açık ancak 5. seviyeyle tamamen kapanır (seviye 4 APK'sı imzasız haberi hâlâ kabul
-    eder). Kapalı testten önce şart (Faz 10 kapısı).
+32. Sahte sunucu haberi: sunucu 2026-10-22'den beri her haberi `stg-n1` ile imzalıyor; seviye 5
+    APK'sı (`869a7af`) imzasızı atıyor. Açık, `MIN_CLIENT_LEVEL` 5 olunca tamamen kapanır (seviye 4
+    APK'sı imzasız haberi hâlâ kabul eder). Test botu seviye 4 gönderiyor: 5'ten önce botun
+    başlığı da 5 yapılmalı. Kapalı testten önce şart (Faz 10 kapısı).
 33. Dünya haritası gerçek veriyle ve telefonda görülmedi (kıyı, Türkiye kutusunun kenarı, yolların
     kalınlığı).
 34. nginx hata günlüğü: API yeniden başlarken (birkaç saniye) `/i/` ve `/g/` istekleri 502 alır ve
@@ -593,7 +597,8 @@ Seviye 4: süs isteği, dünya haritası ve sahte haber 1. parça, APK (`c2754a1
 54. Ölçüm katmanında "Sayaçları sıfırla" arka plan sayaçlarını sıfırlar.
 55. Bildirimler (arkadaşlık isteği, davet) her zamanki gibi gelir.
 
-Seviye 5 APK'sı (sahibin betiğinden sonra çıkar, sürüm 0.9.0; bağlantı buraya eklenecek):
+Seviye 5 APK'sı (`869a7af`, sürüm 0.9.0, öncekilerin yerine; yalnız arm64, 85 MB):
+<https://api.46-62-162-70.sslip.io/apk/bargu-869a7af-2dd1f1b9705f94f0.apk>
 
 56. Güvendeyim: haritadaki "Güvendeyim" düğmesi > çember seç > "İyiyim, gönder". Öbür telefonda
     "İyiyim ✓ · %pil"; uygulaması kapalıysa bildirim gelir, dokununca haritada "… iyiyim dedi,
@@ -623,46 +628,12 @@ Seviye 5 APK'sı (sahibin betiğinden sonra çıkar, sürüm 0.9.0; bağlantı b
 
 Sıra önemli:
 
-1. Seviye 4 APK'sını (`c2754a1`) bütün telefonlara kur (aşağıda); 46–55'e bak.
-2. Sonra sunucu betiği (tamamlandı, 9 adım), önce kuru, sonra gerçek. Önce depoyu güncelle
-   (`git pull`). Git Bash'te (önerilen), depo klasöründe:
-
-   ```bash
-   ssh bargu-server 'sh -s -- --dry-run' < infra/staging/apply-pending.sh
-   ```
-
-   ```bash
-   ssh bargu-server 'sh -s' < infra/staging/apply-pending.sh
-   ```
-
-   PowerShell'den (QA 31'in satırı; `<` PowerShell'de çalışmadığı için cmd üzerinden):
-
-   ```powershell
-   cmd /c "ssh bargu-server ""sh -s -- --dry-run"" < infra\staging\apply-pending.sh"
-   ```
-
-   ```powershell
-   cmd /c "ssh bargu-server ""sh -s"" < infra\staging\apply-pending.sh"
-   ```
-
-   Seviyeyi 4 yapar, arka planda canlı konumu açar, dünya haritasını ve sunucu haberi anahtarını
-   kurar. nginx adımı hata verirse yalnız nginx geri alınır, diğer adımlar uygulanmış kalır;
-   betiği yeniden çalıştırmak güvenli. Sonra kodlama oturumuna "çalıştırdım" yaz.
-
-3. Kodlama oturumu anahtarın açık kısmını uygulamaya koyar ve seviye 5 APK'sını çıkarır; onu da
-   bütün telefonlara kur.
-4. Son olarak aynı betik seviye 5 ile; eski sürümler kapanır, açık tamamen kapanır:
-
-   ```bash
-   ssh bargu-server 'sh -s -- --min-level 5 --dry-run' < infra/staging/apply-pending.sh
-   ```
-
-   ```bash
-   ssh bargu-server 'sh -s -- --min-level 5' < infra/staging/apply-pending.sh
-   ```
-
-   PowerShell'den: `cmd /c "ssh bargu-server ""sh -s -- --min-level 5 --dry-run"" < infra\staging\apply-pending.sh"`,
-   sonra aynısı `--dry-run` olmadan.
+1. ~~Seviye 4 APK'sı ve sunucu betiği~~: betik 2026-10-22'de çalıştırıldı (yukarıda, Staging).
+2. **Seviye 5 APK'sını bütün telefonlara kur** (`869a7af`, bağlantı Telefonda denenecekler'de);
+   56–63'e bak.
+3. Kurduktan sonra kodlama oturumuna "kurdum" yaz. Son adımı o çalıştırır: aynı betik
+   `--min-level 5` ile (önce kuru) ve test botunun istemci seviyesi 5. Senden yalnız ssh adımının
+   onayı istenir. Eski sürümler kapanır, sahte haber açığı tamamen kapanır.
 
 - Mağazaya çıkış (Faz 10) için yalnız senin yapabileceklerin, acelesi yok; sıra Play hesabıyla
   gelir (`docs/play-store/KONTROL-LISTESI.md`):
