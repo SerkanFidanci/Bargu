@@ -129,6 +129,7 @@ export function pushText(
             spot: {
               id: body.id,
               circleId: body.circleId,
+              userId: sender.userId,
               name: sender.name,
               lat: body.lat,
               lng: body.lng,

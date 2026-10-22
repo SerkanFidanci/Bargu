@@ -1,4 +1,5 @@
 import {
+  forgetMember,
   forgetMembers,
   knownMembers,
   newLiveViewers,
@@ -85,5 +86,31 @@ describe('new viewer notices (QA Faz 8 G9)', () => {
       ['live', event.id, 2],
       ['history', group.id, 1],
     ]);
+  });
+});
+
+describe('a person no circle is shared with any more', () => {
+  it('is no known member anywhere: met again, they are new and told about', () => {
+    const [me, ada, bo] = [somebody(), somebody(), somebody()];
+    const store = memoryStore();
+    const group = circleOf([me, ada, bo]);
+    const other = circleOf([me, ada]);
+    rememberMembers(store, [group, other], me.userId);
+
+    forgetMember(store, ada.userId);
+
+    expect(knownMembers(store)).toEqual({
+      [group.id]: [bo.userId],
+      [other.id]: [],
+    });
+    expect(
+      newLiveViewers(knownMembers(store), [group], DEFAULT_SHARING, me.userId, NOW).map(
+        (entry) => entry.viewer.userId,
+      ),
+    ).toEqual([ada.userId]);
+    // Nobody to forget: the vault is not written.
+    const before = store.get('location:viewers:v1');
+    forgetMember(store, 'nobody');
+    expect(store.get('location:viewers:v1')).toBe(before);
   });
 });

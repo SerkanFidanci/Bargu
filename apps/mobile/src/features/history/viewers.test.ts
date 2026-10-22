@@ -1,6 +1,7 @@
 import { card, circleOf, memoryStore, somebody } from '../location/test-support';
 import { DEFAULT_SHARING, historyOn, type SharingSettings } from '../location/sharing';
 import {
+  forgetViewer,
   historyAudience,
   knownViewers,
   newViewers,
@@ -78,5 +79,29 @@ describe('who sees the history (BARGU_PLAN, docs/ADR/0019)', () => {
     expect(newViewers({}, audience)).toEqual([]);
     setKnownViewers(store, circle.id, null);
     expect(knownViewers(store)).toEqual({});
+  });
+
+  it('forgets a person no circle is shared with any more: met again, they are new and told about', () => {
+    const [me, ali, bora] = [somebody(), somebody(), somebody()];
+    const store = memoryStore();
+    const circle = circleOf([me, ali, bora]);
+    const settings: SharingSettings = {
+      ghost: 'off',
+      circles: { [circle.id]: { ...exact, history: true } },
+    };
+    const audience = historyAudience([circle], settings, me.userId);
+    rememberViewers(store, audience);
+    expect(newViewers(knownViewers(store), audience)).toEqual([]);
+
+    forgetViewer(store, ali.userId);
+
+    expect(knownViewers(store)).toEqual({ [circle.id]: [bora.userId] });
+    expect(newViewers(knownViewers(store), audience).map((entry) => entry.viewer.userId)).toEqual([
+      ali.userId,
+    ]);
+    // Nobody to forget: the vault is not written.
+    const before = store.get('history:viewers:v1');
+    forgetViewer(store, 'nobody');
+    expect(store.get('history:viewers:v1')).toBe(before);
   });
 });

@@ -9,6 +9,7 @@ import { card, circleOf, exchangeKeys, nth, type Person, somebody } from '../loc
 import { queryClient } from '../query-client';
 import {
   chooseLook,
+  forgetLookOf,
   publishLook,
   receivedLook,
   refreshPass,
@@ -394,6 +395,24 @@ describe('looks received, kept and replaced', () => {
     resetLooks();
     restoreLooks(NOW + 11 * DAY);
     expect(useLooks.getState()[friend.userId]).toBeUndefined();
+  });
+
+  it('forgets a person no circle is shared with any more: the look, its copy in the vault and the memory of their newest message', () => {
+    const pass = passFor(friend, ['rings']);
+    receivedLook(friend.userId, look(pass, 'dots', 20), NOW);
+    expect(mockPhone.store.get('look:others:v1')).toContain(friend.userId);
+
+    forgetLookOf(friend.userId);
+    expect(useLooks.getState()[friend.userId]).toBeUndefined();
+    expect(mockPhone.store.get('look:others:v1') ?? '').not.toContain(friend.userId);
+    // Not even after a restart…
+    resetLooks();
+    restoreLooks(NOW);
+    expect(useLooks.getState()[friend.userId]).toBeUndefined();
+    // …and an older message is a message like any other when they are met again (nothing is
+    // remembered of what came before).
+    receivedLook(friend.userId, look(pass, 'stripes', 10), NOW);
+    expect(useLooks.getState()[friend.userId]).toMatchObject({ ring: 'stripes', ts: 10 });
   });
 
   it('does not lose what was kept, nor let it replace a look that came since', () => {

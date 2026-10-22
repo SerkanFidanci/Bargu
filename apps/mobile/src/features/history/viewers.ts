@@ -74,6 +74,20 @@ export function rememberViewers(store: KeyValueStore, audience: readonly History
   );
 }
 
+/**
+ * A person this phone shares no circle with any more is no known viewer anywhere: if they come
+ * back, they are new again and the notice is told.
+ */
+export function forgetViewer(store: KeyValueStore, userId: string): void {
+  const known = knownViewers(store);
+  const kept = Object.entries(known).map(
+    ([circleId, userIds]) => [circleId, userIds.filter((id) => id !== userId)] as const,
+  );
+  if (kept.some(([circleId, userIds]) => userIds.length !== known[circleId]?.length)) {
+    store.set(KNOWN_KEY, JSON.stringify(Object.fromEntries(kept)));
+  }
+}
+
 /** One circle's audience from now on (history turned on), or none (turned off). */
 export function setKnownViewers(
   store: KeyValueStore,

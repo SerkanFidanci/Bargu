@@ -435,6 +435,20 @@ export function createReceiver({
       replaceStates(Object.fromEntries(Object.entries(states).filter(([held]) => held !== key)));
     },
 
+    /**
+     * A person this phone shares no circle with any more (forget-person.ts): their locations and
+     * reasons here and in the vault, what waited for a key from their devices, and the replay
+     * window of those devices (no message of theirs can be opened again: no key, no membership).
+     */
+    forgetPerson(userId: string, deviceIds: ReadonlySet<string>): void {
+      keep((entry) => entry.userId !== userId);
+      for (const [key, held] of [...waiting]) {
+        if (deviceIds.has(held.envelope.senderDeviceId)) waiting.delete(key);
+      }
+      const current = guard();
+      if (current.forgetSenders(deviceIds) > 0) persistReplay(current);
+    },
+
     /** Circles or members changed: only active members of active circles stay on the map. */
     prune(): void {
       const known = circles();

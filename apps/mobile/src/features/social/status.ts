@@ -68,6 +68,15 @@ export function statusGone(circleId: string, userId: string): void {
   persist(Object.fromEntries(Object.entries(current).filter(([k]) => k !== key)));
 }
 
+/** A person this phone shares no circle with any more: their statuses, in every circle, go. */
+export function forgetStatusesOf(userId: string): void {
+  const current = useStatuses.getState();
+  const kept = Object.fromEntries(
+    Object.entries(current).filter(([, entry]) => entry.userId !== userId),
+  );
+  if (Object.keys(kept).length !== Object.keys(current).length) persist(kept);
+}
+
 function circlesWithOthers(): Circle[] {
   const me = useAuth.getState().userId;
   return (queryClient.getQueryData<Circle[]>(circlesKey) ?? []).filter(

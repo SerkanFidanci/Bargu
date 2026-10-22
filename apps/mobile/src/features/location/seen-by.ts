@@ -76,6 +76,20 @@ export function forgetMembers(store: KeyValueStore, isGone: (circleId: string) =
   }
 }
 
+/**
+ * A person this phone shares no circle with any more is not "known" in any circle: if they come
+ * back, they are new again and the notice above is told.
+ */
+export function forgetMember(store: KeyValueStore, userId: string): void {
+  const known = knownMembers(store);
+  const kept = Object.entries(known).map(
+    ([circleId, userIds]) => [circleId, userIds.filter((id) => id !== userId)] as const,
+  );
+  if (kept.some(([circleId, userIds]) => userIds.length !== known[circleId]?.length)) {
+    store.set(KNOWN_KEY, JSON.stringify(Object.fromEntries(kept)));
+  }
+}
+
 /** Someone new seeing this phone: the live location, both, or the history alone. */
 export type ViewerKind = 'live' | 'both' | 'history';
 

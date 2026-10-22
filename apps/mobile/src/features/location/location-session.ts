@@ -54,6 +54,7 @@ import {
   onFirstLoad,
   onLiveMessage,
   onOnline,
+  onPeopleDeparted,
 } from '../live/live-session';
 import { loadMuteSettings } from '../notifications/mute-session';
 import { isMuted } from '../notifications/mutes';
@@ -83,6 +84,7 @@ import {
 import { isVaultOpen, vault } from '../storage/vault';
 import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix } from './engine';
 import { timed } from './probe';
+import { forgetDeparted } from './forget-person';
 import { createReceiver } from './receive';
 import { createStateReporter } from './state-report';
 import { useMyWhy } from './why';
@@ -742,6 +744,10 @@ const receiver = createReceiver({
     toast.info(i18n.t('map.poke.received', { name }));
   },
 });
+
+// The last circle shared with a person went (circle-sync): everything local about them is deleted
+// in one place, except the record that notices a changed key (forget-person.ts).
+onPeopleDeparted(forgetDeparted({ receiver, keys, store: vault }));
 
 let restored = false;
 

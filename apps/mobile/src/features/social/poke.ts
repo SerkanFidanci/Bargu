@@ -71,6 +71,16 @@ export async function poke(circleId: string): Promise<PokeResult> {
   }
 }
 
+/** A person this phone shares no circle with any more: when they last poked it is forgotten. */
+export function forgetPokesOf(userId: string): void {
+  const pokes = usePokes.getState();
+  if (!(userId in pokes)) return;
+  usePokes.setState(
+    Object.fromEntries(Object.entries(pokes).filter(([id]) => id !== userId)),
+    true,
+  );
+}
+
 /** Someone poked this phone: their name, when fresh (null: too old or unknown, show nothing). */
 export function receivePoke(
   circleId: string,

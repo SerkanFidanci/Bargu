@@ -1,6 +1,7 @@
 import { memoryStore, nth } from '../location/test-support';
 import {
   clearSpot,
+  forgetSpotsOf,
   keepSpot,
   loadSpots,
   openSpot,
@@ -10,6 +11,7 @@ import {
   SPOTS_KEY,
   spotBounds,
   spotOf,
+  showSpot,
   spotShape,
   useSafeSpot,
 } from './safe-spot';
@@ -33,6 +35,31 @@ const idOf = (n: number) => `${'A'.repeat(21 - String(n).length)}${String(n)}A`.
 
 beforeEach(() => {
   resetSpot();
+});
+
+describe('the places of a person no circle is shared with any more', () => {
+  it('go from the vault and from the map, and only theirs', () => {
+    const store = memoryStore();
+    keepSpot(store, spotOfId(idOf(1), { userId: 'ayse' }), NOW);
+    keepSpot(store, spotOfId(idOf(2), { userId: 'bora' }), NOW);
+    // A place kept by an older version names nobody: it is a day old at most and ages out.
+    keepSpot(store, spotOfId(idOf(3)), NOW);
+    showSpot(spotOfId(idOf(1), { userId: 'ayse' }));
+
+    forgetSpotsOf(store, 'ayse', NOW);
+
+    expect(loadSpots(store, NOW).map((spot) => spot.id)).toEqual([idOf(2), idOf(3)]);
+    expect(useSafeSpot.getState().spot).toBeNull();
+
+    // Someone else's place on the map stays.
+    showSpot(spotOfId(idOf(2), { userId: 'bora' }));
+    forgetSpotsOf(store, 'ayse', NOW);
+    expect(useSafeSpot.getState().spot?.id).toBe(idOf(2));
+
+    // Bora's go as well; the one that names nobody is not anyone's to forget.
+    forgetSpotsOf(store, 'bora', NOW);
+    expect(loadSpots(store, NOW).map((spot) => spot.id)).toEqual([idOf(3)]);
+  });
 });
 
 describe('the places of "Güvendeyim" kept on the phone (docs/ADR/0029 §5)', () => {

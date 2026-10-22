@@ -233,6 +233,22 @@ function dropPhoto(userId: string): void {
   );
 }
 
+/**
+ * A person this phone shares no circle with any more: their photo, and the key it opened with, go
+ * from the vault and from the screens. (Their next profile message, if they are ever met again,
+ * brings them back.)
+ */
+export function forgetPhotoOf(userId: string): void {
+  dropPhoto(userId);
+  if (!isVaultOpen()) return;
+  const known = read(KEYS_KEY, keysSchema, {});
+  if (userId in known) {
+    const rest = Object.fromEntries(Object.entries(known).filter(([id]) => id !== userId));
+    vault().set(KEYS_KEY, JSON.stringify(rest));
+  }
+  vault().delete(imageKey(userId));
+}
+
 /** Whether the user has a photo set (for the profile screen). */
 export function hasOwnPhoto(): boolean {
   return read(MINE_KEY, mineSchema.nullable(), null) !== null;

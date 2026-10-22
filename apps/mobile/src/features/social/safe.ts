@@ -229,6 +229,35 @@ export function admitSafe(
 }
 
 /**
+ * A person this phone shares no circle with any more: the times their messages were shown and the
+ * ids of the ones shown (the memory above) go. Their places are in safe-spot.ts.
+ */
+export function forgetSafeOf(store: KeyValueStore, userId: string): void {
+  const rate = store.get(SAFE_RATE_KEY);
+  if (rate !== undefined) {
+    const parsed = rateSchema.safeParse(JSON.parse(rate));
+    if (parsed.success) {
+      const kept = Object.entries(parsed.data).filter(([key]) => key.split(':')[1] !== userId);
+      if (kept.length < Object.keys(parsed.data).length) {
+        if (kept.length === 0) store.delete(SAFE_RATE_KEY);
+        else store.set(SAFE_RATE_KEY, JSON.stringify(Object.fromEntries(kept)));
+      }
+    }
+  }
+  const seen = store.get(SAFE_SEEN_KEY);
+  if (seen !== undefined) {
+    const parsed = z.array(z.string()).safeParse(JSON.parse(seen));
+    if (parsed.success) {
+      const kept = parsed.data.filter((key) => key.split(':')[1] !== userId);
+      if (kept.length < parsed.data.length) {
+        if (kept.length === 0) store.delete(SAFE_SEEN_KEY);
+        else store.set(SAFE_SEEN_KEY, JSON.stringify(kept));
+      }
+    }
+  }
+}
+
+/**
  * How old a message is for showing it: `ahead` when it is dated more than SAFE_AHEAD_MS in the
  * future, `old` after a day, else `fresh`. At the limits themselves (5 minutes ahead, a day old) it
  * is still fresh.
@@ -299,6 +328,7 @@ export function receiveSafe(input: {
   const spot: SafeSpot = {
     id: safe.id,
     circleId,
+    userId,
     name,
     lat: safe.lat,
     lng: safe.lng,

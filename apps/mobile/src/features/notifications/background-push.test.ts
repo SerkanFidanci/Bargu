@@ -512,6 +512,7 @@ describe('Güvendeyim from a member (docs/ADR/0029)', () => {
       expect(spot).toEqual({
         id: messageId,
         circleId,
+        userId: ayseUserId,
         name: 'Ayşe',
         ...exact,
         bat: 45,

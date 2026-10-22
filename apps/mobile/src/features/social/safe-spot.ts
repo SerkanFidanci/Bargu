@@ -27,6 +27,11 @@ const spotSchema = z
     /** The message's own id: the notification and the live message are one. */
     id: safeIdSchema,
     circleId: z.uuid(),
+    /**
+     * Who: so that the place goes when this phone shares no circle with them any more. Absent from
+     * places kept by older versions, which are a day old at most.
+     */
+    userId: z.string().optional(),
     /** Who, as this phone knew them when it came. */
     name: z.string(),
     lat: z.number().min(-90).max(90),
@@ -72,6 +77,17 @@ export function loadSpots(store: KeyValueStore, now: number): SafeSpot[] {
 export function keepSpot(store: KeyValueStore, spot: SafeSpot, now: number): void {
   const others = loadSpots(store, now).filter((kept) => kept.id !== spot.id);
   save(store, now - spot.ts > SPOT_KEEP_MS ? others : [...others, spot].slice(-SPOTS_MAX));
+}
+
+/**
+ * A person this phone shares no circle with any more: their places go from the vault, and from
+ * the map if one of them is shown.
+ */
+export function forgetSpotsOf(store: KeyValueStore, userId: string, now: number): void {
+  const spots = loadSpots(store, now);
+  const kept = spots.filter((spot) => spot.userId !== userId);
+  if (kept.length !== spots.length) save(store, kept);
+  if (useSafeSpot.getState().spot?.userId === userId) clearSpot();
 }
 
 /** The place of a message, if this phone still has it. */

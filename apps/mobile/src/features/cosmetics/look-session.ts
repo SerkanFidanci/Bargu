@@ -254,6 +254,29 @@ export function receivedLook(userId: string, look: LookPayload, now = Date.now()
   if (isVaultOpen()) vault().set(LOOKS_KEY, JSON.stringify(kept));
 }
 
+/**
+ * A person this phone shares no circle with any more: their look, as kept in the vault and shown,
+ * and the memory of their newest look message, go.
+ */
+export function forgetLookOf(userId: string): void {
+  const shown = useLooks.getState();
+  if (userId in shown) {
+    useLooks.setState(
+      Object.fromEntries(Object.entries(shown).filter(([id]) => id !== userId)),
+      true,
+    );
+  }
+  seen.delete(userId);
+  kept = Object.fromEntries(Object.entries(kept).filter(([id]) => id !== userId));
+  if (!isVaultOpen()) return;
+  // Before the first restore the copy is only in the vault: take it out there too.
+  const stored = read(LOOKS_KEY, keptSchema, {});
+  if (userId in stored) {
+    const rest = Object.fromEntries(Object.entries(stored).filter(([id]) => id !== userId));
+    vault().set(LOOKS_KEY, JSON.stringify(rest));
+  }
+}
+
 /** Sign-out. */
 export function resetLooks(): void {
   restored = false;

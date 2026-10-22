@@ -23,6 +23,7 @@ import {
 import { contactsOf, identityOf } from '../notifications/push-contacts';
 import {
   createSafeCheckIns,
+  forgetSafeOf,
   initialSelection,
   loadChoice,
   needsConfirm,
@@ -31,6 +32,7 @@ import {
   admitSafe,
   SAFE_AHEAD_MS,
   SAFE_RATE_KEY,
+  SAFE_SEEN_KEY,
   SAFE_SHOWN_PER_HOUR,
   SAFE_FRESH_MS,
   safeAge,
@@ -548,6 +550,40 @@ describe('the receiving phone, from the envelope to the handler', () => {
   });
 });
 
+describe('the memory of a person no circle is shared with any more', () => {
+  it('forgets when their messages were shown and which ones, and only theirs', () => {
+    const store = memoryStore();
+    const home = '0190f7a4-5b6c-7d8e-9f01-23456789abcd';
+    const [ayse, bora] = ['ayse-id', 'bora-id'];
+    for (const who of [ayse, bora]) {
+      expect(admitSafe(store, home, who, NOW)).toEqual({ show: true });
+      expect(rememberSafe(store, home, who, 'AAAAAAAAAAAAAAAAAAAAAA')).toBe(true);
+    }
+
+    forgetSafeOf(store, ayse);
+
+    // Hers is as if never seen; Bora's is still remembered (same id: shown once, not again).
+    expect(rememberSafe(store, home, ayse, 'AAAAAAAAAAAAAAAAAAAAAA')).toBe(true);
+    expect(rememberSafe(store, home, bora, 'AAAAAAAAAAAAAAAAAAAAAA')).toBe(false);
+    expect(store.get(SAFE_RATE_KEY)).not.toContain(ayse);
+    expect(store.get(SAFE_RATE_KEY)).toContain(bora);
+
+    // Nothing is left of the last one: the keys themselves go.
+    forgetSafeOf(store, bora);
+    forgetSafeOf(store, ayse);
+    expect(store.get(SAFE_RATE_KEY)).toBeUndefined();
+    expect(store.get(SAFE_SEEN_KEY)).toBeUndefined();
+  });
+
+  it('is a quiet no-op for someone it knows nothing of', () => {
+    const store = memoryStore();
+    expect(() => {
+      forgetSafeOf(store, 'nobody');
+    }).not.toThrow();
+    expect(store.keys()).toEqual([]);
+  });
+});
+
 describe('what the receiving phone writes', () => {
   it('says who, that they are safe and the battery, in the phone’s language', async () => {
     expect(safeWords({ name: 'Ayşe', bat: 45, ts: NOW, now: NOW + MIN })).toBe(
@@ -588,6 +624,7 @@ describe('what the receiving phone writes', () => {
     const spot = {
       id: safe.id,
       circleId: w.home.id,
+      userId: w.bora.userId,
       name: 'Test',
       lat: 41,
       lng: 29,
