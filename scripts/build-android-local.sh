@@ -138,7 +138,10 @@ docker run --rm \
       # No developer tool in the shipped JavaScript (apps/mobile/scripts/check-bundle.mjs).
       if [ -f scripts/check-bundle.mjs ]; then
         unzip -p "$aab" base/assets/index.android.bundle > /tmp/index.android.bundle
-        node scripts/check-bundle.mjs --file /tmp/index.android.bundle absent
+        if ! node scripts/check-bundle.mjs --file /tmp/index.android.bundle absent; then
+          echo "build-android-local: REFUSED: the bundle carries developer tools" >&2
+          rm -f "/out/bargu-$COMMIT-check.aab"; exit 1
+        fi
       else
         echo "build-android-local: this commit has no scripts/check-bundle.mjs, developer tools not checked" >&2
       fi
