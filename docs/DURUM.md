@@ -186,6 +186,7 @@ kapalı testten önce.
 | Son dilim (PM kararları)              | `5e211c2`, `8c8e0c7`, `2ee5baa`, `0e55740`, `b69dabc`, `5e867a7`, `5e904d7`, `48ad4d7`, `1fd5d77`, `4a26997` | Telefon yeniden başlayınca ya da uygulama güncellenince paylaşım açıksa "Paylaşım durdu" bildirimi; dokununca Bargu açılır, paylaşım kendiliğinden sürer. Bunu küçük bir yerel alıcı yapar; yalnız bayrak ve iki metin tutar, yalnız Android 11 ve üstünde çalışır (ADR 0028 eki). Android yedeği tamamen kapalı (Drive yedeği ve yeni telefona taşıma; `check-manifest` derlemede denetler). Pin paketleri Bargu+ gibi "Yakında Google Play üzerinden" der. `check:bundle` CI'da ayrı iş. Telefonun kendi izi rıza geri çekilince ve son çemberde geçmiş kapanınca silinir, kayıt olmasa da 14 günde budanır: ekran "silindi" diyordu ama silmiyordu (ADR 0019 eki)                                                                                                                                                                                                                          |
 | Sahibin iki telefon bulgusu           | `4ac91b4`, `2fd570a`                                                                                         | Haritadaki kayıtlı yere (ör. ☕ dairesi) dokunulamıyordu: etiketi bilerek dokunmaya kapalıydı, dairesi dokunuş almıyordu. Artık etikete (en az 48 pt dokunma alanı) ya da dairenin içine dokununca yerin kendi ekranı açılır; açık bir kişi kartı varsa ilk dokunuş yalnız kartı kapatır. Hava kartı Bozüyük'te "İstanbul" diyordu: harita uzaktayken küçük ilçeler çizilmediği için en yakın çizilmiş büyük şehri seçiyordu. Artık yer adı en çok 15 km (mahalle 3 km) öteden; yoksa ad yok (ADR 0013 eki)                                                                                                                                                                                                                                                                                                                                                                                   |
 | Açılış çökmesi                        | `869a7af`, `cf3469b`                                                                                         | Seviye 5 APK'sı (`869a7af`) sahibin S25 Ultra'sında açılır açılmaz kapanıyordu. Faz 10'da `DETECT_SCREEN_CAPTURE` izni "yalnız ekran görüntüsü dinleyicisi" diye çıkarılmıştı; ama expo-screen-capture Android 14+'da modül açılırken ekran yakalama geri çağrısını koşulsuz kaydediyor ve izin yoksa SecurityException atıyor. İzin geri geldi (normal izin, sorulmaz); bir test kitaplığın kaynağını okuyup bunu sabitliyor. Diğer 21 izin açılışta kullanılmıyor (test oturumu da doğruladı). Ayrıca eas-cli boş ortam değeri kabul etmediği için production'daki boş anahtar satırı kaldırıldı                                                                                                                                                                                                                                                                                            |
+| Buluşma için eklenen yer              | `9dd327d`                                                                                                    | Sahip haritada kalan "Woh date" yerini buluşma sandı: buluşma için "Yeni yer ekle" ile eklenen yer, buluşma silinince sıradan bir yer olarak kalıyordu. Artık o yer buluşmayla gider; elle bitirirken "Bitir, yeri sakla", buluşma ekranında "Bitince yeri sakla". Sunucu buluşmayı kendiliğinden silince yeri başlatanın telefonu siler. Çemberin önceden kayıtlı yeri hiç silinmez (ADR 0026 Ek 1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 ### QA turları
 
@@ -442,11 +443,15 @@ API'den bağlanır.
     - İyi çalışan: konum, kullanıcı yeniden seçene kadar hiçbir çembere gitmez ("Bu telefonda
       konumun kimseyle paylaşılmıyor" kartı); diğer üyelerde "güvenlik numarası değişti" ve
       Onayla; eski cihaz "değiştirildi" olarak kapanır.
-43. Buluşma için "Yeni yer ekle" ile açılan yer, buluşma (saatinden 3 saat sonra) silinince çemberde
-    sıradan bir yer olarak kalır. Sahip bunu ("Woh date") buluşma sandı. Öneri PM'de: o yer
-    buluşmayla birlikte gitsin, istenirse saklansın.
+43. ~~Buluşma için eklenen yerin kalması~~: düzeltildi (ADR 0026 Ek 1); sonraki APK'da. Eski
+    kalıntılar ("Woh date") olduğu gibi kalır, kullanıcı silebilir.
 44. Sahibin isteği (2026-10-22): buluşmada katılım yanıtı ("Geliyorum / Gelemiyorum / Belki"),
-    kimin ne dediği, tahmini varış. Yeni özellik; tasarım ve karar PM'de (ADR 0026 eki).
+    kimin ne dediği, tahmini varış. Yeni özellik; PM onayladı, tasarım ve ADR 0026 Ek 2 şimdi, kod
+    sahip `cf3469b`'yi telefonda denedikten sonra.
+45. `event-circles` entegrasyon testi ("clean-up is cut short", satır 350) bir kez CI'da kırıldı
+    (run 39779707897, yalnız belge değiştiren `17007b3`'te): Redis hatasından sonra çembere dair
+    beklenen iz kalmamıştı. API değişmemişti; testin kurulumunda bir zamanlama farkı olabilir.
+    Tekrar ederse incelenecek; o commit staging'e gitmedi (yalnız belge).
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -643,6 +648,10 @@ açılışta çöküyordu, onu kurma:
     ekranı açılır (ad, simge, boyut). Bir kişinin kartı açıkken ilk dokunuş yalnız kartı kapatır.
 63. Hava kartı: İstanbul dışındayken (ör. Bozüyük) kendi ilçenin adı ya da hiç ad; uzak bir büyük
     şehrin adı değil. Haritayı uzaklaştırıp yaklaştır, ad yine doğru kalır.
+64. Sonraki APK'da: bir buluşmayı başlatırken "Yeni yer ekle" ile yer ekle ve başlat. Buluşma
+    ekranında "Bitince yeri sakla" kapalıdır; "Buluşmayı bitir" deyince pencerede "Bitir, yeri
+    sakla" da çıkar. Bitirince (saklamadan) o yer haritadan gider; önceden kayıtlı bir yerle
+    başlatılan buluşmada yer kalır.
 
 ### Senden gerekenler
 
