@@ -3,8 +3,9 @@
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
   <application>
-    <!-- Exported because the system sends the two broadcasts; it can do nothing but show the notice. -->
-    <receiver android:name=".BootReceiver" android:exported="true">
+    <!-- Not exported: the system still delivers its own BOOT_COMPLETED and MY_PACKAGE_REPLACED to it,
+         and no other app can make it post the notice (QA-34). -->
+    <receiver android:name=".BootReceiver" android:exported="false">
       <intent-filter>
         <action android:name="android.intent.action.BOOT_COMPLETED" />
         <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />

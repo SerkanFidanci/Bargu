@@ -68,6 +68,7 @@ export function receiversOf(xml) {
   const live = xml.replace(/<!--[\s\S]*?-->/g, '');
   return [...live.matchAll(/<receiver\b([^>]*?)(?:\/>|>([\s\S]*?)<\/receiver>)/g)].map((match) => ({
     name: /android:name="([^"]+)"/.exec(match[1])?.[1] ?? '',
+    exported: /android:exported="([^"]+)"/.exec(match[1])?.[1] ?? null,
     actions: [...(match[2] ?? '').matchAll(/<action\b[^>]*android:name="([^"]+)"/g)].map(
       (action) => action[1],
     ),
@@ -81,13 +82,20 @@ const RESTART_ACTIONS = [
   'android.intent.action.MY_PACKAGE_REPLACED',
 ];
 
-/** What is wrong with the restart notice's receiver (ADR 0028 addendum): it must be in the manifest. */
+/**
+ * What is wrong with the restart notice's receiver (ADR 0028 addendum): it must be in the manifest,
+ * listen to both broadcasts and not be exported (the system's own broadcasts still reach it; no
+ * other app may make it post the notice, QA-34).
+ */
 export function restartReceiverProblems(xml) {
   const found = receiversOf(xml).find((receiver) => receiver.name === RESTART_RECEIVER);
   if (found === undefined) return [`${RESTART_RECEIVER} is not in the manifest`];
-  return RESTART_ACTIONS.filter((action) => !found.actions.includes(action)).map(
+  const problems = RESTART_ACTIONS.filter((action) => !found.actions.includes(action)).map(
     (action) => `${RESTART_RECEIVER} does not listen to ${action}`,
   );
+  if (found.exported !== 'false')
+    problems.push(`${RESTART_RECEIVER} is exported (${found.exported})`);
+  return problems;
 }
 
 /** `android.blockedPermissions` as Expo resolves the app config. */

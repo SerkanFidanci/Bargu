@@ -363,6 +363,7 @@ Faz 8'den sonra proje sahibinin isteğiyle yapılıyor (yapım aşamasında).
 
 ### Faz 9B — Para Modeli & Yayın Öncesi Ürün
 Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırması (Bölüm 0).
+**Durum (2026-10-22):** kod ve testler bitti, PM onayladı (kapanış raporu: docs/DURUM.md). Proje sahibinde kalanlar: seviye 5 APK'sıyla telefon denemeleri, 3 kişiyle kullanılabilirlik testi ve sunucu betiğinin iki kez çalıştırılması. Bunlar kapalı testten önce şart. Proje sahibinin kararıyla, telefon denemesine kadar yeni özellik yok.
 - **Para modeli: "kuran öder"** (karar 2026-10-15; kuralların son hâli ve ödeme kütüphanesi ADR'de):
   - Bir çember (1:1 arkadaşlık dahil), üyelerinden en az biri Bargu+ abonesi ya da denemedeyse çalışır. Davetle katılmak hep bedava.
   - Yeni kullanıcıya 21 günlük deneme: bu sürede istediği kadar çember kurar ve davet eder.
@@ -435,6 +436,13 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
   - Alıcıdaki tahmin en çok birkaç saniye ileri gider ve hiç geri sıçramaz (bugün 10 sn ileri gidip dönüşte geri sıçrıyordu). Kötü örnekler (düşük doğruluk, olanaksız hız) süzülür.
   - Arka planda gecikme: izlenen telefonun canlı moda geçirilmesi araştırılır; aralık politikası değişirse ADR. Canlı mod dışında pil geriye gitmez.
   - 1. adım yapıldı ve QA 25'ten geçti (ADR 0028): tahmin en çok 1 sn, geri sıçrama yok, gönderen süzgeci, kapalı alanda belirsizlik dairesi, kaba çembere giden konum değişmedi. Düşük not: 24,8 günden uzak paylaşım bitişinde zamanlayıcı taşıyor, parçalı kurulsun. 2. adım: proje sahibinin ölçümü; 3. adım: arka planda canlı mod (ADR 0028 onayıyla).
+  - 3. adımın tasarımı (PM, 2026-10-21):
+    - Sunucu, canlı bağlantısı olmayan üyeye mühürlü bir "watch" haberi yollar; içinde yalnızca çember kimliği var, izleyenin kimliği yok, ekranda bildirim yok.
+    - Telefon, o çemberle tam konum paylaşıyorsa 2 dakika saniyede bir gönderir.
+    - Sınırlar yapılandırılabilir: alıcı başına 90 sn'de bir ve saatte 20 haber; telefonda saatte en çok 15 dakika.
+    - Hiç açılmaz: hayalet, kaba hassasiyet, pil tasarrufu, %20 altı pil, bitmiş paylaşım, duraklamış çember.
+    - Android arka plandaki uygulamanın konum servisini yeniden ayarlamasına izin vermiyor. Telefonda tutmazsa sıra: önce servisi yeniden başlatmadan güncelleyen küçük bir yerel modül, olmazsa arka planda 5 sn. Arka plan konum izni şimdi istenmez (Play beyanı ve gizlilik metni gerektirir; proje sahibinin kararı). iOS ayrı.
+    - Ayar "Arka planda canlı konum": 18+ için açık başlar ve bir kez kısa bir açıklama gösterilir. 15–17 için kapalı başlar ve yalnızca gencin kendisi açabilir; ebeveyn açamaz, ebeveyn araçlarında görünmez.
 - **Daha gerçekçi hareket görselleri (proje sahibi, 2026-10-18; konum düzeltmesinden sonra, dilim 3b'den önce):**
   - Yürüme, koşma, bisiklet ve araba yeniden çizilir; donma nedeni bulunur. Pil tasarrufu sade modu "az"a çektiyse Ben > Efektler'de bunun nedeni yazar.
   - 120 km/sa üstünde yarış arabası ve hız çizgileri; korkuluklarla:
@@ -450,6 +458,12 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
   - Ekle menüsünün adı "Ekle" olur ve içine "Çember oluştur" eklenir. "Çemberden ayrıl" ayrı bir tehlike bölümüne taşınır. Boş bölümler açıklama ve işlem gösterir.
   - Kişi kartında görünür kapat (×) düğmesi. Karttaki "Profil" düğmesinin adı açtığı ekrana göre düzeltilir.
   - Sonraya: alt ekrandan dönünce Ben ya da Çemberler sayfasının ve kaydırma yerinin korunması.
+- **Sıra ve tasarım notları (PM, 2026-10-21):** 3c (15–17 süs isteği) ve sayaç sıfırlama → Güvendeyim → Neden eski → dünya haritası → zengin davet kartı.
+  - Güvendeyim: yeni şifreli tür; konum her çembere o çemberin hassasiyetiyle gider; hayalette tek seferlik onay; sunucu yalnızca tekrar engeli için kimlik özetini 24 saat tutar (ADR 0029).
+  - Neden eski: ayrı bir şifreli durum mesajı, koordinatsız; "çevrim dışı"yı alan telefon çıkarır.
+  - Dünya haritası: zoom 0–6, yaklaşık 45 MB.
+  - Davet sayfası: geçerli ve geçersiz belirteç için aynı içerik; indirme yolu "yakında Google Play'de", APK linki yok.
+- **Buluşmada katılım yanıtı (proje sahibinin isteği, 2026-10-22; tasarım şimdi, kod telefon denemesinden sonra):** "Geliyorum / Gelemiyorum / Belki"; buluşma ekranında kim ne dedi, adı ve sayısıyla. Yanıt şifreli belge (ADR 0018'deki oy gibi), sunucu kimin ne dediğini görmez; etkinlikteki katılım yapısı yeniden kullanılır; saat değişince "hâlâ geliyor musun?" sorulur; başlatana tek özet bildirim (ADR 0026 eki). Ayrıca hata: buluşma için eklenen yer buluşmayla silinir, başlatana "Yeri sakla" sorulur.
 - **Güvendeyim düğmesi:** tek dokunuşla seçilen çemberlere "iyiyim" + konum + pil. Mevcut şifreli bildirim yolundan gider; zayıf ağda kuyruğa alınır, küçük paketle tekrar denenir. SMS yedeği ayrı karar (Bölüm 7).
 - **"Neden eski?" durumu:** eski konumun yanında nedeni: çevrim dışı (saatiyle), pil tasarrufu, konum izni kapalı. Nedeni gönderen telefon bilir, şifreli nabız mesajına eklenir. Hayalet modda neden gösterilmez.
 - **Zengin davet kartı:** davet linki WhatsApp ve Instagram'da önizlemeli açılır. Önizlemeyi o şirketlerin sunucuları çektiği için kişisel veri içermez (ad, fotoğraf yok); ad ve fotoğraf uygulamada çözülür.
@@ -476,6 +490,15 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 - **Önce Google Play:** 13 Kasım 2023'ten sonra açılan kişisel geliştirici hesabı, üretime çıkmadan önce en az 12 test kullanıcısıyla 14 gün kesintisiz kapalı test yapmak zorunda ([Google](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)). Hesap ve 12 kişilik test grubu Faz 10'dan önce hazırlanır (proje sahibi); bu grup ilk lansman grubunun çekirdeği olabilir. iOS yayını Apple üyeliğinden sonra.
 - **Deneme mağazaya taşınır:** gerçek ödemeye geçince 21 günlük deneme, Google Play'in kendi ücretsiz deneme teklifiyle verilir (Google hesabı başına bir kez); hesabı silip yeniden açarak yeni deneme alma riski böylece kapanır (QA 19 P5, ADR 0024).
 - **İleri uyumluluk:** telefon bütün sunucu cevaplarını yeni alanları atlayarak okusun; istekler katı kalsın. Böylece sunucuya alan eklenince kurulu APK'lar bozulmaz (32b0f2d'de çember ve üye kartı için yapıldı). Tanımadığı tür değerini (yeni istek ya da bildirim türü) de bozulmadan atlasın. Sunucu, yeni bir türü onu tanımayan eski sürüme (x-bargu-client seviyesi düşük) göndermesin (2c'de ebeveyn isteklerindeki "purchase" türüyle başladı). Şifreli profil içeriği de tanımadığı alanı atar (b85ac9d); tanımadığı içerik türünü alıcı yok sayar.
+- **Deniz (proje sahibi 2026-10-21):** EVREN modeliyle yönetilen, İstanbul'da yaşayan uydurma bir kişi. Proje sahibinin hobi ve deneysel işi; Bargu'dan ayrı tutulur ("o işi bu projeden ayrı tut"). Bargu deposuna, ADR'lerine ve CI'ına girmez; staging sunucusunda ayrı çalışır ve Bargu'ya yalnızca bir test kullanıcısı gibi API'den bağlanır. Bargu için tek kural: Deniz gerçek kullanıcılara asla gerçek bir insan gibi gösterilmez, kapalı testten önce gerçek test kullanıcılarının çemberlerinden çıkarılır.
+- **Test botu (@deneme.arkadas):** kodu depoya alınır (sırlar dışarıda), kaynağı `/tmp`'den kalıcı bir yere taşınır. Bot, staging sunucusunda çemberdeki kişilerin konumunu çözüyor ("tour" kipi proje sahibinin konumunun çevresinde dolaşır). Bu yüzden konum asla loglanmaz, ve kapalı test başlamadan önce bot gerçek test kullanıcılarının çemberlerinden çıkarılır.
+- **Uygulamayı silip yeniden kuran kullanıcı (proje sahibinin 2026-10-22 deneyimi; kapalı testten önce karar):**
+  - Yerel anahtarlar gidince çember başına paylaşım seçimleri, sessize almalar, güven kayıtları ve kendi izin kaybolur. Bunlar bilerek telefonda.
+  - Ayrıca eski anahtar döneminde mühürlenen kayıtlı yerler, buluşma belgeleri ve 14 günlük çember geçmişi, onları yeniden mühürleyecek başka etkin bir üye yoksa yeni telefonda açılmaz.
+  - Seçenekler (ADR ile): "telefon değiştiriyorum" akışında eski telefondan yenisine QR ile kasa aktarımı; geçiş anahtarı ya da parolayla şifreli hesap yedeği (Açık Kararlar'daki "uzun yedek"); çemberdeki her etkin üyenin uygulamasının yerleri kendiliğinden yeniden mühürlemesi.
+  - Küçük düzeltme: geri dönen kullanıcıya yaş sorusu sorulmasın ya da sorunun yok sayıldığı açıkça yazsın.
+- **İmzalı sunucu haberleri (QA 28 B-1, kapalı test kapısı):** bütün sunucu haberleri (ADR 0016 notice) sunucunun ayrı bir anahtarıyla imzalanır; imza alıcı cihazı, zamanı ve haber kimliğini kapsar. Telefon gömülü açık anahtarla doğrular, tazelik ve tekrar denetimi yapar. İmzasız haber atılır. Kapalı test, telefon tarafı yayında olmadan başlamaz; üretim için ayrı anahtar.
+- **Süs geçiş belgesi için üretim imza anahtarı:** ayrı bir anahtar ve kid üretilir, açık anahtar üretim derlemesine girer. O zamana kadar üretim derlemesi hiçbir süs belgesine güvenmez, yani süsler görünmez (ADR 0025 §2).
 - **Emülatörde duman testi** (2026-10-21'deki donmadan sonra): Jest, Reanimated worklet'lerini JS thread'de çalıştırdığı için UI thread hatalarını görmez; bc5f925'teki worklet olmayan fonksiyon çağrısı telefonu dondurdu. Her APK'dan önce bir Android emülatöründe kısa bir açılış ve harita testi (CI'da ya da yerelde). O zamana kadar `worklet-calls` testi bu hata türünü yakalar.
 - **Geliştirici araçları production paketinden derleme zamanında çıkar** (QA 25): bugün kapalı da olsa sürü denemesi, test satın alma ve kripto ölçümü kodu pakette duruyor; ölçüm katmanı gibi bayrakla tamamen dışarıda kalsın. Doğrulama `expo export --clear` ile.
 - **Dış tarama notları (GPT taraması, 2026-10-21; PM doğruladı):**
@@ -494,6 +517,12 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 - **Davet ödülü:** davet eden ve gelen birer ay Bargu+. Nakit ödül ve zorla davet yok.
 - **Etkinlik paketi:** Faz 8 etkinlik çemberinin, düzenleyenin ödediği süreli paketi (gezi, tur, kamp); katılımcı bedava. Fiyat denemesi.
 - **Kendi geçmişin (Bargu+, isteğe bağlı):**
+  - **Temel görünüm öne alındı** (proje sahibi 2026-10-22: "Kendi konum geçmişimi de görebilmek istiyorum"): Faz 9B kapanışından hemen sonra, kendi izini gün gün haritada ve duraklar listesiyle görmek. Keşif haritası, rotalar, haftalık özet ve yıl sonu kartı Faz 11'de kalır.
+  - Tasarım (PM onayı 2026-10-22; ADR 0030, iki dilim; kod sahip seviye 5 APK'sını denedikten sonra):
+    - Yalnız paylaşım açıkken gelen konumlar kaydedilir: tam paylaşımda iz, yalnız yaklaşık paylaşımda kaba noktalar. Hayalette, kimseyle paylaşmazken ve plan bitince kayıt yok.
+    - Ayrı şifreli dosyalar, ay başına bir tane, ayrı anahtar. Varsayılan süre 30 gün, istenirse 1 yıl.
+    - 15–17 açabilir; varsayılan kapalı, ebeveyn görmez.
+    - Kapı telefonda; kabul edilen risk.
   - Kapalı başlar; kullanıcı açarsa çalışır. Kendi izin telefonda, şifreli kasada tutulur (ADR 0019'daki yerel kayıt). Aşağıdaki özetler telefonda üretilir, sunucuya gitmez.
   - İçinde: keşif haritası ("kazıma haritası"), "geçen cumartesi neredeydim" rotaları, haftalık özet, paylaşılabilir yıl sonu kartı ("2026'da 14 şehir, 230 buluşma"; kartta koordinat yok).
   - Kayıt yalnızca paylaşım açıkken zaten alınan konumlardan yapılır; ayrıca arka planda konum istemez (Play beyanı tek özellik kalır).

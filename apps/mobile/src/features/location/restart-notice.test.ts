@@ -124,6 +124,15 @@ describe('the native side', () => {
     expect(source).toContain(`CHANNEL_ID = "${PRIVACY_CHANNEL}"`);
   });
 
+  it('declares its receiver not exported: only the system reaches it (QA-34)', () => {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- this module's own manifest, a fixed path
+    const manifest = readFileSync(join(native, '../../../../AndroidManifest.xml'), 'utf8');
+    const receiver = /<receiver [^>]*android:name="\.BootReceiver"[^>]*>/.exec(manifest)?.[0] ?? '';
+    expect(receiver).toContain('android:exported="false"');
+    expect(manifest).toContain('android.intent.action.BOOT_COMPLETED');
+    expect(manifest).toContain('android.intent.action.MY_PACKAGE_REPLACED');
+  });
+
   it('posts only from Android 11, where the service cannot come back by itself at boot', () => {
     const post = source.slice(source.indexOf('fun postIfArmed'));
     const gate = post.indexOf('if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return');
