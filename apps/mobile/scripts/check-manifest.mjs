@@ -5,9 +5,10 @@
 // Every permission in `android.blockedPermissions` (app.config.ts) must be gone from the manifest
 // the build produced, and the permissions that are left are listed, so a reviewer (and the Play
 // Console declaration) sees the real list. It also checks that Android backup is off: allowBackup
-// "false" and Bargu's own two rule attributes (app.config.ts). scripts/build-android-local.sh runs
-// it on the merged release manifest of a check bundle. Exit 1: a blocked permission is still
-// there, or backup is not off.
+// "false" and Bargu's own two rule attributes (app.config.ts). And that the receiver of the restart
+// notice (modules/bargu-restart-notice) made it into the manifest. scripts/build-android-local.sh
+// runs it on the merged release manifest of a check bundle. Exit 1: a blocked permission is still
+// there, backup is not off, or the receiver is missing.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -62,6 +63,33 @@ export function backupProblems(xml) {
   return problems;
 }
 
+/** The receivers of a manifest with the actions of their intent filters. */
+export function receiversOf(xml) {
+  const live = xml.replace(/<!--[\s\S]*?-->/g, '');
+  return [...live.matchAll(/<receiver\b([^>]*?)(?:\/>|>([\s\S]*?)<\/receiver>)/g)].map((match) => ({
+    name: /android:name="([^"]+)"/.exec(match[1])?.[1] ?? '',
+    actions: [...(match[2] ?? '').matchAll(/<action\b[^>]*android:name="([^"]+)"/g)].map(
+      (action) => action[1],
+    ),
+  }));
+}
+
+/** The receiver of the "Paylaşım durdu" notice (modules/bargu-restart-notice) and what it listens to. */
+const RESTART_RECEIVER = 'app.bargu.restartnotice.BootReceiver';
+const RESTART_ACTIONS = [
+  'android.intent.action.BOOT_COMPLETED',
+  'android.intent.action.MY_PACKAGE_REPLACED',
+];
+
+/** What is wrong with the restart notice's receiver (ADR 0028 addendum): it must be in the manifest. */
+export function restartReceiverProblems(xml) {
+  const found = receiversOf(xml).find((receiver) => receiver.name === RESTART_RECEIVER);
+  if (found === undefined) return [`${RESTART_RECEIVER} is not in the manifest`];
+  return RESTART_ACTIONS.filter((action) => !found.actions.includes(action)).map(
+    (action) => `${RESTART_RECEIVER} does not listen to ${action}`,
+  );
+}
+
 /** `android.blockedPermissions` as Expo resolves the app config. */
 function blockedPermissions() {
   const expo = createRequire(import.meta.url).resolve('expo/bin/cli');
@@ -98,7 +126,19 @@ function main(args) {
   const problems = backupProblems(xml);
   say(`check-manifest: backup is off: ${problems.length === 0 ? 'ok' : 'FAILED'}`);
   for (const problem of problems) say(`  ${problem}`);
-  return stillThere.length === 0 && problems.length === 0;
+
+  // Who starts at boot or after an update: listed, and the restart notice's receiver must be one.
+  for (const receiver of receiversOf(xml)) {
+    if (receiver.actions.some((action) => RESTART_ACTIONS.includes(action))) {
+      say(`  boot receiver ${receiver.name}: ${receiver.actions.join(', ')}`);
+    }
+  }
+  const receiverProblems = restartReceiverProblems(xml);
+  say(
+    `check-manifest: restart notice receiver: ${receiverProblems.length === 0 ? 'ok' : 'FAILED'}`,
+  );
+  for (const problem of receiverProblems) say(`  ${problem}`);
+  return stillThere.length === 0 && problems.length === 0 && receiverProblems.length === 0;
 }
 
 try {
