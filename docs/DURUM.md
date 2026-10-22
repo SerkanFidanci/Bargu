@@ -5,19 +5,19 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                                                                                                                              |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                                                                                       |
-| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                                                                                      |
-| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                                                                                       |
-| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)                                                                              |
-| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)                                                                              |
-| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)                                                                                      |
-| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                                                                                                    |
-| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                                                                                                   |
-| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                                                                                         |
-| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)                                                                                      |
-| Faz 9B — Para modeli & Bargu+    | ✅ PM onayı 2026-10-22 (kod ve testler); telefon denemeleri ve kullanılabilirlik testi sahipte; seviye 5 APK'sı hazır (`869a7af`), kurulum sahipte |
+| Faz                              | Durum                                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                                                                                                              |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                                                                                                             |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                                                                                                              |
+| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)                                                                                                     |
+| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)                                                                                                     |
+| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)                                                                                                             |
+| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                                                                                                                           |
+| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                                                                                                                          |
+| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                                                                                                                |
+| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)                                                                                                             |
+| Faz 9B — Para modeli & Bargu+    | ✅ PM onayı 2026-10-22 (kod ve testler); telefon denemeleri ve kullanılabilirlik testi sahipte; seviye 5 APK'sı `cf3469b` (`869a7af` açılışta çöküyordu), kurulum sahipte |
 
 ## Ortamlar
 
@@ -185,6 +185,7 @@ kapalı testten önce.
 | Faz 10 hazırlığı                      | `53c7b78`, `abd9d09`, `8f3b519`, `8b08da1`, `789c3e9`, `5a536e8`, `7f54703`, `68e8b12`, `de97352`            | Production profili AAB üretir (K1; yerel betikte `FORMAT=aab`), targetSdk 36 (K3), artan versionCode (K4), sürüm 0.9.0. Geliştirici araçları üretim paketine hiç girmez: `pnpm check:bundle` 97 işaretin üretimde 0'ını, önizlemede 97'sini bulur (önce 96'sı vardı). Üretim derlemesi test satın alması yapamaz; Bargu+ "Yakında Google Play üzerinden" der. Manifest'ten 22 kullanılmayan izin çıktı, 16 kaldı (liste: `apps/mobile/README.md` "Android izinleri"; IZINLER.md'nin "Gerekmez" dediği fotoğraf izni de çıktı). ADR 0028 eki                                                                                                                                                                                                                                                                                                                                                   |
 | Son dilim (PM kararları)              | `5e211c2`, `8c8e0c7`, `2ee5baa`, `0e55740`, `b69dabc`, `5e867a7`, `5e904d7`, `48ad4d7`, `1fd5d77`, `4a26997` | Telefon yeniden başlayınca ya da uygulama güncellenince paylaşım açıksa "Paylaşım durdu" bildirimi; dokununca Bargu açılır, paylaşım kendiliğinden sürer. Bunu küçük bir yerel alıcı yapar; yalnız bayrak ve iki metin tutar, yalnız Android 11 ve üstünde çalışır (ADR 0028 eki). Android yedeği tamamen kapalı (Drive yedeği ve yeni telefona taşıma; `check-manifest` derlemede denetler). Pin paketleri Bargu+ gibi "Yakında Google Play üzerinden" der. `check:bundle` CI'da ayrı iş. Telefonun kendi izi rıza geri çekilince ve son çemberde geçmiş kapanınca silinir, kayıt olmasa da 14 günde budanır: ekran "silindi" diyordu ama silmiyordu (ADR 0019 eki)                                                                                                                                                                                                                          |
 | Sahibin iki telefon bulgusu           | `4ac91b4`, `2fd570a`                                                                                         | Haritadaki kayıtlı yere (ör. ☕ dairesi) dokunulamıyordu: etiketi bilerek dokunmaya kapalıydı, dairesi dokunuş almıyordu. Artık etikete (en az 48 pt dokunma alanı) ya da dairenin içine dokununca yerin kendi ekranı açılır; açık bir kişi kartı varsa ilk dokunuş yalnız kartı kapatır. Hava kartı Bozüyük'te "İstanbul" diyordu: harita uzaktayken küçük ilçeler çizilmediği için en yakın çizilmiş büyük şehri seçiyordu. Artık yer adı en çok 15 km (mahalle 3 km) öteden; yoksa ad yok (ADR 0013 eki)                                                                                                                                                                                                                                                                                                                                                                                   |
+| Açılış çökmesi                        | `869a7af`, `cf3469b`                                                                                         | Seviye 5 APK'sı (`869a7af`) sahibin S25 Ultra'sında açılır açılmaz kapanıyordu. Faz 10'da `DETECT_SCREEN_CAPTURE` izni "yalnız ekran görüntüsü dinleyicisi" diye çıkarılmıştı; ama expo-screen-capture Android 14+'da modül açılırken ekran yakalama geri çağrısını koşulsuz kaydediyor ve izin yoksa SecurityException atıyor. İzin geri geldi (normal izin, sorulmaz); bir test kitaplığın kaynağını okuyup bunu sabitliyor. Diğer 21 izin açılışta kullanılmıyor (test oturumu da doğruladı). Ayrıca eas-cli boş ortam değeri kabul etmediği için production'daki boş anahtar satırı kaldırıldı                                                                                                                                                                                                                                                                                            |
 
 ### QA turları
 
@@ -428,6 +429,24 @@ API'den bağlanır.
     yeniden kuracak.
 41. Yerel derleme betiği, `check-manifest` yedek ya da açılış alıcısı denetiminden düştüğünde de
     "engellenen izin manifest'te" der; asıl neden üstteki FAILED satırında yazar.
+42. Uygulamayı silip yeniden kuran kişi (sahip, 2026-10-22, kapalı testten önce bakılacak):
+    - Kayıtlı yerler ve buluşma belgeleri: cihaz değişince çemberler yeni anahtar dönemine geçer;
+      eski dönemde mühürlenen yeri yeni telefon açamaz. Onu yeniden mühürleyen, yeri okuyabilen
+      başka bir üyenin uygulamasıdır. Çemberde öyle biri yoksa (diğer üye uygulamayı açmıyor, ya
+      da yalnız test botu var) yerler yeni telefonda görünmez. Test botu yeniden mühürlemiyor.
+    - Önceki 14 günün çember geçmişi yeni telefonda açılmaz; geçmiş baştan başlar (ADR 0019).
+    - Uygulama silinmeden önce uyaramaz; "Telefon değiştiriyorum" rehberi ya da dışa aktarma
+      önerisi düşünülebilir.
+    - Yaş sorusu geri dönen kullanıcıya da sorulur ama var olan hesapta yok sayılır;
+      kafa karıştırabilir.
+    - İyi çalışan: konum, kullanıcı yeniden seçene kadar hiçbir çembere gitmez ("Bu telefonda
+      konumun kimseyle paylaşılmıyor" kartı); diğer üyelerde "güvenlik numarası değişti" ve
+      Onayla; eski cihaz "değiştirildi" olarak kapanır.
+43. Buluşma için "Yeni yer ekle" ile açılan yer, buluşma (saatinden 3 saat sonra) silinince çemberde
+    sıradan bir yer olarak kalır. Sahip bunu ("Woh date") buluşma sandı. Öneri PM'de: o yer
+    buluşmayla birlikte gitsin, istenirse saklansın.
+44. Sahibin isteği (2026-10-22): buluşmada katılım yanıtı ("Geliyorum / Gelemiyorum / Belki"),
+    kimin ne dediği, tahmini varış. Yeni özellik; tasarım ve karar PM'de (ADR 0026 eki).
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -597,8 +616,9 @@ Seviye 4: süs isteği, dünya haritası ve sahte haber 1. parça, APK (`c2754a1
 54. Ölçüm katmanında "Sayaçları sıfırla" arka plan sayaçlarını sıfırlar.
 55. Bildirimler (arkadaşlık isteği, davet) her zamanki gibi gelir.
 
-Seviye 5 APK'sı (`869a7af`, sürüm 0.9.0, öncekilerin yerine; yalnız arm64, 85 MB):
-<https://api.46-62-162-70.sslip.io/apk/bargu-869a7af-2dd1f1b9705f94f0.apk>
+Seviye 5 APK'sı (`cf3469b`, sürüm 0.9.0, öncekilerin yerine; yalnız arm64, 85 MB). `869a7af` Android 14+'da
+açılışta çöküyordu, onu kurma:
+<https://api.46-62-162-70.sslip.io/apk/bargu-cf3469b-20c284b3af5d5752.apk>
 
 56. Güvendeyim: haritadaki "Güvendeyim" düğmesi > çember seç > "İyiyim, gönder". Öbür telefonda
     "İyiyim ✓ · %pil"; uygulaması kapalıysa bildirim gelir, dokununca haritada "… iyiyim dedi,
@@ -629,7 +649,7 @@ Seviye 5 APK'sı (`869a7af`, sürüm 0.9.0, öncekilerin yerine; yalnız arm64, 
 Sıra önemli:
 
 1. ~~Seviye 4 APK'sı ve sunucu betiği~~: betik 2026-10-22'de çalıştırıldı (yukarıda, Staging).
-2. **Seviye 5 APK'sını bütün telefonlara kur** (`869a7af`, bağlantı Telefonda denenecekler'de);
+2. **Seviye 5 APK'sını bütün telefonlara kur** (`cf3469b`, bağlantı Telefonda denenecekler'de);
    56–63'e bak.
 3. Kurduktan sonra kodlama oturumuna "kurdum" yaz. Son adımı o çalıştırır: aynı betik
    `--min-level 5` ile (önce kuru) ve test botunun istemci seviyesi 5. Senden yalnız ssh adımının
