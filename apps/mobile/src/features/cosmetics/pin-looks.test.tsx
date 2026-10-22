@@ -120,7 +120,7 @@ const show = async () => {
       screen.queryByTestId('pack-buy-rings') ??
         screen.queryByTestId('pack-pending-rings') ??
         screen.queryByText('Sende') ??
-        screen.queryAllByText(/yakında|gerekiyor/)[0],
+        screen.queryAllByText(/yakında|gerekiyor|coming soon|needs a parent/i)[0],
     ).toBeTruthy();
   });
   return view;
@@ -380,9 +380,7 @@ describe('"Pin süsleri" in Görünüm ve harita (docs/ADR/0025, the pin addendu
   it('offers no purchase where the server has no test billing, nor to 15-17 there', async () => {
     mockPlan = plan([], false);
     const { unmount } = await show();
-    expect(
-      await screen.findAllByText('Satın alma yakında: mağaza bağlantısı henüz yok.'),
-    ).toHaveLength(2);
+    expect(await screen.findAllByText('Yakında Google Play üzerinden')).toHaveLength(2);
     expect(screen.queryByTestId('pack-buy-rings')).toBeNull();
     await unmount();
     mockBand = '15-17';
@@ -391,13 +389,21 @@ describe('"Pin süsleri" in Görünüm ve harita (docs/ADR/0025, the pin addendu
     expect(screen.queryByTestId('pack-buy-rings')).toBeNull();
   });
 
+  it('in English says what the Bargu+ screen says: coming soon through Google Play', async () => {
+    mockPlan = plan([], false);
+    await i18n.changeLanguage('en');
+    const { unmount } = await show();
+    expect(await screen.findAllByText('Coming soon through Google Play')).toHaveLength(2);
+    // Back to Turkish only once the screen is gone (a mounted screen would re-draw outside act).
+    await unmount();
+    await i18n.changeLanguage('tr');
+  });
+
   it('in a production build (no test billing in the bundle) offers no purchase, even if the server says it is on', async () => {
     useTestBilling.setState({ api: null });
     mockPlan = plan([], true);
     await show();
-    expect(
-      await screen.findAllByText('Satın alma yakında: mağaza bağlantısı henüz yok.'),
-    ).toHaveLength(2);
+    expect(await screen.findAllByText('Yakında Google Play üzerinden')).toHaveLength(2);
     expect(screen.queryByTestId('pack-buy-rings')).toBeNull();
     expect(mockPurchase).not.toHaveBeenCalled();
   });

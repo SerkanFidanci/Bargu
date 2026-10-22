@@ -1211,9 +1211,7 @@
     "asked": "Ebeveynine sordun. Onaylayınca paket açılır ve haber alırsın.",
     "approved": "Ebeveynin onayladı: {{pack}}",
     "waiting": "Onay bekliyor",
-    "pending": "Ebeveyninin onayı bekleniyor. Onaylayınca paket açılır ve haber alırsın.",
-    "soon": "Satın alma yakında: mağaza bağlantısı henüz yok.",
-    "teenSoon": "Satın almak için ebeveyn onayı gerekiyor. Mağaza bağlantısı henüz yok, yakında burada olacak."
+    "pending": "Ebeveyninin onayı bekleniyor. Onaylayınca paket açılır ve haber alırsın."
   },
   "upgrade": {
     "title": "Yeni sürüm gerekiyor",

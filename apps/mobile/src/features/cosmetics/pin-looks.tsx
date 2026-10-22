@@ -158,9 +158,11 @@ export function PinLooks() {
       );
     }
     if (!testing) {
+      // The words of the Bargu+ screen (plus.soon, plus.teenSoon): one text for "buying comes
+      // through Google Play", not a second copy.
       return (
         <Text variant="footnote" color="textMuted">
-          {teen ? t('cosmetics.teenSoon') : t('cosmetics.soon')}
+          {teen ? t('plus.teenSoon') : t('plus.soon')}
         </Text>
       );
     }

@@ -1211,9 +1211,7 @@
     "asked": "You asked your parent. Once they say yes, the pack opens and you'll hear about it.",
     "approved": "Your parent said yes: {{pack}}",
     "waiting": "Waiting for a yes",
-    "pending": "Waiting for your parent's yes. Once they say yes, the pack opens and you'll hear about it.",
-    "soon": "Buying is coming soon: the store is not connected yet.",
-    "teenSoon": "Buying needs a parent's yes. The store isn't connected yet; it's coming soon."
+    "pending": "Waiting for your parent's yes. Once they say yes, the pack opens and you'll hear about it."
   },
   "upgrade": {
     "title": "A new version is needed",
