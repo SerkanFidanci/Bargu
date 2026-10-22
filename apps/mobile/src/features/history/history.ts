@@ -198,6 +198,14 @@ export function createHistory(deps: HistoryDeps) {
     }
   }
 
+  /** The whole own trail goes (every `history:mine:*` key). */
+  function forgetMine(): void {
+    const store = deps.store();
+    for (const key of store.keys()) {
+      if (key.startsWith(MINE_PREFIX)) store.delete(key);
+    }
+  }
+
   /** Deletes a circle's copy on the server; the wish stays until that went through. */
   async function deleteCopy(circleId: string): Promise<boolean> {
     try {
@@ -257,10 +265,23 @@ export function createHistory(deps: HistoryDeps) {
 
     flush,
 
-    /** Sharing may have changed (settings, a timed share over, the app starting): see dropUnshared. */
-    sharingChanged: dropUnshared,
+    /**
+     * Sharing may have changed (settings, a timed share over, the app starting): see dropUnshared.
+     * The own trail older than two weeks goes here too, so it does not wait for a new position:
+     * with nothing recording, none comes to finish a quarter hour and prune it (docs/ADR/0019).
+     */
+    sharingChanged(): void {
+      dropUnshared();
+      prune();
+    },
 
     mine,
+
+    /**
+     * Consent withdrawn ("Geçmişimi de sil"): the own trail on this phone goes, whatever is
+     * recording. Nothing more is written for it unless history is turned on again.
+     */
+    forgetMine,
 
     /**
      * A member's history between two moments: their own trail for this phone's user, else the
@@ -313,6 +334,9 @@ export function createHistory(deps: HistoryDeps) {
       for (const piece of outbox()) {
         if (piece.circleId === circleId) store.delete(outKey(piece));
       }
+      // The own trail is written only while some circle records. With the last one off, nothing
+      // asks for it any more: it goes now, not when the two weeks are over (while offline too).
+      if (deps.recording(now()).every((circle) => circle.id === circleId)) forgetMine();
       // A piece already on its way lands before the deletion, not after it.
       if (flushing !== null) await flushing.catch(() => undefined);
       return deleteCopy(circleId);

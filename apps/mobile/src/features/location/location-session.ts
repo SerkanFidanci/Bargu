@@ -610,6 +610,8 @@ export async function forgetAllHistory(): Promise<'off' | 'later'> {
   for (const circleId of circleIds) {
     if ((await setHistory(circleId, false)) === 'later') later = true;
   }
+  // The phone's own trail goes too, even where no circle had history on (consent withdrawn).
+  history.forgetMine();
   // What an earlier install wrote, which this one does not know of (QA Faz 8 G5).
   try {
     await removeAllHistory();

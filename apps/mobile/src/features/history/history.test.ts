@@ -1,5 +1,6 @@
 import {
   type Circle,
+  HISTORY_KEEP_MS,
   HISTORY_SLOT_MS,
   type HistoryRecord,
   type MessageEnvelope,
@@ -498,4 +499,96 @@ describe('a ghost, a pause or a coarser precision (QA G6): what was written neve
       expect(sent.length).toBeGreaterThan(0);
     });
   }
+});
+
+describe("the phone's own trail leaves with its reason (docs/ADR/0019)", () => {
+  const ownKeys = (person: Person) =>
+    person.store.keys().filter((key) => key.startsWith('history:mine:'));
+
+  /** Ayşe records for the circles in `recording`, which a test changes as the settings would. */
+  function phone(circleCount = 2) {
+    const ayse = somebody();
+    const circles = Array.from({ length: circleCount }, () => circleOf([ayse, somebody()]));
+    for (const circle of circles) exchangeKeys(circle, [ayse]);
+    const server = fakeServer();
+    const clock = { now: slot };
+    let recording = circles.map((circle) => ({ id: circle.id, epoch: circle.epoch }));
+    const history = historyOf(
+      ayse,
+      () => circles,
+      server.as(ayse),
+      clock,
+      () => recording,
+    );
+    return {
+      ayse,
+      circles,
+      clock,
+      history,
+      server,
+      /** History turned off for a circle, as the settings say it before the history is told. */
+      turnOff: (circleId: string) => {
+        recording = recording.filter((circle) => circle.id !== circleId);
+        return history.forget(circleId);
+      },
+    };
+  }
+
+  it('is wiped when consent is withdrawn, whether or not anything records', async () => {
+    const { ayse, clock, history } = phone();
+    clock.now = slot + MIN;
+    await history.fix(north(0, clock.now));
+    expect(ownKeys(ayse)).toHaveLength(1);
+    history.forgetMine();
+    expect(ownKeys(ayse)).toEqual([]);
+    expect(history.mine(slot, slot + HISTORY_SLOT_MS)).toEqual([]);
+    // Nothing recording and nothing left: still fine.
+    history.forgetMine();
+  });
+
+  it('stays while another circle still records, and goes with the last one turned off', async () => {
+    const { ayse, circles, clock, history, turnOff } = phone();
+    const [first, second] = circles;
+    if (first === undefined || second === undefined) throw new Error('missing');
+    clock.now = slot + MIN;
+    await history.fix(north(0, clock.now));
+    expect(ownKeys(ayse)).toHaveLength(1);
+
+    await turnOff(first.id);
+    expect(ownKeys(ayse)).toHaveLength(1);
+    expect(history.mine(slot, slot + HISTORY_SLOT_MS)).toHaveLength(1);
+
+    await turnOff(second.id);
+    expect(ownKeys(ayse)).toEqual([]);
+  });
+
+  it('goes when the last circle is turned off while offline, too', async () => {
+    const { ayse, circles, clock, history, server, turnOff } = phone(1);
+    clock.now = slot + MIN;
+    await history.fix(north(0, clock.now));
+    expect(ownKeys(ayse)).toHaveLength(1);
+    const [only] = circles;
+    if (only === undefined) throw new Error('missing');
+    // The server cannot be reached: the deletion there waits, the trail on the phone does not.
+    server.goOffline();
+    expect(await turnOff(only.id)).toBe(false);
+    expect(ownKeys(ayse)).toEqual([]);
+  });
+
+  it('does not keep a slot past two weeks while nothing records and no position comes', () => {
+    const { ayse, clock, history } = phone(1);
+    // A trail written while a circle recorded: one old quarter hour, one recent.
+    const old = slot - HISTORY_KEEP_MS;
+    const recent = slot - HISTORY_SLOT_MS;
+    ayse.store.set(`history:mine:${String(old)}`, '[]');
+    ayse.store.set(`history:mine:${String(recent)}`, '[]');
+    clock.now = slot;
+    // The vault opens (or sharing changes): the old one goes with no new position.
+    history.sharingChanged();
+    expect(ownKeys(ayse)).toEqual([`history:mine:${String(recent)}`]);
+    // Later still, with nothing recording, the recent one ages out the same way.
+    clock.now = recent + HISTORY_KEEP_MS;
+    history.sharingChanged();
+    expect(ownKeys(ayse)).toEqual([]);
+  });
 });
