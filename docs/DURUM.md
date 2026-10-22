@@ -187,6 +187,7 @@ kapalı testten önce.
 | Sahibin iki telefon bulgusu           | `4ac91b4`, `2fd570a`                                                                                         | Haritadaki kayıtlı yere (ör. ☕ dairesi) dokunulamıyordu: etiketi bilerek dokunmaya kapalıydı, dairesi dokunuş almıyordu. Artık etikete (en az 48 pt dokunma alanı) ya da dairenin içine dokununca yerin kendi ekranı açılır; açık bir kişi kartı varsa ilk dokunuş yalnız kartı kapatır. Hava kartı Bozüyük'te "İstanbul" diyordu: harita uzaktayken küçük ilçeler çizilmediği için en yakın çizilmiş büyük şehri seçiyordu. Artık yer adı en çok 15 km (mahalle 3 km) öteden; yoksa ad yok (ADR 0013 eki)                                                                                                                                                                                                                                                                                                                                                                                   |
 | Açılış çökmesi                        | `869a7af`, `cf3469b`                                                                                         | Seviye 5 APK'sı (`869a7af`) sahibin S25 Ultra'sında açılır açılmaz kapanıyordu. Faz 10'da `DETECT_SCREEN_CAPTURE` izni "yalnız ekran görüntüsü dinleyicisi" diye çıkarılmıştı; ama expo-screen-capture Android 14+'da modül açılırken ekran yakalama geri çağrısını koşulsuz kaydediyor ve izin yoksa SecurityException atıyor. İzin geri geldi (normal izin, sorulmaz); bir test kitaplığın kaynağını okuyup bunu sabitliyor. Diğer 21 izin açılışta kullanılmıyor (test oturumu da doğruladı). Ayrıca eas-cli boş ortam değeri kabul etmediği için production'daki boş anahtar satırı kaldırıldı                                                                                                                                                                                                                                                                                            |
 | Buluşma için eklenen yer              | `9dd327d`                                                                                                    | Sahip haritada kalan "Woh date" yerini buluşma sandı: buluşma için "Yeni yer ekle" ile eklenen yer, buluşma silinince sıradan bir yer olarak kalıyordu. Artık o yer buluşmayla gider; elle bitirirken "Bitir, yeri sakla", buluşma ekranında "Bitince yeri sakla". Sunucu buluşmayı kendiliğinden silince yeri başlatanın telefonu siler. Çemberin önceden kayıtlı yeri hiç silinmez (ADR 0026 Ek 1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| QA-34 notları                         | `ad26899`, `e53f096`, `af015ed`                                                                              | Test oturumu: seviye 5 (`cf3469b`) için yüksek bulgu yok. "Paylaşım durdu" alıcısı dışa kapalı (sistem yayını yine ulaşır; `check-manifest` denetler). nginx'te davet blokları büyük/küçük harf duyarsız (`~*`): `/I/<token>` düz http'de erişim günlüğüne düşüyordu; betik bugünkü `~` bloklarını yerinde yükseltir, gerçek nginx düzeneğinde 71/71. Yaş sızıntısı testi rastgele anahtarlarda harf aramıyor                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 ### QA turları
 
@@ -393,7 +394,8 @@ API'den bağlanır.
     (halka kalınlığı, parıltı, neon) telefonda görülmeden tahmin.
 31. Worklet denetimi bileşen içinde tanımlı yardımcıları hâlâ izlemiyor (yalnız üst düzey tanımlar).
 32. Sahte sunucu haberi: sunucu 2026-10-22'den beri her haberi `stg-n1` ile imzalıyor; seviye 5
-    APK'sı (`869a7af`) imzasızı atıyor. Açık, `MIN_CLIENT_LEVEL` 5 olunca tamamen kapanır (seviye 4
+    APK'sı imzasızı atıyor. Önizlemedeki `stg-n1` açık anahtarı sunucudaki dosyayla birebir aynı
+    (2026-10-22'de karşılaştırıldı). Açık, `MIN_CLIENT_LEVEL` 5 olunca tamamen kapanır (seviye 4
     APK'sı imzasız haberi hâlâ kabul eder). Test botu seviye 4 gönderiyor: 5'ten önce botun
     başlığı da 5 yapılmalı. Kapalı testten önce şart (Faz 10 kapısı).
 33. Dünya haritası gerçek veriyle ve telefonda görülmedi (kıyı, Türkiye kutusunun kenarı, yolların
@@ -451,7 +453,12 @@ API'den bağlanır.
 45. `event-circles` entegrasyon testi ("clean-up is cut short", satır 350) bir kez CI'da kırıldı
     (run 39779707897, yalnız belge değiştiren `17007b3`'te): Redis hatasından sonra çembere dair
     beklenen iz kalmamıştı. API değişmemişti; testin kurulumunda bir zamanlama farkı olabilir.
-    Tekrar ederse incelenecek; o commit staging'e gitmedi (yalnız belge).
+    Tekrar ederse incelenecek; o commit staging'e gitmedi (yalnız belge). Bir sonraki push'ta
+    başka bir test kırıldı (`age`, run 39782089816): çemberin yanıtında "age" harfleri aranıyordu,
+    üyelerin rastgele base64 anahtarları ara sıra bu harfleri içeriyor. Test artık alan adlarına
+    bakıyor (`af015ed`).
+46. iOS dilimine: davet ve ebeveyn bağlantılarının iOS'ta uygulamayı açması için AASA dosyasına
+    `/i` ve `/g` yolları (QA-34). Android App Links bugün çalışıyor.
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -641,7 +648,7 @@ açılışta çöküyordu, onu kurma:
 60. Yeniden başlatma (Android 11+): paylaşım açıkken telefonu kapatıp aç. "Paylaşım durdu ·
     Telefon yeniden başladı ya da Bargu güncellendi…" bildirimi gelir; dokununca Bargu açılır ve
     konumun yeniden gider (bot ya da öbür telefon görür). Hayalet açıkken yeniden başlatınca bildirim
-    gelmez.
+    gelmez. Sonraki APK'da alıcı dışa kapalı (QA-34): bildirimin yine geldiğine bak.
 61. Ben > Uygulama: sürüm 0.9.0. Görünür başka bir değişiklik yok: sunucu haberleri artık imzasızsa
     atılıyor.
 62. Haritadaki kayıtlı yere (ör. ☕ dairesi) dokun: etikete ya da dairenin içine dokununca yerin
@@ -661,8 +668,10 @@ Sıra önemli:
 2. **Seviye 5 APK'sını bütün telefonlara kur** (`cf3469b`, bağlantı Telefonda denenecekler'de);
    56–63'e bak.
 3. Kurduktan sonra kodlama oturumuna "kurdum" yaz. Son adımı o çalıştırır: aynı betik
-   `--min-level 5` ile (önce kuru) ve test botunun istemci seviyesi 5. Senden yalnız ssh adımının
-   onayı istenir. Eski sürümler kapanır, sahte haber açığı tamamen kapanır.
+   `--min-level 5` ile (önce kuru) ve test botunun istemci seviyesi 5 (bot 22 Ekim akşamı
+   kendiliğinden durdu; o adımda yeniden başlatılır). Senden yalnız ssh adımının onayı istenir. Eski
+   sürümler kapanır, sahte haber açığı tamamen kapanır. Aynı çalıştırma nginx'teki davet
+   bloklarını büyük/küçük harf duyarsız yapar (QA-34, `e53f096`).
 
 - Mağazaya çıkış (Faz 10) için yalnız senin yapabileceklerin, acelesi yok; sıra Play hesabıyla
   gelir (`docs/play-store/KONTROL-LISTESI.md`):
