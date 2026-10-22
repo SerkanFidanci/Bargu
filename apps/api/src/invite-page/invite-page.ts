@@ -13,9 +13,10 @@ import { INVITE_CARD_HEIGHT, INVITE_CARD_WIDTH } from './invite-card.js';
  * token, and nothing looks the token up. So it holds no name, photo, circle name, member count or
  * avatar, shows no invitation that may not exist, and does not even repeat the token. In a shared
  * link the token is in the fragment, which never reaches the server; the page has no script, so it
- * does not read the fragment either. The one link is empty (`href=""`): the browser drops the
- * fragment when it resolves it, so the link cannot carry the token on (it would take a script to
- * read it).
+ * does not read the fragment either. It has no link at all: a button back to its own address would
+ * lose the fragment (a browser drops it when it resolves an empty href), and carrying it on would take
+ * a script. Instead it says what to do: with the app installed, tap the link again in the messaging
+ * app, where Android opens it in the app (App Links).
  */
 
 export type InviteLanguage = 'tr' | 'en';
@@ -28,7 +29,7 @@ interface Words {
   title: string;
   description: string;
   lead: string;
-  open: string;
+  hint: string;
   soon: string;
   help: string;
   imageAlt: string;
@@ -40,7 +41,7 @@ const WORDS: Record<InviteLanguage, Words> = {
     title: "Bargu'ya davet",
     description: 'Konumunu yalnızca seçtiğin kişilerle, uçtan uca şifreli paylaş.',
     lead: 'Bu bağlantı Bargu için. Bargu, konumunu yalnızca seçtiğin arkadaşların ve ailenle, uçtan uca şifreli paylaşmanı sağlar.',
-    open: 'Uygulamada aç',
+    hint: 'Uygulama yüklüyse bağlantıya mesajlaşma uygulamasından yeniden dokun.',
     soon: "Bargu yakında Google Play'de.",
     help: 'Bağlantı çalışmıyorsa ya da süresi dolduysa, seni davet eden kişiden yeni bir bağlantı iste.',
     imageAlt: 'Bargu: beyaz bir konum işareti',
@@ -50,7 +51,7 @@ const WORDS: Record<InviteLanguage, Words> = {
     title: 'Invitation to Bargu',
     description: 'Share your location, end-to-end encrypted, only with the people you choose.',
     lead: 'This link is for Bargu. Bargu lets you share your location, end-to-end encrypted, only with the friends and family you choose.',
-    open: 'Open in the app',
+    hint: 'If the app is installed, tap the link again in your messaging app.',
     soon: 'Bargu is coming soon to Google Play.',
     help: 'If the link does not work or has expired, ask the person who invited you for a new one.',
     imageAlt: 'Bargu: a white location pin',
@@ -61,8 +62,8 @@ const WORDS: Record<InviteLanguage, Words> = {
  * The page's one stylesheet, inline and allowed by its hash (no file to fetch, nothing from
  * anywhere else). Colours follow the account page's (apps/api/src/auth/web-page.ts), light and dark.
  */
-const STYLE = `:root{color-scheme:light dark;--bg:#ffffff;--text:#16151c;--muted:#5e5c68;--primary:#5b34f2;--on-primary:#ffffff;--dot:#ff6a3d}
-@media (prefers-color-scheme:dark){:root{--bg:#121118;--text:#f3f2f7;--muted:#a9a7b3;--primary:#8c72ff;--on-primary:#121118}}
+const STYLE = `:root{color-scheme:light dark;--bg:#ffffff;--text:#16151c;--muted:#5e5c68;--primary:#5b34f2;--dot:#ff6a3d}
+@media (prefers-color-scheme:dark){:root{--bg:#121118;--text:#f3f2f7;--muted:#a9a7b3;--primary:#8c72ff}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:28rem;margin:0 auto;padding:3rem 1rem;display:grid;gap:1rem;justify-items:center;text-align:center}
@@ -71,7 +72,7 @@ main{max-width:28rem;margin:0 auto;padding:3rem 1rem;display:grid;gap:1rem;justi
 .dot{fill:var(--dot)}
 h1{font-size:1.6rem;margin:0}
 p{margin:0;color:var(--muted)}
-.open{display:inline-block;min-height:48px;padding:.8rem 1.6rem;border-radius:999px;background:var(--primary);color:var(--on-primary);font-weight:600;text-decoration:none}
+.hint{color:var(--text)}
 .soon{color:var(--text);font-weight:600}
 .help{font-size:.9rem}
 `;
@@ -157,7 +158,7 @@ export function renderInvitePage(language: InviteLanguage, host: string): string
 ${PIN}
 <h1>${title}</h1>
 <p>${escapeHtml(words.lead)}</p>
-<a class="open" href="">${escapeHtml(words.open)}</a>
+<p class="hint">${escapeHtml(words.hint)}</p>
 <p class="soon">${escapeHtml(words.soon)}</p>
 <p class="help">${escapeHtml(words.help)}</p>
 </main>

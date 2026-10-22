@@ -260,11 +260,16 @@ describe('the invite page: one answer for every token (docs/ADR/0009 Ek, 2026-10
     const turkish = await get(`/i/${links.live}`);
     expect(turkish.body).toContain('<html lang="tr">');
     expect(turkish.body).toContain('<title>Bargu&#39;ya davet</title>');
-    expect(turkish.body).toContain('Uygulamada aç');
+    expect(turkish.body).toContain(
+      'Uygulama yüklüyse bağlantıya mesajlaşma uygulamasından yeniden dokun.',
+    );
     expect(turkish.body).toContain('Bargu yakında Google Play&#39;de.');
     const english = await get(`/i/${links.live}`, { language: 'en-US,en;q=0.9,tr;q=0.5' });
     expect(english.body).toContain('<html lang="en">');
     expect(english.body).toContain('Invitation to Bargu');
+    expect(english.body).toContain(
+      'If the app is installed, tap the link again in your messaging app.',
+    );
     // Language never depends on the token either.
     const unknownEnglish = await get(`/i/${links.unknown}`, { language: 'en-US,en;q=0.9' });
     expect(whatIsSent(unknownEnglish)).toEqual(whatIsSent(english));
@@ -273,7 +278,8 @@ describe('the invite page: one answer for every token (docs/ADR/0009 Ek, 2026-10
   it('offers no way to download the app from the page (links travel from hand to hand)', async () => {
     const { body } = await get(`/i/${links.live}`);
     expect(body).not.toMatch(/\.apk|\/apk\/|\/map\/|download|indir/i);
-    expect([...body.matchAll(/href="([^"]*)"/g)].map((match) => match[1])).toEqual(['']);
+    // No link at all: the page tells what to do (tap the link again in the messaging app).
+    expect(body).not.toMatch(/<a[\s>]|href=/);
   });
 
   it.each([
@@ -399,7 +405,7 @@ describe('shared links keep the token in the fragment, never in the request (doc
 
   it('has the page of a shared link say nothing about any token, and run no script to read it', async () => {
     const { body } = await get('/i');
-    expect(body).not.toMatch(/<script|location|hash|fragment|href="[^"]+"/i);
+    expect(body).not.toMatch(/<script|<a[\s>]|href=|location|hash|fragment/i);
     expect(body).not.toMatch(/[A-Za-z0-9_-]{43}/);
   });
 

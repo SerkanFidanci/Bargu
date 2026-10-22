@@ -39,28 +39,33 @@ describe('the invite page markup (docs/ADR/0009 Ek, 2026-10-22)', () => {
   it('is titled "Bargu\'ya davet" in Turkish (apostrophe escaped for the attribute)', () => {
     const html = renderInvitePage('tr', HOST);
     expect(html).toContain('<title>Bargu&#39;ya davet</title>');
-    expect(html).toContain('Uygulamada aç');
+    expect(html).toContain(
+      '<p class="hint">Uygulama yüklüyse bağlantıya mesajlaşma uygulamasından yeniden dokun.</p>',
+    );
     expect(html).toContain('Bargu yakında Google Play&#39;de.');
-    expect(renderInvitePage('en', HOST)).toContain('<title>Invitation to Bargu</title>');
+    const english = renderInvitePage('en', HOST);
+    expect(english).toContain('<title>Invitation to Bargu</title>');
+    expect(english).toContain(
+      '<p class="hint">If the app is installed, tap the link again in your messaging app.</p>',
+    );
+    // The button is gone: a link back to the page's own address would lose the fragment.
+    expect(html + english).not.toContain('Uygulamada aç');
+    expect(html + english).not.toContain('Open in the app');
   });
 
-  it.each(LANGUAGES)(
-    'links to the same address, never to an APK or another site (%s)',
-    (language) => {
-      const html = renderInvitePage(language, HOST);
-      // The one link is empty: it resolves to the page's own address, so the page never repeats the
-      // token and every token gets the same bytes.
-      expect([...html.matchAll(/<a\b[^>]*>/g)].map((match) => match[0])).toEqual([
-        '<a class="open" href="">',
-      ]);
-      expect(html).not.toMatch(/\.apk/i);
-      // The only addresses in the page are the card image's.
-      const addresses = new Set(
-        [...html.matchAll(/https?:\/\/[^"'\s<>]+/g)].map((match) => match[0]),
-      );
-      expect([...addresses]).toEqual([`https://${HOST}${INVITE_CARD_PATH}`]);
-    },
-  );
+  it.each(LANGUAGES)('has no link at all, so none to an APK or another site (%s)', (language) => {
+    const html = renderInvitePage(language, HOST);
+    // No link: a button to the page's own address would drop the fragment, and the page never
+    // reads it (no script). It says what to do instead (the hint).
+    expect(html).not.toMatch(/<a[\s>]/);
+    expect(html).not.toContain('href=');
+    expect(html).not.toMatch(/\.apk/i);
+    // The only addresses in the page are the card image's.
+    const addresses = new Set(
+      [...html.matchAll(/https?:\/\/[^"'\s<>]+/g)].map((match) => match[0]),
+    );
+    expect([...addresses]).toEqual([`https://${HOST}${INVITE_CARD_PATH}`]);
+  });
 
   it.each(LANGUAGES)('has no script, form, frame or external resource (%s)', (language) => {
     const html = renderInvitePage(language, HOST);

@@ -172,10 +172,11 @@ hız sınırı ve süzgeç kuralları iki biçim için de geçerlidir.)
   görsel** (`GET /invite/card.png`, 1200×630, uygulama simgesindeki konum işareti; çizen betik
   `scripts/build-invite-card.mjs`, yeni bağımlılık yok). Dil tarayıcının `Accept-Language` sırasına
   göre Türkçe (varsayılan) ya da İngilizce.
-- Gövde: "Uygulamada aç" bağlantısı ve "Bargu yakında Google Play'de". **APK bağlantısı yok**: davet
-  bağlantıları elden ele gider, bir test APK'sı sayfadan dağıtılmaz.
-- "Uygulamada aç" bağlantısı sayfanın kendi adresine gider (boş `href`). Sayfa token'ı yazmaz,
-  yansıtmaz; aşağıdaki "aynı bayt" kuralı bunu gerektirir.
+- Gövde: kısa bir tanıtım, düz bir ipucu ("Uygulama yüklüyse bağlantıya mesajlaşma uygulamasından
+  yeniden dokun.", en: "If the app is installed, tap the link again in your messaging app.") ve
+  "Bargu yakında Google Play'de". Sayfada **hiç bağlantı yok**: ne APK bağlantısı (davet bağlantıları
+  elden ele gider, bir test APK'sı sayfadan dağıtılmaz) ne de "Uygulamada aç" düğmesi (Ek 2'de
+  kaldırıldı). Sayfa token'ı yazmaz, yansıtmaz; aşağıdaki "aynı bayt" kuralı bunu gerektirir.
 
 ### Kişisel veri yok
 
@@ -225,11 +226,9 @@ yanıta eklenir.
 - iOS'ta `apple-app-site-association` zaten `/i/*` diyordu; `/g/*` eklendi (iOS derlenemiyor, sonra
   denenecek).
 - Android doğrulaması bitene kadar (ya da kullanıcı "desteklenen bağlantıları aç" ayarını kapatmışsa)
-  bağlantı tarayıcıda, bu sayfada açılır. Bilinen sınır: Chrome, bir siteden aynı siteye giden
-  bağlantıyı uygulamaya devretmeyebilir; sayfadaki "Uygulamada aç" bağlantısı bu durumda bir şey
-  yapmayabilir. Asıl yol, bağlantıya mesajlaşma uygulamasından dokunmaktır. Gerekirse sayfaya,
-  adresi yalnızca adres çubuğundan okuyan ve özetiyle izinli küçük bir betik eklenebilir (HTML
-  baytları yine aynı kalır).
+  bağlantı tarayıcıda, bu sayfada açılır. Chrome, bir siteden aynı siteye giden bağlantıyı
+  uygulamaya devretmeyebilir; bu yüzden sayfada uygulamayı açan bir düğme yoktur. Yolu sayfa
+  söyler: bağlantıya mesajlaşma uygulamasından yeniden dokunmak (Ek 2).
 
 ### Yapılandırılabilir sunucu
 
@@ -288,11 +287,15 @@ düşer. Adresin `#` sonrası (parça) ise istekte hiç yer almaz. Paylaşılan 
 - `GET /i` ve `GET /g` aynı genel sayfayı verir, `/i/<token>` sayfasıyla bayt bayt aynı (aynı
   başlıklar, aynı kart, aynı hız bütçesi). Sayfa parçayı okumaz: sayfada betik yok, sunucu da parçayı
   almaz. Eski `/i/<token>` ve `/g/<token>` olduğu gibi çalışır.
-- Sınır: "Uygulamada aç" bağlantısı boş `href`'tir ve tarayıcı bunu çözerken parçayı atar
-  (`new URL('', 'https://a/i#t')` → `https://a/i`), yani token'ı taşımaz. Uygulama kurulu ve
-  doğrulanmışsa bağlantıya dokununca zaten uygulama açılır, sayfa yalnızca uygulamasız ya da
-  doğrulamasız durum içindir. Parçayı okuyup düğmeye aktaracak bir betik "sayfa parçayı okumaz"
-  kuralıyla çelişir; eklenmedi.
+- **Sayfada "Uygulamada aç" düğmesi yoktur** (proje yöneticisinin kararı). İlk sürümdeki düğme
+  sayfanın kendi adresine giden boş bir `href`'ti; tarayıcı bunu çözerken parçayı atar
+  (`new URL('', 'https://a/i#t')` → `https://a/i`), yani token'ı taşımazdı. Parçayı okuyup düğmeye
+  aktaracak bir betik "sayfa parçayı okumaz" kuralıyla çelişir. Yerine düz bir ipucu var: "Uygulama
+  yüklüyse bağlantıya mesajlaşma uygulamasından yeniden dokun." (en: "If the app is installed, tap
+  the link again in your messaging app."). Uygulama kurulu ve doğrulanmışsa bağlantıya
+  mesajlaşma uygulamasından dokunmak onu doğrudan uygulamada açar; sayfa yalnızca uygulamasız ya da
+  doğrulamasız durum içindir. Sayfa yine betiksiz, bağlantısız ve her token için bayt bayt aynıdır;
+  stil sayfası değiştiği için CSP özeti de değişti (özet koddan hesaplanır).
 
 ### Uygulama: tek ayrıştırıcı, sıkı kurallar
 
