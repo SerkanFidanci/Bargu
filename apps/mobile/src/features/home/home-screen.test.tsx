@@ -77,7 +77,6 @@ jest.mock('@/features/location/sharing-reminder-card', () => ({
 }));
 jest.mock('@/features/notifications/notification-card', () => ({ NotificationCard: () => null }));
 jest.mock('@/features/location/use-location', () => ({ useWatchCircles: () => undefined }));
-jest.mock('@/features/dev/swarm-panel', () => ({ SwarmLayer: () => null, SwarmPanel: () => null }));
 jest.mock('@/features/map/people-layer', () => ({ PeopleLayer: () => null }));
 jest.mock('@/features/places/places-layer', () => ({ PlacesLayer: () => null }));
 jest.mock('@/features/plan/meeting-points-layer', () => ({ MeetingPointsLayer: () => null }));

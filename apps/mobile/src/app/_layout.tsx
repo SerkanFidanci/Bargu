@@ -13,7 +13,6 @@ import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { DEV_TOOLS_ENABLED } from '@/config/env';
 import { bootstrapAuth, useAuth } from '@/features/auth/auth-store';
 import { loadEffectLevel, watchDeviceSaving } from '@/features/home/effect-prefs';
 import { loadMapAppearance } from '@/features/map/appearance';
@@ -86,11 +85,6 @@ function Routes() {
       </Stack.Protected>
       <Stack.Protected guard={complete}>
         <Stack.Screen name="(app)" />
-      </Stack.Protected>
-      <Stack.Protected guard={DEV_TOOLS_ENABLED}>
-        <Stack.Screen name="_dev/crypto" options={{ headerShown: true }} />
-        <Stack.Screen name="_dev/ui" options={{ headerShown: true }} />
-        <Stack.Screen name="_dev/billing" options={{ headerShown: true }} />
       </Stack.Protected>
     </Stack>
   );

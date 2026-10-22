@@ -30,6 +30,7 @@
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
     "prepare": "husky",
     "test:integration": "turbo run test:integration",
+    "check:bundle": "bash scripts/with-test-lock.sh pnpm --filter @bargu/mobile check:bundle",
     "check:chars": "node scripts/check-invisible-chars.mjs && node scripts/check-embedded-copies.mjs",
     "check:embedded": "node scripts/check-embedded-copies.mjs"
   },

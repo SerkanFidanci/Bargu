@@ -1,3 +1,4 @@
+import { devResources } from './dev-resources';
 import { DEFAULT_LANGUAGE, resolveLanguage, resources } from './index';
 
 function keyPaths(value: unknown, prefix = ''): string[] {
@@ -46,6 +47,27 @@ describe('i18n', () => {
           ),
       );
       expect(values.every((text) => typeof text === 'string' && text.trim().length > 0)).toBe(true);
+    }
+  });
+});
+
+// The developer tools' texts are loaded only by development and preview builds (dev-resources.ts):
+// they must not be in the catalogue every build ships (scripts/check-bundle.mjs checks the bundle).
+describe('developer texts', () => {
+  it('are not in the shipped catalogue', () => {
+    for (const language of Object.values(resources)) {
+      expect(Object.keys(language.translation)).not.toContain('dev');
+    }
+  });
+
+  it('have the same keys in every language', () => {
+    expect(keyPaths(devResources.en).sort()).toEqual(keyPaths(devResources.tr).sort());
+  });
+
+  it('have no empty texts', () => {
+    for (const language of Object.values(devResources)) {
+      const texts = JSON.stringify(language).match(/"[^"]*":\s*""/g);
+      expect(texts).toBeNull();
     }
   });
 });

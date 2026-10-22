@@ -1,7 +1,4 @@
 {
-  "home": {
-    "devTools": "Developer: crypto benchmark"
-  },
   "common": {
     "continue": "Continue",
     "cancel": "Cancel",
@@ -263,99 +260,6 @@
     },
     "sheet": {
       "close": "Close"
-    }
-  },
-  "dev": {
-    "crypto": {
-      "title": "Crypto benchmark",
-      "budget": "Target: encrypting a location under {{ms}} ms (p95).",
-      "start": "Run benchmark",
-      "running": "Running…",
-      "failed": "The benchmark failed.",
-      "passed": "Passed: encryption is within budget.",
-      "notPassed": "Not passed: encryption is over budget.",
-      "timing": "median {{median}} ms · p95 {{p95}} ms · {{n}} runs",
-      "ops": {
-        "encrypt": "Encrypt location",
-        "send": "Precision + encrypt",
-        "decrypt": "Verify + decrypt",
-        "distribute": "Key distribution (1 recipient)",
-        "seal": "Push sealed box",
-        "keygen": "Device key generation",
-        "safetyNumber": "Safety number"
-      },
-      "backendNative": "Curve operations: the phone's native crypto (self-test passed)",
-      "backendReference": "Curve operations: JavaScript fallback ({{reason}})"
-    },
-    "ui": {
-      "title": "Components",
-      "link": "Developer: component gallery",
-      "fps": "Frame rate",
-      "fpsStart": "Measure (5 s)",
-      "fpsResult": "Average {{avg}} fps · worst frame {{worst}} ms · {{dropped}} frames dropped",
-      "reduceMotion": "Reduce motion: {{state}}",
-      "on": "on",
-      "off": "off",
-      "sample": "Sample text",
-      "openSheet": "Open a sample sheet",
-      "showToast": "Show a sample toast",
-      "toastText": "This is a sample toast."
-    },
-    "swarm": {
-      "link": "Developer: 50 people on the map",
-      "title": "Test: {{count}} fake people on the map (this phone only)",
-      "measure": "Measure frame rate (10 s)",
-      "stop": "Close"
-    },
-    "billing": {
-      "title": "Test billing",
-      "link": "Test billing",
-      "now": "Plan: {{plan}} · source: {{source}} · test billing: {{test}}",
-      "done": "Done. Plan: {{plan}}",
-      "plan_free": "free",
-      "plan_trial": "trial",
-      "plan_plus": "Bargu+",
-      "buyMonth": "Buy monthly",
-      "buyYear": "Buy yearly",
-      "renew": "Renew",
-      "cancel": "Cancel (lasts until the period ends)",
-      "fail": "Payment failed (grace days)",
-      "recover": "Payment fixed",
-      "expire": "Run out",
-      "refund": "Refund",
-      "endTrial": "End the trial"
-    },
-    "measure": {
-      "link": "Developer: measurement overlay",
-      "title": "Measurement",
-      "close": "Close the measurement",
-      "seconds": "{{s}} s",
-      "phone": "This phone",
-      "samples": "Samples: service {{service}} · live {{live}}",
-      "age": "Delay {{age}} · accuracy ±{{acc}} m",
-      "sends": "Sending: {{gap}} ({{mode}})",
-      "modeLive": "live",
-      "modeNormal": "normal",
-      "dropped": "Dropped: old {{old}} · stale {{stale}} · weak {{inaccurate}} · jump {{jump}}",
-      "fallback": "Sent indoors: {{count}}",
-      "background": "Live location in the background",
-      "backgroundOpened": "Notices {{notices}} · opened {{opened}} ({{minutes}} min)",
-      "backgroundRefused": "Refused: setting {{setting}} · ghost {{ghost}} · not shared {{notShared}} · coarse {{coarse}} · expired {{expired}} · paused {{paused}} · saver {{batterySaver}} · low battery {{batteryLow}} · cap {{cap}} · system {{os}}",
-      "backgroundReset": "Reset the counters",
-      "friends": "Friends",
-      "noFriends": "No location yet",
-      "friend": "{{name}}: delay {{delay}} · gap {{gap}} · ±{{acc}} m · late {{late}}",
-      "screen": "Screen",
-      "fps": "{{fps}} fps · worst frame {{worst}} ms",
-      "fpsWaiting": "Measuring…",
-      "stalls": "Stalls in the first 10 s",
-      "selfTest": "Start: crypto self-test {{ms}} ms",
-      "stallsWatching": "Watching…",
-      "stallsAgain": "Watch 10 s again",
-      "stallsNone": "None of {{ms}} ms or more",
-      "stallsCount": "{{count}} stalls · longest {{ms}} ms",
-      "stall": "at {{at}}: {{ms}} ms · {{name}}",
-      "stallUnnamed": "unnamed"
     }
   },
   "scan": {

@@ -1,8 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Text } from 'react-native';
 
 import AboutScreen from '@/app/(app)/settings/about';
 import LocationSettingsScreen from '@/app/(app)/settings/location';
 import LookSettingsScreen from '@/app/(app)/settings/look';
+import { useDevSlots } from '@/features/dev/slots';
 import i18n from '@/i18n';
 
 // Native modules jest does not have on Linux (CI), though Windows resolves them.
@@ -47,6 +49,10 @@ beforeAll(async () => {
 beforeEach(() => {
   mockPush.mockClear();
 });
+// After the screen is unmounted (Testing Library cleans up in its own afterEach, registered first).
+afterEach(() => {
+  useDevSlots.setState({ aboutRows: null });
+});
 
 describe('the screens behind the Me rows (the owner, 2026-10-21)', () => {
   it('"Konum ve gizlilik": the ghost, who sees the location, the history', async () => {
@@ -68,5 +74,13 @@ describe('the screens behind the Me rows (the owner, 2026-10-21)', () => {
     await render(<AboutScreen />);
     expect(screen.getByText('Harita verisi')).toBeTruthy();
     expect(screen.getByText('Sürüm 1.2.3')).toBeTruthy();
+    // A production bundle has no developer tools: the slot is empty and no row is drawn.
+    expect(screen.queryByTestId('dev-rows')).toBeNull();
+  });
+
+  it('"Uygulama": the developer rows of a development or preview build, from their slot', async () => {
+    useDevSlots.setState({ aboutRows: <Text testID="dev-rows">dev</Text> });
+    await render(<AboutScreen />);
+    expect(screen.getByTestId('dev-rows')).toBeTruthy();
   });
 });

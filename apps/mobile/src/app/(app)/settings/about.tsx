@@ -1,13 +1,9 @@
-import { router } from 'expo-router';
-import { Map as MapIcon, Smartphone, Wrench } from 'lucide-react-native';
+import { Map as MapIcon, Smartphone } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Linking } from 'react-native';
 
-import { DEV_TOOLS_ENABLED, env } from '@/config/env';
-import { startSwarm } from '@/features/dev/map-swarm';
+import { env } from '@/config/env';
 import { useDevSlots } from '@/features/dev/slots';
-import { useMyFix } from '@/features/location/engine';
-import { INITIAL_VIEW } from '@/features/map/style';
 import { useMe } from '@/features/profile/queries';
 import { Screen } from '@/ui/screen';
 import { SettingsGroup, SettingsRow } from '@/ui/settings-row';
@@ -18,12 +14,12 @@ const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
 
 /**
  * "Uygulama" (from Me): this phone, the map data's licence and the version; in development and
- * preview builds also the developer tools.
+ * preview builds also the developer tools (features/dev/tools.ts puts them in a slot).
  */
 export default function AboutScreen() {
   const { t } = useTranslation();
   const me = useMe().data;
-  const toggleMeasure = useDevSlots((state) => state.toggleOverlay);
+  const devRows = useDevSlots((state) => state.aboutRows);
   return (
     <Screen title={t('sheets.me.sectionApp')} testID="about-screen">
       <SettingsGroup>
@@ -43,51 +39,7 @@ export default function AboutScreen() {
           onPress={() => void Linking.openURL(OSM_COPYRIGHT_URL)}
         />
       </SettingsGroup>
-      {DEV_TOOLS_ENABLED ? (
-        <SettingsGroup>
-          <SettingsRow
-            icon={Wrench}
-            label={t('dev.ui.link')}
-            onPress={() => {
-              router.push('/_dev/ui');
-            }}
-          />
-          {toggleMeasure === null ? null : (
-            <SettingsRow
-              icon={Wrench}
-              label={t('dev.measure.link')}
-              onPress={() => {
-                toggleMeasure();
-                router.back();
-              }}
-            />
-          )}
-          <SettingsRow
-            icon={Wrench}
-            label={t('dev.swarm.link')}
-            onPress={() => {
-              const fix = useMyFix.getState().fix;
-              const [lng, lat] = INITIAL_VIEW.center;
-              startSwarm(fix ?? { lat, lng });
-              router.back();
-            }}
-          />
-          <SettingsRow
-            icon={Wrench}
-            label={t('dev.billing.link')}
-            onPress={() => {
-              router.push('/_dev/billing');
-            }}
-          />
-          <SettingsRow
-            icon={Wrench}
-            label={t('home.devTools')}
-            onPress={() => {
-              router.push('/_dev/crypto');
-            }}
-          />
-        </SettingsGroup>
-      ) : null}
+      {devRows}
       <Text variant="caption" color="textMuted" align="center">
         {t('sheets.me.version', { version: env.appVersion })}
       </Text>

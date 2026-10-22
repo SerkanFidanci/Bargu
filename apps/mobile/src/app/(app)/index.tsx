@@ -26,10 +26,8 @@ import { useFirstPosition, useMyCell } from '@/features/location/my-position';
 import { reportRender } from '@/features/location/probe';
 import { useLocationPermission } from '@/features/location/tracker';
 import { NewPhoneCard } from '@/features/location/new-phone-card';
-import { SwarmLayer, SwarmPanel } from '@/features/dev/swarm-panel';
 import { useDevSlots } from '@/features/dev/slots';
 import { useBackgroundLiveSlots } from '@/features/location/background-live/slot';
-import { DEV_TOOLS_ENABLED } from '@/config/env';
 import { seersOf, useSharing } from '@/features/location/sharing';
 import { useWatchCircles } from '@/features/location/use-location';
 import { memberName } from '@/features/circles/names';
@@ -127,7 +125,10 @@ export default function HomeScreen() {
       }
     }, []),
   );
+  // Developer tools of development and preview builds (features/dev/tools.ts); empty in production.
   const devOverlay = useDevSlots((state) => state.mapOverlay);
+  const swarmLayer = useDevSlots((state) => state.swarmLayer);
+  const swarmPanel = useDevSlots((state) => state.swarmPanel);
   // The one-time explanation of background live mode, in builds that have it (ADR 0028 step 3).
   const backgroundLiveCard = useBackgroundLiveSlots((state) => state.mapCard);
   // While the map is seen, this phone's own pin follows the GPS every second (use-location.ts).
@@ -221,7 +222,7 @@ export default function HomeScreen() {
               handlersFor={people.handlersFor}
               onGroup={people.openGroup}
             />
-            {DEV_TOOLS_ENABLED ? <SwarmLayer /> : null}
+            {swarmLayer}
           </BarguMap>
         </Profiler>
         {weather === null ? null : <WeatherLayer here={weather} wake={wake} />}
@@ -249,7 +250,7 @@ export default function HomeScreen() {
           <NewPhoneCard onChoose={() => circles.current?.present()} />
           <SharingReminderCard />
           {backgroundLiveCard}
-          {DEV_TOOLS_ENABLED ? <SwarmPanel /> : null}
+          {swarmPanel}
         </Animated.View>
         <Animated.View
           entering={motion.enterUpAt(1)}
