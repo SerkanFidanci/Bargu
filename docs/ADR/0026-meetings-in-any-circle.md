@@ -178,9 +178,10 @@ silindi, yer ise çemberde sıradan bir kayıtlı yer olarak kaldı. PM'in karar
 Sunucu değişmedi: yer ile buluşma arasındaki bağ şifreli belgenin içinde. Sunucu hangi yerin bir
 buluşma için eklendiğini bilmez.
 
-## Ek 2 (2026-10-22, önerildi): katılım yanıtı — Geliyorum / Belki / Gelemiyorum
+## Ek 2 (2026-10-22, kabul edildi): katılım yanıtı — Geliyorum / Belki / Gelemiyorum
 
-Durum: tasarım PM onaylı; kod, sahip `cf3469b`'yi telefonda denedikten sonra (sahibin kuralı).
+Durum: Kabul edildi (PM, 2026-10-22). Kod, sahip `cf3469b`'yi telefonda denedikten sonra (sahibin
+kuralı).
 
 Sahibin isteği: "tıklandığında düzenlemenin yanında kimler geliyor ne zaman geliyor kimler kabul
 etti ve ya kabul etme seçenekleri". Bugün "kim geliyor" yalnız konumdan hesaplanıyor (§5); kimse
