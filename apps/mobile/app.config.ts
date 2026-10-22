@@ -78,6 +78,48 @@ export function inviteIntentFilters(
   ];
 }
 
+/**
+ * Permissions that libraries or the prebuild template add to the release manifest and Bargu does
+ * not use: each is removed from the merged manifest (tools:node="remove"). Source and reason of
+ * every one, and the ones that stay, are in apps/mobile/README.md "Android izinleri"; the list is
+ * checked against the built manifest by scripts/build-android-local.sh (scripts/check-manifest.mjs)
+ * and against the kept ones by src/config/release-config.test.ts.
+ */
+const BLOCKED_PERMISSIONS = [
+  // The photo picker library declares the microphone (for video); Bargu never records sound.
+  'android.permission.RECORD_AUDIO',
+  // Prebuild template: the developer menu's overlay, debug builds only.
+  'android.permission.SYSTEM_ALERT_WINDOW',
+  // Template, expo-file-system, expo-image-picker, expo-screen-capture (Android 12 and older):
+  // photos come from the system picker and the export is written to a folder the user picks (SAF),
+  // neither needs them.
+  'android.permission.READ_EXTERNAL_STORAGE',
+  'android.permission.WRITE_EXTERNAL_STORAGE',
+  // expo-screen-capture: only for its screenshot listener, which Bargu does not use (it blocks
+  // screenshots with FLAG_SECURE, which needs nothing). Google Play limits READ_MEDIA_IMAGES.
+  'android.permission.READ_MEDIA_IMAGES',
+  'android.permission.DETECT_SCREEN_CAPTURE',
+  // expo-application's Install Referrer library: nothing in Bargu reads the install referrer.
+  'com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE',
+  // ShortcutBadger (expo-notifications): app icon badge counts on launchers; Bargu sets none.
+  'android.permission.READ_APP_BADGE',
+  'com.anddoes.launcher.permission.UPDATE_COUNT',
+  'com.htc.launcher.permission.READ_SETTINGS',
+  'com.htc.launcher.permission.UPDATE_SHORTCUT',
+  'com.huawei.android.launcher.permission.CHANGE_BADGE',
+  'com.huawei.android.launcher.permission.READ_SETTINGS',
+  'com.huawei.android.launcher.permission.WRITE_SETTINGS',
+  'com.majeur.launcher.permission.UPDATE_BADGE',
+  'com.oppo.launcher.permission.READ_SETTINGS',
+  'com.oppo.launcher.permission.WRITE_SETTINGS',
+  'com.sec.android.provider.badge.permission.READ',
+  'com.sec.android.provider.badge.permission.WRITE',
+  'com.sonyericsson.home.permission.BROADCAST_BADGE',
+  'com.sonymobile.home.permission.PROVIDER_INSERT_BADGE',
+  'me.everything.badger.permission.BADGE_COUNT_READ',
+  'me.everything.badger.permission.BADGE_COUNT_WRITE',
+];
+
 const FONTS = {
   Inter: [
     [400, 'inter/400Regular/Inter_400Regular.ttf'],
@@ -96,7 +138,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'Bargu',
   slug: 'bargu',
   owner: EAS_OWNER,
-  version: '0.1.0',
+  // The closed test (docs/play-store/KONTROL-LISTESI.md D6); 1.0.0 is the public release.
+  version: '0.9.0',
   scheme: 'bargu',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
@@ -125,8 +168,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
-    // The photo picker library declares the microphone (for video); Bargu never records sound.
-    blockedPermissions: ['android.permission.RECORD_AUDIO'],
+    blockedPermissions: BLOCKED_PERMISSIONS,
     // https invite links open the app (App Links); none for a build without an invite host.
     ...(INVITE_HOST === undefined || INVITE_HOST === ''
       ? {}

@@ -135,6 +135,16 @@ docker run --rm \
         rm -f "/out/bargu-$COMMIT-check.aab"; exit 1
       fi
       echo "build-android-local: target SDK $target: ok"
+      # The permissions the app config blocks must be gone from the manifest; the rest is listed
+      # (apps/mobile/scripts/check-manifest.mjs, README "Android izinleri").
+      if [ -f scripts/check-manifest.mjs ]; then
+        if ! node scripts/check-manifest.mjs "$manifest"; then
+          echo "build-android-local: REFUSED: a blocked permission is still in the manifest" >&2
+          rm -f "/out/bargu-$COMMIT-check.aab"; exit 1
+        fi
+      else
+        echo "build-android-local: this commit has no scripts/check-manifest.mjs, permissions not checked" >&2
+      fi
       # No developer tool in the shipped JavaScript (apps/mobile/scripts/check-bundle.mjs).
       if [ -f scripts/check-bundle.mjs ]; then
         unzip -p "$aab" base/assets/index.android.bundle > /tmp/index.android.bundle

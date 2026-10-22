@@ -25,7 +25,40 @@ interface EasJson {
 const eas: EasJson = easJson;
 
 /** Flags that switch developer-only code on (see scripts/check-bundle.mjs). */
-const DEV_FLAGS = ['EXPO_PUBLIC_DEV_TOOLS', 'EXPO_PUBLIC_BG_LIVE', 'EXPO_PUBLIC_COSMETIC_KEYS'];
+const DEV_FLAGS = [
+  'EXPO_PUBLIC_DEV_TOOLS',
+  'EXPO_PUBLIC_TEST_BILLING',
+  'EXPO_PUBLIC_BG_LIVE',
+  'EXPO_PUBLIC_COSMETIC_KEYS',
+];
+
+/** What every permission in the release manifest is for: these stay (README "Android izinleri"). */
+const KEPT_PERMISSIONS = [
+  'android.permission.ACCESS_COARSE_LOCATION',
+  'android.permission.ACCESS_FINE_LOCATION',
+  'android.permission.ACCESS_NETWORK_STATE',
+  'android.permission.ACCESS_WIFI_STATE',
+  'android.permission.CAMERA',
+  'android.permission.FOREGROUND_SERVICE',
+  'android.permission.FOREGROUND_SERVICE_LOCATION',
+  'android.permission.INTERNET',
+  'android.permission.POST_NOTIFICATIONS',
+  // Local reminders and library tasks are set again after a restart.
+  'android.permission.RECEIVE_BOOT_COMPLETED',
+  // The app lock: BiometricPrompt uses the fingerprint permission on Android 7 and 8 (minSdk 24).
+  'android.permission.USE_BIOMETRIC',
+  'android.permission.USE_FINGERPRINT',
+  'android.permission.VIBRATE',
+  'android.permission.WAKE_LOCK',
+  'com.google.android.c2dm.permission.RECEIVE',
+];
+
+const config = createConfig({
+  projectRoot: join(__dirname, '../..'),
+  staticConfigPath: null,
+  packageJsonPath: null,
+  config: {},
+});
 
 function profile(name: string): BuildProfile {
   const found = eas.build[name];
@@ -50,14 +83,8 @@ describe('EAS build profiles', () => {
     expect(eas.cli.appVersionSource).toBe('remote');
     expect(profile('production').autoIncrement).toBe(true);
     // A versionCode written here would be ignored today and win the day someone flips the source.
-    const android = createConfig({
-      projectRoot: join(__dirname, '../..'),
-      staticConfigPath: null,
-      packageJsonPath: null,
-      config: {},
-    }).android;
-    expect(android).toBeDefined();
-    expect(android).not.toHaveProperty('versionCode');
+    expect(config.android).toBeDefined();
+    expect(config.android).not.toHaveProperty('versionCode');
   });
 
   it('turns no developer or staging flag on for production', () => {
@@ -67,5 +94,38 @@ describe('EAS build profiles', () => {
       expect(base).not.toHaveProperty(flag);
       expect(production).not.toHaveProperty(flag);
     }
+  });
+});
+
+describe('app config', () => {
+  it('names the closed-test version 0.9.0 (1.0.0 is the public release)', () => {
+    expect(config.version).toBe('0.9.0');
+  });
+
+  it('removes from the release manifest what Bargu does not use, and nothing it needs', () => {
+    const blocked = config.android?.blockedPermissions ?? [];
+    for (const name of [
+      'android.permission.RECORD_AUDIO',
+      'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.READ_MEDIA_IMAGES',
+      'android.permission.DETECT_SCREEN_CAPTURE',
+      'android.permission.READ_APP_BADGE',
+      'com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE',
+    ]) {
+      expect(blocked).toContain(name);
+    }
+    for (const name of KEPT_PERMISSIONS) {
+      expect(blocked).not.toContain(name);
+    }
+    expect(new Set(blocked).size).toBe(blocked.length);
+  });
+
+  it('blocks the launcher badge permissions of ShortcutBadger, which only count badges', () => {
+    const badge = (config.android?.blockedPermissions ?? []).filter(
+      (name) => /launcher|badge/i.test(name) && !name.startsWith('android.permission.'),
+    );
+    expect(badge.length).toBeGreaterThanOrEqual(15);
   });
 });
