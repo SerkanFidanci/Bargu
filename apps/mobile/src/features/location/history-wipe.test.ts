@@ -31,6 +31,8 @@ jest.mock('../notifications/extension-share', () => ({
 }));
 // Native modules that only exist on a phone (the test does not use them; the app imports them).
 jest.mock('expo-notifications', () => ({}));
+jest.mock('expo-battery', () => ({}));
+jest.mock('expo-secure-store', () => ({}));
 jest.mock('expo-image-manipulator', () => ({ ImageManipulator: {}, SaveFormat: {} }));
 jest.mock('expo-image-picker', () => ({}));
 
