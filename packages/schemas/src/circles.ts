@@ -111,7 +111,7 @@ export const inviteSchema = z
   .object({
     id: z.uuid(),
     token: inviteTokenSchema,
-    /** What a QR code or shared link carries (opens the app). */
+    /** What a QR code or shared link carries: `https://<host>/i#<token>` (docs/ADR/0009 Ek 2). */
     link: z.string(),
     expiresAt: z.number().int(),
   })

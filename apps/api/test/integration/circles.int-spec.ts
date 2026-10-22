@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { inviteHostOf } from '../../src/config/env.js';
 import { DatabaseService } from '../../src/infra/database/database.service.js';
 import { createTestApp, type TestApp } from './support/app.js';
 import { as, circleWith, createCircle, person } from './support/people.js';
@@ -377,7 +378,8 @@ describe('invite links', () => {
     const invite = (
       await as(test, owner, 'POST', '/v1/invites', { kind: 'circle', circleId: circle.id })
     ).json<Invite>();
-    expect(invite.link).toBe(`bargu://i/${invite.token}`);
+    // The token is in the fragment: it never goes in a request (docs/ADR/0009 Ek 2).
+    expect(invite.link).toBe(`https://${inviteHostOf(test.env)}/i#${invite.token}`);
 
     const results = await Promise.all(
       [first, second].map((who) =>

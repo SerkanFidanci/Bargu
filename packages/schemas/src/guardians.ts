@@ -16,7 +16,7 @@ export const GUARDIAN_CODE_TTL_MS = 10 * 60_000;
 /** A child's request to end a link takes effect when the parent agrees, or after this. */
 export const GUARDIAN_END_AFTER_MS = 7 * 24 * 3600_000;
 
-/** The child's one-time code, shown as a QR code and as a link (`bargu://g/<token>`). */
+/** The child's one-time code, shown as a QR code and as a link (`https://<host>/g#<token>`, docs/ADR/0009 Ek 2). */
 export const guardianCodeSchema = z
   .object({ token: inviteTokenSchema, link: z.string(), expiresAt: z.number().int() })
   .strict();

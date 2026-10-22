@@ -150,6 +150,9 @@ describe('the invite page: one answer for every token (docs/ADR/0009 Ek, 2026-10
         expect((await get(`/i/${links[state]}`)).statusCode).toBe(200);
         expect((await get(`/g/${links[state]}`)).statusCode).toBe(200);
       }
+      // The shared links' own addresses (the token is in the fragment) look nothing up either.
+      expect((await get('/i')).statusCode).toBe(200);
+      expect((await get('/g')).statusCode).toBe(200);
       expect(queried).not.toHaveBeenCalled();
       expect(connected).not.toHaveBeenCalled();
     } finally {
@@ -293,13 +296,14 @@ describe('the invite page: one answer for every token (docs/ADR/0009 Ek, 2026-10
     }
   });
 
-  it('is a 404 with no token, a trailing path, or on other methods', async () => {
-    expect((await get('/i')).statusCode).toBe(404);
+  it('is a 404 with an empty token, a trailing path, or on other methods', async () => {
     expect((await get('/i/')).statusCode).toBe(404);
     expect((await get(`/i/${links.live}/extra`)).statusCode).toBe(404);
     for (const method of ['POST', 'PUT', 'DELETE'] as const) {
-      const response = await test.app.inject({ method, url: `/i/${links.live}` });
-      expect(response.statusCode).toBe(404);
+      for (const url of [`/i/${links.live}`, '/i', '/g']) {
+        const response = await test.app.inject({ method, url });
+        expect(response.statusCode).toBe(404);
+      }
     }
   });
 
@@ -314,24 +318,104 @@ describe('the invite page: one answer for every token (docs/ADR/0009 Ek, 2026-10
     const busy = '203.0.113.50';
     const quiet = '203.0.113.51';
     // One network's budget is 300 an hour; the 301st is refused whether the token exists or not.
+    // The page of a shared link (no token in the request) and of an earlier link share the budget.
     for (let hit = 0; hit < 300; hit += 1) {
       const state = STATES[hit % STATES.length] ?? 'live';
-      const response = await get(`/i/${links[state]}`, { ip: busy });
+      const url = hit % 5 === 0 ? (hit % 10 === 0 ? '/i' : '/g') : `/i/${links[state]}`;
+      const response = await get(url, { ip: busy });
       if (response.statusCode !== 200) throw new Error(`hit ${String(hit)}: ${response.body}`);
     }
     const refusedLive = await get(`/i/${links.live}`, { ip: busy });
     const refusedUnknown = await get(`/g/${links.unknown}`, { ip: busy });
-    for (const refused of [refusedLive, refusedUnknown]) {
+    const refusedFragment = await get('/i', { ip: busy });
+    for (const refused of [refusedLive, refusedUnknown, refusedFragment]) {
       expect(refused.statusCode).toBe(429);
       expect(refused.json()).toMatchObject({ code: 'RATE_LIMITED' });
       expect(Number(refused.headers['retry-after'])).toBeGreaterThan(0);
       expect(refused.headers['cache-control'] ?? '').not.toContain('max-age=300');
     }
     expect(refusedUnknown.body).toBe(refusedLive.body);
+    expect(refusedFragment.body).toBe(refusedLive.body);
     // Another network is not held back, and the card image is not counted at all.
     expect((await get(`/i/${links.live}`, { ip: quiet })).statusCode).toBe(200);
     expect((await get('/invite/card.png', { ip: busy })).statusCode).toBe(200);
   });
+});
+
+describe('shared links keep the token in the fragment, never in the request (docs/ADR/0009 Ek 2)', () => {
+  const host = () => inviteHostOf(test.env);
+
+  it('makes the link of an invite and of a guardian code with the token after the #', async () => {
+    const invite = (
+      await as(test, owner, 'POST', '/v1/invites', { kind: 'friend' })
+    ).json<Invite>();
+    const circleInvite = (
+      await as(test, owner, 'POST', '/v1/invites', { kind: 'circle', circleId })
+    ).json<Invite>();
+    const child = await person(test, 'Deniz', '15-17');
+    const code = (await as(test, child, 'POST', '/v1/guardians/code')).json<GuardianCode>();
+
+    expect(invite.link).toBe(`https://${host()}/i#${invite.token}`);
+    expect(circleInvite.link).toBe(`https://${host()}/i#${circleInvite.token}`);
+    expect(code.link).toBe(`https://${host()}/g#${code.token}`);
+
+    for (const [shared, token, path] of [
+      [invite.link, invite.token, '/i'],
+      [circleInvite.link, circleInvite.token, '/i'],
+      [code.link, code.token, '/g'],
+    ] as const) {
+      const url = new URL(shared);
+      expect([url.protocol, url.host, url.pathname, url.search]).toEqual([
+        'https:',
+        host(),
+        path,
+        '',
+      ]);
+      expect(url.hash).toBe(`#${token}`);
+      // What a browser or a preview crawler sends for it is everything before the #: no token.
+      const request = `${url.pathname}${url.search}`;
+      expect(request).not.toContain(token);
+      const page = await get(request);
+      expect(page.statusCode).toBe(200);
+      expect(JSON.stringify(page.headers) + page.body).not.toContain(token);
+    }
+  });
+
+  it('serves the same page for /i, /g and the earlier /i/<token>, in the same bytes', async () => {
+    const earlier = await get(`/i/${links.live}`);
+    const fragmentInvite = await get('/i');
+    const fragmentGuardian = await get('/g');
+    expect(fragmentInvite.statusCode).toBe(200);
+    expect(whatIsSent(fragmentInvite)).toEqual(whatIsSent(earlier));
+    expect(whatIsSent(fragmentGuardian)).toEqual(whatIsSent(earlier));
+    // The same in English, and not changed by a query string.
+    const english = await get('/i', { language: 'en' });
+    expect(english.body).toContain('Invitation to Bargu');
+    expect(whatIsSent(await get(`/i/${links.unknown}`, { language: 'en' }))).toEqual(
+      whatIsSent(english),
+    );
+    expect(whatIsSent(await get('/g?utm_source=x&next=%3Cscript%3E'))).toEqual(whatIsSent(earlier));
+  });
+
+  it('has the page of a shared link say nothing about any token, and run no script to read it', async () => {
+    const { body } = await get('/i');
+    expect(body).not.toMatch(/<script|location|hash|fragment|href="[^"]+"/i);
+    expect(body).not.toMatch(/[A-Za-z0-9_-]{43}/);
+  });
+
+  it('answers a HEAD request like the GET', async () => {
+    const [head, full] = await Promise.all([get('/i', { method: 'HEAD' }), get('/i')]);
+    expect(head.statusCode).toBe(200);
+    expect(head.body).toBe('');
+    expect(whatIsSent(head).headers).toEqual(whatIsSent(full).headers);
+  });
+
+  it.each(['/ii', '/gg', '/I', '/G', '/i/', '/g/', '/i//', '/i/x/y', '/invite', '/i.html', '/i;x'])(
+    'is a 404 for %s',
+    async (path) => {
+      expect((await get(path)).statusCode).toBe(404);
+    },
+  );
 });
 
 describe('the card image and Android App Links of the invite host', () => {

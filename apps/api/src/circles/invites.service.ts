@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { generateToken, hashToken } from '@bargu/crypto';
 import { AVATAR_EMOJIS, type Invite, type InviteCreate, type InvitePreview } from '@bargu/schemas';
 import { and, eq, isNull, sql } from 'drizzle-orm';
@@ -6,6 +6,8 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
 import { guardianRequestsFull } from '../common/guardian-requests.js';
+import { ENV } from '../config/config.module.js';
+import { type Env, inviteHostOf } from '../config/env.js';
 import { invites } from '../db/schema.js';
 import { DatabaseService } from '../infra/database/database.service.js';
 import { Notifier } from '../push/notifier.js';
@@ -20,8 +22,14 @@ export const INVITE_TTL_MS = 24 * 3600 * 1000;
  */
 export const EVENT_INVITE_USES = 50;
 export const INVITE_LIMITS = { createdPerHour: 30, previewsPerHour: 120 } as const;
-/** What the QR code and shared link carry; opens the app (universal links come with the domain). */
-export const inviteLink = (token: string) => `bargu://i/${token}`;
+/**
+ * What the QR code and shared link carry (docs/ADR/0009 Ek 2, 2026-10-22): the invite page's own
+ * address with the token in the FRAGMENT, `https://<host>/i#<token>`. A fragment never goes in an
+ * HTTP request, so the token stays out of the server's, the proxy's and the link-preview crawlers'
+ * logs (a token in the path would reach all of them). A messaging app shows the card of the page,
+ * and the app, when it is installed and verified, opens the link (Android App Links).
+ */
+export const inviteLink = (host: string, token: string) => `https://${host}/i#${token}`;
 
 const HOUR = 3600;
 const emojis: ReadonlySet<string> = new Set(AVATAR_EMOJIS);
@@ -50,6 +58,7 @@ export class InvitesService {
     private readonly circles: CirclesService,
     private readonly limiter: RateLimiter,
     private readonly notifier: Notifier,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async create(auth: AuthContext, input: InviteCreate): Promise<Invite> {
@@ -88,7 +97,12 @@ export class InvitesService {
       if (row === undefined) throw new Error('invite insert returned nothing');
       return { id: row.id, expiresAt: expires };
     });
-    return { id, token, link: inviteLink(token), expiresAt: expiresAt.getTime() };
+    return {
+      id,
+      token,
+      link: inviteLink(inviteHostOf(this.env), token),
+      expiresAt: expiresAt.getTime(),
+    };
   }
 
   /** What the person holding the link is about to join; same 404 for every unusable token. */

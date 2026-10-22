@@ -3,14 +3,19 @@ import { sha256 } from '@bargu/crypto';
 import { INVITE_CARD_HEIGHT, INVITE_CARD_WIDTH } from './invite-card.js';
 
 /**
- * The page an invite link opens in a browser (docs/ADR/0009 Ek, 2026-10-22): https://<host>/i/<token>
- * and /g/<token>. It does two things: a messaging app that fetches it shows a card (Open Graph and
- * Twitter tags), and a phone without the app (or without the App Link) lands on something kind.
+ * The page an invite link opens in a browser (docs/ADR/0009 Ek and Ek 2, 2026-10-22):
+ * https://<host>/i#<token> and /g#<token>, and the earlier /i/<token> and /g/<token>. It does two
+ * things: a messaging app that fetches it shows a card (Open Graph and Twitter tags), and a phone
+ * without the app (or without the App Link) lands on something kind.
  *
  * It is built to give nothing away. The same bytes go out for every token, whether it exists,
  * works, has expired or was used: the page is made once from the host name and never from the
  * token, and nothing looks the token up. So it holds no name, photo, circle name, member count or
- * avatar, shows no invitation that may not exist, and does not even repeat the token.
+ * avatar, shows no invitation that may not exist, and does not even repeat the token. In a shared
+ * link the token is in the fragment, which never reaches the server; the page has no script, so it
+ * does not read the fragment either. The one link is empty (`href=""`): the browser drops the
+ * fragment when it resolves it, so the link cannot carry the token on (it would take a script to
+ * read it).
  */
 
 export type InviteLanguage = 'tr' | 'en';

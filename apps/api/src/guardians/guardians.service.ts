@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { generateToken, hashToken } from '@bargu/crypto';
 import {
   AVATAR_EMOJIS,
@@ -24,6 +24,8 @@ import { BillingService } from '../billing/billing.service.js';
 import { CirclesService } from '../circles/circles.service.js';
 import { InvitesService } from '../circles/invites.service.js';
 import { ApiError } from '../common/api-error.js';
+import { ENV } from '../config/config.module.js';
+import { type Env, inviteHostOf } from '../config/env.js';
 import { users } from '../db/schema.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
@@ -35,8 +37,12 @@ const HOUR = 3600;
 export const NEW_MEMBER_MS = 7 * 24 * 3600_000;
 /** Codes shown and codes looked at, per account. */
 export const GUARDIAN_LIMITS = { codesPerHour: 20, previewsPerHour: 60, usagePerHour: 60 } as const;
-/** What the QR code and the shared link carry; opens the app at the parent's yes. */
-export const guardianLink = (token: string) => `bargu://g/${token}`;
+/**
+ * What the QR code and the shared link carry; opens the app at the parent's yes. Like an invite
+ * (invites.service inviteLink), the invite page's own address with the token in the fragment:
+ * `https://<host>/g#<token>` (docs/ADR/0009 Ek 2).
+ */
+export const guardianLink = (host: string, token: string) => `https://${host}/g#${token}`;
 
 const emojis: ReadonlySet<string> = new Set(AVATAR_EMOJIS);
 
@@ -227,6 +233,7 @@ export class GuardiansService {
     private readonly notifier: Notifier,
     private readonly limiter: RateLimiter,
     private readonly billing: BillingService,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   /** "Ebeveyn ekle": a fresh code, valid 10 minutes; an earlier open one stops working. */
@@ -241,7 +248,7 @@ export class GuardiansService {
       .catch((error: unknown) => {
         throw refusal(error);
       });
-    return { token, link: guardianLink(token), expiresAt };
+    return { token, link: guardianLink(inviteHostOf(this.env), token), expiresAt };
   }
 
   /** Whose code it is, before the parent says yes. Only someone 18+ may look. */

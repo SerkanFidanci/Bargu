@@ -9,6 +9,7 @@ import {
 } from '@bargu/schemas';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { inviteHostOf } from '../../src/config/env.js';
 import { EventsService } from '../../src/events/events.service.js';
 import { GuardianSweeper } from '../../src/guardians/guardian-sweeper.js';
 import { DatabaseService } from '../../src/infra/database/database.service.js';
@@ -53,7 +54,7 @@ describe('guardian links (docs/ADR/0023 §4)', () => {
     await as(test, child, 'POST', '/v1/invites/accept', { token: groupCode.token });
 
     const code = await codeOf(child);
-    expect(code.link).toBe(`bargu://g/${code.token}`);
+    expect(code.link).toBe(`https://${inviteHostOf(test.env)}/g#${code.token}`);
     expect(code.expiresAt).toBeGreaterThan(Date.now());
     const preview = await as(test, parent, 'POST', '/v1/guardians/preview', { token: code.token });
     expect(preview.json()).toEqual({
