@@ -27,9 +27,11 @@
 #   5. owner and modes: deploy:deploy, .env 0600, compose.yml 0640
 #   6. world.pmtiles: the low-detail world map (Protomaps build, zoom 0-6) next to turkey.pmtiles
 #   7. nginx: no long cache for 404s under /map/ (a phone that asks before world.pmtiles exists
-#      must not be told to keep the 404 for a day; 200, 206 and 304 keep the long cache): two
-#      small edits in the installed Bargu site file, nginx -t on the WHOLE configuration, then a
-#      reload (never a restart: this nginx also serves other sites)
+#      must not be told to keep the 404 for a day; 200, 206 and 304 keep the long cache), and the
+#      invite links /i/<token> and /g/<token> are never access-logged (the token is in the URL;
+#      `access_log off` in a location of its own, on port 80 and on 443): small edits in the
+#      installed Bargu site file (each one only when it is not there yet), nginx -t on the WHOLE
+#      configuration, then a reload (never a restart: this nginx also serves other sites)
 #   8. docker compose up -d --wait worker api (only when they do not run the new settings yet,
 #      the new signing key included)
 #   9. final check: MIN_CLIENT_LEVEL, WATCH_PUSH* and the key id inside the api container,
@@ -259,8 +261,16 @@ perms_ok() { # file mode
   [ "$(stat -c '%U:%G %a' "$1")" = "$OWNER $2" ]
 }
 
-nginx_is_done() {
+# The two edits of the nginx step, each done or not on its own (a server may have had the first one
+# applied by an earlier version of this script):
+#   map: the /map/ Cache-Control by response code;
+#   logs: invite links (/i/<token>, /g/<token>) are never access-logged, in the http server (the
+#         redirect) and in the https server (the proxy): two `location ~ ^/(i|g)/` blocks.
+nginx_map_done() {
   grep -qF 'bargu_map_cache_control' "$NGINX_SITE"
+}
+nginx_logs_count() {
+  grep -cF '    location ~ ^/(i|g)/ {' "$NGINX_SITE" || true
 }
 
 # The domain the Bargu site answers for (its first server_name).
@@ -825,14 +835,27 @@ step_world() {
 }
 
 step_nginx() {
-  step "7/9" "nginx: /map/ altında bulunamayan dosya (404) önbelleğe alınmasın (Cache-Control: no-store)"
+  step "7/9" "nginx: /map/ altında 404 önbelleğe alınmasın (no-store); /i/ ve /g/ davet adresleri (token) erişim günlüğüne yazılmasın"
   if [ ! -f "$NGINX_SITE" ]; then
     problem "$NGINX_SITE yok (infra/vps/setup-nginx.sh çalıştırılmamış olabilir); nginx'e dokunulmadı"
     NGINX_FAILED=true
     return 0
   fi
-  if nginx_is_done; then
-    note "zaten yapılmış: $NGINX_SITE dosyasında /map/ için duruma göre Cache-Control var (404: no-store; 200, 206, 304: uzun önbellek)"
+  need_map=false
+  need_logs=false
+  if ! nginx_map_done; then need_map=true; fi
+  logs_found=$(nginx_logs_count)
+  case "$logs_found" in
+    0) need_logs=true ;;
+    2) ;;
+    *)
+      problem "$NGINX_SITE beklenen biçimde değil ('location ~ ^/(i|g)/' bloğu $logs_found tane; 0 ya da 2 olmalı); nginx'e dokunulmadı"
+      NGINX_FAILED=true
+      return 0
+      ;;
+  esac
+  if ! $need_map && ! $need_logs; then
+    note "zaten yapılmış: $NGINX_SITE dosyasında /map/ için duruma göre Cache-Control var (404: no-store; 200, 206, 304: uzun önbellek) ve /i/ ile /g/ davet adresleri erişim günlüğüne yazılmıyor (80 ve 443)"
     return 0
   fi
   if [ -L "$NGINX_SITE" ]; then
@@ -840,12 +863,22 @@ step_nginx() {
     NGINX_FAILED=true
     return 0
   fi
-  # What the edit needs to find, in the installed (domain filled in) site file.
+  # What the edits need to find, in the installed (domain filled in) site file.
   old_header='add_header Cache-Control "public, max-age=86400" always;'
   headers=$(grep -cF "$old_header" "$NGINX_SITE" || true)
   servers=$(grep -c '^server[[:space:]]*{' "$NGINX_SITE" || true)
-  if [ "$headers" != 1 ] || [ "$servers" -lt 1 ]; then
+  if $need_map && { [ "$headers" != 1 ] || [ "$servers" -lt 1 ]; }; then
     problem "$NGINX_SITE beklenen biçimde değil ($old_header satırı $headers tane, 1 olmalı; üst düzey server bloğu $servers tane); nginx'e dokunulmadı"
+    NGINX_FAILED=true
+    return 0
+  fi
+  # The invite-link blocks are copies of the two `location /` blocks: the http one (a redirect) and
+  # the https one (the proxy to the API), one of each.
+  slashes=$(grep -c '^    location / {[[:space:]]*$' "$NGINX_SITE" || true)
+  proxies=$(grep -c '^        proxy_pass http://127\.0\.0\.1:[0-9]*;' "$NGINX_SITE" || true)
+  redirects=$(grep -c '^        return 301 https://[$]host[$]request_uri;' "$NGINX_SITE" || true)
+  if $need_logs && { [ "$slashes" != 2 ] || [ "$proxies" != 1 ] || [ "$redirects" != 1 ]; }; then
+    problem "$NGINX_SITE beklenen biçimde değil ('location / {' bloğu $slashes tane (2 olmalı), proxy_pass satırı $proxies tane (1), http yönlendirmesi $redirects tane (1)); nginx'e dokunulmadı"
     NGINX_FAILED=true
     return 0
   fi
@@ -862,7 +895,12 @@ step_nginx() {
   note "bu nginx başka sitelere de hizmet veriyor, yalnız reload yapılacak (restart yok; reload öncesi 'nginx -t' bütün yapılandırmayı denetler)"
   if $DRY_RUN; then
     note "yapılacak: $NGINX_SITE dosyasının yedeği $STACK_DIR içine alınacak ($NGINX_BAK-<damga>)"
-    note "yapılacak: dosyada iki küçük değişiklik: üstüne bir 'map \$status \$bargu_map_cache_control' bloğu, /map/ içindeki Cache-Control satırı bu değişkeni kullanacak"
+    if $need_map; then
+      note "yapılacak: dosyanın üstüne bir 'map \$status \$bargu_map_cache_control' bloğu, /map/ içindeki Cache-Control satırı bu değişkeni kullanacak"
+    fi
+    if $need_logs; then
+      note "yapılacak: iki yeni 'location ~ ^/(i|g)/' bloğu: 80'de (https'e yönlendirme) ve 443'te (API'ye proxy, '/' ile birebir aynı ayarlar); ikisinde 'access_log off', yani /i/<token> ve /g/<token> adresleri erişim günlüğüne hiç yazılmaz (hata günlüğü kalır)"
+    fi
     note "yapılacak: 'nginx -t' (bütün yapılandırma); hata verirse yedek geri konur ve reload yapılmaz"
     note "yapılacak: 'systemctl reload nginx' (diğer siteler kesintisiz çalışmaya devam eder)"
     note "bilgi: nginx adımı hata verirse yalnız nginx geri alınır; .env, compose.yml, imza anahtarı ve servislerin yeniden başlatılması uygulanmış kalır, betiği yeniden çalıştırmak güvenlidir"
@@ -878,10 +916,42 @@ step_nginx() {
   safe_cp "$NGINX_SITE" "$NGINX_BAK-$nginx_stamp"
   note "yedek alındı: $NGINX_BAK-$nginx_stamp"
   tmp="$NGINX_NEW.$$"
-  # The map goes in front of the first server block and the fixed header line becomes the variable.
-  # shellcheck disable=SC2016 # the $bargu_map_cache_control below is nginx text, not for the shell
-  safe_awk_to "$tmp" '
-    !placed && /^server[ \t]*\{/ {
+  # map: the map goes in front of the first server block and the fixed header line becomes the
+  # variable. logs: each 4-space `location / {` block (the http redirect, the https proxy) gets a
+  # `location ~ ^/(i|g)/` twin in front of it with `access_log off;`; the proxy twin is a copy of the
+  # block (same upstream, headers, timeouts), so the API still answers those paths itself.
+  access_before=$(grep -c 'access_log off;' "$NGINX_SITE" || true)
+  map_flag=0
+  logs_flag=0
+  if $need_map; then map_flag=1; fi
+  if $need_logs; then logs_flag=1; fi
+  # shellcheck disable=SC2016 # the $... below is nginx text, not for the shell
+  safe_awk_to "$tmp" -v do_map="$map_flag" -v do_logs="$logs_flag" '
+    function finish_block(   i, kind) {
+      kind = ""
+      for (i = 1; i <= n; i++) {
+        if (buf[i] ~ /proxy_pass/) kind = "proxy"
+        else if (buf[i] ~ /return 301/) kind = "redirect"
+      }
+      if (kind == "proxy") {
+        print "    # Invite links, path form (/i/<token>, /g/<token>): never access-logged (the token is in the URL)."
+        print "    # Same as the / block below, copied: the API answers these paths itself."
+        print "    location ~ ^/(i|g)/ {"
+        print "        access_log off;"
+        for (i = 2; i <= n; i++) print buf[i]
+        print ""
+      } else if (kind == "redirect") {
+        print "    # Invite links over plain http: redirected, but the token must not reach a log."
+        print "    location ~ ^/(i|g)/ {"
+        print "        access_log off;"
+        print "        return 301 https://$host$request_uri;"
+        print "    }"
+        print ""
+      }
+      for (i = 1; i <= n; i++) print buf[i]
+      inblock = 0
+    }
+    do_map && !placed && /^server[ \t]*\{/ {
       print "# /map/ Cache-Control by response code (infra/staging/nginx/bargu-staging.conf has the long note)"
       print "map $status $bargu_map_cache_control {"
       print "    default \"no-store\";"
@@ -892,15 +962,27 @@ step_nginx() {
       print ""
       placed = 1
     }
-    /^[ \t]*add_header Cache-Control "public, max-age=86400" always;[ \t]*$/ {
+    do_map && /^[ \t]*add_header Cache-Control "public, max-age=86400" always;[ \t]*$/ {
       match($0, /^[ \t]*/)
       print substr($0, 1, RLENGTH) "add_header Cache-Control $bargu_map_cache_control always;"
       next
     }
+    do_logs && inblock {
+      buf[++n] = $0
+      if ($0 ~ /^    \}[ \t]*$/) finish_block()
+      next
+    }
+    do_logs && /^    location \/ \{[ \t]*$/ { inblock = 1; n = 1; buf[1] = $0; next }
     { print }
   ' "$NGINX_SITE"
-  if [ "$(grep -cF 'bargu_map_cache_control' "$tmp" || true)" != 2 ] || grep -qF "$old_header" "$tmp"; then
-    die "Yeni nginx dosyası beklenen gibi çıkmadı; $NGINX_SITE olduğu gibi duruyor."
+  expected_access=$access_before
+  if $need_logs; then expected_access=$((access_before + 2)); fi
+  if $need_map && { [ "$(grep -cF 'bargu_map_cache_control' "$tmp" || true)" != 2 ] || grep -qF "$old_header" "$tmp"; }; then
+    die "Yeni nginx dosyası beklenen gibi çıkmadı (map); $NGINX_SITE olduğu gibi duruyor."
+  fi
+  if [ "$(grep -cF '    location ~ ^/(i|g)/ {' "$tmp" || true)" != 2 ] ||
+    [ "$(grep -c 'access_log off;' "$tmp" || true)" != "$expected_access" ]; then
+    die "Yeni nginx dosyası beklenen gibi çıkmadı (davet adresleri); $NGINX_SITE olduğu gibi duruyor."
   fi
   safe_put "$tmp" "$NGINX_SITE"
   if nginx_check; then
@@ -1022,6 +1104,39 @@ check_map_cache() { # tries
   check_cache_header "/map/ altında olmayan dosya (404)" /map/yok-boyle-bir-dosya.pmtiles 404 "$1"
 }
 
+# Do invite links reach the access log? Two requests with a made-up token (an invite page answers
+# the same for any well-formed token, nothing is looked up), one over http (the redirect) and one
+# over https (the API's page), and then the host's access log is searched for that token. Real run
+# only: a request is something a log could take. Reads the log, writes nothing. A reload is gradual
+# (for a moment the old workers may still answer, as in check_cache_header), so a hit is asked again
+# with a new token for up to $1 tries; a real leak does not go away, a late reload does.
+check_invite_log() { # tries
+  log_file=/var/log/nginx/access.log
+  if [ ! -r "$log_file" ]; then
+    note "davet adresi kontrolü: $log_file okunamadı, atlandı"
+    return 0
+  fi
+  if $DRY_RUN; then
+    note "davet adresi kontrolü: kuru çalıştırmada yapılmaz (istek günlüğe girebilir); gerçek çalıştırmada rastgele bir token ile /i/ ve /g/ istenir ve $log_file içinde aranır"
+    return 0
+  fi
+  invite_tries=0
+  while :; do
+    probe=$(tr -dc 'A-Za-z0-9_-' </dev/urandom | head -c 43)
+    http_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$domain:80:127.0.0.1" "http://$domain/i/$probe" 2>/dev/null </dev/null || true)
+    https_code=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$domain:443:127.0.0.1" "https://$domain/g/$probe" 2>/dev/null </dev/null || true)
+    sleep 1
+    if ! tail -n 2000 "$log_file" | grep -qF -- "$probe"; then
+      note "davet adresi: /i/ http -> ${http_code:-?} (yönlendirme), /g/ https -> ${https_code:-?} (sayfa); erişim günlüğünde token yok"
+      return 0
+    fi
+    invite_tries=$((invite_tries + 1))
+    if [ "$invite_tries" -ge "$1" ]; then break; fi
+  done
+  problem "davet adresi (/i/ ve /g/) erişim günlüğüne yazılıyor: $log_file içinde az önce istenen rastgele token var ($invite_tries denemede; http: ${http_code:-?}, https: ${https_code:-?})"
+  CHECK_FAILED=true
+}
+
 # The public half of the notice key (public: safe to show) and whether a service log shows it, i.e.
 # whether the server signs. Only the public line is ever printed, never a log line.
 check_notice_signing() { # tries
@@ -1077,7 +1192,11 @@ step_check() {
   else
     note "world.pmtiles: yok"
   fi
-  if [ -f "$NGINX_SITE" ]; then check_map_cache "$wait_tries"; fi
+  if [ -f "$NGINX_SITE" ]; then
+    check_map_cache "$wait_tries"
+    # $domain is set by check_map_cache from the site file; without it there is nothing to ask.
+    if [ -n "$domain" ]; then check_invite_log "$wait_tries"; fi
+  fi
 }
 
 usage() { # message

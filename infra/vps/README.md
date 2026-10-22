@@ -136,8 +136,22 @@ Adımlar (`N` = `--min-level`):
    sonundan öte aralık) bilerek eskisi gibi kalır: iki `Cache-Control` satırı alır (nginx başlıkları
    206/416 kararından ÖNCE ekler ve geçersiz aralıkta bir kez daha ekler; tek satır `no-store` için
    bütün Range yanıtlarını, yani her PMTiles okumasını `no-store` yapmak gerekirdi, haritanın her
-   açılışta yeniden inmesi pahasına). Kurulu site dosyası
-   (`/etc/nginx/sites-available/bargu-staging`) iki küçük metin değişikliğiyle düzenlenir, yedeği
+   açılışta yeniden inmesi pahasına).
+   Aynı adımda **davet adresleri erişim günlüğüne yazılmaz** (`/i/<token>` ve `/g/<token>`,
+   [ADR 0009](../../docs/ADR/0009-circles-keys-and-events.md) Ek; token URL'nin içindedir).
+   443'teki server bloğunda `access_log off` zaten vardı, ama 80'deki http → https
+   yönlendirmesinin kendi günlüğü yoktu ve sunucunun ortak erişim günlüğünü kullanıyordu; eski
+   `http://…/i/<token>` bağlantılarının token'ı oraya düşerdi. Şimdi iki server bloğunda da `location ~ ^/(i|g)/` var ve içinde `access_log off`
+   (nginx belgesi, ngx_http_log_module: `off` o düzeydeki bütün günlükleri iptal eder). 80'deki blok
+   yine https'e yönlendirir; 443'teki blok `/` bloğunun birebir kopyasıdır (aynı API adresi,
+   başlıklar, zaman aşımları: sayfayı, hız sınırını ve CSP'yi API vermeye devam eder). Hata günlüğü
+   (`error_log`) bilerek kalır. Bilinen sınır: API kapalıyken (örneğin 8. adımdaki yeniden
+   başlatma sırasında) nginx bir 502'yi hata günlüğüne istek satırıyla, yani token dahil yazar.
+   Kurulu site dosyası (`/etc/nginx/sites-available/bargu-staging`) küçük metin eklemeleriyle
+   düzenlenir (map bloğu, `/map/` başlık satırı, iki davet bloğu), yalnız eksik olan eklenir:
+   haritası olan ama davet bloğu olmayan bir dosyaya (betiğin ilk sürümüyle ya da eski şablonla
+   kurulmuş) yalnız davet blokları eklenir, ikisi de varsa "zaten yapılmış". Davet bloğu sayısı 0
+   ya da 2 değilse dosya beklenen biçimde sayılmaz, hiçbir şeye dokunulmaz. Yedek
    `/opt/bargu/staging/bargu-staging.nginx.bak-…` olur. **Bu nginx başka sitelere de hizmet
    veriyor** (rastamen): önce `nginx -t` bütün yapılandırmayı denetler, bozuksa yedek geri konur ve
    reload yapılmaz; sonra yalnız `systemctl reload nginx` (asla restart). **Bu adım hata verirse
@@ -152,7 +166,10 @@ Adımlar (`N` = `--min-level`):
    değerleri (başka hiçbir değer ve gizli bilgi yazılmaz), `/health/live`, `world.pmtiles` boyutu,
    açık anahtar satırı (`stg-n1:…`, herkese açık) ve worker/api günlüğünde o satırın görünüp
    görünmediği (sunucu imzalıyor mu), `/map/` altındaki 404'ün `Cache-Control` başlığı (tek satır
-   `no-store` olmalı).
+   `no-store` olmalı), davet adresi günlük kontrolü: rastgele (uydurma) bir token ile `/i/` (http)
+   ve `/g/` (https) istenir, `/var/log/nginx/access.log` içinde aranır; bulunursa SORUN. Reload
+   sürerken eski işçiler cevap verebileceği için bulunursa en çok 10 kez, her seferinde yeni token
+   ile yeniden sorulur. Kuru çalıştırmada yapılmaz (istek günlüğe girebilir), yalnız not düşer.
 
 Güvenlik: script **sadece** `/opt/bargu/staging` ve `/srv/bargu-map` içine yazar, bir tek istisnayla:
 kurulu Bargu nginx site dosyası, **tam yol eşleşmesiyle** (ön ek değil; `/etc/nginx` altında başka
@@ -163,7 +180,8 @@ site dosyası kısayolsa betik daha ilk kontrolde, hiçbir yedek, değişiklik y
 olmadan durur. Sırlar içeren her yedek (`.env`
 yedekleri; betiğin ve `notice-key.sh`'in aldıkları) 0600 ve `deploy` sahipli olur. Sunucudaki diğer
 projeye (rastamen) dokunmaz. Yeniden başlatma başarısız olursa yedekler geri yüklenir. Eski
-yedekler silinmez.
+yedekler silinmez. Davet adreslerinin (`/i/…`, `/g/…`) token'ı nginx erişim günlüğüne yazılmaz
+(7. adım); betik bunu son kontrolde uydurma bir token ile sınar.
 
 ## Günlük işler
 
