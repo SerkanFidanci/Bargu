@@ -83,6 +83,23 @@ export class ReplayGuard {
     this.entries.set(key, entry);
   }
 
+  /**
+   * Forgets everything accepted from these sender devices, in every circle: for a person this phone
+   * shares no circle with any more, whose messages can no longer be opened (their keys are gone and
+   * they are no member), so the window has nothing left to protect. Returns how many entries went.
+   */
+  forgetSenders(senderDeviceIds: ReadonlySet<string>): number {
+    let removed = 0;
+    for (const key of [...this.entries.keys()]) {
+      // Circle ids are UUIDs: the first "/" ends the circle id.
+      if (senderDeviceIds.has(key.slice(key.indexOf('/') + 1))) {
+        this.entries.delete(key);
+        removed += 1;
+      }
+    }
+    return removed;
+  }
+
   toJSON(): ReplayState {
     return copy(Object.fromEntries(this.entries));
   }
