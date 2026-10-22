@@ -106,8 +106,8 @@ export function inviteIntentFilters(
  * the plugin list below, so the merged manifest carries exactly this one set. The built manifest
  * is checked by scripts/check-manifest.mjs.
  *
- * Written here, not in a file under plugins/: Expo transpiles app.config.ts alone and cannot
- * require a second TypeScript file from it.
+ * Written here, not as a file of its own: Expo transpiles app.config.ts alone and cannot require a
+ * second TypeScript file from it.
  */
 export const BACKUP_RULES = 'bargu_backup_rules';
 export const EXTRACTION_RULES = 'bargu_data_extraction_rules';
@@ -268,7 +268,7 @@ const appConfig = ({ config }: ConfigContext): ExpoConfig => ({
     },
     predictiveBackGestureEnabled: false,
     // No cloud backup and no restore on any Android version; the rules for Android 12+ and for the
-    // device-to-device transfer come from plugins/with-no-android-backup.ts.
+    // device-to-device transfer come from withNoAndroidBackup (end of this file).
     allowBackup: false,
     blockedPermissions: BLOCKED_PERMISSIONS,
     // https invite links open the app (App Links); none for a build without an invite host.
