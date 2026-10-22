@@ -1259,7 +1259,11 @@
       "everyone": "Everyone's there",
       "more": "+{{count}}",
       "label": "Meeting, {{title}}: {{text}}. Opens the meeting."
-    }
+    },
+    "endBodyPlace": "The meeting ends for everyone at once. The place added for it goes too, unless you keep it.",
+    "endKeepPlace": "End, keep the place",
+    "keepPlace": "Keep the place afterwards",
+    "keepPlaceHint": "This place was added for the meeting. Off, it goes when the meeting ends."
   },
   "notificationPrefs": {
     "title": "Notification preferences",

@@ -11,6 +11,7 @@ import { circleSync, keys, onOnline, onServerEvents } from '../live/live-session
 import { queryClient } from '../query-client';
 import { memberName } from '../circles/names';
 import { usePlaces } from '../places/places';
+import { places } from '../places/places-session';
 import { isVaultOpen, vault } from '../storage/vault';
 import { createDocs, type DocsApi } from './docs';
 import type { Doc } from './plan-model';
@@ -80,6 +81,10 @@ export const docs = createDocs({
     return null;
   },
   onMeetingStarted: meetingStarted,
+  forgetPlace: async (placeId) => {
+    const place = usePlaces.getState()[placeId];
+    if (place !== undefined) await places.remove(place);
+  },
   refreshCircle: async (circleId) => {
     await circleSync.refresh(circleId);
     return cachedCircles().find((circle) => circle.id === circleId) ?? null;

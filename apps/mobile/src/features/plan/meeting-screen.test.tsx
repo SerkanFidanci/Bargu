@@ -1,5 +1,6 @@
 import type { Circle } from '@bargu/schemas';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import { Linking } from 'react-native';
 
 import i18n from '@/i18n';
@@ -46,6 +47,7 @@ import MeetingScreen from '@/app/(app)/meeting/[circleId]';
 import { useAuth } from '@/features/auth/auth-store';
 import { usePlaces } from '@/features/places/places';
 import { docKey, useDocs } from '@/features/plan/docs';
+import { useMeetingPlaceDraft } from '@/features/plan/meeting-place';
 
 const ME = '0190f7a4-1111-7111-8111-000000000001';
 const family: Circle = {
@@ -97,6 +99,58 @@ describe('a meeting on its own screen (docs/ADR/0026 §4)', () => {
         meetAt: expect.any(Number) as number,
       });
     });
+  });
+
+  it('takes a place added here for the meeting, and lets it go with it (ADR 0026 Ek 1)', async () => {
+    await render(<MeetingScreen />);
+    await fireEvent.press(screen.getByTestId('meeting-start-add-place'));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/place/[circleId]',
+      params: { circleId: CIRCLE, forMeeting: '1' },
+    });
+    // The editor saved a new place for this meeting: it is chosen at once.
+    const added = '00000000-0000-4000-8000-0000000000aa';
+    await act(() => {
+      usePlaces.setState({
+        [added]: {
+          id: added,
+          circleId: CIRCLE,
+          version: 1,
+          name: 'Woh date',
+          emoji: '📍',
+          lat: 41.04,
+          lng: 28.96,
+          radius: 100,
+          ts: 2,
+        },
+      });
+      useMeetingPlaceDraft.setState({ circleId: CIRCLE, placeId: added }, true);
+    });
+    await fireEvent.press(screen.getByTestId('meeting-start-go'));
+    await waitFor(() => {
+      expect(mockStart).toHaveBeenCalledWith(family, {
+        placeId: added,
+        meetAt: expect.any(Number) as number,
+        placeGoes: true,
+      });
+    });
+    expect(useMeetingPlaceDraft.getState()).toBeNull();
+  });
+
+  it('never lets a place the circle had go, nor one added for another circle', async () => {
+    await render(<MeetingScreen />);
+    await act(() => {
+      useMeetingPlaceDraft.setState({ circleId: 'another', placeId: HOME }, true);
+    });
+    await fireEvent.press(screen.getByTestId(`meeting-start-place-${HOME}`));
+    await fireEvent.press(screen.getByTestId('meeting-start-go'));
+    await waitFor(() => {
+      expect(mockStart).toHaveBeenCalledWith(family, {
+        placeId: HOME,
+        meetAt: expect.any(Number) as number,
+      });
+    });
+    useMeetingPlaceDraft.setState(null, true);
   });
 
   it('shows where and when, and opens the maps app only on a tap', async () => {

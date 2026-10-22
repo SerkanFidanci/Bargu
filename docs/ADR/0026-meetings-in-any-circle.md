@@ -150,3 +150,30 @@ Dokununca çember sayfası açılıyor.
 - "Yol tarifi" buluşma yerinin koordinatını kullanıcının seçtiği harita uygulamasına verir; bu,
   kullanıcının dokunmasıyla olur.
 - Kaba konum paylaşan kişi buluşmada "bilinmiyor" görünür; geldiğini kendisi söyleyebilir.
+
+## Ek 1 (2026-10-22): buluşma için eklenen yer buluşmayla gider
+
+Sahip haritada "Woh date" adlı bir yeri buluşma sandı ve dokununca buluşmanın açılmasını bekledi.
+O yer, bir buluşmayı başlatırken "Yeni yer ekle" ile eklenmişti. Buluşma saatinden 3 saat sonra
+silindi, yer ise çemberde sıradan bir kayıtlı yer olarak kaldı. PM'in kararı:
+
+- Başlatma ekranında "Yeni yer ekle" ile eklenen yer "bu buluşma için" sayılır. Yer düzenleyicisi
+  buluşma için açılır, yeni yerin kimliğini kendisi üretir ve kaydedince bildirir. Böylece çemberin
+  önceden kayıtlı bir yeri (ör. "Ev") hiçbir zaman yanlışlıkla bu sayılmaz.
+- Buluşma belgesi (`plan`) bunu `placeGoes` ile söyler: `true` yer buluşmayla gider, `false`
+  başlatan saklamayı seçti, alan yoksa yer çemberin önceden kayıtlı yeri ve hep kalır. Buluşma
+  belgesini eski uygulamalar esnek okur, alanı atar ve yeri bırakır.
+- Elle bitirirken ("Buluşmayı bitir") pencere "Bitir, yeri sakla" seçeneğini de sunar. Saklanınca
+  önce belge `placeGoes: false` olarak yazılır, sonra buluşma silinir; böylece başka bir telefon
+  yeri sonradan silmez.
+- Sunucu buluşmayı kendiliğinden silince yeri, buluşmayı başlatanın telefonu bir sonraki eşitlemede
+  siler. Yalnız onun telefonu siler ki birden çok telefon yarışmasın. Başlatan uygulamayı açmazsa
+  yer onun bir sonraki açılışına kadar kalır.
+- Başlatan ve yöneticiler buluşma ekranında "Bitince yeri sakla" anahtarıyla seçimi önceden
+  değiştirebilir.
+- Buluşma başka bir yere taşınınca, onun için eklenmiş eski yer hemen silinir. Yeni yer çemberin
+  kayıtlı yeridir ve kalır.
+- Bu düzeltmeden önce kalan yerler ("Woh date" gibi) olduğu gibi kalır; kullanıcı silebilir.
+
+Sunucu değişmedi: yer ile buluşma arasındaki bağ şifreli belgenin içinde. Sunucu hangi yerin bir
+buluşma için eklendiğini bilmez.

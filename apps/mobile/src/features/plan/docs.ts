@@ -77,6 +77,8 @@ export interface DocsDeps {
   refreshCircle: (circleId: string) => Promise<Circle | null>;
   /** Someone else just started a meeting outside an event (docs/ADR/0026 §6): say so in the app. */
   onMeetingStarted?: (circle: Circle, doc: Doc) => void;
+  /** A place added for a meeting that is over goes too (docs/ADR/0026 Ek 1). */
+  forgetPlace?: (placeId: string) => Promise<void>;
   now?: () => number;
 }
 
@@ -222,7 +224,7 @@ export function createDocs(deps: DocsDeps) {
   function apply(
     circle: Circle,
     records: readonly DocRecord[],
-  ): { stale: StaleDoc[]; orphans: string[] } {
+  ): { stale: StaleDoc[]; orphans: string[]; leftPlaces: string[] } {
     // A first look after a start says nothing new: what was there is not "just started".
     const restoredBefore = synced.has(circle.id);
     synced.add(circle.id);
@@ -277,11 +279,23 @@ export function createDocs(deps: DocsDeps) {
           !ids.has(doc.payload.pollId),
       )
       .map((doc) => doc.payload.id);
+    // A meeting this user started that the server has ended (three hours after its time): their
+    // phone lets the place added for it go too, unless they kept it (docs/ADR/0026 Ek 1).
+    const leftPlaces: string[] = [];
+    for (const doc of Object.values(current)) {
+      const plan = doc.payload;
+      if (doc.circleId !== circle.id || plan.kind !== 'plan' || ids.has(plan.id)) continue;
+      if (plan.placeGoes === true && plan.by === me && plan.placeId !== undefined) {
+        leftPlaces.push(plan.placeId);
+      }
+    }
     replace(next);
-    return { stale, orphans };
+    return { stale, orphans, leftPlaces };
   }
 
-  async function syncCircle(circle: Circle): Promise<{ stale: StaleDoc[]; orphans: string[] }> {
+  async function syncCircle(
+    circle: Circle,
+  ): Promise<{ stale: StaleDoc[]; orphans: string[]; leftPlaces: string[] }> {
     const records = await deps.api.list(circle.id);
     return timed('docs.apply', () => apply(circle, records));
   }
@@ -304,6 +318,9 @@ export function createDocs(deps: DocsDeps) {
         stale.push(...result.stale);
         for (const id of result.orphans) {
           await deps.api.remove(circle.id, id).catch(() => undefined);
+        }
+        for (const placeId of result.leftPlaces) {
+          await deps.forgetPlace?.(placeId).catch(() => undefined);
         }
       }
       return stale;

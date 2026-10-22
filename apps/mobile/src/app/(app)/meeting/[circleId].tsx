@@ -1,7 +1,7 @@
 import type { Circle } from '@bargu/schemas';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Flag, Navigation, Plus, Users } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
 
@@ -14,6 +14,7 @@ import type { Place } from '@/features/places/place-model';
 import { usePlaces } from '@/features/places/places';
 import { docKey, useDocs } from '@/features/plan/docs';
 import { MeetingCard } from '@/features/plan/meeting-card';
+import { useMeetingPlaceDraft } from '@/features/plan/meeting-place';
 import { PlaceIcon, TimeStepper, timeRange, useEventPlaces } from '@/features/plan/meeting-sheets';
 import { startMeeting } from '@/features/plan/plan-actions';
 import { MEETING } from '@/features/plan/plan-model';
@@ -132,6 +133,19 @@ function StartMeeting({ circle }: { circle: Circle }) {
   const circlePlaces = useEventPlaces(circle.id);
   const range = timeRange(circle, now);
   const [placeId, setPlaceId] = useState<string | null>(null);
+  // A place added here for this meeting (docs/ADR/0026 Ek 1): taken at once, and it goes with
+  // the meeting unless its starter keeps it. Places the circle had always stay.
+  const [added, setAdded] = useState<string | null>(null);
+  useEffect(
+    () =>
+      useMeetingPlaceDraft.subscribe((draft) => {
+        if (draft?.circleId !== circle.id) return;
+        setAdded(draft.placeId);
+        setPlaceId(draft.placeId);
+        useMeetingPlaceDraft.setState(null, true);
+      }),
+    [circle.id],
+  );
   const [meetAt, setMeetAt] = useState<number | null>(null);
   const [starting, setStarting] = useState(false);
   const chosenTime =
@@ -139,7 +153,11 @@ function StartMeeting({ circle }: { circle: Circle }) {
   const start = async () => {
     if (placeId === null) return;
     setStarting(true);
-    await startMeeting(circle, { placeId, meetAt: chosenTime });
+    await startMeeting(circle, {
+      placeId,
+      meetAt: chosenTime,
+      ...(placeId === added ? { placeGoes: true } : {}),
+    });
     setStarting(false);
   };
 
@@ -178,7 +196,10 @@ function StartMeeting({ circle }: { circle: Circle }) {
         icon={Plus}
         variant="secondary"
         onPress={() => {
-          router.push({ pathname: '/place/[circleId]', params: { circleId: circle.id } });
+          router.push({
+            pathname: '/place/[circleId]',
+            params: { circleId: circle.id, forMeeting: '1' },
+          });
         }}
       />
       <SectionTitle>{t('plan.time')}</SectionTitle>

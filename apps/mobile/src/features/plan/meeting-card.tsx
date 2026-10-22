@@ -39,6 +39,7 @@ import { PlaceIcon, PlaceSheet, PollSheet, TimeSheet, timeRange } from './meetin
 import {
   closePoll,
   endMeeting,
+  keepMeetingPlace,
   mayRunMeeting,
   removePoll,
   setMeeting,
@@ -87,20 +88,39 @@ export function MeetingCard({ circle }: { circle: Circle }) {
     !event && plan?.kind === 'plan'
       ? circle.members.find((member) => member.userId === plan.by)
       : undefined;
+  // The place was added for this meeting (docs/ADR/0026 Ek 1): it goes with it unless kept.
+  const placeGoes = plan?.kind === 'plan' ? plan.placeGoes : undefined;
+  const finish = (keepPlace: boolean) => {
+    setEnding(true);
+    void endMeeting(circle.id, keepPlace).finally(() => {
+      setEnding(false);
+    });
+  };
   const end = () => {
-    Alert.alert(t('meeting.endTitle'), t('meeting.endBody'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('meeting.end'),
-        style: 'destructive',
-        onPress: () => {
-          setEnding(true);
-          void endMeeting(circle.id).finally(() => {
-            setEnding(false);
-          });
+    Alert.alert(
+      t('meeting.endTitle'),
+      placeGoes === true ? t('meeting.endBodyPlace') : t('meeting.endBody'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        ...(placeGoes === true
+          ? [
+              {
+                text: t('meeting.endKeepPlace'),
+                onPress: () => {
+                  finish(true);
+                },
+              },
+            ]
+          : []),
+        {
+          text: t('meeting.end'),
+          style: 'destructive' as const,
+          onPress: () => {
+            finish(false);
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const openTime = () => {
@@ -169,6 +189,17 @@ export function MeetingCard({ circle }: { circle: Circle }) {
       ) : null}
       {meeting !== null && now <= meeting.meetAt + MEETING.etaUntilMs ? (
         <MyWay circle={circle} meetAt={meeting.meetAt} />
+      ) : null}
+      {admin && !event && placeGoes !== undefined ? (
+        <Toggle
+          testID="meeting-keep-place"
+          label={t('meeting.keepPlace')}
+          description={t('meeting.keepPlaceHint')}
+          value={!placeGoes}
+          onChange={(keep) => {
+            void keepMeetingPlace(circle.id, keep);
+          }}
+        />
       ) : null}
       {admin && !event && plan?.kind === 'plan' ? (
         <Button

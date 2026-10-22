@@ -1,3 +1,4 @@
+import { randomUuid } from '@bargu/crypto';
 import { PLACE_NAME_MAX } from '@bargu/schemas';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Trash2, X } from 'lucide-react-native';
@@ -14,6 +15,7 @@ import { PlaceCircle, useEditorView } from '@/features/places/place-editor';
 import { DEFAULT_RADIUS, PLACE_RADII } from '@/features/places/place-model';
 import { usePlaces } from '@/features/places/places';
 import { places } from '@/features/places/places-session';
+import { useMeetingPlaceDraft } from '@/features/plan/meeting-place';
 import { radius, space, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
 import { Button } from '@/ui/button';
@@ -38,7 +40,13 @@ export default function PlaceEditor() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { circleId, id } = useLocalSearchParams<{ circleId: string; id?: string }>();
+  // `forMeeting`: opened from "start a meeting"; a new place saved here may go with that meeting.
+  const { circleId, id, forMeeting } = useLocalSearchParams<{
+    circleId: string;
+    id?: string;
+    forMeeting?: string;
+  }>();
+  const [newId] = useState(randomUuid);
   const existing = usePlaces((state) => (id === undefined ? undefined : state[id]));
   const myFix = useMyFix((state) => state.fix);
   const mutes = useMutes();
@@ -65,7 +73,7 @@ export default function PlaceEditor() {
     if (!valid || saving) return;
     setSaving(true);
     const result = await places.save(circleId, {
-      ...(existing === undefined ? {} : { id: existing.id }),
+      id: existing?.id ?? newId,
       name: trimmed,
       emoji,
       lat: center[1],
@@ -74,6 +82,9 @@ export default function PlaceEditor() {
     });
     setSaving(false);
     if (result === 'saved') {
+      if (existing === undefined && forMeeting === '1') {
+        useMeetingPlaceDraft.setState({ circleId, placeId: newId }, true);
+      }
       feedback('success');
       toast.success(t('places.saved'));
       router.back();

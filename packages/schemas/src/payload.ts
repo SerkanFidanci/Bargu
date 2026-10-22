@@ -170,6 +170,12 @@ export const planPayloadSchema = z.object({
    * or end it. Never in an event's plan, which older apps read strictly.
    */
   by: z.uuid().optional(),
+  /**
+   * The place was added for this meeting outside an event (docs/ADR/0026 Ek 1): true, it goes
+   * with the meeting; false, its starter keeps it. Missing: a place the circle had already, which
+   * always stays. Older apps read plans loosely and drop it (they keep the place).
+   */
+  placeGoes: z.boolean().optional(),
   ts: timestamp,
 });
 export type PlanPayload = z.infer<typeof planPayloadSchema>;
