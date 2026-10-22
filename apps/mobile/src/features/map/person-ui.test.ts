@@ -78,6 +78,33 @@ describe('place names from the map', () => {
     expect(townName(features.slice(0, 1), { lng: 29.012, lat: 41.051 }, 'tr')).toBeNull();
   });
 
+  it('never names a far city for a small town the map has not drawn yet (Bozüyük, not İstanbul)', () => {
+    const bozuyuk = { lng: 30.037, lat: 39.907 };
+    const istanbul = {
+      geometry: point(28.98, 41.01),
+      properties: { kind: 'locality', name: 'İstanbul' },
+    };
+    const town = {
+      geometry: point(30.04, 39.91),
+      properties: { kind: 'locality', name: 'Bozüyük' },
+    };
+    const district = {
+      geometry: point(30.0, 40.15),
+      properties: { kind: 'locality', name: 'Bilecik' },
+    };
+    expect(townName([istanbul, town], bozuyuk, 'tr')).toBe('Bozüyük');
+    // Zoomed out, only the big cities are drawn: no name rather than a wrong one.
+    expect(townName([istanbul], bozuyuk, 'tr')).toBeNull();
+    expect(townName([district, istanbul], bozuyuk, 'tr')).toBeNull();
+    // A neighbourhood only from close by; the town part keeps its own range.
+    const farArea = {
+      geometry: point(30.08, 39.93),
+      properties: { kind: 'neighbourhood', name: 'Uzak' },
+    };
+    expect(placeName([farArea, town], bozuyuk, 'tr')).toBe('Bozüyük');
+    expect(placeName([farArea, istanbul], bozuyuk, 'tr')).toBeNull();
+  });
+
   it('shows a town only for the square it was found in (QA 24 B-3)', () => {
     const found = { cell: '29.01:41.05', name: 'Beşiktaş' };
     expect(townIn(found, '29.01:41.05')).toBe('Beşiktaş');

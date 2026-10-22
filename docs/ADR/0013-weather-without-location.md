@@ -39,3 +39,12 @@ bizim sunucumuza göndermek kurallarımıza aykırı (BARGU_PLAN §1, §6).
   gerekir. Veri CC BY 4.0: atıf "Ben" panelindeki harita verisi satırında.
 - Sunucu, telefonun hava dosyasını ne zaman indirdiğini görür (bağlantı zamanı kadar bilgi;
   içerik herkes için aynı).
+
+## Ek (2026-10-22): yer adı en çok 15 km öteden
+
+Hava kartının şehir adı ve kişi kartının yer adı, telefonda haritanın o an çizdiği etiketlerden
+gelir; ağa sorulmaz. Sahip Bozüyük'teyken kart "İstanbul" dedi. Sebep: harita uzaktayken küçük
+ilçelerin etiketi çizilmez ve en yakın çizilmiş etiket yüzlerce kilometre ötedeki büyük bir şehir
+olabilir. Artık bir etiket yalnız yakınsa kullanılır: yerleşim yeri (ilçe, kasaba) en çok 15 km,
+mahalle ya da semt en çok 3 km. Daha uzaktaysa ad gösterilmez; yanlış ad yerine adsız kart.
+Testte Bozüyük'ün yanında uzak "İstanbul" ve 27 km'deki "Bilecik" seçilmez.

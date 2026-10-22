@@ -7,6 +7,13 @@ import { distanceBetween, type GlidePoint } from './glide';
 export const PLACE_LAYERS = ['places_subplace', 'places_locality'];
 const PLACE_KINDS = { area: ['neighbourhood', 'macrohood'], town: ['locality'] } as const;
 
+/**
+ * How far a label may be from the point it names (docs/ADR/0013). Further out the map has not
+ * drawn the nearby small towns yet, and the nearest label drawn can be a city hundreds of
+ * kilometres away: the owner in Bozüyük saw "İstanbul".
+ */
+const NAME_RANGE_M = { area: 3_000, town: 15_000 } as const;
+
 /** A feature as MapLibre returns it from a rendered-features query (only what is read here). */
 export interface PlaceFeature {
   geometry: { type: string; coordinates?: unknown };
@@ -41,22 +48,10 @@ export function placeName(
   at: GlidePoint,
   language: string,
 ): string | null {
-  // Native queries return GeoJSON without the layer: the basemap's `kind` tells them apart.
-  const nearest = (kinds: readonly string[]) => {
-    let best: { name: string; distance: number } | null = null;
-    for (const feature of features) {
-      if (!kinds.includes(String(feature.properties?.kind))) continue;
-      const point = pointOf(feature);
-      const name = nameOf(feature.properties, language);
-      if (point === null || name === null) continue;
-      const distance = distanceBetween(at, point);
-      if (best === null || distance < best.distance) best = { name, distance };
-    }
-    return best?.name ?? null;
-  };
-  const parts = [nearest(PLACE_KINDS.area), nearest(PLACE_KINDS.town)].filter(
-    (part, index, all): part is string => part !== null && all.indexOf(part) === index,
-  );
+  const parts = [
+    nearest(features, at, language, PLACE_KINDS.area, NAME_RANGE_M.area),
+    nearest(features, at, language, PLACE_KINDS.town, NAME_RANGE_M.town),
+  ].filter((part, index, all): part is string => part !== null && all.indexOf(part) === index);
   return parts.length === 0 ? null : parts.join(', ');
 }
 
@@ -70,14 +65,26 @@ export function townName(
   at: GlidePoint,
   language: string,
 ): string | null {
+  return nearest(features, at, language, PLACE_KINDS.town, NAME_RANGE_M.town);
+}
+
+/** The name of the nearest label of these kinds within `range` metres of the point, if any. */
+function nearest(
+  features: readonly PlaceFeature[],
+  at: GlidePoint,
+  language: string,
+  kinds: readonly string[],
+  range: number,
+): string | null {
+  // Native queries return GeoJSON without the layer: the basemap's `kind` tells them apart.
   let best: { name: string; distance: number } | null = null;
   for (const feature of features) {
-    if (!PLACE_KINDS.town.includes(String(feature.properties?.kind) as 'locality')) continue;
+    if (!kinds.includes(String(feature.properties?.kind))) continue;
     const point = pointOf(feature);
     const name = nameOf(feature.properties, language);
     if (point === null || name === null) continue;
     const distance = distanceBetween(at, point);
-    if (best === null || distance < best.distance) best = { name, distance };
+    if (distance <= range && (best === null || distance < best.distance)) best = { name, distance };
   }
   return best?.name ?? null;
 }
