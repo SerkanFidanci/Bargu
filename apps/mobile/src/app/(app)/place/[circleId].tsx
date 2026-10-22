@@ -125,6 +125,7 @@ export default function PlaceEditor() {
     >
       <View style={styles.map}>
         <BarguMap
+          overlay
           insets={{}}
           focus={start}
           focusZoom={startZoom}

@@ -177,7 +177,7 @@ export default function HistoryScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="history-screen">
       <View style={styles.map}>
-        <BarguMap ref={map} insets={{ top: insets.top }}>
+        <BarguMap ref={map} overlay insets={{ top: insets.top }}>
           <HistoryLayer points={points} timeline={timeline} />
         </BarguMap>
         <View style={[styles.close, { top: insets.top + space.sm }]}>

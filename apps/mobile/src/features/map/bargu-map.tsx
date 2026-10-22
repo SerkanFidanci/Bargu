@@ -34,6 +34,13 @@ export interface BarguMapProps {
   onSettle?: (view: { center: LngLat; zoom: number }) => void;
   /** Zoom of the first focus (a street by default). */
   focusZoom?: number;
+  /**
+   * A map on a screen that slides in over another one (the place editor, a history): drawn in a
+   * TextureView on Android, which moves with the screen's transition. The default SurfaceView
+   * stays put while the screen slides and the picture looks torn (the owner, 2026-10-22). The home
+   * map keeps the faster SurfaceView.
+   */
+  overlay?: boolean;
 }
 
 /** What the screens may ask of the map. */
@@ -67,6 +74,7 @@ export function BarguMap({
   onViewChange,
   onSettle,
   focusZoom = FOCUS_ZOOM,
+  overlay = false,
 }: BarguMapProps) {
   const { t } = useTranslation();
   const scheme = useMapScheme();
@@ -139,6 +147,7 @@ export function BarguMap({
     <Map
       ref={map}
       testID="map"
+      {...(overlay ? { androidView: 'texture' as const } : {})}
       {...(onPress === undefined
         ? {}
         : {
