@@ -280,15 +280,23 @@ ya da etkinlik bitti) telefondaki o kişiye ait her şey silinir: "çemberden ç
 ve veri azaltma (KVKK) budur. Silinenler: fotoğraf ve görünüm, son konumlar, durum, "Neden eski?"
 nedeni, "Güvendeyim" yerleri ve hangi mesajların gösterildiği hafızası, kişinin cihazlarının
 gönderici ve geçmiş anahtarları, o cihazların tekrar (replay) penceresi, anahtar bekleyen mesajlar,
-bellekteki doğrulanmış cihaz paketleri, dürtme / "geç kalıyorum" / "Geldim" kayıtları, "yeni
-izleyici" hafızası ve o kişi için konulan sessize alma ayarları. Ortak çemberlerden biri gidip en
-az biri kalıyorsa **hiçbir şey silinmez**.
+bellekteki doğrulanmış cihaz paketleri, dürtme / "geç kalıyorum" / "Geldim" kayıtları ve "yeni
+izleyici" hafızası. Ortak çemberlerden biri gidip en az biri kalıyorsa **hiçbir şey silinmez**.
 
-**Tek istisna güven kaydıdır** (`identity:<userId>`: kimlik anahtarı, yüz yüze karşılaştırıldı mı,
-değişti mi): kişi adı ve içerik yok, yalnız açık anahtar parmak izi. Bilerek tutulur: aynı kişiyle
-yeniden karşılaşıldığında anahtar değişikliğini yakalamak için. Silinseydi, değiştirilmiş bir anahtar
-sessizce "ilk kullanım" sayılırdı (§3). Çıkış yapınca ve hesap silinince bu kayıt da gider: kasanın
-tamamı silinir (testle korunur: `features/live/session-wipe.test.ts`).
+**İki istisna vardır; ikisi de bilerek tutulur ve çıkış yapınca ya da hesap silinince kasanın
+tamamıyla birlikte gider** (testle korunur: `features/live/session-wipe.test.ts`):
+
+1. **Güven kaydı** (`identity:<userId>`: kimlik anahtarı, yüz yüze karşılaştırıldı mı, değişti mi):
+   kişi adı ve içerik yok, yalnız açık anahtar parmak izi. Aynı kişiyle yeniden karşılaşıldığında
+   anahtar değişikliğini yakalamak için tutulur. Silinseydi, değiştirilmiş bir anahtar sessizce
+   "ilk kullanım" sayılırdı (§3).
+2. **Kullanıcının sessize alma ayarı** (`mutes:v1`, kişi başına `userId` ve iki bayrak: yer
+   bildirimleri, dürtmeler): kişi adı ve içerik yok. Sessize almak kullanıcının kendi koruma
+   seçimidir; kendisini rahatsız eden biri onu yeniden davet ederse önceki sessize alma yine
+   geçerli olmalıdır, kaybolması bir güvenlik sorunu olurdu. Bildirim tercihleri ekranı böyle
+   bir kaydı "Ortak çemberiniz olmayan bir kişi" olarak listeler; kullanıcı "Sesi aç" ile sesi
+   geri verir ya da "Listeden kaldır" ile kaydı siler. iPhone'da bildirim eklentisinin kopyası da
+   çıkışta silinir.
 
 Nasıl çalışır: `circle-sync`, tam çember listesi bir kez yüklendikten sonra çember listesi her
 değiştiğinde, ortak çemberi olan kişileri (ve cihazlarını) kasadaki `people:v1` kaydıyla karşılaştırır;

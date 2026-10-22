@@ -43,12 +43,17 @@ jest.mock('expo-local-authentication', () => ({
   isEnrolledAsync: jest.fn(),
   authenticateAsync: jest.fn(),
 }));
+jest.mock('../notifications/extension-share', () => ({
+  shareMutesWithExtension: () => Promise.resolve(),
+}));
 jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
 }));
 
 import { deleteAccount } from '../account/account-api';
 import { api, bootstrapAuth, requestCode, signOut, useAuth, verifyCode } from '../auth/auth-store';
+import { updateMutes } from '../notifications/mute-session';
+import { useMutes, withPersonMuted } from '../notifications/mutes';
 import { destroyVault, isVaultOpen, openVault, vault } from '../storage/vault';
 import { keys } from './live-session';
 
@@ -106,9 +111,10 @@ beforeEach(async () => {
   useAuth.setState({ status: 'loading', device: null, userId: null });
 });
 
-// The trust records (a public identity key per person met) are in the vault, and they stay there
-// when a person is forgotten (features/location/forget-person.ts). They go with the account: the
-// vault is wiped whole when a session ends, however it ends.
+// The trust records (a public identity key per person met) and the user's mutes (a user id and two
+// flags) are in the vault, and they stay there when a person is forgotten (features/location/
+// forget-person.ts). They go with the account: the vault is wiped whole when a session ends,
+// however it ends.
 describe('what a session leaves behind on the phone', () => {
   const ends: [string, () => Promise<void>][] = [
     ['sign-out', () => signOut()],
@@ -159,20 +165,28 @@ describe('what a session leaves behind on the phone', () => {
           },
         ],
       };
+      const bobId = circle.members[0]?.userId ?? '';
       store.observe(circle);
-      store.rememberPeople({ [circle.members[0]?.userId ?? '']: [bob.deviceId] });
+      store.rememberPeople({ [bobId]: [bob.deviceId] });
+      // The user muted him, and later no circle is shared with him: that mute is kept (the user's
+      // own protection), but only until the session ends.
+      updateMutes((current) => withPersonMuted(current, bobId, { pokes: true }));
       const trusted = vault().keys();
       expect(trusted.some((key) => key.startsWith('identity:'))).toBe(true);
+      expect(trusted).toContain('mutes:v1');
+      expect(useMutes.getState().people[bobId]).toEqual({ places: false, pokes: true });
       expect(mockSecure.has('bargu.vault.v1')).toBe(true);
 
       await end();
 
       // The vault is shut, its key is deleted, and the file itself holds nothing: opening it again
-      // (with a new key) finds no trust record and no record of who was met.
+      // (with a new key) finds no trust record, no mute and no record of who was met.
       expect(isVaultOpen()).toBe(false);
       expect(mockSecure.has('bargu.vault.v1')).toBe(false);
       expect([...(mockFiles.get('bargu-vault') ?? new Map()).keys()]).toEqual([]);
-      expect(trusted.length).toBeGreaterThan(1);
+      expect(trusted.length).toBeGreaterThan(2);
+      // Nor does the next account on this phone find it in memory.
+      expect(useMutes.getState().people).toEqual({});
       await openVault();
       expect(vault().keys()).toEqual([]);
     },
