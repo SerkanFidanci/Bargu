@@ -30,14 +30,19 @@ const PUSH_KEYCHAIN_GROUP = 'app.bargu.push';
 const BRAND_VIOLET = '#5B34F2';
 
 /**
- * Android App Links (docs/ADR/0009 Ek, 2026-10-22): with the invite host set for this build
- * profile (eas.json EXPO_PUBLIC_INVITE_HOST: the staging host in development and preview, none in
- * production until the permanent domain exists), https://<host>/i/* and /g/* open the app. Android
- * verifies the claim against https://<host>/.well-known/assetlinks.json (apps/api, which names the
- * package and this build's signing certificate); until it verifies, those links open in the
- * browser, on the invite page. The same value is what the app lets through
- * (src/features/links/incoming-link.ts), so a wrong one fails the build here. Same rule as the
- * app's src/config/invite-host.ts and the server's INVITE_HOST.
+ * Android App Links (docs/ADR/0009 Ek and Ek 2, 2026-10-22): with the invite host set for this
+ * build profile (eas.json EXPO_PUBLIC_INVITE_HOST: the staging host in development and preview,
+ * none in production until the permanent domain exists), https://<host>/i and /g open the app. That
+ * is the form the app shares, https://<host>/i#<token>: Android matches the path and ignores the
+ * fragment, which stays in the intent's data (the app reads it, src/features/links/incoming-link.ts).
+ * The earlier form with the token in the path, /i/<token> and /g/<token>, opens it too. The
+ * intent filter names each path exactly (`path`) and the old form by its prefix (`pathPrefix`
+ * "/i/"); a bare prefix "/i" would also take /invite/card.png and anything else starting with i.
+ * Android verifies the claim against https://<host>/.well-known/assetlinks.json (apps/api, which
+ * names the package and this build's signing certificate); until it verifies, those links open in
+ * the browser, on the invite page. The same value is what the app lets through, so a wrong one
+ * fails the build here. Same rule as the app's src/config/invite-host.ts and the server's
+ * INVITE_HOST.
  */
 const INVITE_HOST = process.env.EXPO_PUBLIC_INVITE_HOST;
 const isHostLabel = (label: string): boolean =>
@@ -45,7 +50,7 @@ const isHostLabel = (label: string): boolean =>
   /^[a-z0-9-]+$/.test(label) &&
   !label.startsWith('-') &&
   !label.endsWith('-');
-function inviteIntentFilters(
+export function inviteIntentFilters(
   host: string | undefined,
 ): NonNullable<AndroidConfig['intentFilters']> {
   if (host === undefined || host === '') return [];
@@ -61,6 +66,10 @@ function inviteIntentFilters(
       action: 'VIEW',
       autoVerify: true,
       data: [
+        // What the app shares: https://<host>/i#<token>, /g#<token> (the fragment is no path).
+        { scheme: 'https', host, path: '/i' },
+        { scheme: 'https', host, path: '/g' },
+        // The earlier form: https://<host>/i/<token>, /g/<token>.
         { scheme: 'https', host, pathPrefix: '/i/' },
         { scheme: 'https', host, pathPrefix: '/g/' },
       ],

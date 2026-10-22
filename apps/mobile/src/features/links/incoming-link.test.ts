@@ -233,3 +233,156 @@ describe("https links of the invite page's own host (Android App Links, docs/ADR
     );
   });
 });
+
+describe('https links with the token in the fragment (what the app shares, docs/ADR/0009 Ek 2)', () => {
+  it('open the screen of /i and /g, the token read from after the #', () => {
+    expect(incomingPath(link(`/i#${TOKEN}`), HOST)).toBe(`/i/${TOKEN}`);
+    expect(incomingPath(link(`/g#${TOKEN}`), HOST)).toBe(`/g/${TOKEN}`);
+    // Scheme and host are case-insensitive; the token is not touched.
+    expect(incomingPath(`HTTPS://${HOST.toUpperCase()}/i#${TOKEN}`, HOST)).toBe(`/i/${TOKEN}`);
+    // The three forms, one screen.
+    for (const form of [`bargu://i/${TOKEN}`, link(`/i/${TOKEN}`), link(`/i#${TOKEN}`)]) {
+      expect(incomingPath(form, HOST)).toBe(`/i/${TOKEN}`);
+    }
+  });
+
+  it('send a second #, an empty fragment, or one that is no token to the map', () => {
+    const fragments = [
+      `${TOKEN}#`,
+      `#${TOKEN}`,
+      `${TOKEN}#${TOKEN}`,
+      `${TOKEN}#x`,
+      '',
+      '#',
+      ' ',
+      TOKEN.slice(1),
+      `${TOKEN}A`,
+      `${TOKEN.slice(0, 42)}=`,
+      `${TOKEN.slice(0, 42)}+`,
+      `${TOKEN.slice(0, 42)}/`,
+      `${TOKEN.slice(0, 42)}.`,
+      `${TOKEN.slice(0, 42)}:`,
+      `${TOKEN.slice(0, 42)}@`,
+      `${TOKEN.slice(0, 42)}\0`,
+      `${TOKEN.slice(1)}${chars(0x0430)}`,
+      `${TOKEN.slice(1)}${chars(0xff21)}`,
+      `${TOKEN.slice(1)}${chars(0x200b)}`,
+      'A'.repeat(1000),
+      TOKEN.repeat(10),
+    ];
+    for (const fragment of fragments) {
+      expect(incomingPath(link(`/i#${fragment}`), HOST)).toBe(HOME);
+      expect(incomingPath(link(`/g#${fragment}`), HOST)).toBe(HOME);
+    }
+    // A very long fragment is cut off by the length limit before anything is parsed.
+    const started = Date.now();
+    expect(incomingPath(link(`/i#${'A'.repeat(100_000)}`), HOST)).toBe(HOME);
+    expect(incomingPath(link(`/i#${'#'.repeat(100_000)}`), HOST)).toBe(HOME);
+    expect(Date.now() - started).toBeLessThan(50);
+  });
+
+  it('send an encoded # (%23) or any percent-encoding to the map', () => {
+    for (const hostile of [
+      link(`/i%23${TOKEN}`),
+      link(`/i#%23${TOKEN.slice(3)}`),
+      link(`/i#${TOKEN.slice(0, 40)}%23`),
+      link(`/i/%23${TOKEN}`),
+      link(`/i%2523${TOKEN}`),
+      `https://${HOST}%23/i#${TOKEN}`,
+      `https://${HOST}/i#%41${TOKEN.slice(1)}`,
+      `https://${HOST}/%69#${TOKEN}`,
+    ]) {
+      expect(incomingPath(hostile, HOST)).toBe(HOME);
+    }
+  });
+
+  it('send a fragment together with a query, before or after it, to the map', () => {
+    for (const hostile of [
+      link(`/i?x=1#${TOKEN}`),
+      link(`/i#${TOKEN}?x=1`),
+      link(`/i?#${TOKEN}`),
+      link(`/i#?${TOKEN.slice(1)}`),
+      link(`/i#${TOKEN}?`),
+      link(`/g?next=/i#${TOKEN}`),
+      link(`/i/${TOKEN}?x#${TOKEN}`),
+    ]) {
+      expect(incomingPath(hostile, HOST)).toBe(HOME);
+    }
+  });
+
+  it('send a fragment on any other host, scheme or port to the map', () => {
+    for (const hostile of [
+      `https://evil.example/i#${TOKEN}`,
+      `https://${HOST}.evil.example/i#${TOKEN}`,
+      `https://evil.example.${HOST}/i#${TOKEN}`,
+      `https://x${HOST}/i#${TOKEN}`,
+      `https://${HOST}x/i#${TOKEN}`,
+      `https://www.${HOST}/i#${TOKEN}`,
+      `https://${HOST}./i#${TOKEN}`,
+      `https://${HOST}@evil.example/i#${TOKEN}`,
+      `https://evil.example@${HOST}/i#${TOKEN}`,
+      `https://user:pass@${HOST}/i#${TOKEN}`,
+      `https://${HOST}:443/i#${TOKEN}`,
+      `https://${HOST}:8443/g#${TOKEN}`,
+      `https://127.0.0.1/i#${TOKEN}`,
+      `https://[::1]/i#${TOKEN}`,
+      `http://${HOST}/i#${TOKEN}`,
+      `ftp://${HOST}/i#${TOKEN}`,
+      `intent://${HOST}/i#${TOKEN}`,
+      `//${HOST}/i#${TOKEN}`,
+      `https:/${HOST}/i#${TOKEN}`,
+      `https://#${TOKEN}`,
+      `https://${HOST}#${TOKEN}`,
+    ]) {
+      expect(incomingPath(hostile, HOST)).toBe(HOME);
+    }
+    // And with no invite host in this build, none opens.
+    expect(incomingPath(link(`/i#${TOKEN}`), undefined)).toBe(HOME);
+  });
+
+  it('send a fragment after any other path to the map', () => {
+    for (const path of [
+      '/',
+      '',
+      '/I',
+      '/G',
+      '/ii',
+      '/gg',
+      '/i/',
+      '/g/',
+      '/i//',
+      `/i/${TOKEN}`,
+      `/g/${TOKEN}`,
+      '/i/x',
+      '/i/..',
+      '/./i',
+      '/../i',
+      '//i',
+      '/x/i',
+      '/hesap',
+      '/invite/card.png',
+      '/security',
+      '/_dev/billing',
+      '/i.html',
+      '/i;x',
+    ]) {
+      expect(incomingPath(link(`${path}#${TOKEN}`), HOST)).toBe(HOME);
+    }
+  });
+
+  it('never read a fragment from bargu:// or a bare path', () => {
+    for (const hostile of [
+      `bargu://i#${TOKEN}`,
+      `bargu://g#${TOKEN}`,
+      `bargu://i/#${TOKEN}`,
+      `bargu://i/${TOKEN}#${TOKEN}`,
+      `bargu://#${TOKEN}`,
+      `/i#${TOKEN}`,
+      `i#${TOKEN}`,
+      `#${TOKEN}`,
+      `/#${TOKEN}`,
+    ]) {
+      expect(incomingPath(hostile, HOST)).toBe(HOME);
+    }
+  });
+});
