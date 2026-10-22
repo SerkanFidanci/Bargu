@@ -28,7 +28,7 @@ export interface ApiClientOptions {
  * One attempt may take this long. A request that started on a connection that died while the app
  * was in the background would otherwise wait for the system's own timeout (QA Faz 8: a 15 s accept).
  */
-export const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 15_000;
 /**
  * A large upload on a weak network (a profile photo) gets this long instead (QA Faz 9 slice 1,
  * B5): its bytes take time to go, which is not a dead connection.

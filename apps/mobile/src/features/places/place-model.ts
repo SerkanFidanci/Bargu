@@ -34,7 +34,7 @@ export interface Presence {
  * Leaving needs a margin beyond the circle, so a position wobbling on its edge does not announce
  * "arrived, left, arrived".
  */
-export function exitMargin(radius: number): number {
+function exitMargin(radius: number): number {
   return Math.max(30, radius * 0.2);
 }
 

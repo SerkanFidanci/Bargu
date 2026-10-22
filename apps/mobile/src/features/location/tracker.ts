@@ -11,7 +11,7 @@ export const LOCATION_TASK = 'bargu.location';
  * the exact location, every 30 s from Wi-Fi and cell towers when only coarse cells are shared. No
  * distance filter: a still phone still reports, so the 5-minute heartbeat goes out (send.ts).
  */
-export const TRACKING = {
+const TRACKING = {
   gpsIntervalMs: 5_000,
   coarseIntervalMs: 30_000,
   liveIntervalMs: 1_000,

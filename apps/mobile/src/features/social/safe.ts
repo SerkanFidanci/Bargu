@@ -42,7 +42,7 @@ export const SAFE_FRESH_MS = 24 * 60 * 60_000;
  */
 export const SAFE_AHEAD_MS = 5 * 60_000;
 /** The words carry the time once the message is older than this (it waited for a connection). */
-export const SAFE_LATE_MS = 5 * 60_000;
+const SAFE_LATE_MS = 5 * 60_000;
 /**
  * At most this many messages of one sender in one circle are shown in a rolling hour; the rest are
  * folded into one quiet line (QA-32 F-1). The server allows six an hour on its own route, but it
@@ -60,7 +60,7 @@ const FATES_KEEP = 50;
 /** Waiting messages, one key each: `safe:out:{id}`. */
 const OUT_PREFIX = 'safe:out:';
 /** The circles ticked last time. */
-export const SAFE_CHOICE_KEY = 'safe:choice:v1';
+const SAFE_CHOICE_KEY = 'safe:choice:v1';
 /** The messages shown, newest last, each as `circle:sender:id`. */
 export const SAFE_SEEN_KEY = 'safe:seen:v1';
 /** When messages were shown or folded, per `circle:sender`, for the last hour. */
@@ -145,7 +145,7 @@ export function loadChoice(store: KeyValueStore): string[] | null {
   return parsed.success ? parsed.data : null;
 }
 
-export function saveChoice(store: KeyValueStore, circleIds: readonly string[]): void {
+function saveChoice(store: KeyValueStore, circleIds: readonly string[]): void {
   store.set(SAFE_CHOICE_KEY, JSON.stringify(circleIds));
 }
 

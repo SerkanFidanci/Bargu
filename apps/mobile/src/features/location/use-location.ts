@@ -22,7 +22,7 @@ import {
 } from './tracker';
 
 /** "I am looking": renewed this often while the map is on screen (BARGU_PLAN §3.3 live mode). */
-export const WATCH_RENEW_MS = 60_000;
+const WATCH_RENEW_MS = 60_000;
 
 function useAppActive(): boolean {
   const [active, setActive] = useState(AppState.currentState === 'active');

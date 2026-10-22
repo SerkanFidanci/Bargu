@@ -20,7 +20,7 @@ export const useEffectChoice = create<{ level: EffectLevel }>(() => ({ level: 'f
  * "full" plays as "reduced" until it no longer does; the choice itself stays (effect-prefs.ts).
  */
 export const useDeviceSaving = create<{ saving: boolean }>(() => ({ saving: false }));
-export const SAVING_BATTERY = 0.2;
+const SAVING_BATTERY = 0.2;
 
 export function savingFrom(power: {
   lowPowerMode: boolean;

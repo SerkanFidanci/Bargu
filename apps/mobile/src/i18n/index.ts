@@ -5,7 +5,7 @@ import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
 import tr from './locales/tr.json';
 
-export const SUPPORTED_LANGUAGES = ['tr', 'en'] as const;
+const SUPPORTED_LANGUAGES = ['tr', 'en'] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 export const DEFAULT_LANGUAGE: Language = 'tr';
 

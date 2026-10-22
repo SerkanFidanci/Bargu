@@ -28,8 +28,8 @@ const contactsSchema = z
   .strict();
 export type PushContacts = z.infer<typeof contactsSchema>;
 
-export const CONTACTS_KEY = 'push:contacts:v1';
-export const EMPTY_CONTACTS: PushContacts = { devices: {}, circles: {}, recipients: {} };
+const CONTACTS_KEY = 'push:contacts:v1';
+const EMPTY_CONTACTS: PushContacts = { devices: {}, circles: {}, recipients: {} };
 
 /** The contacts for the circles as they are now (trusted, active members of active circles). */
 export function contactsOf(

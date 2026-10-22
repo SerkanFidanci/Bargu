@@ -24,8 +24,8 @@ export interface LookChoice {
 
 export const PLAIN_CHOICE: LookChoice = { ring: null, frame: null };
 
-export const RING_PATTERNS: readonly RingPattern[] = COSMETIC_PACKS.rings;
-export const FRAME_STYLES: readonly FrameStyle[] = COSMETIC_PACKS.frames;
+const RING_PATTERNS: readonly RingPattern[] = COSMETIC_PACKS.rings;
+const FRAME_STYLES: readonly FrameStyle[] = COSMETIC_PACKS.frames;
 
 export const isRingPattern = (id: string | null): id is RingPattern =>
   id !== null && (RING_PATTERNS as readonly string[]).includes(id);

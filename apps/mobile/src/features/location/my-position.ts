@@ -18,7 +18,7 @@ let first: LngLat | null = null;
  * receives it is not told of a "new" place every second); null before the first position and
  * again after sign-out.
  */
-export function firstPosition(state: { fix: Fix | null }): LngLat | null {
+function firstPosition(state: { fix: Fix | null }): LngLat | null {
   if (state.fix === null) {
     first = null;
     return null;
@@ -32,7 +32,7 @@ export function useFirstPosition(): LngLat | null {
 }
 
 /** The square (about a kilometre) a position is in, as the weather card's town lookup keys it. */
-export function positionCell(fix: Pick<Fix, 'lng' | 'lat'>): string {
+function positionCell(fix: Pick<Fix, 'lng' | 'lat'>): string {
   return `${fix.lng.toFixed(2)}:${fix.lat.toFixed(2)}`;
 }
 

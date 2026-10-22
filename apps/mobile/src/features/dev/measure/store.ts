@@ -20,7 +20,7 @@ export interface Series {
   gaps: readonly number[];
 }
 
-export interface FriendMeasures {
+interface FriendMeasures {
   /** Between two of their locations, by when they were measured. */
   measured: Series;
   /** How old their latest location was when it got here (includes the two clocks' difference). */
@@ -189,15 +189,12 @@ export function loadBackgroundLive(store: KeyValueStore): BackgroundLiveCounts {
   }
 }
 
-export function saveBackgroundLive(store: KeyValueStore, counts: BackgroundLiveCounts): void {
+function saveBackgroundLive(store: KeyValueStore, counts: BackgroundLiveCounts): void {
   store.set(BACKGROUND_LIVE_KEY, JSON.stringify(counts));
 }
 
 /** Two sets of counters as one. */
-export function addBackgroundLive(
-  a: BackgroundLiveCounts,
-  b: BackgroundLiveCounts,
-): BackgroundLiveCounts {
+function addBackgroundLive(a: BackgroundLiveCounts, b: BackgroundLiveCounts): BackgroundLiveCounts {
   return {
     notices: a.notices + b.notices,
     opened: a.opened + b.opened,

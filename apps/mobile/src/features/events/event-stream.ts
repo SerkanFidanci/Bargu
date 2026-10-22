@@ -64,7 +64,7 @@ export interface EventStreamDeps {
 /** Where the last handled event id is kept, so a restart resumes instead of reloading. */
 export const LAST_EVENT_KEY = 'events:last';
 /** Waits between attempts after a refusal or a failed catch-up, growing to the last one. */
-export const RETRY_DELAYS_MS = [2_000, 5_000, 15_000, 30_000, 60_000] as const;
+const RETRY_DELAYS_MS = [2_000, 5_000, 15_000, 30_000, 60_000] as const;
 /** A wake-up right after a connection attempt leaves that attempt alone (no needless restart). */
 export const WAKE_GRACE_MS = 5_000;
 

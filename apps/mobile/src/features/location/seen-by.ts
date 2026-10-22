@@ -91,7 +91,7 @@ export function forgetMember(store: KeyValueStore, userId: string): void {
 }
 
 /** Someone new seeing this phone: the live location, both, or the history alone. */
-export type ViewerKind = 'live' | 'both' | 'history';
+type ViewerKind = 'live' | 'both' | 'history';
 
 /** One notice for everyone new in one circle seeing the same thing. */
 export interface ViewerNotice {

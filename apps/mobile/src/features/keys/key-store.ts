@@ -24,7 +24,7 @@ import { verifiedBundle } from './bundle-cache';
  * The protocol accepts the current epoch and the two before it (PROTOCOL §5); older keys are
  * deleted and older distributions refused, so a server replaying old ones cannot bring them back.
  */
-export const RETAINED_EPOCHS = 2;
+const RETAINED_EPOCHS = 2;
 
 /**
  * History keys (docs/ADR/0019) of an epoch outlive its sender key by this long once the epoch is no

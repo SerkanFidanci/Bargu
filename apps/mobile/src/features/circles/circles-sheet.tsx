@@ -328,7 +328,7 @@ function GroupRow({ circle, onPress }: { circle: Circle; onPress: () => void }) 
 }
 
 /** Encryption state of a circle at a glance: ready, waiting for keys, or someone to verify. */
-export function KeyBadge({ circleId }: { circleId: string }) {
+function KeyBadge({ circleId }: { circleId: string }) {
   const { t } = useTranslation();
   const status = useCircleKeys((state) => state[circleId]);
   if (status === undefined) return null;

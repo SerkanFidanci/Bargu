@@ -44,7 +44,7 @@ export interface Signals {
   saver: boolean;
 }
 
-export const NO_SIGNALS: Signals = { permissionOff: false, servicesOff: false, saver: false };
+const NO_SIGNALS: Signals = { permissionOff: false, servicesOff: false, saver: false };
 
 /**
  * The reason, if any, most telling first: without the permission nothing else matters; with the

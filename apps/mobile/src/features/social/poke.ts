@@ -19,7 +19,7 @@ import { queryClient } from '../query-client';
 export const usePokes = create<Record<string, number>>(() => ({}));
 
 /** A poke older than this when it arrives (it waited for a key) is not shown any more. */
-export const POKE_FRESH_MS = 60_000;
+const POKE_FRESH_MS = 60_000;
 
 export type PokeResult = 'sent' | 'limited' | 'failed';
 

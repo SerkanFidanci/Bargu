@@ -65,7 +65,7 @@ export function speedShown(settings: SharingSettings): boolean {
 }
 
 /** Joining a circle is agreeing to share with it, at full precision, until changed. */
-export const DEFAULT_CIRCLE_SHARING: CircleSharing = {
+const DEFAULT_CIRCLE_SHARING: CircleSharing = {
   sharing: true,
   precision: 'exact',
   until: null,
@@ -73,7 +73,7 @@ export const DEFAULT_CIRCLE_SHARING: CircleSharing = {
 export const DEFAULT_SHARING: SharingSettings = { ghost: 'off', circles: {} };
 
 /** Kept on this phone only (encrypted vault): the server never learns these choices. */
-export const SHARING_KEY = 'sharing:v1';
+const SHARING_KEY = 'sharing:v1';
 
 export function loadSharing(store: KeyValueStore): SharingSettings {
   const raw = store.get(SHARING_KEY);

@@ -22,7 +22,7 @@ import { pushText } from './push-text';
 export { sealedOf };
 
 /** expo-notifications runs this for every data message, also when the app is not open. */
-export const PUSH_TASK = 'bargu-push';
+const PUSH_TASK = 'bargu-push';
 /** A notification older than this when it arrives (the phone was off) is not shown any more. */
 export const PUSH_FRESH_MS = 60 * 60_000;
 /**

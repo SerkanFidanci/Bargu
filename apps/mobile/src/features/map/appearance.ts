@@ -10,7 +10,7 @@ export const MAP_APPEARANCES = ['auto', 'light', 'dark'] as const;
 export type MapAppearance = (typeof MAP_APPEARANCES)[number];
 
 /** "Automatic" map (BARGU_PLAN §4.3: dark map at night): dark from 20:00 to 07:00 local time. */
-export const NIGHT = { fromHour: 20, untilHour: 7 } as const;
+const NIGHT = { fromHour: 20, untilHour: 7 } as const;
 
 export function isNight(date: Date): boolean {
   const hour = date.getHours();

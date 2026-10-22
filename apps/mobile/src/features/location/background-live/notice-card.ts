@@ -10,7 +10,7 @@ export function cardSeen(store: KeyValueStore): boolean {
   return store.get(KEY) === '1';
 }
 
-export function markCardSeen(store: KeyValueStore): void {
+function markCardSeen(store: KeyValueStore): void {
   store.set(KEY, '1');
 }
 

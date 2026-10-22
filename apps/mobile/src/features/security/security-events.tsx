@@ -67,7 +67,7 @@ export function SecurityEvents() {
   );
 }
 
-export function SecurityEventRow({ event }: { event: SecurityEvent }) {
+function SecurityEventRow({ event }: { event: SecurityEvent }) {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const Icon = ICONS[event.type];

@@ -76,7 +76,7 @@ export function meetingEnd(plan: Pick<PlanPayload, 'meetAt'>): number | null {
  * phone): the straight line times a detour factor, at a typical average speed for the way of
  * travelling, stops and traffic included.
  */
-export const TRAVEL = {
+const TRAVEL = {
   detour: 1.35,
   /** Metres per second: about 4.5, 14 and 23 km/h. */
   speeds: { walk: 1.25, bike: 4, vehicle: 6.5 },
@@ -275,7 +275,7 @@ export type Arrival =
   | { userId: string; state: 'unknown' };
 
 /** A location this old says nothing about the meeting any more. */
-export const ARRIVAL_FRESH_MS = 15 * 60_000;
+const ARRIVAL_FRESH_MS = 15 * 60_000;
 
 /**
  * "Kim ne zaman orada?": there (inside the place), coming (with the time their phone estimated

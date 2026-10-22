@@ -17,7 +17,7 @@ import { useMotion } from '@/theme/use-motion';
 import { PressableScale } from './pressable-scale';
 import { Text } from './text';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 const PALETTE: Record<
   ButtonVariant,

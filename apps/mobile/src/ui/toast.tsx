@@ -28,9 +28,9 @@ interface ToastState {
 }
 
 /** How long a toast stays when nobody taps it. */
-export const TOAST_VISIBLE_MS = 3500;
+const TOAST_VISIBLE_MS = 3500;
 /** A notice about other people (an invitation, someone joined) stays a little longer. */
-export const NOTICE_VISIBLE_MS = 5500;
+const NOTICE_VISIBLE_MS = 5500;
 
 let nextId = 1;
 

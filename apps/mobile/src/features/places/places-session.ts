@@ -68,7 +68,7 @@ const requested = () => again;
  * Fetches the places again, then (after a pause that differs per phone, so the members of a
  * circle do not all do it at once) seals the ones of an older epoch again under this phone's key.
  */
-export function syncPlaces(): Promise<void> {
+function syncPlaces(): Promise<void> {
   if (syncing !== null) {
     again = true;
     return syncing;

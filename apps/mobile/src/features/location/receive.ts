@@ -115,7 +115,7 @@ export interface ReceiverDeps {
  * (each is a signature check and a decryption in JavaScript), so a snapshot of dozens never stops
  * the map for longer than that.
  */
-export const SLICE = 5;
+const SLICE = 5;
 
 /**
  * A member who may be on this phone's map: active in a circle this phone is active in, one that

@@ -13,7 +13,7 @@ import type { PushContacts } from './push-contacts';
  * app and its extension share, readable after the first unlock, never synced. Off until the
  * Apple team id is configured (app.config.ts `extra.iosPushKeychainGroup`).
  */
-export const EXTENSION_SERVICE = 'bargu.push';
+const EXTENSION_SERVICE = 'bargu.push';
 export const EXTENSION_ITEMS = {
   device: 'device',
   contacts: 'contacts',

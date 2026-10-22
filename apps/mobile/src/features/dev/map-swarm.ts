@@ -16,7 +16,7 @@ export interface SwarmPerson {
 
 export const useSwarm = create<{ people: SwarmPerson[] }>(() => ({ people: [] }));
 
-export const SWARM_SIZE = 50;
+const SWARM_SIZE = 50;
 /** People spread over about this many metres around the centre. */
 const SPREAD_M = 1_500;
 /** Each fake phone "sends" every second (live mode), the worst case for the map. */

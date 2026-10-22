@@ -16,7 +16,7 @@ const mutesSchema = z
   .strict();
 export type Mutes = z.infer<typeof mutesSchema>;
 
-export const MUTES_KEY = 'mutes:v1';
+const MUTES_KEY = 'mutes:v1';
 export const NO_MUTES: Mutes = { people: {}, places: {} };
 
 export const useMutes = create<Mutes>(() => NO_MUTES);

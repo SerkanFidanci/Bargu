@@ -18,7 +18,7 @@ import { usePushState } from './push';
 import { askForPush } from './use-push';
 
 /** "Şimdi değil" hides the question this long (BARGU_PLAN K11: asked in context, not pressed). */
-export const PUSH_SNOOZE_MS = 7 * 24 * 3600 * 1000;
+const PUSH_SNOOZE_MS = 7 * 24 * 3600 * 1000;
 const SNOOZE_KEY = 'push:snooze:v1';
 
 function snoozedUntil(): number {

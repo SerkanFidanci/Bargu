@@ -33,7 +33,7 @@ import { type PhotoReturn, returnsFor, withCurrentDevices } from './photo-return
 type ProfilePayload = Extract<Payload, { kind: 'profile' }>;
 
 /** Profile photos by user id (decrypted on this phone only); <Avatar> reads them. */
-export const usePhotos = useAvatarPhotos;
+const usePhotos = useAvatarPhotos;
 
 /** Side of the square photo sent (px); small: it is an avatar. */
 const PHOTO_PX = 256;
@@ -250,7 +250,7 @@ export function forgetPhotoOf(userId: string): void {
 }
 
 /** Whether the user has a photo set (for the profile screen). */
-export function hasOwnPhoto(): boolean {
+function hasOwnPhoto(): boolean {
   return read(MINE_KEY, mineSchema.nullable(), null) !== null;
 }
 

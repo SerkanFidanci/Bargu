@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 import type { TransportFactory } from './event-stream';
 
 /** Path of the event socket on the API (apps/api events.gateway EVENTS_PATH). */
-export const EVENTS_PATH = '/v1/events';
+const EVENTS_PATH = '/v1/events';
 /**
  * The live messages the app listens to, each a name the server sends (LIVE_EVENTS in
  * packages/schemas, apps/api relay.service). Every name the server sends is either here or in

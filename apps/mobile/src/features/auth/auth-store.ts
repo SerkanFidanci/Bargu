@@ -22,7 +22,7 @@ import { createApiClient } from './api-client';
 import { createDeviceKeys, deleteDeviceKeys, loadDeviceKeys } from './device-key-store';
 import { createSecureSessionStore } from './session-store';
 
-export type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
+type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
 
 interface AuthState {
   status: AuthStatus;

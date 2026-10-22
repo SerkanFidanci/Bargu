@@ -24,7 +24,7 @@ function told(result: DocSaveResult, saved?: string): boolean {
 }
 
 /** The event's meeting as held, or an empty one (nothing decided yet). */
-export function planOf(circleId: string): PlanPayload {
+function planOf(circleId: string): PlanPayload {
   const held = useDocs.getState()[docKey(circleId, circleId)]?.payload;
   return held?.kind === 'plan' ? held : { kind: 'plan', id: circleId, ts: 0 };
 }

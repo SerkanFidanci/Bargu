@@ -43,14 +43,14 @@ export function shouldLock(enabled: boolean, awayMs: number): boolean {
 }
 
 /** Whether this phone can lock the app: some screen lock (biometric or passcode) is set up. */
-export async function canLockApp(): Promise<boolean> {
+async function canLockApp(): Promise<boolean> {
   return (
     (await LocalAuthentication.getEnrolledLevelAsync()) !== LocalAuthentication.SecurityLevel.NONE
   );
 }
 
 /** Asks the phone (Face ID, fingerprint or passcode); true when it says yes. */
-export async function confirmOwner(text: { prompt: string; cancel: string }): Promise<boolean> {
+async function confirmOwner(text: { prompt: string; cancel: string }): Promise<boolean> {
   const result = await LocalAuthentication.authenticateAsync({
     promptMessage: text.prompt,
     cancelLabel: text.cancel,

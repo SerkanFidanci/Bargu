@@ -7,7 +7,7 @@ import { useMotion } from '@/theme/use-motion';
 
 import { Text } from './text';
 
-export type BadgeTone = 'muted' | 'primary' | 'success' | 'danger';
+type BadgeTone = 'muted' | 'primary' | 'success' | 'danger';
 
 const TONES: Record<BadgeTone, { background: keyof ColorTokens; text: keyof ColorTokens }> = {
   muted: { background: 'surface', text: 'textMuted' },

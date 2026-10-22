@@ -56,7 +56,7 @@ function withoutPerson<T>(held: Readonly<Record<string, T>>, userId: string): Re
  * Every step runs even if another fails; then it throws, and circle-sync asks again at the next
  * change of the circle list.
  */
-export function forgetPerson(deps: PersonForgetterDeps, who: DepartedPerson): void {
+function forgetPerson(deps: PersonForgetterDeps, who: DepartedPerson): void {
   const { receiver, keys, store } = deps;
   const { userId } = who;
   const devices = new Set(who.deviceIds);

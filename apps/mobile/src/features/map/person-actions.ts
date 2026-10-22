@@ -59,20 +59,20 @@ export function personView(
  * Directions in the phone's own maps app. The friend's location leaves Bargu only here, because
  * the user asked for it, and without their name.
  */
-export async function openDirections(loc: Pick<LocPayload, 'lat' | 'lng'>): Promise<void> {
+async function openDirections(loc: Pick<LocPayload, 'lat' | 'lng'>): Promise<void> {
   const point = `${String(loc.lat)},${String(loc.lng)}`;
   const url = Platform.OS === 'ios' ? `maps:?daddr=${point}` : `geo:${point}?q=${point}`;
   await Linking.openURL(url);
 }
 
 /** Their location history (docs/ADR/0019), in the circle this phone sees them through. */
-export function openHistory(person: PersonView): void {
+function openHistory(person: PersonView): void {
   const circleId = person.location?.circleId ?? person.circleId;
   if (circleId === null) return;
   router.push({ pathname: '/history/[userId]', params: { userId: person.userId, circleId } });
 }
 
-export function openProfile(person: PersonView): void {
+function openProfile(person: PersonView): void {
   if (person.circleId === null) return;
   router.push({ pathname: '/circle/[id]', params: { id: person.circleId } });
 }

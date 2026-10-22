@@ -96,7 +96,7 @@ const requested = () => again;
  * of an event do not all do it at once) seals the ones of an older epoch again under this phone's
  * key, as places do (places-session.ts).
  */
-export function syncDocs(): Promise<void> {
+function syncDocs(): Promise<void> {
   if (syncing !== null) {
     again = true;
     return syncing;

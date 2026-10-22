@@ -18,7 +18,7 @@ import { requestLocationPermission, useLocationPermission, useLocationServices }
 import { useMyWhy, type Why } from './why';
 
 /** A connection that comes back this fast is not worth a line on screen (no flicker on open). */
-export const CONNECTING_GRACE_MS = 2_000;
+const CONNECTING_GRACE_MS = 2_000;
 
 function useConnecting(): boolean {
   const online = useConnection((state) => state.online);
