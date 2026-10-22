@@ -64,12 +64,13 @@ Bu makinede birden çok ajan aynı anda çalışır. Ağır test koşuları (Lin
 commit kırmızı görünür. Bu yüzden ağır koşular **tek bir makine geneli kilit** altında sırayla
 çalışır.
 
-| Komut                                        | Ne yapar                                                                                                        |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `bash scripts/ci-linux.sh [commit]`          | CI'ın format, typecheck, lint, test ve build işini temiz bir kopyada Docker'da (Ubuntu) çalıştırır; kilidi alır |
-| `bash scripts/with-test-lock.sh <komut...>`  | Verilen komutu kilit altında çalıştırır; kilit doluysa sırasını bekler                                          |
-| `pnpm test:mobile:locked [jest argümanları]` | Tüm mobil Jest'i kilit altında çalıştırır; ör. `pnpm test:mobile:locked src/features/auth`                      |
-| `pnpm test:lock`                             | Kilidin kendi testi (yaklaşık 30 sn): paralel koşu, eski kilit devralma, hata ve sinyalde bırakma               |
+| Komut                                           | Ne yapar                                                                                                                                                                                                                                             |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bash scripts/ci-linux.sh [commit]`             | CI'ın format, typecheck, lint, test ve build işini temiz bir kopyada Docker'da (Ubuntu) çalıştırır; kilidi alır                                                                                                                                      |
+| `bash scripts/with-test-lock.sh <komut...>`     | Verilen komutu kilit altında çalıştırır; kilit doluysa sırasını bekler                                                                                                                                                                               |
+| `pnpm test:mobile:locked [jest argümanları]`    | Tüm mobil Jest'i kilit altında çalıştırır; ör. `pnpm test:mobile:locked src/features/auth`                                                                                                                                                           |
+| `pnpm test:lock`                                | Kilidin kendi testi (yaklaşık 30 sn): paralel koşu, eski kilit devralma, hata ve sinyalde bırakma                                                                                                                                                    |
+| `bash scripts/ci-linux-retry.sh <commit> <log>` | ci-linux'u çalıştırır; yalnız yük türü kırılmada (yalnız mobil Jest dosyaları, her biri ≥30 sn) bir kez yeniden dener ve "RETRY:" yazar; aynı dosya ikinci kez kırılırsa "FLAKY" der (DURUM'a yazılır). Testi: `bash scripts/ci-linux-retry.test.sh` |
 
 - **Kilit**: `<geçici klasör>/bargu-test.lock` klasörü. Repo dışındadır, bu yüzden tüm worktree'ler
   aynı kilidi görür. Windows'ta `%TEMP%` kullanılır (Git Bash'te `/tmp/bargu-test.lock`; Git Bash
@@ -83,9 +84,10 @@ commit kırmızı görünür. Bu yüzden ağır koşular **tek bir makine geneli
   mesajıyla devralınır; elle silmek gerekmez. Komut bitince, hata verince, Ctrl-C ya da SIGTERM
   alınca kilit bırakılır. Kilitli bir komutun içinden kilidi tekrar istemek takılmaz (doğrudan
   çalışır).
-- **Başka ağır koşu** (kendi Docker ya da Jest script'in) başlatacaksan onu da
-  `bash scripts/with-test-lock.sh ...` ile sar. Hafif koşular (tek test dosyası, `pnpm lint`) kilit
-  istemez.
+- **Başka ağır koşu** (kendi Docker ya da Jest script'in; tüm uygulamada `tsc`, `eslint`, tam Jest)
+  başlatacaksan onu da `bash scripts/with-test-lock.sh ...` ile sar (PM, 2026-10-22). Tek test
+  dosyası gibi hafif koşular kilit istemez.
+- **Aynı anda en çok iki ajan** çalışır; gerisi sırada bekler (PM, 2026-10-22).
 - **Windows**: Git Bash'ten çalıştır. PowerShell'de `bash` WSL'e gider ve çalışmaz; PowerShell'den:
   `& 'C:\Program Files\Git\bin\bash.exe' scripts/with-test-lock.sh pnpm --filter @bargu/mobile test`.
 - **Mobil Jest zaman aşımı**: test başına 15 sn (`apps/mobile/package.json` içinde
