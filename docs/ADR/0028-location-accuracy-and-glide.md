@@ -535,3 +535,50 @@ yolu vardı (Bargu+ ekranı ve pin süsleri onu sunucunun "test ödemesi açık"
 - Üretimde bilerek kalanlar (kod ya da metin değil): `app/_dev` yol dosyaları, `probe` kancaları,
   `passkeyDiagnostic` yardımcısı.
 - Önizleme paketinde davranış aynıdır; araçlar uygulama açılırken bir an sonra yuvaya yerleşir.
+
+## Ek (2026-10-22): yeniden başlatmadan sonra bildirim
+
+**Sorun.** Konum servisi (ön plan servisi, yalnız "kullanırken" izni, arka plan konum izni yok)
+telefon yeniden başlayınca ya da uygulama güncellenince kendiliğinden geri gelmez: Android, bu izni
+olmayan uygulamanın konum servisini açılış yayınından başlatmasına izin vermez. Arkadaşlar,
+kullanıcı Bargu'yu açana kadar "Çevrim dışı" görür.
+
+**Karar.** Paylaşım açıkken telefon başlarsa (`BOOT_COMPLETED`) ya da uygulama güncellenirse
+(`MY_PACKAGE_REPLACED`) tek bir yerel bildirim gösterilir: "Paylaşım durdu" / "Telefon yeniden
+başladı ya da Bargu güncellendi. Konumunun gitmesi için Bargu'yu aç." (güncelleme de aynı yolu
+kapsadığı için gövde ikisini söyler). Dokununca Bargu açılır, paylaşım kendiliğinden sürer.
+
+**Neden yerel (native) bir alıcı.**
+
+- Açılışta JavaScript çalışamaz: uygulama süreci ve JS motoru yoktur. Bu iki yayını yalnız yerel
+  kod yakalar. Bu yüzden `apps/mobile/modules/bargu-restart-notice` kuruldu (yalnız Android; iOS'ta
+  ve Jest'te `null`, hiçbir şey yapmaz); alıcı modülün kendi manifestosunda tanımlı.
+- Alternatif, her konum gidişinde ileri atılan zamanlı bir bildirimdi ("X dakikadır konum gitmedi").
+  Kullanıcı yerinde dururken yeni konum seyrek gider (filtre ve 5 dakikalık kalp atışı, bu ADR'nin
+  üst bölümleri); servis sağlamken de bildirim yanlışlıkla patlardı. Gerçek olay yeniden başlatma ya
+  da güncelleme; onu doğrudan yakalayan alıcı yanlış alarm vermez.
+
+**Ne tutulur.** Yerel tarafta `bargu_restart_notice` adlı SharedPreferences: bir bayrak ("konum
+servisi çalışıyor olmalı") ve iki metin (başlık, gövde). Metinler kullanıcının o anki dilinde JS'ten
+gelir (`location.service.stoppedTitle` ve `stoppedBody`, tr ve en); yerel kodda sabit kullanıcı
+metni yoktur. Konum, kimlik, token tutulmaz; hiçbir şey log'lanmaz.
+
+**Bayrak ne zaman değişir.** `features/location/tracker.ts`, servisi başlatıp durduran tek yer:
+`startTracking` servis başlayınca bayrağı ve metinleri yazar (dil değişirse yeniden yazılır) ve
+görünen bildirimi geri alır; `stopTracking` en başta bayrağı siler. Hayalet modu, "Tümünü durdur",
+çemberin kalmaması, paylaşımın bitmesi, çıkış ve hesap silme bu ikisinden geçer, ayrı kod yok. Alıcı
+bayrak açıksa ve bildirim izni varsa (`POST_NOTIFICATIONS`, Android 13+) bildirimi gösterir: mevcut
+"privacy" kanalı (yoksa başlıkla oluşturulur), sabit bildirim kimliği, `FLAG_IMMUTABLE` ile başlatıcı
+etkinliği açan `PendingIntent`.
+
+**Dokununca paylaşım nasıl sürer.** Kod değişmedi. Bargu açılınca `useLocationSession`
+(`use-location.ts`) izin verilmiş, uygulama önde, çember listesi gelmiş ve `locationEngine.active()`
+doğruysa `startTracking` çağırır; bu soğuk açılışla aynı yol. Dokunma uygulamayı öne getirdiği için
+Android'in "servis yalnız önde başlar" kuralı sağlanır. Çevrimdışı açılışta çember listesi gelene
+kadar (ağ dönene kadar) bekler.
+
+**Doğrulama ve sınır.** JS tarafı Jest ile sınandı (bayrak başlatma, durdurma, hayalet ve çıkışta;
+metinler o anki dilde; yalnız iki metin gidiyor). Kotlin birim sınanamadı; yerel Docker derlemesi
+derliyor. **Telefonda denenmedi:** gerçek yeniden başlatma, güncelleme sonrası bildirim, bildirim izni
+kapalıyken davranış ve bazı üreticilerin (Xiaomi, Huawei, OPPO) "otomatik başlat" kısıtı; o
+telefonlarda `BOOT_COMPLETED` hiç gelmeyebilir ve bildirim görünmez.

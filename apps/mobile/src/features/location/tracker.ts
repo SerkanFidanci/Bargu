@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import { create } from 'zustand';
 
+import { armRestartNotice, disarmRestartNotice, type RestartText } from './restart-notice';
 import type { Fix } from './send';
 
 /** The one location task (background-task.ts runs it; also while the app is open). */
@@ -86,6 +87,11 @@ export interface TrackingOptions {
   /** Text of the ongoing notification, in the user's language. */
   title: string;
   body: string;
+  /**
+   * The notice shown if the phone restarts or the app updates while this runs, in the user's
+   * language (restart-notice.ts): the service does not come back by itself then.
+   */
+  restart: RestartText;
 }
 
 let running: TrackingOptions | null = null;
@@ -97,7 +103,11 @@ let running: TrackingOptions | null = null;
  */
 export async function startTracking(options: TrackingOptions): Promise<void> {
   const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
-  if (started && running !== null && running.gps === options.gps) return;
+  if (started && running !== null && running.gps === options.gps) {
+    // Running on purpose already; the notice is told again only when its text changed.
+    armRestartNotice(options.restart);
+    return;
+  }
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
     accuracy: options.gps ? Location.Accuracy.High : Location.Accuracy.Balanced,
     timeInterval: options.gps ? TRACKING.gpsIntervalMs : TRACKING.coarseIntervalMs,
@@ -114,11 +124,15 @@ export async function startTracking(options: TrackingOptions): Promise<void> {
     },
   });
   running = options;
+  // Started on purpose: if the phone restarts, the user is told it has stopped.
+  armRestartNotice(options.restart);
 }
 
 /** Stops the location service (nothing shared any more, or signed out). Allowed in background. */
 export async function stopTracking(): Promise<void> {
   running = null;
+  // Before anything can fail: a share the user ended must never come back as a notice.
+  disarmRestartNotice();
   if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) {
     await Location.stopLocationUpdatesAsync(LOCATION_TASK);
   }

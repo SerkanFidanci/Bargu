@@ -1,9 +1,16 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 
+import i18n from '@/i18n';
+
 import { useMapOpen } from './map-open';
+import { useSharing } from './sharing';
 import { useLocationSession } from './use-location';
 
+const mockStartTracking = jest.fn<Promise<void>, [unknown]>(() => Promise.resolve());
+const mockStopTracking = jest.fn<Promise<void>, []>(() => Promise.resolve());
+/** Whether any circle gets the location now (false: ghost, stopped, nothing shared, time up). */
+let mockActive = true;
 const mockStop = jest.fn();
 const mockWatchLive = jest.fn<Promise<() => void>, [(fix: unknown) => void]>(() =>
   Promise.resolve(mockStop),
@@ -13,8 +20,8 @@ const mockFix = jest.fn<Promise<void>, unknown[]>(() => Promise.resolve());
 jest.mock('./tracker', () => ({
   checkLocationPermission: () => Promise.resolve(),
   lastKnownFix: () => Promise.resolve(null),
-  startTracking: () => Promise.resolve(),
-  stopTracking: () => Promise.resolve(),
+  startTracking: (options: unknown) => mockStartTracking(options),
+  stopTracking: () => mockStopTracking(),
   useLocationPermission: (select: (state: { state: string }) => unknown) =>
     select({ state: 'granted' }),
   watchLive: (onFix: (fix: unknown) => void) => mockWatchLive(onFix),
@@ -28,7 +35,7 @@ jest.mock('./location-session', () => {
   const { create } = jest.requireActual<typeof import('zustand')>('zustand');
   return {
     locationEngine: {
-      active: () => true,
+      active: () => mockActive,
       gps: () => true,
       changed: () => Promise.resolve(),
       fix: (...args: unknown[]) => mockFix(...args),
@@ -56,10 +63,55 @@ beforeEach(() => {
     return { remove: () => undefined };
   });
   useMapOpen.setState({ open: false });
+  mockActive = true;
 });
 
 /** Lets the watch's promise settle. */
 const settle = () => act(() => Promise.resolve());
+
+describe('the location service and its restart notice (docs/ADR/0028 addendum)', () => {
+  const started = () => mockStartTracking.mock.calls.map(([options]) => options);
+
+  it('starts the service with the restart notice in the current language, and rewrites it when the language changes', async () => {
+    await act(() => i18n.changeLanguage('tr'));
+    await renderHook(() => {
+      useLocationSession(true);
+    });
+    await settle();
+    expect(started()).toHaveLength(1);
+    expect(started()[0]).toMatchObject({
+      restart: { title: 'Paylaşım durdu', body: i18n.t('location.service.stoppedBody') },
+    });
+    expect(i18n.t('location.service.stoppedBody')).toContain('Bargu');
+
+    await act(() => i18n.changeLanguage('en'));
+    await settle();
+    expect(started().at(-1)).toMatchObject({
+      restart: { title: 'Sharing stopped', body: i18n.t('location.service.stoppedBody') },
+    });
+    await act(() => i18n.changeLanguage('tr'));
+  });
+
+  it('stops the service, and with it the notice, when nothing is shared any more (ghost, stop all)', async () => {
+    await renderHook(() => {
+      useLocationSession(true);
+    });
+    await settle();
+    expect(mockStartTracking).toHaveBeenCalledTimes(1);
+    expect(mockStopTracking).not.toHaveBeenCalled();
+    // Ghost mode (or "Tümünü durdur", or the last timed share ending): no circle gets the location.
+    mockActive = false;
+    await act(() => {
+      useSharing.setState({ ghost: 'hide' });
+    });
+    await settle();
+    expect(mockStopTracking).toHaveBeenCalled();
+    expect(mockStartTracking).toHaveBeenCalledTimes(1);
+    await act(() => {
+      useSharing.setState({ ghost: 'off' });
+    });
+  });
+});
 
 describe("this phone's own pin every second (docs/ADR/0028 §5)", () => {
   it('follows the GPS while the map is on screen, as the live source', async () => {

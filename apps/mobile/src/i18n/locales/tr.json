@@ -540,7 +540,9 @@
   "location": {
     "service": {
       "title": "Konumun paylaşılıyor",
-      "body": "Çemberlerin seni haritada görüyor. Durdurmak için hayalet moduna geç."
+      "body": "Çemberlerin seni haritada görüyor. Durdurmak için hayalet moduna geç.",
+      "stoppedTitle": "Paylaşım durdu",
+      "stoppedBody": "Telefon yeniden başladı ya da Bargu güncellendi. Konumunun gitmesi için Bargu’yu aç."
     },
     "permission": {
       "title": "Konumunu çemberlerinle paylaş",

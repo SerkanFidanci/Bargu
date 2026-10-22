@@ -540,7 +540,9 @@
   "location": {
     "service": {
       "title": "Sharing your location",
-      "body": "Your circles see you on the map. Turn on ghost mode to stop."
+      "body": "Your circles see you on the map. Turn on ghost mode to stop.",
+      "stoppedTitle": "Sharing stopped",
+      "stoppedBody": "The phone restarted or Bargu updated. Open Bargu so your location goes out again."
     },
     "permission": {
       "title": "Share your location with your circles",

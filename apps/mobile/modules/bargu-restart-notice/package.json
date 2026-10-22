@@ -1,0 +1,7 @@
+{
+  "name": "bargu-restart-notice",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android only: one local notification after a phone restart or an app update, when location sharing was on (docs/ADR/0028 addendum)",
+  "main": "index.ts"
+}

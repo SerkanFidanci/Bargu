@@ -1,5 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppState } from 'react-native';
 
 import i18n from '@/i18n';
@@ -46,6 +47,9 @@ function useAppActive(): boolean {
  */
 export function useLocationSession(ready: boolean): void {
   const active = useAppActive();
+  // Re-renders when the user's language changes (the texts the service and the restart notice hold).
+  const { i18n: translator } = useTranslation();
+  const language = translator.language;
   const permission = useLocationPermission((state) => state.state);
   const sharing = useSharing();
   const circles = useCircles().data;
@@ -89,8 +93,13 @@ export function useLocationSession(ready: boolean): void {
       gps: locationEngine.gps(),
       title: i18n.t('location.service.title'),
       body: i18n.t('location.service.body'),
+      restart: {
+        title: i18n.t('location.service.stoppedTitle'),
+        body: i18n.t('location.service.stoppedBody'),
+      },
     }).catch(() => undefined);
-  }, [ready, active, permission, circles, sharing, expiry]);
+    // The language is a dependency so the restart notice is rewritten when it changes.
+  }, [ready, active, permission, circles, sharing, expiry, language]);
 
   useEffect(() => {
     const remaining = liveUntil - Date.now();
