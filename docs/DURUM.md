@@ -5,19 +5,19 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                                                                          |
-| -------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                                   |
-| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                                  |
-| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                                   |
-| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)                          |
-| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)                          |
-| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)                                  |
-| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                                                |
-| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                                               |
-| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                                     |
-| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)                                  |
-| Faz 9B — Para modeli & Bargu+    | 🟡 Kapanış raporu hazır, PM ve sahip onayı bekliyor; seviye 5 APK'sı sahibin betiğini bekliyor |
+| Faz                              | Durum                                                                                                                                  |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                                                                           |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                                                                          |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                                                                           |
+| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)                                                                  |
+| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)                                                                  |
+| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)                                                                          |
+| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                                                                                        |
+| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                                                                                       |
+| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                                                                             |
+| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)                                                                          |
+| Faz 9B — Para modeli & Bargu+    | ✅ PM onayı 2026-10-22 (kod ve testler); telefon denemeleri, kullanılabilirlik testi ve betik sahipte; seviye 5 APK'sı betiği bekliyor |
 
 ## Ortamlar
 
@@ -43,7 +43,17 @@ durma süresi etiketi), [ADR 0029](ADR/0029-safe-check-in.md) (Güvendeyim). Pro
 2026-10-16'da durum analizi için durdurdu; ardından buluşma dilimini istedi (PM onayıyla). Sahip
 2026-10-21'den beri çoğunlukla uzakta; dilimleri PM onayladı.
 
-### Kapanış raporu (2026-10-22, onay bekliyor)
+### Kapanış raporu (2026-10-22)
+
+**Faz 9B: PM onayı 2026-10-22 (kod ve testler).** Sahipte kalanlar:
+
+- seviye 5 APK'sıyla telefon denemeleri (56 ve sonrası, Güvendeyim uçak modu, arka planda canlı
+  konum, yeniden başlatma bildirimi);
+- 3 kişiyle kullanılabilirlik testi;
+- betiğin iki kez çalıştırılması.
+
+Bunlar kapalı testten önce şart. Faz 10'a geçilmedi: kalan işleri sahip ve Play hesabı istiyor;
+sahibin kuralı gereği yeni özellik de yok.
 
 **Ne yapıldı.** "Kuran öder" para modeli test ödemesiyle uçtan uca kuruldu: 21 günlük deneme,
 Bargu+, ödeyeni kalmayan çemberin duraklaması, 15–17 için ebeveyn onayı. Ayrıca:
@@ -89,8 +99,8 @@ Ayrıntı ve commit'ler aşağıdaki "Yapılanlar" tablosunda.
   Artık CI'da da ayrı bir iş.
 - Yerel derleme: APK (arm64) ve AAB yeni yerel modülle derleniyor. AAB'nin manifest'inde yedek
   kapalı, açılış alıcısı var.
-- `scripts/ci-linux.sh`, CI ve staging: push zincirinin sonucu bu belgenin bir sonraki
-  güncellemesinde.
+- `scripts/ci-linux.sh b35d5fa`: ilk koşuda geçti (mobil 1160). CI: bütün işler yeşil, yeni
+  "Production bundle" işi ilk koşusunda geçti (run 39749370074). Staging `b35d5fa`, hata 0.
 - Faz boyunca her commit push'tan önce Linux kopyasında denendi. Kırılmaların ayrıntısı aşağıdaki
   "Test sonuçları" bölümünde.
 
@@ -115,7 +125,8 @@ Ayrıntı ve commit'ler aşağıdaki "Yapılanlar" tablosunda.
 **Telefonda denenecekler** (aşağıda 1–55, seviye 5 APK'sıyla 56 ve sonrası) ve 3 kişiyle
 kullanılabilirlik testi: sahipte.
 
-**Onay:** PM ve sahip. Onaydan sonra Faz 10.
+**Onay:** PM, 2026-10-22 (kod ve testler; yukarıdaki koşullarla). Sahibin telefon denemeleri
+kapalı testten önce.
 
 ### Önce: CI 13 saat kırıktı (düzeltildi)
 
