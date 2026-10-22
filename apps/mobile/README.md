@@ -166,6 +166,9 @@ olarak yazılıdır (alıcıyı yalnız sistem ve adb tetikleyebilsin diye); eng
   `development` ve `preview`; `index.ts`, `src/features/billing/test-billing.ts`'i yükler). Üretim
   paketinde Bargu+ ekranı "Yakında Google Play üzerinden" der ve ne satın alma ne iptal çağrısı
   yapabilir: sunucu ne derse desin. Önizlemede bugünkü test satın alma aynen sürer.
+- CI'da da çalışır: `.github/workflows/ci.yml` içindeki `bundle` işi, paket betiğini doğrudan
+  çağırır (`pnpm --filter @bargu/mobile check:bundle`; kök betik yerel kilidi sarar). Sızarsa CI
+  kırmızı olur.
 - Kontrol: `pnpm check:bundle` (makine kilidiyle, yaklaşık 2 dakika) bayraksız bir paket üretir ve
   işaretlerin **hiçbirinin** olmadığını, bayraklı (önizleme gibi) paketin **hepsini** içerdiğini
   doğrular. İşaretler `dev.*.json` metinlerinden otomatik çıkar; ayrıca koddan dört dize ve iki test

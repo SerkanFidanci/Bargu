@@ -97,7 +97,8 @@ commit kırmızı görünür. Bu yüzden ağır koşular **tek bir makine geneli
 
 - **Commit öncesi**: gitleaks gizli bilgi taraması, ardından değişen dosyalarda ESLint + Prettier.
 - **CI** (`.github/workflows/ci.yml`): kilitli lockfile ile kurulum, format, tip kontrolü, lint,
-  test, build ve `pnpm audit --audit-level high`.
+  test, build ve `pnpm audit --audit-level high`; ayrı bir işte `check:bundle` (üretim paketinde
+  geliştirici aracı ve test satın alma kodu yok; sızarsa CI kırmızı olur).
 - **Güvenlik** (`security.yml`): gitleaks (tüm geçmiş), Semgrep, CodeQL (TypeScript + Actions);
   ayrıca haftada bir.
 - **Bağımlılıklar**: Renovate (Actions ve imajlar digest ile sabit, yeni sürümler 7 gün bekletilir);
