@@ -177,3 +177,51 @@ silindi, yer ise çemberde sıradan bir kayıtlı yer olarak kaldı. PM'in karar
 
 Sunucu değişmedi: yer ile buluşma arasındaki bağ şifreli belgenin içinde. Sunucu hangi yerin bir
 buluşma için eklendiğini bilmez.
+
+## Ek 2 (2026-10-22, önerildi): katılım yanıtı — Geliyorum / Belki / Gelemiyorum
+
+Durum: tasarım PM onaylı; kod, sahip `cf3469b`'yi telefonda denedikten sonra (sahibin kuralı).
+
+Sahibin isteği: "tıklandığında düzenlemenin yanında kimler geliyor ne zaman geliyor kimler kabul
+etti ve ya kabul etme seçenekleri". Bugün "kim geliyor" yalnız konumdan hesaplanıyor (§5); kimse
+"geleceğim" diyemiyor.
+
+### Karar
+
+1. **Yeni model yok; etkinliklerin oy belgesi.** Yanıt bir `vote` belgesidir (`votePayloadSchema`
+   değişmez, katı kalır): `pollId` buluşmanın kendi belge kimliği (çemberin kimliği), `choices`
+   tek eleman: 0 Geliyorum, 1 Belki, 2 Gelemiyorum. Belge kimliği her kişi için
+   `voteId(pollId, userId)`; fikir değiştiren aynı belgeyi yeniden yazar. Oy, etkinlik oyları
+   gibi oy verenin anahtarıyla mühürlenir; çemberdeki herkes açar.
+2. **Sunucu (migration):** etkinlik dışı çemberde `vote` yazmaya izin; yalnız `poll_id` o çemberin
+   o an var olan buluşmasıysa (`app.is_meeting`), yazan etkin üyeyse ve yalnız kendi yanıtıysa.
+   Mevcut dış anahtar (`circle_docs_poll`, `ON DELETE CASCADE`) sayesinde buluşma elle bitince
+   ya da süpürücü silince yanıtlar da gider; ayrı temizlik yok. Telefonun "anketi gitmiş oy"
+   temizliği (`orphans`) de aynı işi zaten yapıyor. Hız sınırları belge yazma sınırlarıyla aynı.
+3. **Kim görür:** çemberdeki herkes (PM). Çember zaten küçük ve tanıdık; etkinliklerde de oylar
+   herkese açık.
+4. **Buluşma ekranı:** üç seçenekli düğme (Geliyorum / Belki / Gelemiyorum), altında kişiler ve
+   yanıtları, yanıt vermeyenler "Yanıt yok". Konum paylaşan "Geliyorum" diyenin yanında bugünkü
+   tahmini varış (§5 kuralları: yalnız tam hassasiyet, hayalet, kaba ve duraklamış çemberde yok).
+   Haritadaki çip: "3 geliyor · 1 belki", saatinde bugünkü "2/4 geldi · 1 yolda".
+5. **Saat ya da yer değişince yanıtlar sıfırlanmaz.** Değiştirenin telefonu, Geliyorum ya da Belki
+   diyenlere mühürlü tek bildirim yollar: "Buluşma 18:30'a alındı. Hâlâ geliyor musun?"
+   (yeni bildirim türü `meetingMoved`).
+6. **Başlatana özet:** yanıt veren ya da yanıtını değiştirenin telefonu, başlatanın cihazlarına
+   mühürlü tek bildirim yollar ("Ayşe: Geliyorum · 3 geliyor, 1 belki"; yeni tür `meetingAnswer`).
+   Alıcı tarafı Güvendeyim gibi katlar: bir kişiden bir buluşma için saatte en çok 3, gerisi tek
+   satır. Başlatan kendi yanıtı için bildirim almaz.
+7. **Eski uygulamalar:** oy şeması değişmediği için eski uygulama bu belgeleri okur ama etkinlik
+   dışı anketi olmadığından göstermez; yazamaz (sunucu kuralı). Yeni bildirim türlerini sessizce
+   atar. Etkinlik dışı yanıtın kendisi için istemci seviyesi gerekmez.
+8. **Gizlilik:** sunucu kimin yanıt verdiğini (yanıt belgesinin yazarını) görür, ne dediğini
+   görmez; etkinlik oylarıyla aynı. Yanıt konum içermez.
+9. **Kapsam dışı:** etkinlik buluşmaları (orada anket var), ebeveyn araçları, iOS uzantısında yeni
+   bildirim türleri (iOS dilimi).
+
+### Testler
+
+Entegrasyon: yabancı ve üye olmayan yazamaz; buluşma yokken ya da başka bir belgeye oy yazılamaz;
+başkasının yanıtı değiştirilemez; buluşma bitince yanıtlar gider; etkinlikteki oylar değişmez.
+Mobil: yanıt verme ve değiştirme, sayılar, kişi listesi, tahmin kuralları, iki bildirim ve
+katlama, eski uygulama yolu (bilinmeyen tür atılır).
