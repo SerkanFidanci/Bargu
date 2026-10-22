@@ -108,18 +108,18 @@ gerekli izinlerin yanlışlıkla engellenmediğini denetler.
 
 **Kalanlar (16):**
 
-| İzin                                                      | Kaynak                              | Neden                                                                                 |
-| --------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------- |
-| `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`          | expo-location                       | Konum paylaşımı (yalnız "kullanırken"; arka plan konumu istenmez)                     |
-| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`       | expo-location                       | Kilitli ekranda sürsün diye görünür bildirimli konum servisi (Play beyanı C9)         |
-| `CAMERA`                                                  | expo-camera                         | QR okuma, kayıt yok                                                                   |
-| `POST_NOTIFICATIONS`                                      | expo-notifications, firebase        | Android 13+ bildirim izni (bağlamda istenir)                                          |
-| `RECEIVE_BOOT_COMPLETED`                                  | expo-notifications                  | Telefon yeniden başlayınca yerel hatırlatmalar yeniden kurulur (aşağıda)              |
-| `USE_BIOMETRIC`, `USE_FINGERPRINT`                        | expo-local-authentication, androidx | Uygulama kilidi; Android 7 ve 8'de (minSdk 24) parmak izi için `USE_FINGERPRINT` şart |
-| `VIBRATE`                                                 | expo-haptics                        | Dokunsal geri bildirim                                                                |
-| `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`   | şablon, netinfo, maplibre           | Ağ ve bağlantı durumu                                                                 |
-| `WAKE_LOCK`, `com.google.android.c2dm.permission.RECEIVE` | firebase-messaging                  | Push (FCM)                                                                            |
-| `app.bargu.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`      | androidx.core                       | Uygulamanın kendi imzasına özel; kitaplık ekler, kullanıcıya görünmez                 |
+| İzin                                                      | Kaynak                                   | Neden                                                                                        |
+| --------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`          | expo-location                            | Konum paylaşımı (yalnız "kullanırken"; arka plan konumu istenmez)                            |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`       | expo-location                            | Kilitli ekranda sürsün diye görünür bildirimli konum servisi (Play beyanı C9)                |
+| `CAMERA`                                                  | expo-camera                              | QR okuma, kayıt yok                                                                          |
+| `POST_NOTIFICATIONS`                                      | expo-notifications, firebase             | Android 13+ bildirim izni (bağlamda istenir)                                                 |
+| `RECEIVE_BOOT_COMPLETED`                                  | expo-notifications, bargu-restart-notice | Yeniden başlayınca yerel hatırlatmalar yeniden kurulur; "Paylaşım durdu" bildirimi (aşağıda) |
+| `USE_BIOMETRIC`, `USE_FINGERPRINT`                        | expo-local-authentication, androidx      | Uygulama kilidi; Android 7 ve 8'de (minSdk 24) parmak izi için `USE_FINGERPRINT` şart        |
+| `VIBRATE`                                                 | expo-haptics                             | Dokunsal geri bildirim                                                                       |
+| `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`   | şablon, netinfo, maplibre                | Ağ ve bağlantı durumu                                                                        |
+| `WAKE_LOCK`, `com.google.android.c2dm.permission.RECEIVE` | firebase-messaging                       | Push (FCM)                                                                                   |
+| `app.bargu.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`      | androidx.core                            | Uygulamanın kendi imzasına özel; kitaplık ekler, kullanıcıya görünmez                        |
 
 **Çıkarılanlar (22):**
 
@@ -145,10 +145,38 @@ olarak yazılıdır (alıcıyı yalnız sistem ve adb tetikleyebilsin diye); eng
 - **Konum paylaşımı yeniden başlatınca büyük olasılıkla kendiliğinden sürmez** (bu izinden bağımsız):
   konum servisi yalnız uygulama önde açıkken başlatılabilir (`tracker.ts` yorumu; arka plan konum
   izni bilerek istenmiyor) ve Android, bu izni olmayan uygulamanın konum servisini açılış
-  yayınından başlatmasına izin vermez. Yani bugün paylaşım, kullanıcı uygulamayı bir kez açana
-  kadar durur ve arkadaşları o arada "Çevrim dışı" görür. **Bunu telefonda denemedim**; kod ve Android
-  kuralından çıkarım. Bu bir ürün kararı: yeniden başlatma sonrası "paylaşım durdu, aç" bildirimi
-  gibi bir çözüm istenirse ayrı iş.
+  yayınından başlatmasına izin vermez. Yani paylaşım, kullanıcı uygulamayı bir kez açana kadar
+  durur ve arkadaşları o arada "Çevrim dışı" görür. **Bunu telefonda denemedim**; kod ve Android
+  kuralından çıkarım.
+- **Çözüm (2026-10-22, ADR 0028 eki):** `modules/bargu-restart-notice` küçük bir yerel alıcıdır;
+  `BOOT_COMPLETED` ve `MY_PACKAGE_REPLACED` gelince paylaşım açıksa tek bir "Paylaşım durdu"
+  bildirimi gösterir, dokununca Bargu açılır ve paylaşım kendiliğinden sürer. Bayrağı `tracker.ts`
+  yazar ve siler; yerel tarafta yalnız o bayrak ve iki metin durur. Alıcı `RECEIVE_BOOT_COMPLETED`
+  iznini kendi manifestosunda da ister (expo-notifications'a rastlantıyla bağlı kalmasın). **Telefonda
+  denenmedi.**
+
+### Android yedekleme (kapalı)
+
+- Bargu'nun Google Drive yedeğine ya da yeni telefona taşımaya girmesi istenmez. Tek veri deposu,
+  anahtarı SecureStore'da duran AES-256 kasadır; yedekten geri yüklenen dosya anahtarı olmayan bir
+  telefonda okunamaz, yani yalnız bozuk bir dosya bırakır. Bu bir güvenlik açığı değil, temizliktir.
+- Üç ayar birlikte durur, çünkü her Android sürümü başka birini okur: `android:allowBackup="false"`
+  (`app.config.ts` içindeki `android.allowBackup`), `android:fullBackupContent` (Android 11 ve
+  eski) ve `android:dataExtractionRules` (Android 12+; bulut yedeği **ve** telefondan telefona
+  aktarım — Android 12+ `allowBackup` ne derse desin aktarımı kuralla kapatmak gerekir). İki kural
+  dosyası da her depolama alanını (`root`, `file`, `database`, `sharedpref`, `external` ve
+  cihazda korunan karşılıkları) dışarıda bırakır, hiçbir şey eklemez.
+- Kural dosyalarını `app.config.ts` içindeki küçük bir config eklentisi (`withNoAndroidBackup`)
+  prebuild'e yazar (Expo, `app.config.ts`'in yanındaki ikinci bir TypeScript dosyasını yükleyemez, bu
+  yüzden aynı dosyada). `expo-secure-store`'un kendi yedek kuralları (`configureAndroidBackup`)
+  kapatıldı: o ikinci bir çift öznitelik yazıyordu ve yalnız kendi tercihlerini dışarıda
+  bırakıyordu. Birleşmiş manifestoda tek bir takım var.
+- Denetim: `FORMAT=aab` derlemesinde `scripts/check-manifest.mjs`, `allowBackup` `false` değilse ya
+  da iki kural özniteliği yoksa ya da secure-store'unkiyse derlemeyi reddeder. Config tarafını
+  `src/config/release-config.test.ts` bekler.
+- Birleşmiş release manifestosu (`3512217`, `FORMAT=aab` denemesi, 2026-10-22): `allowBackup="false"`,
+  `fullBackupContent="@xml/bargu_backup_rules"`, `dataExtractionRules="@xml/bargu_data_extraction_rules"`.
+  **Bir telefonda yedek/geri yükleme ya da cihaz aktarımı denenmedi.**
 
 ### Geliştirici araçları üretim paketinde olmaz
 
