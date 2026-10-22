@@ -1,10 +1,12 @@
 import { GeoJSONSource, Layer, Marker } from '@maplibre/maplibre-react-native';
 import { StyleSheet, View } from 'react-native';
 
-import { radius, space, useTheme } from '@/theme';
+import { radius, space, touchTarget, useTheme } from '@/theme';
+import { PressableScale } from '@/ui/pressable-scale';
 import { Text } from '@/ui/text';
 
 import { useMapZoom } from '../map/map-zoom';
+import { openPlace } from './open-place';
 import { circleRing, type Place } from './place-model';
 import { usePlaces } from './places';
 
@@ -12,7 +14,8 @@ import { usePlaces } from './places';
 const NAME_ZOOM = 14;
 
 /**
- * The places of the user's circles on the map: a soft circle and the place's icon and name.
+ * The places of the user's circles on the map: a soft circle and the place's icon and name. A tap
+ * on the tag, or inside the circle, opens the place (the owner could not reach it from the map).
  * `except` places are not drawn here at all: they are meetings, drawn their own way
  * (meeting-points-layer.tsx, docs/ADR/0026 §3), never like a saved place.
  */
@@ -53,20 +56,29 @@ export function PlacesLayer({
       </GeoJSONSource>
       {shown.map((place) => (
         <Marker key={place.id} id={`place-${place.id}`} lngLat={[place.lng, place.lat]}>
-          <View
-            pointerEvents="none"
-            style={[styles.tag, { backgroundColor: colors.surfaceRaised }]}
+          {/* The tag is small; the touch area around it is a full target (a tap inside the
+              circle opens the place too: the map screen's onPress). */}
+          <PressableScale
+            testID={`map-place-${place.id}`}
+            haptic="select"
+            accessibilityRole="button"
             accessibilityLabel={place.name}
+            onPress={() => {
+              openPlace(place);
+            }}
+            style={styles.target}
           >
-            <Text variant="caption" allowFontScaling={false}>
-              {place.emoji}
-            </Text>
-            {zoom >= NAME_ZOOM ? (
-              <Text variant="caption" numberOfLines={1} style={styles.name}>
-                {place.name}
+            <View style={[styles.tag, { backgroundColor: colors.surfaceRaised }]}>
+              <Text variant="caption" allowFontScaling={false}>
+                {place.emoji}
               </Text>
-            ) : null}
-          </View>
+              {zoom >= NAME_ZOOM ? (
+                <Text variant="caption" numberOfLines={1} style={styles.name}>
+                  {place.name}
+                </Text>
+              ) : null}
+            </View>
+          </PressableScale>
         </Marker>
       ))}
     </>
@@ -74,6 +86,12 @@ export function PlacesLayer({
 }
 
 const styles = StyleSheet.create({
+  target: {
+    minWidth: touchTarget,
+    minHeight: touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',

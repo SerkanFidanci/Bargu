@@ -1,10 +1,14 @@
 import type { Me, WeatherSnapshot } from '@bargu/schemas';
 import { act, render } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import { Profiler, type ReactNode, type Ref } from 'react';
 
 import HomeScreen from '@/app/(app)/index';
 import '@/i18n';
 import { useMyFix } from '@/features/location/engine';
+import { usePersonFocus } from '@/features/map/person-focus';
+import type { Place } from '@/features/places/place-model';
+import { usePlaces } from '@/features/places/places';
 import type { Fix } from '@/features/location/send';
 import { GALATA, moved } from '@/features/location/test-support';
 import {
@@ -99,7 +103,7 @@ jest.mock('@/ui/confetti', () => ({
 // map reporting where the camera stopped).
 const mockMap: {
   onSettle: ((view: { center: [number, number]; zoom: number }) => void) | null;
-  onPress: (() => void) | null;
+  onPress: ((at: { lng: number; lat: number }) => void) | null;
 } = {
   onSettle: null,
   onPress: null,
@@ -112,7 +116,7 @@ jest.mock('@/features/map/bargu-map', () => {
     BarguMap: (props: {
       children?: ReactNode;
       onSettle?: (view: { center: [number, number]; zoom: number }) => void;
-      onPress?: () => void;
+      onPress?: (at: { lng: number; lat: number }) => void;
       ref?: Ref<unknown>;
     }) => {
       mockMap.onSettle = props.onSettle ?? null;
@@ -283,9 +287,77 @@ describe('a tapped "Güvendeyim" and the map (docs/ADR/0029 §5)', () => {
     });
     mockFitTo.mockClear();
     await act(() => {
-      mockMap.onPress?.();
+      mockMap.onPress?.(GALATA);
     });
     expect(useSafeSpot.getState().spot).toBeNull();
     expect(mockFitTo).not.toHaveBeenCalled();
+  });
+});
+
+describe('a saved place on the map (the owner could not tap one)', () => {
+  const place = (id: string, radius: number, lat = GALATA.lat): Place => ({
+    id,
+    circleId: 'c1',
+    version: 1,
+    name: `Yer ${id}`,
+    emoji: '☕',
+    lat,
+    lng: GALATA.lng,
+    radius,
+    ts: 1,
+  });
+
+  beforeEach(() => {
+    jest.mocked(router.push).mockClear();
+    usePersonFocus.setState({ selected: null, menu: null });
+    usePlaces.setState(
+      {
+        big: place('big', 500),
+        small: place('small', 100),
+        far: place('far', 100, GALATA.lat + 0.05),
+      },
+      true,
+    );
+  });
+
+  afterEach(() => {
+    usePlaces.setState({}, true);
+  });
+
+  it('opens the place with a tap inside its circle: the smallest one there', async () => {
+    await drawHome();
+    await act(() => {
+      mockMap.onPress?.(GALATA);
+    });
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/place/[circleId]',
+      params: { circleId: 'c1', id: 'small' },
+    });
+  });
+
+  it('opens nothing with a tap outside every place', async () => {
+    await drawHome();
+    await act(() => {
+      mockMap.onPress?.({ lat: GALATA.lat - 0.05, lng: GALATA.lng });
+    });
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("only closes a person's open card with that tap, and opens the place with the next", async () => {
+    await drawHome();
+    await act(() => {
+      usePersonFocus.setState({ selected: { userId: 'u2', from: { x: 1, y: 1 } } });
+    });
+    await act(() => {
+      mockMap.onPress?.(GALATA);
+    });
+    expect(router.push).not.toHaveBeenCalled();
+    // The card closed (the people controller does that; it is a stand-in here).
+    await act(() => {
+      usePersonFocus.setState({ selected: null });
+      mockMap.onPress?.(GALATA);
+    });
+    expect(router.push).toHaveBeenCalledTimes(1);
   });
 });

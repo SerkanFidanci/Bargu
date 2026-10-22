@@ -34,6 +34,8 @@ import { memberName } from '@/features/circles/names';
 import { PeopleLayer } from '@/features/map/people-layer';
 import { SharingReminderCard } from '@/features/location/sharing-reminder-card';
 import { NotificationCard } from '@/features/notifications/notification-card';
+import { openPlace } from '@/features/places/open-place';
+import { placeAt } from '@/features/places/place-model';
 import { PlacesLayer } from '@/features/places/places-layer';
 import { usePlaces } from '@/features/places/places';
 import { useDocs } from '@/features/plan/docs';
@@ -197,10 +199,18 @@ export default function HomeScreen() {
         <Profiler id="map" onRender={reportRender}>
           <BarguMap
             ref={map}
-            onPress={() => {
+            onPress={(at) => {
+              // With a person's card open the tap only closes it; otherwise a tap inside a saved
+              // place's circle opens that place (the smallest one there). People, meetings and
+              // the place's own tag take their taps before the map sees one.
+              const closing = usePersonFocus.getState().selected !== null;
               people.onMapPress();
               clearSpot();
               setWake((count) => count + 1);
+              if (closing) return;
+              const shown = Object.values(places).filter((place) => !meetingPlaces.has(place.id));
+              const place = placeAt(shown, at);
+              if (place !== null) openPlace(place);
             }}
             insets={{
               top: insets.top + PILL_HEIGHT,

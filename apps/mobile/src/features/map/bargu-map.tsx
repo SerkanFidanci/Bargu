@@ -26,8 +26,8 @@ export interface BarguMapProps {
   focus?: LngLat | null;
   children?: ReactNode;
   ref?: Ref<BarguMapHandle>;
-  /** A tap on the map itself (not on a person). */
-  onPress?: () => void;
+  /** A tap on the map itself (not on a person), with where it landed. */
+  onPress?: (at: { lng: number; lat: number }) => void;
   /** Every camera move, while it moves (the place editor sizes its circle with it). */
   onViewChange?: (view: { center: LngLat; zoom: number }) => void;
   /** Where the camera stopped after a move (the map's "back to me" shortcut). */
@@ -139,7 +139,14 @@ export function BarguMap({
     <Map
       ref={map}
       testID="map"
-      {...(onPress === undefined ? {} : { onPress })}
+      {...(onPress === undefined
+        ? {}
+        : {
+            onPress: (event: { nativeEvent: { lngLat: LngLat } }) => {
+              const [lng, lat] = event.nativeEvent.lngLat;
+              onPress({ lng, lat });
+            },
+          })}
       // Clusters depend on the zoom: recomputed when the map settles, not on every frame.
       onRegionDidChange={(event) => {
         useMapZoom.setState({ zoom: event.nativeEvent.zoom });
