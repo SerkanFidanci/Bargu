@@ -23,6 +23,10 @@ const DOC_LIMITS = {
   saves: { limit: 120, windowSeconds: 60 },
   /** Notices of a meeting started outside an event, per member (docs/ADR/0026 §6). */
   meetingNotices: { limit: 6, windowSeconds: 3600 },
+  /** "Ayşe: Geliyorum" to a meeting's starter, per answering member (docs/ADR/0026 Ek 2). */
+  meetingAnswers: { limit: 10, windowSeconds: 3600 },
+  /** "Moved to 18:30, still coming?" to those who answered, per member changing it (Ek 2). */
+  meetingMoves: { limit: 6, windowSeconds: 3600 },
 } as const;
 /** How far ahead a meeting outside an event may end (migration 0032 says the same). */
 const MEETING_MAX_AHEAD_MS = 8 * 24 * 3600_000;
@@ -118,8 +122,14 @@ export class DocsService {
         if (endsAt !== undefined || pushes !== undefined) {
           throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
         }
+      } else if (kind === 'vote') {
+        // An answer to the circle's meeting (docs/ADR/0026 Ek 2): filed under the meeting, no end
+        // of its own (it goes with the meeting).
+        if (endsAt !== undefined || pollId !== circleId) {
+          throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+        }
       } else {
-        // Outside an event only the meeting (docs/ADR/0026), and it says when it goes.
+        // Outside an event only the meeting (docs/ADR/0026) and answers to it; it says when it goes.
         if (kind !== 'plan') throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
         if (
           endsAt === undefined ||
@@ -147,7 +157,9 @@ export class DocsService {
           .from(circleDocs)
           .where(eq(circleDocs.circleId, circleId));
         // One meeting at a time outside an event: the others see it, and start none.
-        if (!event && total > 0) throw new ApiError(HttpStatus.CONFLICT, 'MEETING_EXISTS');
+        if (!event && kind === 'plan' && total > 0) {
+          throw new ApiError(HttpStatus.CONFLICT, 'MEETING_EXISTS');
+        }
         if (total >= MAX_DOCS_PER_CIRCLE) throw new ApiError(HttpStatus.CONFLICT, 'DOCS_FULL');
         if (
           kind === 'poll' &&
@@ -155,8 +167,14 @@ export class DocsService {
         ) {
           throw new ApiError(HttpStatus.CONFLICT, 'DOCS_FULL');
         }
-        // A vote only in a poll of this event (row-level security says so too).
-        if (pollId !== null && !(await this.isPoll(tx, circleId, pollId))) {
+        // A vote only in a poll of this event, or for the meeting outside one (row-level security
+        // says so too).
+        if (
+          pollId !== null &&
+          !(await (event
+            ? this.isPoll(tx, circleId, pollId)
+            : this.isMeeting(tx, circleId, pollId)))
+        ) {
           throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
         }
         saved = await tx
@@ -176,7 +194,8 @@ export class DocsService {
       } else {
         // Outside an event only its starter and the circle's admins change the meeting, either
         // one in a friendship (and row-level security); said so, rather than "someone was faster".
-        if (!event && !(await this.mayRun(tx, circleId, auth.userId, me))) {
+        // An answer is its author's (row-level security).
+        if (!event && kind !== 'vote' && !(await this.mayRun(tx, circleId, auth.userId, me))) {
           throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
         }
         // Row-level security leaves out others' own documents (votes): those are a conflict too.
@@ -186,7 +205,7 @@ export class DocsService {
             envelope,
             version: sql`${circleDocs.version} + 1`,
             updatedAt: new Date(),
-            ...(event ? {} : { endsAt: meetingEnd }),
+            ...(event || kind === 'vote' ? {} : { endsAt: meetingEnd }),
           })
           .where(
             and(
@@ -203,11 +222,20 @@ export class DocsService {
       return {
         version: row.version,
         others: members.filter((member) => member.userId !== auth.userId).map((m) => m.userId),
-        started: !event && input.version === null,
+        started: !event && kind === 'plan' && input.version === null,
       };
     });
     await this.events.publish(others, { type: 'docs.changed', circleId });
-    if (started && pushes !== undefined) await this.tellStarted(auth, circleId, others, pushes);
+    if (pushes !== undefined) {
+      // Started: everyone; answered: its starter; moved: those who answered (docs/ADR/0026 §6, Ek
+      // 2). Each is sealed on the sender's phone for its recipients' devices.
+      const limits = started
+        ? { key: 'meeting-notice', ...DOC_LIMITS.meetingNotices }
+        : kind === 'vote'
+          ? { key: 'meeting-answer', ...DOC_LIMITS.meetingAnswers }
+          : { key: 'meeting-moved', ...DOC_LIMITS.meetingMoves };
+      await this.tellOffline(auth, circleId, others, pushes, limits);
+    }
     return { version };
   }
 
@@ -218,8 +246,16 @@ export class DocsService {
       const me = members.find((member) => member.userId === auth.userId);
       // Outside an event only its starter and the circle's admins end the meeting, either one in a
       // friendship (and RLS).
-      if (me?.expiresAt === null && !(await this.mayRun(tx, circleId, auth.userId, me))) {
-        throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+      if (me?.expiresAt === null) {
+        // An answer to the meeting is its author's to take back (docs/ADR/0026 Ek 2).
+        const [row] = await tx
+          .select({ kind: circleDocs.kind, authorId: circleDocs.authorId })
+          .from(circleDocs)
+          .where(and(eq(circleDocs.circleId, circleId), eq(circleDocs.id, docId)));
+        const ownAnswer = row?.kind === 'vote' && row.authorId === auth.userId;
+        if (!ownAnswer && !(await this.mayRun(tx, circleId, auth.userId, me))) {
+          throw new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN');
+        }
       }
       const removed = await tx
         .delete(circleDocs)
@@ -250,19 +286,19 @@ export class DocsService {
   }
 
   /**
-   * A meeting just started outside an event (docs/ADR/0026 §6): the starter's sealed notices go to
-   * the members whose app is not connected (the others see it come), each to that member's
-   * current device, once (QA 21 B-2); a few an hour at most.
+   * A meeting outside an event started, was answered or moved (docs/ADR/0026 §6, Ek 2): the
+   * sender's sealed notices go to the members whose app is not connected (the others see it
+   * come), each to that member's current device, once (QA 21 B-2); a few an hour at most.
    */
-  private async tellStarted(
+  private async tellOffline(
     auth: AuthContext,
     circleId: string,
     others: readonly string[],
     pushes: NonNullable<DocPut['pushes']>,
+    { key, limit, windowSeconds }: { key: string; limit: number; windowSeconds: number },
   ): Promise<void> {
     if (pushes.length === 0) return;
-    const { limit, windowSeconds } = DOC_LIMITS.meetingNotices;
-    const hit = await this.limiter.hit(`meeting-notice:${auth.userId}`, limit, windowSeconds);
+    const hit = await this.limiter.hit(`${key}:${auth.userId}`, limit, windowSeconds);
     if (!hit.allowed) return;
     const online = await this.events.online(others);
     const offline = others.filter((userId) => !online.has(userId));
@@ -295,6 +331,15 @@ export class DocsService {
         ),
       );
     return total;
+  }
+
+  /** Whether a document is the circle's meeting outside an event (it names its end). */
+  private async isMeeting(tx: Tx, circleId: string, docId: string): Promise<boolean> {
+    const [row] = await tx
+      .select({ kind: circleDocs.kind, endsAt: circleDocs.endsAt })
+      .from(circleDocs)
+      .where(and(eq(circleDocs.circleId, circleId), eq(circleDocs.id, docId)));
+    return row?.kind === 'plan' && row.endsAt !== null;
   }
 
   private async isPoll(tx: Tx, circleId: string, docId: string): Promise<boolean> {

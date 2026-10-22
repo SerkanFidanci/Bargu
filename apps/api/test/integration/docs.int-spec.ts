@@ -684,13 +684,166 @@ describe('a meeting in any circle (docs/ADR/0026)', () => {
       pushes,
       new Map([[ilker.userId, ilker.device.deviceId]]),
     );
-    // A change starts nothing: no notice again.
+    // A change starts nothing; its own notices ("moved, still coming?", sealed by the phone for
+    // those who answered, ADR 0026 Ek 2) go the same way.
     forwarded.mockClear();
     await startOrChange(hale, pair, halePhone.seal(inCircle(pair.id, hale)), 1, {
       endsAt: Date.now() + 4 * HOUR,
       pushes,
     });
-    expect(forwarded).not.toHaveBeenCalled();
+    expect(forwarded).toHaveBeenCalledWith(
+      pushes,
+      new Map([[ilker.userId, ilker.device.deviceId]]),
+    );
+    forwarded.mockRestore();
+  });
+});
+
+/** "Geliyorum" (0), "Belki" (1), "Gelemiyorum" (2) to a circle's meeting (docs/ADR/0026 Ek 2). */
+const answerOf = (circleId: string, who: Person, choice: number): DocPayload => ({
+  kind: 'vote',
+  id: voteId(circleId, who.userId),
+  pollId: circleId,
+  choices: [choice],
+  ts: Date.now(),
+});
+const answer = (
+  who: Person,
+  circleId: string,
+  envelope: MessageEnvelope,
+  version: number | null,
+  extra: { endsAt?: number; pushes?: unknown[]; pollId?: string; docId?: string } = {},
+) => {
+  const { pollId = circleId, docId = voteId(circleId, who.userId), ...rest } = extra;
+  return as(test, who, 'PUT', `/v1/circles/${circleId}/docs/${docId}`, {
+    envelope,
+    version,
+    kind: 'vote',
+    pollId,
+    ...rest,
+  });
+};
+
+describe('answers to a meeting outside an event (docs/ADR/0026 Ek 2)', () => {
+  it("are any member's own, change in place, and go with the meeting", async () => {
+    const [ayse, bora, can, mallory] = await Promise.all([
+      person(test),
+      person(test),
+      person(test),
+      person(test),
+    ]);
+    const family = await circleWith(test, ayse, bora, can);
+    const canPhone = phone(can, family);
+    // No meeting yet: nothing to answer.
+    expect(
+      (await answer(can, family.id, canPhone.seal(answerOf(family.id, can, 0)), null)).statusCode,
+    ).toBe(404);
+
+    const boraPhone = phone(bora, family);
+    await startOrChange(bora, family, boraPhone.seal(inCircle(family.id, bora)), null);
+    const going = await answer(can, family.id, canPhone.seal(answerOf(family.id, can, 0)), null);
+    expect(going.json()).toEqual({ version: 1 });
+    // A second answer the same way is "someone was faster"; changing it is in place.
+    expect(
+      (await answer(can, family.id, canPhone.seal(answerOf(family.id, can, 1)), null)).statusCode,
+    ).toBe(409);
+    expect(
+      (await answer(can, family.id, canPhone.seal(answerOf(family.id, can, 1)), 1)).json(),
+    ).toEqual({ version: 2 });
+    // Ciphertext only, read by all members; nothing for someone outside.
+    const docs = await list(ayse, family.id);
+    expect(docs).toHaveLength(2);
+    expect(await list(mallory, family.id)).toEqual([]);
+
+    // Nobody answers for someone else, nor names an end, nor answers another document.
+    const forCan = await answer(bora, family.id, boraPhone.seal(answerOf(family.id, can, 2)), 2, {
+      docId: voteId(family.id, can.userId),
+    });
+    expect(forCan.statusCode).toBe(400);
+    const withEnd = await answer(
+      bora,
+      family.id,
+      boraPhone.seal(answerOf(family.id, bora, 0)),
+      null,
+      {
+        endsAt: Date.now() + HOUR,
+      },
+    );
+    expect(withEnd.statusCode).toBe(400);
+    const elsewhere = randomUuid();
+    const otherDoc = await answer(
+      bora,
+      family.id,
+      boraPhone.seal(answerOf(family.id, bora, 0)),
+      null,
+      {
+        pollId: elsewhere,
+        docId: voteId(elsewhere, bora.userId),
+      },
+    );
+    expect(otherDoc.statusCode).toBe(400);
+    const intruder = phone(mallory, family);
+    expect(
+      (await answer(mallory, family.id, intruder.seal(answerOf(family.id, mallory, 0)), null))
+        .statusCode,
+    ).toBe(404);
+
+    // Can takes it back (no starter, no admin: their own answer is theirs), answers again.
+    const canAnswer = voteId(family.id, can.userId);
+    expect(
+      (await as(test, can, 'DELETE', `/v1/circles/${family.id}/docs/${canAnswer}`)).statusCode,
+    ).toBe(204);
+    expect(
+      (await answer(can, family.id, canPhone.seal(answerOf(family.id, can, 0)), null)).statusCode,
+    ).toBe(200);
+    // The admin ends the meeting: the answers go with it (one foreign key, migration 0014).
+    expect(
+      (await as(test, ayse, 'DELETE', `/v1/circles/${family.id}/docs/${family.id}`)).statusCode,
+    ).toBe(204);
+    expect(await list(can, family.id)).toEqual([]);
+    const { rows } = await test.admin.query('SELECT 1 FROM app.circle_docs WHERE circle_id = $1', [
+      family.id,
+    ]);
+    expect(rows).toEqual([]);
+  });
+
+  it('go with a meeting the worker sweeps, and a new meeting starts with none', async () => {
+    const [deniz, ece] = await Promise.all([person(test), person(test)]);
+    const pair = await circleWith(test, deniz, ece);
+    await startOrChange(deniz, pair, phone(deniz, pair).seal(inCircle(pair.id, deniz)), null);
+    await answer(ece, pair.id, phone(ece, pair).seal(answerOf(pair.id, ece, 0)), null);
+    expect(await list(deniz, pair.id)).toHaveLength(2);
+    await test.admin.query(
+      `UPDATE app.circle_docs SET ends_at = now() - interval '1 second' WHERE circle_id = $1 AND kind = 'plan'`,
+      [pair.id],
+    );
+    const sweeper = new MeetingSweeper(
+      test.app.get(DatabaseService),
+      test.app.get(EventsService),
+      test.app.get<RedisClient>(REDIS),
+    );
+    expect(await sweeper.sweep()).toBeGreaterThanOrEqual(1);
+    expect(await list(ece, pair.id)).toEqual([]);
+    // A new meeting is not taken for one that is still there.
+    const again = await startOrChange(
+      deniz,
+      pair,
+      phone(deniz, pair).seal(inCircle(pair.id, deniz)),
+      null,
+    );
+    expect(again.statusCode).toBe(200);
+  });
+
+  it("hand an answer's sealed notice to the starter's phone when it is not connected", async () => {
+    const [fuat, gul] = await Promise.all([person(test), person(test)]);
+    const pair = await circleWith(test, fuat, gul);
+    await startOrChange(fuat, pair, phone(fuat, pair).seal(inCircle(pair.id, fuat)), null);
+    const forwarded = vi.spyOn(test.app.get(Notifier), 'forward');
+    const pushes = [
+      { userId: fuat.userId, deviceId: fuat.device.deviceId, sealed: 'B'.repeat(120) },
+    ];
+    await answer(gul, pair.id, phone(gul, pair).seal(answerOf(pair.id, gul, 0)), null, { pushes });
+    expect(forwarded).toHaveBeenCalledWith(pushes, new Map([[fuat.userId, fuat.device.deviceId]]));
     forwarded.mockRestore();
   });
 });
