@@ -46,9 +46,6 @@
       "distribution": "store",
       "environment": "production",
       "autoIncrement": true,
-      "env": {
-        "EXPO_PUBLIC_NOTICE_KEYS": ""
-      },
       "android": {
         "buildType": "app-bundle"
       }

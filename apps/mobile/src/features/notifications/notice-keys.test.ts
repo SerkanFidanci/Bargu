@@ -33,7 +33,8 @@ describe('the server notice keys each build profile trusts', () => {
   });
 
   it('production: none (production gets its own key in Faz 10)', () => {
-    expect(raw('production')).toBe('');
+    // No entry at all: eas-cli refuses an empty value, and no value trusts no key.
+    expect(raw('production')).toBeUndefined();
     expect(kidsOf('production')).toEqual([]);
   });
 
