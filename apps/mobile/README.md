@@ -152,8 +152,9 @@ olarak yazılıdır (alıcıyı yalnız sistem ve adb tetikleyebilsin diye); eng
   `BOOT_COMPLETED` ve `MY_PACKAGE_REPLACED` gelince paylaşım açıksa tek bir "Paylaşım durdu"
   bildirimi gösterir, dokununca Bargu açılır ve paylaşım kendiliğinden sürer. Bayrağı `tracker.ts`
   yazar ve siler; yerel tarafta yalnız o bayrak ve iki metin durur. Alıcı `RECEIVE_BOOT_COMPLETED`
-  iznini kendi manifestosunda da ister (expo-notifications'a rastlantıyla bağlı kalmasın). **Telefonda
-  denenmedi.**
+  iznini kendi manifestosunda da ister (expo-notifications'a rastlantıyla bağlı kalmasın). Yalnız
+  Android 11 ve üstünde gösterilir: daha eskilerde `expo-task-manager` servisi açılışta kendisi geri
+  getirebilir ve bildirim yanlış olurdu. **Telefonda denenmedi.**
 
 ### Android yedekleme (kapalı)
 

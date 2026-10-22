@@ -124,6 +124,13 @@ describe('the native side', () => {
     expect(source).toContain(`CHANNEL_ID = "${PRIVACY_CHANNEL}"`);
   });
 
+  it('posts only from Android 11, where the service cannot come back by itself at boot', () => {
+    const post = source.slice(source.indexOf('fun postIfArmed'));
+    const gate = post.indexOf('if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return');
+    expect(gate).toBeGreaterThan(0);
+    expect(gate).toBeLessThan(post.indexOf('.notify('));
+  });
+
   it('keeps only a flag and the two texts, and holds no text of its own', () => {
     const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*/g, '');
     const stored = [...code.matchAll(/\.put(\w+)\(/g)].map((match) => match[1]);

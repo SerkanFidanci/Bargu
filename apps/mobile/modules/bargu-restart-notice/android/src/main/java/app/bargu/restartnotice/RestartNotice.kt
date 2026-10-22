@@ -44,6 +44,10 @@ internal object RestartNotice {
     val title = stored.getString(TITLE, null)
     val body = stored.getString(BODY, null)
     if (!stored.getBoolean(ARMED, false) || title == null || body == null) return
+    // Before Android 11 expo-task-manager may bring the location service back by itself at boot,
+    // and then "sharing stopped" would be wrong. From Android 11 a location service started in the
+    // background gets no location without the background permission, so the notice holds there.
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
 
     val manager = notifications(context)
     // False without the notification permission (Android 13+) or when the user turned them off.

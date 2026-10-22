@@ -571,6 +571,16 @@ bayrak açıksa ve bildirim izni varsa (`POST_NOTIFICATIONS`, Android 13+) bildi
 "privacy" kanalı (yoksa başlıkla oluşturulur), sabit bildirim kimliği, `FLAG_IMMUTABLE` ile başlatıcı
 etkinliği açan `PendingIntent`.
 
+**Yalnız Android 11 ve üstü (kodlama oturumu, inceleme).** Android 10 ve öncesinde
+`expo-task-manager`'ın açılış alıcısı konum servisini kendiliğinden geri getirebilir; o zaman
+"Paylaşım durdu" yanlış olurdu. Android 11'den beri arka planda başlayan konum servisi, arka plan
+izni olmadan konum alamaz; bildirim orada doğrudur. Android 7–10'da bildirim çıkmaz: paylaşım ya
+kendiliğinden sürer ya da kullanıcı uygulamayı açana kadar durur (telefonda denenmedi). Sürüm sınırı
+Jest testinde Kotlin kaynağından denetlenir.
+
+**Kanal.** Bildirim, haftalık "kim görüyor" hatırlatmasıyla aynı "privacy" kanalını kullanır. O
+kanalı kapatan kullanıcı bu bildirimi de görmez. Ayrı bir kanal gerekirse sonra eklenir.
+
 **Dokununca paylaşım nasıl sürer.** Kod değişmedi. Bargu açılınca `useLocationSession`
 (`use-location.ts`) izin verilmiş, uygulama önde, çember listesi gelmiş ve `locationEngine.active()`
 doğruysa `startTracking` çağırır; bu soğuk açılışla aynı yol. Dokunma uygulamayı öne getirdiği için
