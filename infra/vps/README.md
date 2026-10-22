@@ -141,7 +141,7 @@ Adımlar (`N` = `--min-level`):
    [ADR 0009](../../docs/ADR/0009-circles-keys-and-events.md) Ek; token URL'nin içindedir).
    443'teki server bloğunda `access_log off` zaten vardı, ama 80'deki http → https
    yönlendirmesinin kendi günlüğü yoktu ve sunucunun ortak erişim günlüğünü kullanıyordu; eski
-   `http://…/i/<token>` bağlantılarının token'ı oraya düşerdi. Şimdi iki server bloğunda da `location ~ ^/(i|g)/` var ve içinde `access_log off`
+   `http://…/i/<token>` bağlantılarının token'ı oraya düşerdi. Şimdi iki server bloğunda da `location ~* ^/(i|g)/` (büyük/küçük harf ayrımı yok: `/I/<token>` de; QA-34) var ve içinde `access_log off`
    (nginx belgesi, ngx_http_log_module: `off` o düzeydeki bütün günlükleri iptal eder). 80'deki blok
    yine https'e yönlendirir; 443'teki blok `/` bloğunun birebir kopyasıdır (aynı API adresi,
    başlıklar, zaman aşımları: sayfayı, hız sınırını ve CSP'yi API vermeye devam eder). Hata günlüğü
