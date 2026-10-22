@@ -20,9 +20,10 @@ if [ "$step" = ok ]; then echo "ci-linux: $1 passed"; exit 0; fi
 cat "$dir/$step"; exit 1
 EOF
 
-printf '%s\n' '@bargu/mobile:test: FAIL src/features/home/idle-frames.test.tsx (86.22 s)' > "$work/load"
+printf '%s\n' '@bargu/mobile:test: FAIL src/features/home/idle-frames.test.tsx (86.22 s)' 'ci-linux: typecheck, lint, test or build failed' > "$work/load"
 printf '%s\n' '@bargu/mobile:test: FAIL src/features/home/idle-frames.test.tsx (12.10 s)' > "$work/real"
 printf '%s\n' 'src/app.ts(1,1): error TS2322: nope' '@bargu/mobile:test: FAIL src/a.test.tsx (40.00 s)' > "$work/tsc"
+printf '%s\n' '@bargu/mobile#build: ERROR  command exited (1)' '@bargu/mobile:test: FAIL src/a.test.tsx (40.00 s)' 'ci-linux: typecheck, lint, test or build failed' > "$work/build"
 
 check() { # name, plan..., expected exit, expected text
   local name="$1" expect_code="$2" expect_text="$3"; shift 3
@@ -40,6 +41,7 @@ check 'passes first time, no retry' 0 'passed (first run)' ok
 check 'load-type failure is retried once' 0 'RETRY: load-type failure in: src/features/home/idle-frames.test.tsx' load ok
 check 'a short failure is not retried' 1 'not load-type, no retry' real ok
 check 'a typecheck error is never retried' 1 'not load-type, no retry' tsc ok
+check 'a failed build task is never retried' 1 'not load-type, no retry' build ok
 check 'the same file twice is flagged flaky' 1 'FLAKY (failed twice under load): src/features/home/idle-frames.test.tsx' load load
 
 echo "$pass passed, $fail failed"
