@@ -489,3 +489,49 @@ since, ts }`.
   dakikada çevrim dışı ve doğru saat metni, neden çevrim dışını yener ve yenilenmezse düşer, taze
   konumla etiket gider, geç gelen eski mesaj, yeniden başlatma, tür yola bağlı), gizlilik (hiçbir
   `state`'te koordinat yok), ekranlar (pin etiketi, kişi kartı, kendi kartı, grup penceresi).
+
+## Ek (2026-10-22): geliştirici araçları ve test ödemesi üretim paketine girmez
+
+Bu ek, 6. maddedeki "yalnızca önizleme paketi" sözünü kodda gerçekten tutan yapıyı yazar (Faz 10,
+mağaza hazırlığı). Bir araştırma bunun tam tutulmadığını gösterdi: ölçüm katmanı üretim paketinde
+yoktu, ama 50 sahte kişi (sürü), geliştirici satırları, kripto hız testi, bileşen galerisi ve ödeme
+taklidi ekranı ile hepsinin metinleri vardı. Sebep: bu parçalar `DEV_TOOLS_ENABLED` diye başka bir
+modülden verilen sabitin arkasındaydı ve `import` satırları duruyordu; küçültücü modüller arası sabiti
+çözemez, bu yüzden kod pakete girdi. Üretim paketinde ayrıca test satın alma çağrısı ve sunucudaki
+yolu vardı (Bargu+ ekranı ve pin süsleri onu sunucunun "test ödemesi açık" demesine bırakıyordu).
+
+### Karar
+
+1. **Derleme anında sabit koşul + dinamik `import`.** `index.ts` araçları tek tek şu biçimde yükler:
+   `if (__DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1') { void import(...) }` (test ödemesi için
+   `EXPO_PUBLIC_TEST_BILLING`). Expo üretim paketinde `EXPO_PUBLIC_*` değerini koşulun içine yazar,
+   Metro ölü dalı atar ve `import()` satırı da gider. Başka hiçbir üretim modülü `features/dev/` altından
+   `slots` ve `route` dışında bir şeyi `import` etmez.
+2. **Yuvalar.** Ekranlar araçları doğrudan çağırmaz; boş yuvalara bakar (`features/dev/slots.ts`,
+   test ödemesi için `features/billing/test-slot.ts`). Araç yüklenince kendini yuvaya koyar:
+   "Uygulama" ekranındaki geliştirici satırları, haritadaki sürü ve paneli, `app/_dev/*` ekranları.
+   Üretimde yuva boş kalır, hiçbir şey çizilmez. `app/_dev/` altındaki üç dosya expo-router dosya
+   yolu istediği için kalır; üç satırdır, yuva boşsa ana sayfaya yönlendirir.
+3. **Metinler ortak sözlükte değil.** Geliştirici metinleri `i18n/locales/dev.tr.json` ve
+   `dev.en.json` içindedir, araç yüklenince i18next'e eklenir. Bir test `dev` anahtarının `tr.json` ve
+   `en.json` içine girmemesini bekler.
+4. **Test ödemesi.** `/v1/billing/test/purchase` ve `/simulate` çağrıları
+   `features/billing/test-billing.ts` içindedir; yalnız `development` ve `preview` profili
+   (`EXPO_PUBLIC_TEST_BILLING=1`) yükler. Üretimde Bargu+ ekranı ve pin süsleri "Yakında Google Play
+   üzerinden" der; ne satın alma ne iptal çağrısı yapabilir, sunucu ne derse desin (eski bir test
+   sürümünden kalan planın iptal düğmesi de çıkmaz).
+5. **Kanıt: `pnpm check:bundle`.** Bayraksız bir `expo export` paketi üretir ve işaretlerin hiçbirinin
+   olmadığını; bayraklı (önizleme gibi) paketin hepsini içerdiğini doğrular. İşaretler `dev.*.json`
+   metinlerinden otomatik çıkar; ayrıca koddan birkaç dize ve iki test ödemesi yolu vardır. Yerel AAB
+   denemesi (`FORMAT=aab scripts/build-android-local.sh`) aynı denetimi paketin içindeki JavaScript
+   üzerinde de yapar. Denetim, bu değişikliklerden önceki üretim paketinde 97 işaretten 96'sını buldu
+   (iki test ödemesi yolu dahil); sonra 0.
+
+### Sonuçlar
+
+- Yeni bir geliştirici aracı eklerken kural: koda `features/dev/tools.ts` ya da `measure/` altına,
+  metni `dev.*.json` içine koy; ekran yuvadan okusun. Üretim koduna `features/dev/` altından statik
+  `import` eklenirse `pnpm check:bundle` kırılır.
+- Üretimde bilerek kalanlar (kod ya da metin değil): `app/_dev` yol dosyaları, `probe` kancaları,
+  `passkeyDiagnostic` yardımcısı.
+- Önizleme paketinde davranış aynıdır; araçlar uygulama açılırken bir an sonra yuvaya yerleşir.

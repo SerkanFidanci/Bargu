@@ -96,23 +96,82 @@ Kaynak: `docs/play-store/KONTROL-LISTESI.md` (K1, K3, K4). Durum: 2026-10-22. A�
   `versionCode`'u anlamsızdır (mağazaya zaten yüklenemez).
 - Uzak sayaç şu an **1** (`eas build:version:get`, 2026-10-22); ilk production derlemesi 2 alır. Play'e
   daha önce bir kod yüklenmedi, başlangıç değerine dokunmak gerekmiyor.
-- `version` ("0.1.0") mağazada görünen ad; 1.0.0'a ne zaman geçileceği ürün kararıdır.
+- `version` **0.9.0** (kapalı test); mağazada görünen ad. 1.0.0 herkese açık sürüm için ayrılmıştır.
+
+### Android izinleri
+
+Yayın manifestosunun gerçek listesi (Gradle birleştirmesinden sonra, 38 izin; 2026-10-22): 16'sı
+kalır, 22'si `app.config.ts` içindeki `blockedPermissions` ile çıkarılır. Her izin için kaynağı
+`manifest-merger` raporundan okundu. `FORMAT=aab` denemesi çıkan izinlerin manifestoda **gerçekten
+olmadığını** denetler ve kalan listeyi yazar (`scripts/check-manifest.mjs`); `release-config.test.ts`
+gerekli izinlerin yanlışlıkla engellenmediğini denetler.
+
+**Kalanlar (16):**
+
+| İzin                                                      | Kaynak                              | Neden                                                                                 |
+| --------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------- |
+| `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`          | expo-location                       | Konum paylaşımı (yalnız "kullanırken"; arka plan konumu istenmez)                     |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`       | expo-location                       | Kilitli ekranda sürsün diye görünür bildirimli konum servisi (Play beyanı C9)         |
+| `CAMERA`                                                  | expo-camera                         | QR okuma, kayıt yok                                                                   |
+| `POST_NOTIFICATIONS`                                      | expo-notifications, firebase        | Android 13+ bildirim izni (bağlamda istenir)                                          |
+| `RECEIVE_BOOT_COMPLETED`                                  | expo-notifications                  | Telefon yeniden başlayınca yerel hatırlatmalar yeniden kurulur (aşağıda)              |
+| `USE_BIOMETRIC`, `USE_FINGERPRINT`                        | expo-local-authentication, androidx | Uygulama kilidi; Android 7 ve 8'de (minSdk 24) parmak izi için `USE_FINGERPRINT` şart |
+| `VIBRATE`                                                 | expo-haptics                        | Dokunsal geri bildirim                                                                |
+| `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`   | şablon, netinfo, maplibre           | Ağ ve bağlantı durumu                                                                 |
+| `WAKE_LOCK`, `com.google.android.c2dm.permission.RECEIVE` | firebase-messaging                  | Push (FCM)                                                                            |
+| `app.bargu.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`      | androidx.core                       | Uygulamanın kendi imzasına özel; kitaplık ekler, kullanıcıya görünmez                 |
+
+**Çıkarılanlar (22):**
+
+| İzin                                                                                        | Kaynak                                                           | Neden gerekmez                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SYSTEM_ALERT_WINDOW`                                                                       | prebuild şablonu                                                 | Yalnız geliştirici menüsünün katmanı (debug)                                                                                                                       |
+| `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` (Android 12 ve eski)                      | şablon, expo-file-system, expo-image-picker, expo-screen-capture | Fotoğraf sistem seçicisinden gelir (Expo belgesi: kitaplık için izin istenmez); dışa aktarma kullanıcının seçtiği klasöre (SAF) yazılır                            |
+| `READ_MEDIA_IMAGES`, `DETECT_SCREEN_CAPTURE`                                                | expo-screen-capture                                              | Yalnız "ekran görüntüsü alındı" dinleyicisi içindir; Bargu yalnız engeller (`usePreventScreenCapture`, FLAG_SECURE), dinlemez. Play `READ_MEDIA_IMAGES`'i kısıtlar |
+| `BIND_GET_INSTALL_REFERRER_SERVICE`                                                         | installreferrer (expo-application)                               | Kurulum kaynağı okunmuyor                                                                                                                                          |
+| `READ_APP_BADGE` ve 15 başlatıcı izni (Samsung, Huawei, Sony, HTC, OPPO, Apex, Solid, ZUK…) | ShortcutBadger (expo-notifications)                              | Uygulama simgesine sayı rozeti içindir; Bargu rozet sayısı koymaz                                                                                                  |
+
+**`DUMP` bir izin isteği değildir:** `androidx.profileinstaller`ın alıcısında `android:permission`
+olarak yazılıdır (alıcıyı yalnız sistem ve adb tetikleyebilsin diye); engellenecek bir şey yok.
+
+**`RECEIVE_BOOT_COMPLETED` neden kalıyor, yeniden başlatınca ne olur:**
+
+- Uygulama yerel zamanlı bildirim kurar: deneme bitişi (`trial-reminder.ts`), haftalık "kim
+  görüyor" hatırlatması (`sharing-reminder-notification.ts`) ve buluşmaya "çıkmalısın" hatırlatması
+  (`plan/reminders.ts`). Android yeniden başlayınca bu alarmları siler; expo-notifications bunları
+  `BOOT_COMPLETED` alıcısıyla yeniden kurar. İzin olmazsa üç hatırlatma da telefon yeniden başladıktan
+  sonra sessizce kaybolur. `expo-task-manager`ın alıcısı da aynı yayını dinler (kayıtlı görevleri geri
+  yükler).
+- **Konum paylaşımı yeniden başlatınca büyük olasılıkla kendiliğinden sürmez** (bu izinden bağımsız):
+  konum servisi yalnız uygulama önde açıkken başlatılabilir (`tracker.ts` yorumu; arka plan konum
+  izni bilerek istenmiyor) ve Android, bu izni olmayan uygulamanın konum servisini açılış
+  yayınından başlatmasına izin vermez. Yani bugün paylaşım, kullanıcı uygulamayı bir kez açana
+  kadar durur ve arkadaşları o arada "Çevrim dışı" görür. **Bunu telefonda denemedim**; kod ve Android
+  kuralından çıkarım. Bu bir ürün kararı: yeniden başlatma sonrası "paylaşım durdu, aç" bildirimi
+  gibi bir çözüm istenirse ayrı iş.
 
 ### Geliştirici araçları üretim paketinde olmaz
 
 - Neler: Ben > Uygulama'daki geliştirici satırları, haritada 50 sahte kişi (sürü) ve paneli, ölçüm
-  katmanı ve takılma ölçeri, kripto hız testi, bileşen galerisi, ödeme taklidi ve hepsinin metinleri.
+  katmanı ve takılma ölçeri, kripto hız testi, bileşen galerisi, ödeme taklidi ekranı ve hepsinin
+  metinleri; ayrıca **test satın alma** (Bargu+ ve pin süsleri) ile sunucudaki iki yolu
+  (`/v1/billing/test/purchase`, `/v1/billing/test/simulate`).
 - Nasıl: `index.ts` bunları `process.env.EXPO_PUBLIC_DEV_TOOLS` (derlemede sabit olur) arkasında
   `import()` ile yükler (`src/features/dev/measure`, `src/features/dev/tools.ts`); Metro üretim
   paketinde atar. Ekranlar boş yuvalara (`src/features/dev/slots.ts`) bakar. `features/dev` içinden
   yalnız `slots` ve `route` üretim koduna girebilir; başka bir şey ona statik `import` ederse araç
   sızar ve aşağıdaki kontrol kırılır. Metinler `src/i18n/locales/dev.*.json` içinde, ortak
   sözlükte değil.
+- Test satın alma ayrı bir bayrakla yüklenir: `EXPO_PUBLIC_TEST_BILLING=1` (`eas.json`: yalnız
+  `development` ve `preview`; `index.ts`, `src/features/billing/test-billing.ts`'i yükler). Üretim
+  paketinde Bargu+ ekranı "Yakında Google Play üzerinden" der ve ne satın alma ne iptal çağrısı
+  yapabilir: sunucu ne derse desin. Önizlemede bugünkü test satın alma aynen sürer.
 - Kontrol: `pnpm check:bundle` (makine kilidiyle, yaklaşık 2 dakika) bayraksız bir paket üretir ve
   işaretlerin **hiçbirinin** olmadığını, bayraklı (önizleme gibi) paketin **hepsini** içerdiğini
-  doğrular. İşaretler `dev.*.json` metinlerinden otomatik çıkar. Sonuç (2026-10-22): bayraksız 95
-  işaretten 0 bulundu; bayraklı 95'in 95'i var. Bu işten önce aynı kontrol 94 buldu. Aynı iş yerel
-  AAB denemesinde de yapılır.
+  doğrular. İşaretler `dev.*.json` metinlerinden otomatik çıkar; ayrıca koddan dört dize ve iki test
+  satın alma yolu vardır. Aynı iş yerel AAB denemesinde de yapılır. Sonuç (2026-10-22): bayraksız 97
+  işaretten **0** bulundu, bayraklı 97'nin 97'si var; bu işlerden önce aynı kontrol bayraksız pakette
+  97 işaretten 96'sını buldu (iki test satın alma yolu dahil).
 - Üretimde bilerek kalanlar (kod ya da metin değil, hiç çalışmaz): `app/_dev/` altındaki üç satırlık
   yol dosyaları (expo-router dosya yollarını ister; boş yuvada ana sayfaya yönlendirir), konum
   hattındaki boş `probe` kancaları, `passkeyDiagnostic` yardımcısı (yalnız önizlemede hata metnine
