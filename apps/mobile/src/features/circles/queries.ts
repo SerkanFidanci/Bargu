@@ -12,7 +12,7 @@ import { circlesKey } from './circle-cache';
 import { circlesApi } from './circles-api';
 import { type Friend, friendsOf, handleOf, memberName, partnerOf } from './names';
 
-export { type Friend, friendsOf, handleOf, memberName, partnerOf };
+export { type Friend, handleOf, memberName, partnerOf };
 
 /** Every circle the user is in or invited to; loaded once, then kept current by events. */
 export function useCircles() {

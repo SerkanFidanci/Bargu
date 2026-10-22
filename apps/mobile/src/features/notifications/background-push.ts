@@ -19,8 +19,6 @@ import { identityOf, loadContacts } from './push-contacts';
 import { sealedOf } from './push-payload';
 import { pushText } from './push-text';
 
-export { sealedOf };
-
 /** expo-notifications runs this for every data message, also when the app is not open. */
 const PUSH_TASK = 'bargu-push';
 /** A notification older than this when it arrives (the phone was off) is not shown any more. */

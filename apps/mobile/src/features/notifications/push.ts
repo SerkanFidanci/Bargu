@@ -12,8 +12,6 @@ import {
   SAFE_QUIET_CHANNEL,
 } from './channels';
 
-export { SOCIAL_CHANNEL };
-
 /**
  * enabled: system notifications on and this phone registered; denied: the user said no (only the
  * system settings can change it now); unavailable: this build cannot receive them (no push

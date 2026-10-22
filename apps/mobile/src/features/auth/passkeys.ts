@@ -2,12 +2,7 @@ import { Passkey, type PasskeyCreateRequest } from 'react-native-passkey';
 
 import { api, passkeyOptionsSchema } from './auth-store';
 
-export {
-  passkeyDiagnostic,
-  passkeyFailure,
-  passkeysSupported,
-  type PasskeyFailure,
-} from './passkey-support';
+export { passkeyDiagnostic, passkeyFailure, passkeysSupported } from './passkey-support';
 
 /** Adds a passkey to the signed-in account (the server binds it to the account id). */
 export async function addPasskey(): Promise<void> {
