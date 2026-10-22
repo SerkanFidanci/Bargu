@@ -94,6 +94,8 @@ Kaynak: `docs/play-store/KONTROL-LISTESI.md` (K1, K3, K4). Durum: 2026-10-22. A�
 - Yerel betikte (`SIGN=eas`): derlemeden önce ve sonra `eas build:version:get` ile sayaç okunur;
   artmadıysa ya da okunamadıysa paket **silinir** ve betik reddeder. `SIGN=check` paketinin
   `versionCode`'u anlamsızdır (mağazaya zaten yüklenemez).
+- Uzak sayaç şu an **1** (`eas build:version:get`, 2026-10-22); ilk production derlemesi 2 alır. Play'e
+  daha önce bir kod yüklenmedi, başlangıç değerine dokunmak gerekmiyor.
 - `version` ("0.1.0") mağazada görünen ad; 1.0.0'a ne zaman geçileceği ürün kararıdır.
 
 ### Geliştirici araçları üretim paketinde olmaz
@@ -120,9 +122,10 @@ Kaynak: `docs/play-store/KONTROL-LISTESI.md` (K1, K3, K4). Durum: 2026-10-22. A�
 
 1. **K2, upload key:** EAS'ta üret (`eas credentials`); dosya ve parola iki ayrı yerde yedeklenir,
    depoya girmez. Bu olmadan `SIGN=eas` ve bulutta `production` derlemesi imzalanamaz.
-2. EAS'ın **"production" ortamında** `EXPO_PUBLIC_API_URL` (https) ve Firebase dosyası değişkeni
-   (`GOOGLE_SERVICES_JSON`) tanımlı olmalı; alan adı kararı K12. Yerel kontrol paketinde ikisi de
-   bilerek yok.
+2. EAS'ın **"production" ortamı şu an boş** (eas-cli 2026-10-22'de "hiç değişken yok" dedi). Orada
+   `EXPO_PUBLIC_API_URL` (https) ve Firebase dosyası değişkeni (`GOOGLE_SERVICES_JSON`) tanımlanmadan
+   alınan mağaza paketi açılışta "EXPO_PUBLIC_API_URL is required" diye düşer. Adres için alan adı
+   kararı gerekir (K12). Yerel kontrol paketinde ikisi de bilerek yok.
 3. İlk gerçek paketi `SIGN=eas` ile aldıktan sonra sayaç çıktısına bak (`versionCode önceki -> yeni`).
 4. Play Console'a yükleme, Play App Signing (D2), 14 günlük kapalı test: hesap açılınca sahibin işi.
 5. Android 16'lı bir telefonda uygulamayı açıp kenardan kenara düzeni ve geri hareketini denemek.
