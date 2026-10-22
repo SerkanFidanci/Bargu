@@ -273,6 +273,31 @@ Her 5 baytlık parça (büyük-endian) `mod 100000` → 5 rakam → kişi başı
 `bargu-sn:1:` ‖ base64url(fp₁ ‖ fp₂). Okutulan QR sabit zamanlı karşılaştırılır. Kimlik anahtarı
 değişirse (yeni cihaz) numara değişir; uygulama ortak çemberlerde uyarı gösterir.
 
+### Son ortak çember gidince kişiyi unutmak
+
+Bu telefonun bir kişiyle **son** ortak çemberi gidince (kişi çıktı, çıkarıldı, telefon çıktı, çember
+ya da etkinlik bitti) telefondaki o kişiye ait her şey silinir: "çemberden çıkmak iz bırakmaz" sözü
+ve veri azaltma (KVKK) budur. Silinenler: fotoğraf ve görünüm, son konumlar, durum, "Neden eski?"
+nedeni, "Güvendeyim" yerleri ve hangi mesajların gösterildiği hafızası, kişinin cihazlarının
+gönderici ve geçmiş anahtarları, o cihazların tekrar (replay) penceresi, anahtar bekleyen mesajlar,
+bellekteki doğrulanmış cihaz paketleri, dürtme / "geç kalıyorum" / "Geldim" kayıtları, "yeni
+izleyici" hafızası ve o kişi için konulan sessize alma ayarları. Ortak çemberlerden biri gidip en
+az biri kalıyorsa **hiçbir şey silinmez**.
+
+**Tek istisna güven kaydıdır** (`identity:<userId>`: kimlik anahtarı, yüz yüze karşılaştırıldı mı,
+değişti mi): kişi adı ve içerik yok, yalnız açık anahtar parmak izi. Bilerek tutulur: aynı kişiyle
+yeniden karşılaşıldığında anahtar değişikliğini yakalamak için. Silinseydi, değiştirilmiş bir anahtar
+sessizce "ilk kullanım" sayılırdı (§3). Çıkış yapınca ve hesap silinince bu kayıt da gider: kasanın
+tamamı silinir (testle korunur: `features/live/session-wipe.test.ts`).
+
+Nasıl çalışır: `circle-sync`, tam çember listesi bir kez yüklendikten sonra çember listesi her
+değiştiğinde, ortak çemberi olan kişileri (ve cihazlarını) kasadaki `people:v1` kaydıyla karşılaştırır;
+listeden düşenleri tek yerden siler (`features/location/forget-person.ts`). Uygulama kapalıyken
+çıkanlar ilk tam listede bulunur; kısmi bir önbellek hiçbir zaman "çıktı" sayılmaz. Silme yarım
+kalırsa kayıt durur ve bir sonraki değişiklikte yeniden denenir. Sınırlar: çemberin kendi belgeleri
+(plan, oylardaki seçimler) çemberindir, kişinin değil; eski sürümden kalan "Güvendeyim" yeri kimlik
+taşımaz ve en fazla bir gün sonra kendiliğinden silinir.
+
 ## 9. Bildirim (sealed box, ADR 0016)
 
 Alıcı cihaz başına, gönderen bilgisi içermeyen kutu:
