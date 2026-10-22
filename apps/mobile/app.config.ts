@@ -1,4 +1,13 @@
+import { join } from 'node:path';
+
 import type { ConfigContext, ExpoConfig } from 'expo/config';
+import {
+  AndroidConfig as ConfigPluginsAndroid,
+  type ConfigPlugin,
+  withAndroidManifest,
+  withDangerousMod,
+  XML,
+} from 'expo/config-plugins';
 
 type AndroidConfig = NonNullable<ExpoConfig['android']>;
 
@@ -79,6 +88,96 @@ export function inviteIntentFilters(
 }
 
 /**
+ * Android backup off, for good (apps/mobile/README.md "Android yedekleme"): nothing of Bargu goes
+ * to Google Drive and nothing is carried to a new phone by the device-to-device transfer. The only
+ * data store is the AES-256 vault whose key lives in SecureStore; a restore would put the file on a
+ * phone that does not hold the key, which the app could only read as broken. Three things have to
+ * agree, because each Android version reads a different one:
+ *
+ *   - `android:allowBackup="false"` (Android 11 and older; cloud backup on 12+). It comes from
+ *     `android.allowBackup` below, where Expo itself writes it into the manifest.
+ *   - `android:fullBackupContent` (Android 11 and older): rules that exclude everything.
+ *   - `android:dataExtractionRules` (Android 12+): the same, for cloud backup AND device transfer.
+ *     Android 12+ keeps doing the device-to-device transfer unless these rules exclude it,
+ *     whatever `allowBackup` says.
+ *
+ * expo-secure-store's own `configureAndroidBackup` writes a second pair of those two attributes
+ * (rules that only keep its preferences out of an otherwise included backup). It is switched off in
+ * the plugin list below, so the merged manifest carries exactly this one set. The built manifest
+ * is checked by scripts/check-manifest.mjs.
+ *
+ * Written here, not in a file under plugins/: Expo transpiles app.config.ts alone and cannot
+ * require a second TypeScript file from it.
+ */
+export const BACKUP_RULES = 'bargu_backup_rules';
+export const EXTRACTION_RULES = 'bargu_data_extraction_rules';
+
+/**
+ * Every storage domain Android knows: the app's data directory and its parts, external storage,
+ * and the device-protected (direct boot) counterparts.
+ */
+const BACKUP_DOMAINS = [
+  'root',
+  'file',
+  'database',
+  'sharedpref',
+  'external',
+  'device_root',
+  'device_file',
+  'device_database',
+  'device_sharedpref',
+] as const;
+
+const excludeEverything = () => BACKUP_DOMAINS.map((domain) => ({ $: { domain, path: '.' } }));
+
+/** `res/xml` rules for Android 11 and older (`android:fullBackupContent`), as the XML writer takes them. */
+export function backupRules() {
+  return { 'full-backup-content': { exclude: excludeEverything() } };
+}
+
+/** `res/xml` rules for Android 12 and newer (`android:dataExtractionRules`). */
+export function extractionRules() {
+  return {
+    'data-extraction-rules': {
+      'cloud-backup': { exclude: excludeEverything() },
+      'device-transfer': { exclude: excludeEverything() },
+    },
+  };
+}
+
+/** Points the `<application>` element at the two rule files. */
+export function pointAtRules(manifest: ConfigPluginsAndroid.Manifest.AndroidManifest): void {
+  const application = ConfigPluginsAndroid.Manifest.getMainApplicationOrThrow(manifest);
+  application.$['android:fullBackupContent'] = `@xml/${BACKUP_RULES}`;
+  application.$['android:dataExtractionRules'] = `@xml/${EXTRACTION_RULES}`;
+}
+
+export const withNoAndroidBackup: ConfigPlugin = (config) => {
+  const pointed = withAndroidManifest(config, (current) => {
+    pointAtRules(current.modResults);
+    return current;
+  });
+  // The rule files go into the prebuilt project's resources (android/ is generated).
+  return withDangerousMod(pointed, [
+    'android',
+    async (current) => {
+      const resources = await ConfigPluginsAndroid.Paths.getResourceFolderAsync(
+        current.modRequest.projectRoot,
+      );
+      await XML.writeXMLAsync({
+        path: join(resources, 'xml', `${BACKUP_RULES}.xml`),
+        xml: backupRules(),
+      });
+      await XML.writeXMLAsync({
+        path: join(resources, 'xml', `${EXTRACTION_RULES}.xml`),
+        xml: extractionRules(),
+      });
+      return current;
+    },
+  ]);
+};
+
+/**
  * Permissions that libraries or the prebuild template add to the release manifest and Bargu does
  * not use: each is removed from the merged manifest (tools:node="remove"). Source and reason of
  * every one, and the ones that stay, are in apps/mobile/README.md "Android izinleri"; the list is
@@ -133,7 +232,7 @@ const FONTS = {
   ],
 } as const;
 
-export default ({ config }: ConfigContext): ExpoConfig => ({
+const appConfig = ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Bargu',
   slug: 'bargu',
@@ -168,6 +267,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
+    // No cloud backup and no restore on any Android version; the rules for Android 12+ and for the
+    // device-to-device transfer come from plugins/with-no-android-backup.ts.
+    allowBackup: false,
     blockedPermissions: BLOCKED_PERMISSIONS,
     // https invite links open the app (App Links); none for a build without an invite host.
     ...(INVITE_HOST === undefined || INVITE_HOST === ''
@@ -187,9 +289,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     ['expo-localization', { supportedLocales: { ios: ['tr', 'en'], android: ['tr', 'en'] } }],
-    // Device keys never leave the phone: excluded from Android auto backup (and iCloud by the
-    // *_THIS_DEVICE_ONLY keychain class used in src/features/auth/device-key-store.ts).
-    ['expo-secure-store', { configureAndroidBackup: true }],
+    // Device keys never leave the phone: in no Android backup at all (allowBackup, and the rules of
+    // withNoAndroidBackup at the end of this file) and not in iCloud (the *_THIS_DEVICE_ONLY
+    // keychain class used in src/features/auth/device-key-store.ts). expo-secure-store's own backup
+    // rules stay off, so the manifest carries one set of rules and not two.
+    ['expo-secure-store', { configureAndroidBackup: false }],
     [
       'expo-font',
       {
@@ -282,3 +386,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       : { iosPushKeychainGroup: `${APPLE_TEAM_ID}.${PUSH_KEYCHAIN_GROUP}` }),
   },
 });
+
+// The backup rules apply as a mod on the whole config: Expo types its plugin list as names only.
+export default (context: ConfigContext): ExpoConfig => withNoAndroidBackup(appConfig(context));

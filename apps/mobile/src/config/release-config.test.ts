@@ -1,6 +1,14 @@
 import { join } from 'node:path';
 
-import createConfig from '../../app.config';
+import { AndroidConfig } from 'expo/config-plugins';
+
+import createConfig, {
+  BACKUP_RULES,
+  backupRules,
+  EXTRACTION_RULES,
+  extractionRules,
+  pointAtRules,
+} from '../../app.config';
 import easJson from '../../eas.json';
 
 /**
@@ -136,5 +144,95 @@ describe('app config', () => {
       (name) => /launcher|badge/i.test(name) && !name.startsWith('android.permission.'),
     );
     expect(badge.length).toBeGreaterThanOrEqual(15);
+  });
+});
+
+/** The storage domains Android backs up (and the device-protected ones): all must be excluded. */
+const ALL_DOMAINS = [
+  'root',
+  'file',
+  'database',
+  'sharedpref',
+  'external',
+  'device_root',
+  'device_file',
+  'device_database',
+  'device_sharedpref',
+];
+
+/** Every `exclude` of a rules section as `domain:path`, and the elements it holds besides. */
+function excluded(section: unknown): { rules: string[]; others: string[] } {
+  const body = section as { exclude?: { $: { domain: string; path: string } }[] };
+  const { exclude = [], ...others } = body;
+  return {
+    rules: exclude.map(({ $ }) => `${$.domain}:${$.path}`),
+    others: Object.keys(others),
+  };
+}
+
+describe('Android backup (apps/mobile/README.md "Android yedekleme")', () => {
+  const everything = ALL_DOMAINS.map((domain) => `${domain}:.`);
+
+  /** A manifest as the prebuild template and expo-secure-store's backup option would leave it. */
+  function manifestWith(
+    attributes: Record<string, string>,
+  ): AndroidConfig.Manifest.AndroidManifest {
+    return {
+      manifest: {
+        $: { 'xmlns:android': 'http://schemas.android.com/apk/res/android' },
+        queries: [],
+        application: [{ $: { 'android:name': '.MainApplication', ...attributes } }],
+      },
+    };
+  }
+
+  it('is off: Expo writes android:allowBackup="false" from the app config', () => {
+    expect(config.android?.allowBackup).toBe(false);
+    const manifest = manifestWith({ 'android:allowBackup': 'true' });
+    AndroidConfig.AllowBackup.setAllowBackup(config, manifest);
+    expect(manifest.manifest.application?.[0]?.$['android:allowBackup']).toBe('false');
+  });
+
+  it('points Android 11 and older, and Android 12+ with its device transfer, at Bargu rules', () => {
+    // expo-secure-store's own pair is replaced, not kept beside: one set in the manifest.
+    const manifest = manifestWith({
+      'android:fullBackupContent': '@xml/secure_store_backup_rules',
+      'android:dataExtractionRules': '@xml/secure_store_data_extraction_rules',
+    });
+    pointAtRules(manifest);
+    const attributes = manifest.manifest.application?.[0]?.$;
+    expect(attributes?.['android:fullBackupContent']).toBe(`@xml/${BACKUP_RULES}`);
+    expect(attributes?.['android:dataExtractionRules']).toBe(`@xml/${EXTRACTION_RULES}`);
+    expect(BACKUP_RULES).not.toContain('secure_store');
+    expect(EXTRACTION_RULES).not.toContain('secure_store');
+  });
+
+  it("leaves expo-secure-store's backup rules out, so the manifest has one set of rules", () => {
+    const entry = (config.plugins ?? []).find(
+      (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-secure-store',
+    );
+    expect(entry).toEqual(['expo-secure-store', { configureAndroidBackup: false }]);
+  });
+
+  it('excludes everything from the old rules, and includes nothing', () => {
+    const [root, ...rest] = Object.entries(backupRules());
+    expect(rest).toEqual([]);
+    expect(root?.[0]).toBe('full-backup-content');
+    const { rules, others } = excluded(root?.[1]);
+    expect(rules).toEqual(everything);
+    expect(others).toEqual([]);
+  });
+
+  it('excludes everything from cloud backup AND from the device transfer, and includes nothing', () => {
+    const [root, ...rest] = Object.entries(extractionRules());
+    expect(rest).toEqual([]);
+    expect(root?.[0]).toBe('data-extraction-rules');
+    const sections = root?.[1] as Record<string, unknown>;
+    expect(Object.keys(sections).sort()).toEqual(['cloud-backup', 'device-transfer']);
+    for (const section of Object.values(sections)) {
+      const { rules, others } = excluded(section);
+      expect(rules).toEqual(everything);
+      expect(others).toEqual([]);
+    }
   });
 });
