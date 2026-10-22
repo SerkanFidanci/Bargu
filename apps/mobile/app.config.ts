@@ -194,10 +194,12 @@ const BLOCKED_PERMISSIONS = [
   // neither needs them.
   'android.permission.READ_EXTERNAL_STORAGE',
   'android.permission.WRITE_EXTERNAL_STORAGE',
-  // expo-screen-capture: only for its screenshot listener, which Bargu does not use (it blocks
-  // screenshots with FLAG_SECURE, which needs nothing). Google Play limits READ_MEDIA_IMAGES.
+  // expo-screen-capture, Android 12 and older: only for its screenshot listener, which Bargu does
+  // not use. Google Play limits READ_MEDIA_IMAGES. DETECT_SCREEN_CAPTURE is NOT blocked: from
+  // Android 14 the module registers its capture callback when it is created, whether anyone listens
+  // or not, and without the permission that throws and the app closes at start (869a7af on the
+  // owner's S25 Ultra). It is a normal permission: granted at install, never asked.
   'android.permission.READ_MEDIA_IMAGES',
-  'android.permission.DETECT_SCREEN_CAPTURE',
   // expo-application's Install Referrer library: nothing in Bargu reads the install referrer.
   'com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE',
   // ShortcutBadger (expo-notifications): app icon badge counts on launchers; Bargu sets none.

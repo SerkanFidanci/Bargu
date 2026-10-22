@@ -1,4 +1,5 @@
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 import { AndroidConfig } from 'expo/config-plugins';
 
@@ -59,6 +60,9 @@ const KEPT_PERMISSIONS = [
   'android.permission.VIBRATE',
   'android.permission.WAKE_LOCK',
   'com.google.android.c2dm.permission.RECEIVE',
+  // expo-screen-capture registers its Android 14+ capture callback at start: blocked, the app
+  // closes at once (869a7af).
+  'android.permission.DETECT_SCREEN_CAPTURE',
 ];
 
 const config = createConfig({
@@ -127,7 +131,6 @@ describe('app config', () => {
       'android.permission.READ_EXTERNAL_STORAGE',
       'android.permission.WRITE_EXTERNAL_STORAGE',
       'android.permission.READ_MEDIA_IMAGES',
-      'android.permission.DETECT_SCREEN_CAPTURE',
       'android.permission.READ_APP_BADGE',
       'com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE',
     ]) {
@@ -137,6 +140,21 @@ describe('app config', () => {
       expect(blocked).not.toContain(name);
     }
     expect(new Set(blocked).size).toBe(blocked.length);
+  });
+
+  it('keeps the permission expo-screen-capture needs when it starts on Android 14 and later', () => {
+    // The module registers its capture callback in OnCreate, listener or not; Android throws
+    // without DETECT_SCREEN_CAPTURE and the app closes at start (869a7af on the owner's phone).
+    const module = join(
+      dirname(require.resolve('expo-screen-capture/package.json')),
+      'android/src/main/java/expo/modules/screencapture/ScreenCaptureModule.kt',
+    );
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- the installed library's own source, a fixed path
+    const source = readFileSync(module, 'utf8');
+    expect(source).toContain('registerScreenCaptureCallback');
+    expect(config.android?.blockedPermissions ?? []).not.toContain(
+      'android.permission.DETECT_SCREEN_CAPTURE',
+    );
   });
 
   it('blocks the launcher badge permissions of ShortcutBadger, which only count badges', () => {

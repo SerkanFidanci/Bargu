@@ -100,34 +100,35 @@ Kaynak: `docs/play-store/KONTROL-LISTESI.md` (K1, K3, K4). Durum: 2026-10-22. A�
 
 ### Android izinleri
 
-Yayın manifestosunun gerçek listesi (Gradle birleştirmesinden sonra, 38 izin; 2026-10-22): 16'sı
-kalır, 22'si `app.config.ts` içindeki `blockedPermissions` ile çıkarılır. Her izin için kaynağı
+Yayın manifestosunun gerçek listesi (Gradle birleştirmesinden sonra, 38 izin; 2026-10-22): 17'si
+kalır, 21'i `app.config.ts` içindeki `blockedPermissions` ile çıkarılır. Her izin için kaynağı
 `manifest-merger` raporundan okundu. `FORMAT=aab` denemesi çıkan izinlerin manifestoda **gerçekten
 olmadığını** denetler ve kalan listeyi yazar (`scripts/check-manifest.mjs`); `release-config.test.ts`
 gerekli izinlerin yanlışlıkla engellenmediğini denetler.
 
-**Kalanlar (16):**
+**Kalanlar (17):**
 
-| İzin                                                      | Kaynak                                   | Neden                                                                                        |
-| --------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`          | expo-location                            | Konum paylaşımı (yalnız "kullanırken"; arka plan konumu istenmez)                            |
-| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`       | expo-location                            | Kilitli ekranda sürsün diye görünür bildirimli konum servisi (Play beyanı C9)                |
-| `CAMERA`                                                  | expo-camera                              | QR okuma, kayıt yok                                                                          |
-| `POST_NOTIFICATIONS`                                      | expo-notifications, firebase             | Android 13+ bildirim izni (bağlamda istenir)                                                 |
-| `RECEIVE_BOOT_COMPLETED`                                  | expo-notifications, bargu-restart-notice | Yeniden başlayınca yerel hatırlatmalar yeniden kurulur; "Paylaşım durdu" bildirimi (aşağıda) |
-| `USE_BIOMETRIC`, `USE_FINGERPRINT`                        | expo-local-authentication, androidx      | Uygulama kilidi; Android 7 ve 8'de (minSdk 24) parmak izi için `USE_FINGERPRINT` şart        |
-| `VIBRATE`                                                 | expo-haptics                             | Dokunsal geri bildirim                                                                       |
-| `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`   | şablon, netinfo, maplibre                | Ağ ve bağlantı durumu                                                                        |
-| `WAKE_LOCK`, `com.google.android.c2dm.permission.RECEIVE` | firebase-messaging                       | Push (FCM)                                                                                   |
-| `app.bargu.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`      | androidx.core                            | Uygulamanın kendi imzasına özel; kitaplık ekler, kullanıcıya görünmez                        |
+| İzin                                                      | Kaynak                                   | Neden                                                                                                                                                                                                                |
+| --------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`          | expo-location                            | Konum paylaşımı (yalnız "kullanırken"; arka plan konumu istenmez)                                                                                                                                                    |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`       | expo-location                            | Kilitli ekranda sürsün diye görünür bildirimli konum servisi (Play beyanı C9)                                                                                                                                        |
+| `CAMERA`                                                  | expo-camera                              | QR okuma, kayıt yok                                                                                                                                                                                                  |
+| `POST_NOTIFICATIONS`                                      | expo-notifications, firebase             | Android 13+ bildirim izni (bağlamda istenir)                                                                                                                                                                         |
+| `DETECT_SCREEN_CAPTURE`                                   | expo-screen-capture                      | Android 14+'da modül açılışta ekran yakalama geri çağrısını kaydeder, dinleyen olsun olmasın; izin yoksa uygulama açılır açılmaz kapanır (`869a7af`, sahibin S25 Ultra'sı). Normal izin: kurulumda verilir, sorulmaz |
+| `RECEIVE_BOOT_COMPLETED`                                  | expo-notifications, bargu-restart-notice | Yeniden başlayınca yerel hatırlatmalar yeniden kurulur; "Paylaşım durdu" bildirimi (aşağıda)                                                                                                                         |
+| `USE_BIOMETRIC`, `USE_FINGERPRINT`                        | expo-local-authentication, androidx      | Uygulama kilidi; Android 7 ve 8'de (minSdk 24) parmak izi için `USE_FINGERPRINT` şart                                                                                                                                |
+| `VIBRATE`                                                 | expo-haptics                             | Dokunsal geri bildirim                                                                                                                                                                                               |
+| `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`   | şablon, netinfo, maplibre                | Ağ ve bağlantı durumu                                                                                                                                                                                                |
+| `WAKE_LOCK`, `com.google.android.c2dm.permission.RECEIVE` | firebase-messaging                       | Push (FCM)                                                                                                                                                                                                           |
+| `app.bargu.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`      | androidx.core                            | Uygulamanın kendi imzasına özel; kitaplık ekler, kullanıcıya görünmez                                                                                                                                                |
 
-**Çıkarılanlar (22):**
+**Çıkarılanlar (21):**
 
 | İzin                                                                                        | Kaynak                                                           | Neden gerekmez                                                                                                                                                     |
 | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `SYSTEM_ALERT_WINDOW`                                                                       | prebuild şablonu                                                 | Yalnız geliştirici menüsünün katmanı (debug)                                                                                                                       |
 | `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` (Android 12 ve eski)                      | şablon, expo-file-system, expo-image-picker, expo-screen-capture | Fotoğraf sistem seçicisinden gelir (Expo belgesi: kitaplık için izin istenmez); dışa aktarma kullanıcının seçtiği klasöre (SAF) yazılır                            |
-| `READ_MEDIA_IMAGES`, `DETECT_SCREEN_CAPTURE`                                                | expo-screen-capture                                              | Yalnız "ekran görüntüsü alındı" dinleyicisi içindir; Bargu yalnız engeller (`usePreventScreenCapture`, FLAG_SECURE), dinlemez. Play `READ_MEDIA_IMAGES`'i kısıtlar |
+| `READ_MEDIA_IMAGES`                                                                         | expo-screen-capture                                              | Yalnız "ekran görüntüsü alındı" dinleyicisi içindir; Bargu yalnız engeller (`usePreventScreenCapture`, FLAG_SECURE), dinlemez. Play `READ_MEDIA_IMAGES`'i kısıtlar |
 | `BIND_GET_INSTALL_REFERRER_SERVICE`                                                         | installreferrer (expo-application)                               | Kurulum kaynağı okunmuyor                                                                                                                                          |
 | `READ_APP_BADGE` ve 15 başlatıcı izni (Samsung, Huawei, Sony, HTC, OPPO, Apex, Solid, ZUK…) | ShortcutBadger (expo-notifications)                              | Uygulama simgesine sayı rozeti içindir; Bargu rozet sayısı koymaz                                                                                                  |
 
