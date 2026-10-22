@@ -590,5 +590,3 @@ export function createSafeCheckIns(deps: SafeDeps) {
     },
   };
 }
-
-export type SafeCheckIns = ReturnType<typeof createSafeCheckIns>;

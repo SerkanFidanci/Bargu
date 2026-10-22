@@ -302,5 +302,3 @@ export function createStateReporter(deps: ReporterDeps) {
     },
   };
 }
-
-export type StateReporter = ReturnType<typeof createStateReporter>;

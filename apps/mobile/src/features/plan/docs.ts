@@ -427,5 +427,3 @@ export function createDocs(deps: DocsDeps) {
     },
   };
 }
-
-export type Docs = ReturnType<typeof createDocs>;

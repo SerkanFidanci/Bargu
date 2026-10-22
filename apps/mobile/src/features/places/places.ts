@@ -310,5 +310,3 @@ export function createPlaces(deps: PlacesDeps) {
     },
   };
 }
-
-export type Places = ReturnType<typeof createPlaces>;

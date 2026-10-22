@@ -389,5 +389,3 @@ export function createCircleSync({
     },
   };
 }
-
-export type CircleSync = ReturnType<typeof createCircleSync>;

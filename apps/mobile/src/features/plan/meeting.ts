@@ -470,5 +470,3 @@ export function createMeetings(deps: MeetingDeps) {
     },
   };
 }
-
-export type Meetings = ReturnType<typeof createMeetings>;

@@ -303,5 +303,3 @@ export function createLocationEngine(deps: EngineDeps) {
     },
   };
 }
-
-export type LocationEngine = ReturnType<typeof createLocationEngine>;

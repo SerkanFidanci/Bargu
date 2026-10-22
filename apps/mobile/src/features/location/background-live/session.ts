@@ -234,5 +234,3 @@ export function createBackgroundLive(deps: BackgroundLiveDeps) {
     end,
   };
 }
-
-export type BackgroundLiveSession = ReturnType<typeof createBackgroundLive>;
