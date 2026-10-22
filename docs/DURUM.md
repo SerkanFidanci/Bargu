@@ -668,8 +668,8 @@ Sıra önemli:
 2. **Seviye 5 APK'sını bütün telefonlara kur** (`cf3469b`, bağlantı Telefonda denenecekler'de);
    56–63'e bak.
 3. Kurduktan sonra kodlama oturumuna "kurdum" yaz. Son adımı o çalıştırır: aynı betik
-   `--min-level 5` ile (önce kuru) ve test botunun istemci seviyesi 5 (bot 22 Ekim akşamı
-   kendiliğinden durdu; o adımda yeniden başlatılır). Senden yalnız ssh adımının onayı istenir. Eski
+   `--min-level 5` ile (önce kuru) ve test botunun istemci seviyesi 5 (bot 22 Ekim 18:14 civarı
+   kendiliğinden durur; o adımda yeniden başlatılır). Senden yalnız ssh adımının onayı istenir. Eski
    sürümler kapanır, sahte haber açığı tamamen kapanır. Aynı çalıştırma nginx'teki davet
    bloklarını büyük/küçük harf duyarsız yapar (QA-34, `e53f096`).
 
