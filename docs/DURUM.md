@@ -190,6 +190,7 @@ kapalı testten önce.
 | QA-34 notları                         | `ad26899`, `e53f096`, `af015ed`                                                                              | Test oturumu: seviye 5 (`cf3469b`) için yüksek bulgu yok. "Paylaşım durdu" alıcısı dışa kapalı (sistem yayını yine ulaşır; `check-manifest` denetler). nginx'te davet blokları büyük/küçük harf duyarsız (`~*`): `/I/<token>` düz http'de erişim günlüğüne düşüyordu; betik bugünkü `~` bloklarını yerinde yükseltir, gerçek nginx düzeneğinde 71/71. Yaş sızıntısı testi rastgele anahtarlarda harf aramıyor                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Haritada yırtılma                     | `836e0cc`                                                                                                    | Sahip `cf3469b`'de yere dokununca ekranın "yırtılmış gibi" göründüğünü söyledi: yer düzenleyicisinin haritası Android'de SurfaceView ile çiziliyordu ve ekran geçişiyle birlikte kaymıyordu. Üstüne açılan ekranların (yer düzenleyicisi, geçmiş) haritaları artık TextureView; ana harita hızlı SurfaceView'de kalır. Telefonda görülecek                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Buluşmaya katılım yanıtı              | `e72f628`, `3b4b4c7`                                                                                         | Sahibin isteği (ADR 0026 Ek 2, PM kabul etti): buluşma ekranında "Geliyorum / Belki / Gelemiyorum" ve her üyenin ne dediği ("Yanıt yok"); haritadaki çip buluşmadan önce "3 geliyor · 1 belki" der. Yanıt, buluşmaya bağlı şifreli bir oy belgesidir (migration 0039); buluşma bitince yanıtlar da gider. Başlatana "Ayşe: Geliyorum · 3 geliyor" bildirimi (bir kişiden saatte en çok 3, gerisi tek satır); saat ya da yer değişince Geliyorum ve Belki diyenlere "Hâlâ geliyor musun?". Sunucu kimin yanıt verdiğini görür, ne dediğini görmez                                                                                                                                                                                                                                                                                                                                              |
+| Buluşma noktası ve Düzenle            | `e488c9b`                                                                                                    | Sahibin isteği (2026-10-23, ADR 0026 Ek 1 devamı): "Taksim'de buluşacak ama yer olarak kalmasın". "Haritadan nokta seç" yalnız noktayı ister; ad isteğe bağlı, yazılmazsa haritanın oradaki adı. Nokta buluşmayla gider, buluşma sürerken "Yerler" listesinde görünmez, seçilip kullanılmayan nokta hemen silinir. Buluşma ekranında başlatana ve yöneticilere "Düzenle": yer (kayıtlı yer ya da yeni nokta) ve saat değişir. Haritadaki buluşmaya dokunulamıyordu: Android dokunuşu işaretin kendi onPress'ine veriyor, içindeki düğmeye vermiyor; artık bayrak, yan yana buluşmaların her satırı, yer etiketi ve buluşma alanı dokunuşla açılır                                                                                                                                                                                                                                             |
 
 ### QA turları
 
@@ -465,6 +466,9 @@ API'den bağlanır.
     özet satırı ("typecheck, lint, test or build failed") "derleme hatası" sayılıyordu. Düzeltildi
     (`784eca6`, testi `ci-linux-retry.test.sh` 6/6). `idle-frames.test.tsx` bir kez 106 sn'de
     zaman aşımına uğradı (makine yüklüyken); yeniden denemede geçti.
+48. Buluşma noktası (`e488c9b`): nokta seçilip buluşma başlatılmadan uygulama tam o anda
+    kapanırsa nokta sıradan bir kayıtlı yer olarak kalır; kullanıcı silebilir. Eski sürümlerdeki
+    telefonlar noktayı buluşma sürerken "Yerler" listesinde görür.
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -672,6 +676,16 @@ var. `869a7af` Android 14+'da açılışta çöküyordu, onu kurma:
     Gelemiyorum; botun ya da öbür telefonun yanıtı adıyla görünür, haritadaki çip "1 geliyor" der.
     Öbür telefon yanıt verince başlatana bildirim gelir; saati değiştirince "Hâlâ geliyor musun?"
     bildirimi yalnız Geliyorum ya da Belki diyene gider. Test botu yanıt vermez (eski kod).
+67. Sonraki APK'da: Buluşma başlat > "Haritadan nokta seç": haritayı kaydır, ad yazmadan "Bu noktayı
+    seç". Ad haritadaki semt adı olur (ör. "Taksim"), satırda "Yalnız bu buluşma için" yazar.
+    Başlatmadan geri çıkarsan nokta kalmaz. Buluşma sürerken çemberin "Yerler" listesinde görünmez;
+    buluşma bitince haritadan da gider.
+68. Sonraki APK'da: haritadaki buluşma bayrağına ya da buluşmanın kesik çizgili alanının içine dokun:
+    buluşma ekranı açılır. Yan yana iki buluşmada her satır kendi buluşmasını açar. Kayıtlı yerin
+    etiketine dokununca da yer açılır.
+69. Sonraki APK'da: buluşma ekranında "Düzenle" (yalnız başlatan ve yöneticiler görür): başka bir
+    kayıtlı yer, yeni bir nokta ya da başka saat seç, "Kaydet". Öbür telefon değişikliği görür;
+    Geliyorum ya da Belki diyenlere "Hâlâ geliyor musun?" gider. "Vazgeç" bir şey değiştirmez.
 
 ### Senden gerekenler
 

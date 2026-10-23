@@ -178,6 +178,29 @@ silindi, yer ise çemberde sıradan bir kayıtlı yer olarak kaldı. PM'in karar
 Sunucu değişmedi: yer ile buluşma arasındaki bağ şifreli belgenin içinde. Sunucu hangi yerin bir
 buluşma için eklendiğini bilmez.
 
+### Ek 1 devamı (2026-10-23): buluşma noktası ve "Düzenle"
+
+Sahip: "Taksim'de buluşacak ama yer olarak tanımlı kalmasını istemiyor." Ayrıca haritadaki buluşmaya
+dokunmak bir şey açmıyordu, buluşmayı düzenlemenin yolu da belli değildi. Kararlar (sahibin doğrudan
+isteği; veri biçimi ve sunucu aynı):
+
+- "Yeni yer ekle" artık "Haritadan nokta seç". Açılan ekran yalnız noktayı ister. Ad isteğe bağlıdır;
+  yazılmazsa haritanın o noktadaki etiketi kullanılır ("Taksim"). Etiket telefonda, haritanın elindeki
+  veriden okunur, hiçbir yere gitmez (ADR 0013). Boyut 250 m, simge 📍; sorulmaz. Yine bir yer belgesi
+  olur (varış bildirimleri yer belgesiyle çalışır), `placeGoes: true` ile buluşmaya bağlanır.
+- Nokta, buluşma sürerken çemberin "Yerler" listesinde görünmez; haritada buluşma olarak çizilir.
+- Seçilip kullanılmayan nokta hemen silinir: yerine başkası seçilince ya da başlatmadan çıkılınca.
+  Uygulama tam o sırada kapanırsa nokta sıradan bir yer olarak kalabilir; kullanıcı silebilir.
+- Buluşma ekranında başlatan ve yöneticiler için "Düzenle". Başlatma formunun aynısı açılır, şimdiki
+  yer ve saatle dolu gelir: başka bir kayıtlı yer, yeni bir nokta ya da başka bir saat seçilip
+  kaydedilir. Kartın Saat ve Yer satırlarına dokunmak da aynı formu açar. Yeni nokta buluşmayla
+  gider, bırakılan eski nokta hemen silinir. Etkinliklerde bir şey değişmedi.
+- Haritada dokunma: Android'de harita bir işaretin (marker) üstündeki dokunuşu kendisi yakalayıp
+  işaretin `onPress`'ine verir; içindeki düğme duymaz. Bu yüzden buluşma bayrağı ve yer etiketi
+  dokunuşa cevap vermiyordu. Artık işaretin kendi `onPress`'i buluşmayı ya da yeri açar. Yan yana
+  duran buluşmalarda her satır ayrı bir işarettir. Buluşma alanının içine dokunmak da buluşmayı
+  açar. Aynı dokunuş hem işarete hem düğmeye ulaşırsa ekran bir kez açılır.
+
 ## Ek 2 (2026-10-22, kabul edildi): katılım yanıtı — Geliyorum / Belki / Gelemiyorum
 
 Durum: Kabul edildi (PM, 2026-10-22). Kod, sahip `cf3469b`'yi telefonda denedikten sonra (sahibin
