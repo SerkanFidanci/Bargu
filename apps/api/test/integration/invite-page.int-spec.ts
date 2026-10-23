@@ -197,8 +197,11 @@ describe('the invite page: one answer for every token (docs/ADR/0009 Ek, 2026-10
     for (const response of [...pages, image]) {
       expect(response.statusCode).toBe(200);
       // Headers (Link, Location, cookies ...) and the body (not the image's bytes), any spelling.
-      const everything =
-        JSON.stringify(response.headers) + (response === image ? '' : response.body);
+      // Not the request id: a random UUID that held "4471" once (CI, f673470), nothing of the invite.
+      const headers = Object.fromEntries(
+        Object.entries(response.headers).filter(([name]) => name !== 'x-request-id'),
+      );
+      const everything = JSON.stringify(headers) + (response === image ? '' : response.body);
       const text = everything.toLowerCase();
       for (const secret of [
         links.live,
