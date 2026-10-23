@@ -110,6 +110,14 @@
       "hint": "Shows who sees you; you can stop it all from there",
       "count": "Seen by {{count}}",
       "ghost": "You are a ghost",
+      "short": "{{count}} see you",
+      "shortNow": {
+        "hidden": "Hidden · not sent",
+        "frozen": "Frozen",
+        "nobody": "Nobody sees you",
+        "noPermission": "No location permission",
+        "checking": "Checking…"
+      },
       "now": {
         "shared": "Your location is being shared now",
         "hidden": "Your location is hidden: sent to nobody",
@@ -1325,6 +1333,7 @@
     "optionLabel": "{{title}}: option {{place}}",
     "chip": {
       "minutes": "{{minutes}} min",
+      "going": "{{count}} coming",
       "there": "{{there}}/{{total}} there",
       "coming": "{{count}} on the way",
       "everyone": "Everyone's there",

@@ -91,9 +91,10 @@ function Chip({
   const where = `${point.place.emoji} ${point.place.name}`;
   // Before its time, a meeting outside an event says how many said they come (ADR 0026 Ek 2).
   const answers = answerCounts(answersOf(useDocs(), circle.id));
+  // On one line (the owner, 2026-10-23): how many come; who said "Belki" is on the meeting's screen.
   const answered =
-    circle.kind !== 'event' && answers.going + answers.maybe > 0
-      ? t('meeting.answers.counts', answers)
+    circle.kind !== 'event' && answers.going > 0
+      ? t('meeting.chip.going', { count: answers.going })
       : null;
   const everyone = count.total > 1 && count.there === count.total;
   const lead = (
@@ -136,8 +137,8 @@ function Chip({
           <View style={styles.text}>
             <Text
               variant="subhead"
-              numberOfLines={2}
-              maxFontSizeMultiplier={1.6}
+              numberOfLines={1}
+              maxFontSizeMultiplier={1.4}
               style={{ color: tint }}
             >
               {lead.join(' · ')}

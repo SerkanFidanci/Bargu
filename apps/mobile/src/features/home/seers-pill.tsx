@@ -1,6 +1,6 @@
 import { ChevronRight, Eye, Ghost } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { useTheme } from '@/theme';
 import { AvatarStack, type StackPerson } from '@/ui/avatar-stack';
@@ -38,8 +38,10 @@ export function sharingNow(input: {
 }
 
 /**
- * "Who sees me", always on screen (BARGU_PLAN §2: no hidden sharing): who, and on a second line
- * what is happening to the location right now. Opens the list of who sees it.
+ * "Who sees me", always on screen (BARGU_PLAN §2: no hidden sharing), on one line as thin as the
+ * weather beside it (the owner, 2026-10-23): how many see it while it is shared, otherwise what is
+ * happening to the location right now, in short. The whole of both is read out. Opens the list of
+ * who sees it.
  */
 export function SeersPill({ seers, ghost, permission, onPress }: SeersPillProps) {
   const { t } = useTranslation();
@@ -52,6 +54,10 @@ export function SeersPill({ seers, ghost, permission, onPress }: SeersPillProps)
         ? t('main.seers.none')
         : t('main.seers.count', { count: seers.length });
   const line = t(`main.seers.now.${now}`);
+  const shown =
+    now === 'shared'
+      ? t('main.seers.short', { count: seers.length })
+      : t(`main.seers.shortNow.${now}`);
   return (
     <Pill
       testID="seers-pill"
@@ -66,20 +72,15 @@ export function SeersPill({ seers, ghost, permission, onPress }: SeersPillProps)
       ) : (
         <AvatarStack people={seers} />
       )}
-      <View style={styles.text}>
-        <Text variant="bodyStrong" numberOfLines={2} maxFontSizeMultiplier={1.6}>
-          {title}
-        </Text>
-        <Text
-          testID="seers-now"
-          variant="footnote"
-          color="textMuted"
-          numberOfLines={2}
-          maxFontSizeMultiplier={1.6}
-        >
-          {line}
-        </Text>
-      </View>
+      <Text
+        testID="seers-now"
+        variant="bodyStrong"
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.4}
+        style={styles.text}
+      >
+        {shown}
+      </Text>
       <ChevronRight color={colors.textMuted} size={20} strokeWidth={2.25} />
     </Pill>
   );

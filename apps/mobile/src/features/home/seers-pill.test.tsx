@@ -30,22 +30,29 @@ describe('"who sees me" (BARGU_PLAN §2, the theme of 2026-10-18)', () => {
   });
 
   it.each([
-    ['off', 'granted', 'Konumun şu an paylaşılıyor'],
-    ['hide', 'granted', 'Konumun gizli: kimseye gönderilmiyor'],
-    ['freeze', 'granted', 'Konumun donduruldu: son konumun duruyor'],
-    ['off', 'blocked', 'Konum izni yok: konumun gönderilmiyor'],
-    ['off', 'unknown', 'Kontrol ediliyor…'],
-  ] as const)('reads ghost %s, permission %s as "%s"', async (ghost, permission, text) => {
-    await render(
-      <SeersPill seers={[ada]} ghost={ghost} permission={permission} onPress={jest.fn()} />,
-    );
-    expect(screen.getByTestId('seers-now').props.children).toBe(text);
-    expect(screen.getByTestId('seers-pill').props.accessibilityLabel).toContain(text);
-  });
+    ['off', 'granted', '1 kişi görüyor', 'Konumun şu an paylaşılıyor'],
+    ['hide', 'granted', 'Gizli · gönderilmiyor', 'Konumun gizli: kimseye gönderilmiyor'],
+    ['freeze', 'granted', 'Donduruldu', 'Konumun donduruldu: son konumun duruyor'],
+    ['off', 'blocked', 'Konum izni yok', 'Konum izni yok: konumun gönderilmiyor'],
+    ['off', 'unknown', 'Kontrol ediliyor…', 'Kontrol ediliyor…'],
+  ] as const)(
+    'reads ghost %s, permission %s as "%s" on one line, the whole of it out loud',
+    async (ghost, permission, shown, said) => {
+      await render(
+        <SeersPill seers={[ada]} ghost={ghost} permission={permission} onPress={jest.fn()} />,
+      );
+      expect(screen.getByTestId('seers-now').props.children).toBe(shown);
+      expect(screen.getByTestId('seers-now').props.numberOfLines).toBe(1);
+      expect(screen.getByTestId('seers-pill').props.accessibilityLabel).toContain(said);
+    },
+  );
 
-  it('with nobody seeing, says so on both lines', async () => {
+  it('with nobody seeing, says so', async () => {
     await render(<SeersPill seers={[]} ghost="off" permission="granted" onPress={jest.fn()} />);
-    expect(screen.getByTestId('seers-now').props.children).toBe('Konumun kimseyle paylaşılmıyor');
+    expect(screen.getByTestId('seers-now').props.children).toBe('Kimse görmüyor');
+    expect(screen.getByTestId('seers-pill').props.accessibilityLabel).toContain(
+      'Konumun kimseyle paylaşılmıyor',
+    );
   });
 });
 

@@ -80,9 +80,10 @@ export function WeatherChip({ here, town }: { here: WeatherHere; town: string | 
         <Text variant="bodyStrong" allowFontScaling={false}>
           {`${weatherEmoji(here)} ${String(temperature)}°`}
         </Text>
+        {/* One line, as thin as "who sees me" (the owner, 2026-10-23): a long town shortens. */}
         {town === null ? null : (
           <Text
-            variant="caption"
+            variant="footnote"
             color="textMuted"
             numberOfLines={1}
             maxFontSizeMultiplier={1.3}
@@ -99,7 +100,9 @@ export function WeatherChip({ here, town }: { here: WeatherHere; town: string | 
 const styles = StyleSheet.create({
   card: {
     minHeight: touchTarget,
-    borderRadius: radius.lg,
+    flexDirection: 'row',
+    gap: space.xs,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth * 2,
     paddingHorizontal: space.md,
     paddingVertical: space.xs,

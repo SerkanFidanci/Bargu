@@ -110,6 +110,14 @@
       "hint": "Kimlerin seni gördüğünü açar; oradan tümünü durdurabilirsin",
       "count": "{{count}} kişi seni görüyor",
       "ghost": "Hayalet modundasın",
+      "short": "{{count}} kişi görüyor",
+      "shortNow": {
+        "hidden": "Gizli · gönderilmiyor",
+        "frozen": "Donduruldu",
+        "nobody": "Kimse görmüyor",
+        "noPermission": "Konum izni yok",
+        "checking": "Kontrol ediliyor…"
+      },
       "now": {
         "shared": "Konumun şu an paylaşılıyor",
         "hidden": "Konumun gizli: kimseye gönderilmiyor",
@@ -1325,6 +1333,7 @@
     "optionLabel": "{{title}}: aday yer {{place}}",
     "chip": {
       "minutes": "{{minutes}} dk",
+      "going": "{{count}} geliyor",
       "there": "{{there}}/{{total}} geldi",
       "coming": "{{count}} yolda",
       "everyone": "Herkes geldi",
