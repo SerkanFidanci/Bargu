@@ -74,7 +74,7 @@
     "passkey": {
       "signIn": "Sign in with a passkey",
       "or": "or",
-      "noCredential": "There is no Bargu passkey on this phone. Sign in with an email code, then add one under \"Me\".",
+      "noCredential": "There is no Bargu passkey on this phone. Sign in with an email code, then add one in Me → Security → Passkey.",
       "failed": "Passkey sign-in did not work. Try an email code."
     }
   },
@@ -190,7 +190,7 @@
       "historyOff": "Off",
       "historyOn": "On in {{count}} circles",
       "security": "Security",
-      "securityDetail": "Passkeys, app lock, guardian link",
+      "securityDetail": "Passkey, app lock, parent link",
       "privacy": "Account and data",
       "privacyDetail": "Notice, consent, your data, deleting the account",
       "notifications_undetermined": "Off · tap to turn on",
@@ -1017,7 +1017,7 @@
     "howLongTitle": "How long it stays",
     "howLong": "At most 14 days; then it is deleted by itself.",
     "withdrawTitle": "How to take it back",
-    "withdraw": "Any time: turn history off in the circle, or Me → Privacy and account → Withdraw consent. Withdrawing deletes the copy on the server too.",
+    "withdraw": "Any time: turn history off in the circle, or Me → Account and data → Withdraw consent. Withdrawing deletes the copy on the server too.",
     "statement": "I give my explicit consent to my location history being processed as described. Giving it is optional; I can use the rest of Bargu without it.",
     "give": "I give my explicit consent",
     "decline": "Not now",
@@ -1090,7 +1090,7 @@
   "guardians": {
     "title": "Parent link",
     "childIntro": "If you like, you can add one or two parents. A parent sees your age band, since when you are linked, and the people in your circles (who could see your location). They do not see your location, history, places or status. Nothing is hidden: you see what they see on the same screen.",
-    "parentIntro": "If your child is 15–17, you can link as their parent. On their own phone they tap Me → Parent link → Add a parent; scan the QR code here. Your child gives the last yes.",
+    "parentIntro": "If your child is 15–17, you can link as their parent. On their own phone they tap Me → Security → Parent link → Add a parent; scan the QR code here. Your child gives the last yes.",
     "parents": "Your parents",
     "children": "Your children",
     "add": "Add a parent",

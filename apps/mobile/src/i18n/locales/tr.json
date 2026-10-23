@@ -74,7 +74,7 @@
     "passkey": {
       "signIn": "Passkey ile giriş yap",
       "or": "ya da",
-      "noCredential": "Bu telefonda Bargu için kayıtlı passkey yok. E-posta koduyla gir, sonra \"Ben\" bölümünden passkey ekle.",
+      "noCredential": "Bu telefonda Bargu için kayıtlı passkey yok. E-posta koduyla gir, sonra Ben → Güvenlik → Passkey'den ekle.",
       "failed": "Passkey ile giriş olmadı. E-posta koduyla dene."
     }
   },
@@ -190,7 +190,7 @@
       "historyOff": "Kapalı",
       "historyOn": "{{count}} çemberde açık",
       "security": "Güvenlik",
-      "securityDetail": "Geçiş anahtarı, uygulama kilidi, ebeveyn bağlantısı",
+      "securityDetail": "Passkey, uygulama kilidi, ebeveyn bağlantısı",
       "privacy": "Hesap ve veri",
       "privacyDetail": "Aydınlatma, rıza, verilerin, hesabı silme",
       "notifications_undetermined": "Kapalı · açmak için dokun",
@@ -1017,7 +1017,7 @@
     "howLongTitle": "Ne kadar kalır?",
     "howLong": "En çok 14 gün; sonra kendiliğinden silinir.",
     "withdrawTitle": "Nasıl geri alırım?",
-    "withdraw": "İstediğin an: çemberde geçmişi kapat ya da Ben → Gizlilik ve hesap → Rızamı geri çek. Geri çekince sunucudaki kopya da silinir.",
+    "withdraw": "İstediğin an: çemberde geçmişi kapat ya da Ben → Hesap ve veri → Rızamı geri çek. Geri çekince sunucudaki kopya da silinir.",
     "statement": "Konum geçmişimin bu açıklamaya göre işlenmesine açık rıza veriyorum. Rıza vermek isteğe bağlıdır; vermesem de Bargu'nun geri kalanını kullanabilirim.",
     "give": "Açık rıza veriyorum",
     "decline": "Vazgeç",
@@ -1090,7 +1090,7 @@
   "guardians": {
     "title": "Ebeveyn bağlantısı",
     "childIntro": "İstersen bir ya da iki ebeveynini ekleyebilirsin. Ebeveynin yaş grubunu, bağlantı tarihini ve çemberlerindeki kişileri (konumunu kimlerin görebileceğini) görür. Konumunu, geçmişini, yerlerini ve durumunu görmez. Gizli bir şey yok: ne gördüğünü sen de aynı ekranda görürsün.",
-    "parentIntro": "Çocuğun 15–17 yaşındaysa ebeveyn olarak bağlanabilirsin. Çocuğun kendi telefonunda Ben → Ebeveyn bağlantısı → Ebeveyn ekle'ye bassın; çıkan QR kodu buradan tara. Son onayı çocuğun verir.",
+    "parentIntro": "Çocuğun 15–17 yaşındaysa ebeveyn olarak bağlanabilirsin. Çocuğun kendi telefonunda Ben → Güvenlik → Ebeveyn bağlantısı → Ebeveyn ekle'ye bassın; çıkan QR kodu buradan tara. Son onayı çocuğun verir.",
     "parents": "Ebeveynlerin",
     "children": "Çocukların",
     "add": "Ebeveyn ekle",

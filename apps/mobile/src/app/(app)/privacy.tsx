@@ -41,7 +41,7 @@ import { toast } from '@/ui/toast';
 import { Toggle } from '@/ui/toggle';
 
 /**
- * "Gizlilik ve hesap" (docs/ADR/0022): the privacy notice, consent to location history and its
+ * "Hesap ve veri" (docs/ADR/0022): the privacy notice, consent to location history and its
  * withdrawal, the age band (docs/ADR/0023), a copy of the account's data, and deleting the account.
  */
 export default function PrivacyScreen() {

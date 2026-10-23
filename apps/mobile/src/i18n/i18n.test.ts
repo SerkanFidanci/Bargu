@@ -51,6 +51,43 @@ describe('i18n', () => {
   });
 });
 
+function texts(value: unknown): string[] {
+  if (typeof value === 'string') return [value];
+  if (typeof value !== 'object' || value === null) return [];
+  return Object.values(value).flatMap(texts);
+}
+
+// A text that walks the user through the menus ("Ben → Güvenlik → Passkey") names each screen and
+// row by its label of today: a renamed screen ("Gizlilik ve hesap" is "Hesap ve veri" since
+// 9209d58) fails here instead of sending people to a menu that is not there.
+describe('menu paths in texts', () => {
+  for (const [language, { translation }] of Object.entries(resources)) {
+    const all = texts(translation);
+    const labels = new Set(all);
+
+    it(`name today's labels (${language})`, () => {
+      const wrong: string[] = [];
+      for (const text of all.filter((candidate) => candidate.includes(' → '))) {
+        const steps = text.split(' → ');
+        const first = steps[0]?.split(' ').pop() ?? '';
+        const last = steps[steps.length - 1] ?? '';
+        if (!labels.has(first)) wrong.push(first);
+        for (const step of steps.slice(1, -1)) if (!labels.has(step)) wrong.push(step);
+        // The last step goes on with the sentence: "Ebeveyn ekle'ye bassın", "Withdraw consent. …".
+        const named = [...labels].some(
+          (label) => last.startsWith(label) && !/^[\p{L}\d]/u.test(last.slice(label.length)),
+        );
+        if (!named) wrong.push(last);
+      }
+      expect(wrong).toEqual([]);
+    });
+
+    it(`do not use retired screen names (${language})`, () => {
+      expect(all.filter((text) => /Gizlilik ve hesap|Privacy and account/.test(text))).toEqual([]);
+    });
+  }
+});
+
 // The developer tools' texts are loaded only by development and preview builds (dev-resources.ts):
 // they must not be in the catalogue every build ships (scripts/check-bundle.mjs checks the bundle).
 describe('developer texts', () => {
