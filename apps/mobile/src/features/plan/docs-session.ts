@@ -13,7 +13,7 @@ import { memberName } from '../circles/names';
 import { usePlaces } from '../places/places';
 import { isVaultOpen, vault } from '../storage/vault';
 import { createDocs, type DocsApi } from './docs';
-import { forgetSpot } from './my-spots';
+import { meetingPlace } from './meeting';
 import { type Doc, starterOf } from './plan-model';
 
 /**
@@ -22,10 +22,10 @@ import { type Doc, starterOf } from './plan-model';
  */
 function meetingStarted(circle: Circle, doc: Doc): void {
   const plan = doc.payload;
-  if (plan.kind !== 'plan' || plan.meetAt === undefined || plan.placeId === undefined) return;
+  if (plan.kind !== 'plan' || plan.meetAt === undefined) return;
   const startedBy = starterOf(doc);
   const by = circle.members.find((member) => member.userId === startedBy);
-  const place = usePlaces.getState()[plan.placeId];
+  const place = meetingPlace(plan, usePlaces.getState());
   if (by === undefined || place === undefined) return;
   const time = new Date(plan.meetAt).toLocaleTimeString(i18n.language, {
     hour: '2-digit',
@@ -82,7 +82,6 @@ export const docs = createDocs({
     return null;
   },
   onMeetingStarted: meetingStarted,
-  forgetPlace: forgetSpot,
   refreshCircle: async (circleId) => {
     await circleSync.refresh(circleId);
     return cachedCircles().find((circle) => circle.id === circleId) ?? null;

@@ -1,12 +1,5 @@
 import { randomUuid, voteId } from '@bargu/crypto';
-import type {
-  Circle,
-  DocRecord,
-  MessageEnvelope,
-  PlanPayload,
-  PollPayload,
-  VotePayload,
-} from '@bargu/schemas';
+import type { Circle, DocRecord, MessageEnvelope, PollPayload, VotePayload } from '@bargu/schemas';
 
 import { circleOf, exchangeKeys, type Person, somebody } from '../location/test-support';
 import { createDocs, type DocExtra, type DocRefusal, docKey, type DocsApi, useDocs } from './docs';
@@ -54,7 +47,6 @@ function docsOf(
   api: DocsApi,
   now = 1_000,
   onMeetingStarted?: (circle: Circle, doc: Doc) => void,
-  forgetPlace?: (placeId: string) => Promise<void>,
 ) {
   return createDocs({
     api,
@@ -66,7 +58,6 @@ function docsOf(
     refusal: (error) => (error instanceof Refused ? error.code : null),
     refreshCircle: () => Promise.resolve(null),
     ...(onMeetingStarted === undefined ? {} : { onMeetingStarted }),
-    ...(forgetPlace === undefined ? {} : { forgetPlace }),
     now: () => now,
   });
 }
@@ -274,52 +265,30 @@ describe('event documents on the phone', () => {
     expect(Object.keys(useDocs.getState())).toEqual([docKey(group.id, group.id)]);
   });
 
-  it("let a place added for a meeting go when the server ends it, from its starter's phone (ADR 0026 Ek 1)", async () => {
+  it('keep a spot picked on the map inside the meeting: the server ends both (ADR 0026 Ek 1, QA-36)', async () => {
     const [ayse, bora] = [somebody(), somebody()];
     const group = circleOf([ayse, bora]);
     exchangeKeys(group, [ayse, bora]);
     const server = fakeServer(() => group.epoch);
-    const forgot = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
-    const ayses = docsOf(ayse, () => [group], server.api, 1_000, undefined, forgot);
-    const placeId = randomUuid();
+    const ayses = docsOf(ayse, () => [group], server.api);
+    const boras = docsOf(bora, () => [group], server.api);
+    const spot = { name: 'Taksim', lat: 41.037, lng: 28.985, radius: 250 };
     const meeting = {
       kind: 'plan',
       id: group.id,
       meetAt: 2 * HOUR,
-      placeId,
-      placeGoes: true,
+      spot,
       by: ayse.userId,
       ts: 0,
     } as const;
-    const endsOnItsOwn = async (plan: PlanPayload) => {
-      useDocs.setState({}, true);
-      forgot.mockClear();
-      expect(await ayses.save(group.id, plan, { pushes: [] })).toBe('saved');
-      await ayses.sync();
-      server.rows.delete(group.id);
-      await ayses.sync();
-      await ayses.sync();
-      return forgot.mock.calls.map(([id]) => id);
-    };
-    // Added for it: it goes, once, from the starter's phone.
-    expect(await endsOnItsOwn(meeting)).toEqual([placeId]);
-    // Kept by its starter, or a place the circle had before: it stays.
-    expect(await endsOnItsOwn({ ...meeting, placeGoes: false })).toEqual([]);
-    const circlePlace: PlanPayload = { ...meeting, placeGoes: undefined };
-    expect(await endsOnItsOwn(circlePlace)).toEqual([]);
-    // Someone else's meeting: their phone lets it go, not this one.
-    expect(await endsOnItsOwn({ ...meeting, by: bora.userId })).toEqual([]);
-    // Someone who may write the plan names Ayşe its starter (QA-35): her phone does not believe it.
+    expect(await ayses.save(group.id, meeting, { pushes: [] })).toBe('saved');
     useDocs.setState({}, true);
-    forgot.mockClear();
-    const boras = docsOf(bora, () => [group], server.api);
-    expect(await boras.save(group.id, { ...meeting, by: ayse.userId }, { pushes: [] })).toBe(
-      'saved',
-    );
-    await ayses.sync();
+    await boras.sync();
+    // The other phone reads the spot from the meeting itself: no place was saved for it.
+    expect(useDocs.getState()[docKey(group.id, group.id)]?.payload).toMatchObject({ spot });
     server.rows.delete(group.id);
-    await ayses.sync();
-    expect(forgot).not.toHaveBeenCalled();
+    await boras.sync();
+    expect(useDocs.getState()[docKey(group.id, group.id)]).toBeUndefined();
   });
 
   it('tell when someone else starts a meeting, and let its starter seal it again', async () => {

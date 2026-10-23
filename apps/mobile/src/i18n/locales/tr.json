@@ -1331,10 +1331,8 @@
       "more": "+{{count}}",
       "label": "Buluşma, {{title}}: {{text}}. Buluşma ekranını açar."
     },
-    "endBodyPlace": "Buluşma herkes için hemen biter. Bu buluşma için eklenen yer de silinir; istersen sakla.",
+    "endBodyPlace": "Buluşma herkes için hemen biter. Bu buluşma için seçilen nokta da gider; istersen kayıtlı yer olarak sakla.",
     "endKeepPlace": "Bitir, yeri sakla",
-    "keepPlace": "Bitince yeri sakla",
-    "keepPlaceHint": "Bu yer buluşma için eklendi. Kapalıysa buluşma bitince yer de silinir.",
     "answers": {
       "title": "Geliyor musun?",
       "going": "Geliyorum",

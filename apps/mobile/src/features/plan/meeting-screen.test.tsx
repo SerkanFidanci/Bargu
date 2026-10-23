@@ -29,13 +29,11 @@ jest.mock('@/features/circles/queries', () => ({
 const mockStart = jest.fn<Promise<boolean>, [unknown, unknown]>(() => Promise.resolve(true));
 const mockAnswer = jest.fn<Promise<boolean>, [string, string]>(() => Promise.resolve(true));
 const mockSet = jest.fn<Promise<boolean>, [string, unknown]>(() => Promise.resolve(true));
-const mockForget = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
 const mockMayRun = jest.fn<boolean, []>(() => false);
 jest.mock('@/features/plan/plan-actions', () => ({
   startMeeting: (circle: unknown, meeting: unknown) => mockStart(circle, meeting),
   answerMeeting: (circleId: string, answer: string) => mockAnswer(circleId, answer),
   mayRunMeeting: () => mockMayRun(),
-  forgetMeetingPlace: (placeId: string) => mockForget(placeId),
   endMeeting: jest.fn(),
   closePoll: jest.fn(),
   removePoll: jest.fn(),
@@ -67,27 +65,14 @@ const family: Circle = {
   members: [],
 };
 
-const TAKSIM = '00000000-0000-4000-8000-0000000000aa';
-const KADIKOY = '00000000-0000-4000-8000-0000000000bb';
+const TAKSIM = { name: 'Taksim', lat: 41.037, lng: 28.985, radius: 250 };
+const KADIKOY = { name: 'Kadıköy', lat: 40.99, lng: 29.03, radius: 250 };
 const OFFICE = '0190f7a4-2222-7222-8222-000000000002';
 
-/** The place editor saved a spot for this meeting (forMeeting): the form hears of it. */
-async function pickSpot(id: string, name: string): Promise<void> {
+/** The place editor hands back a spot picked for this meeting (forMeeting): nothing is saved. */
+async function pickSpot(spot: typeof TAKSIM): Promise<void> {
   await act(() => {
-    usePlaces.setState({
-      [id]: {
-        id,
-        circleId: CIRCLE,
-        version: 1,
-        name,
-        emoji: '📍',
-        lat: 41.04,
-        lng: 28.96,
-        radius: 250,
-        ts: 2,
-      },
-    });
-    useMeetingPlaceDraft.setState({ circleId: CIRCLE, placeId: id }, true);
+    useMeetingPlaceDraft.setState({ circleId: CIRCLE, spot }, true);
   });
 }
 
@@ -140,38 +125,35 @@ describe('a meeting on its own screen (docs/ADR/0026 §4)', () => {
       pathname: '/place/[circleId]',
       params: { circleId: CIRCLE, forMeeting: '1' },
     });
-    // The editor saved a spot for this meeting: it is chosen at once, not listed as a place.
-    await pickSpot(TAKSIM, 'Taksim');
+    // The editor handed back a spot: it is chosen at once, and goes into the meeting itself.
+    await pickSpot(TAKSIM);
     expect(within(screen.getByTestId('meeting-start-spot')).getByText('Taksim')).toBeTruthy();
     expect(screen.getByText('Yalnız bu buluşma için')).toBeTruthy();
-    expect(screen.queryByTestId(`meeting-start-place-${TAKSIM}`)).toBeNull();
     await fireEvent.press(screen.getByTestId('meeting-start-go'));
     await waitFor(() => {
       expect(mockStart).toHaveBeenCalledWith(family, {
-        placeId: TAKSIM,
+        spot: TAKSIM,
         meetAt: expect.any(Number) as number,
-        placeGoes: true,
       });
     });
     expect(useMeetingPlaceDraft.getState()).toBeNull();
-    await screen.unmount();
-    expect(mockForget).not.toHaveBeenCalled();
   });
 
-  it('never leaves a spot behind: one replaced or left unused goes at once (the owner, 2026-10-23)', async () => {
+  it('takes the last spot picked; one left without starting leaves nothing (QA-36)', async () => {
     await render(<MeetingScreen />);
-    await pickSpot(TAKSIM, 'Taksim');
-    await pickSpot(KADIKOY, 'Kadıköy');
-    expect(mockForget).toHaveBeenCalledWith(TAKSIM);
-    expect(mockStart).not.toHaveBeenCalled();
+    await pickSpot(TAKSIM);
+    await pickSpot(KADIKOY);
+    expect(within(screen.getByTestId('meeting-start-spot')).getByText('Kadıköy')).toBeTruthy();
+    expect(screen.queryByText('Taksim')).toBeNull();
     await screen.unmount();
-    expect(mockForget).toHaveBeenCalledWith(KADIKOY);
+    expect(mockStart).not.toHaveBeenCalled();
+    expect(usePlaces.getState()).not.toHaveProperty('Kadıköy');
   });
 
   it('never lets a place the circle had go, nor one added for another circle', async () => {
     await render(<MeetingScreen />);
     await act(() => {
-      useMeetingPlaceDraft.setState({ circleId: 'another', placeId: HOME }, true);
+      useMeetingPlaceDraft.setState({ circleId: 'another', spot: TAKSIM }, true);
     });
     await fireEvent.press(screen.getByTestId(`meeting-start-place-${HOME}`));
     await fireEvent.press(screen.getByTestId('meeting-start-go'));
@@ -241,14 +223,13 @@ describe('a meeting on its own screen (docs/ADR/0026 §4)', () => {
     });
     // Saved: back to the meeting.
     expect(await screen.findByTestId('meeting-screen')).toBeTruthy();
-    // Again, to a spot picked on the map: it goes with the meeting.
+    // Again, to a spot picked on the map: it goes into the meeting itself.
     await fireEvent.press(screen.getByTestId('meeting-edit'));
-    await pickSpot(TAKSIM, 'Taksim');
+    await pickSpot(TAKSIM);
     await fireEvent.press(screen.getByTestId('meeting-start-go'));
     await waitFor(() => {
-      expect(mockSet).toHaveBeenLastCalledWith(CIRCLE, { placeId: TAKSIM, meetAt, spot: true });
+      expect(mockSet).toHaveBeenLastCalledWith(CIRCLE, { spot: TAKSIM, meetAt });
     });
-    expect(mockForget).not.toHaveBeenCalled();
   });
 
   it('shows no "Düzenle" to whoever may not change it, and the starter can leave the form', async () => {

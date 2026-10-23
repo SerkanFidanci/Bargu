@@ -54,17 +54,6 @@ jest.mock('@/features/places/places-session', () => ({
     remove: jest.fn(),
   },
 }));
-// The vault (MMKV, native): a map here. It keeps the spots this phone added (QA-35).
-const mockVault = new Map<string, string>();
-jest.mock('@/features/storage/vault', () => ({
-  isVaultOpen: () => true,
-  vault: () => ({
-    get: (key: string) => mockVault.get(key),
-    set: (key: string, value: string) => {
-      mockVault.set(key, value);
-    },
-  }),
-}));
 jest.mock('@/ui/toast', () => ({
   toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
@@ -78,7 +67,6 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   jest.clearAllMocks();
-  mockVault.clear();
   useMeetingPlaceDraft.setState(null, true);
 });
 
@@ -92,7 +80,7 @@ describe('a meeting spot picked on the map (the owner, 2026-10-23)', () => {
     expect(screen.getByTestId('place-save')).toBeEnabled();
   });
 
-  it("takes the map's name for the point, and hands the spot to the meeting form", async () => {
+  it("takes the map's name for the point and hands the spot to the meeting form, saving no place (QA-36)", async () => {
     await render(<PlaceEditor />);
     await act(async () => {
       mockMap.onSettle?.({ center: [28.985, 41.037], zoom: 15 });
@@ -100,16 +88,16 @@ describe('a meeting spot picked on the map (the owner, 2026-10-23)', () => {
     });
     expect(screen.getByPlaceholderText('Taksim')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('place-save'));
-    await waitFor(() => {
-      expect(mockSave).toHaveBeenCalledWith(
-        CIRCLE,
-        expect.objectContaining({ name: 'Taksim', emoji: '📍', radius: 250 }),
-      );
+    expect(useMeetingPlaceDraft.getState()).toEqual({
+      circleId: CIRCLE,
+      spot: {
+        name: 'Taksim',
+        lat: expect.any(Number) as number,
+        lng: expect.any(Number) as number,
+        radius: 250,
+      },
     });
-    const saved = mockSave.mock.calls[0]?.[1];
-    expect(useMeetingPlaceDraft.getState()).toEqual({ circleId: CIRCLE, placeId: saved?.id });
-    // This phone remembers it added the spot: only such a place ever goes with a meeting.
-    expect(JSON.parse(mockVault.get('meeting:spots:v1') ?? '[]')).toEqual([saved?.id]);
+    expect(mockSave).not.toHaveBeenCalled();
     expect(toast.success).not.toHaveBeenCalled();
     expect(router.back).toHaveBeenCalled();
   });
@@ -119,10 +107,7 @@ describe('a meeting spot picked on the map (the owner, 2026-10-23)', () => {
     await fireEvent.changeText(screen.getByTestId('place-name'), 'Kuğulu Park');
     await fireEvent.press(screen.getByTestId('place-save'));
     await waitFor(() => {
-      expect(mockSave).toHaveBeenCalledWith(
-        CIRCLE,
-        expect.objectContaining({ name: 'Kuğulu Park' }),
-      );
+      expect(useMeetingPlaceDraft.getState()?.spot).toMatchObject({ name: 'Kuğulu Park' });
     });
   });
 });

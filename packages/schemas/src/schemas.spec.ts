@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { messageEnvelopeSchema, payloadSchema, senderKeyDistributionSchema } from './index.js';
+import {
+  docPayloadSchema,
+  messageEnvelopeSchema,
+  payloadSchema,
+  senderKeyDistributionSchema,
+} from './index.js';
 
 const uuid = '0190f7a4-5b6c-7d8e-9f01-23456789abcd';
 const b64 = (bytes: number) => 'A'.repeat(Math.ceil((bytes * 4) / 3));
@@ -138,5 +143,23 @@ describe('a poke with a feeling or a question (docs/ADR/0031)', () => {
     ]) {
       expect(payloadSchema.safeParse(wrong).success).toBe(false);
     }
+  });
+});
+
+describe('a meeting at a spot picked on the map (docs/ADR/0026 Ek 1, QA-36)', () => {
+  const plan = { kind: 'plan', id: uuid, meetAt: 1, by: uuid, ts: 1 } as const;
+  const spot = { name: 'Taksim', lat: 41.037, lng: 28.985, radius: 250 };
+
+  it('keeps the spot inside the meeting; a meeting is at a saved place or a spot, not both', () => {
+    expect(docPayloadSchema.parse({ ...plan, spot })).toEqual({ ...plan, spot });
+    expect(docPayloadSchema.parse({ ...plan, placeId: uuid })).toEqual({ ...plan, placeId: uuid });
+    expect(docPayloadSchema.safeParse({ ...plan, placeId: uuid, spot }).success).toBe(false);
+    expect(docPayloadSchema.safeParse({ ...plan, spot: { ...spot, radius: 5 } }).success).toBe(
+      false,
+    );
+    // An older app's "the place goes with it" is read and dropped.
+    expect(docPayloadSchema.parse({ ...plan, placeId: uuid, placeGoes: true })).not.toHaveProperty(
+      'placeGoes',
+    );
   });
 });

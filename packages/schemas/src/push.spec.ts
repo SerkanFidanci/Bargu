@@ -116,6 +116,14 @@ describe('push bodies', () => {
     expect(
       pushBodySchema.safeParse({ kind: 'bump', circleId: uuid, ts: 1, text: 'x' }).success,
     ).toBe(false);
+    // A poke's reply says one of the ready replies, and only a reply does (QA-36): no "{{say}}".
+    expect(
+      pushBodySchema.safeParse({ kind: 'poke', circleId: uuid, style: 'reply', ts: 1 }).success,
+    ).toBe(false);
+    expect(
+      pushBodySchema.safeParse({ kind: 'poke', circleId: uuid, style: 'kiss', say: 'ok', ts: 1 })
+        .success,
+    ).toBe(false);
   });
 
   it('caps sealed boxes in size and alphabet, and one per member', () => {

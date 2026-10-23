@@ -198,24 +198,39 @@ export type PlacePayload = z.infer<typeof placePayloadSchema>;
  * An event's meeting (docs/ADR/0018): when, and at which of the circle's places. One per circle
  * (its id is the circle's), editable by every member, stored encrypted like places.
  */
-export const planPayloadSchema = z.object({
-  kind: z.literal('plan'),
-  id: z.uuid(),
-  meetAt: timestamp.optional(),
-  placeId: z.uuid().optional(),
-  /**
-   * Who started a meeting outside an event (docs/ADR/0026): they and the circle's admins change
-   * or end it. Never in an event's plan, which older apps read strictly.
-   */
-  by: z.uuid().optional(),
-  /**
-   * The place was added for this meeting outside an event (docs/ADR/0026 Ek 1): true, it goes
-   * with the meeting; false, its starter keeps it. Missing: a place the circle had already, which
-   * always stays. Older apps read plans loosely and drop it (they keep the place).
-   */
-  placeGoes: z.boolean().optional(),
-  ts: timestamp,
-});
+/**
+ * A spot picked on the map for one meeting outside an event (docs/ADR/0026 Ek 1, QA-36): inside
+ * the meeting's own encrypted document, never a saved place, so it goes with the meeting and there
+ * is nothing to clean up after it.
+ */
+export const meetingSpotSchema = z
+  .object({
+    name: placeNameSchema,
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    radius: z.number().int().min(PLACE_RADIUS_M.min).max(PLACE_RADIUS_M.max),
+  })
+  .strict();
+export type MeetingSpot = z.infer<typeof meetingSpotSchema>;
+
+export const planPayloadSchema = z
+  .object({
+    kind: z.literal('plan'),
+    id: z.uuid(),
+    meetAt: timestamp.optional(),
+    /** One of the circle's saved places; or `spot`, never both. */
+    placeId: z.uuid().optional(),
+    spot: meetingSpotSchema.optional(),
+    /**
+     * Who started a meeting outside an event (docs/ADR/0026): they and the circle's admins change
+     * or end it. Never in an event's plan, which older apps read strictly.
+     */
+    by: z.uuid().optional(),
+    ts: timestamp,
+  })
+  .refine((plan) => plan.placeId === undefined || plan.spot === undefined, {
+    message: 'a meeting is at a saved place or at a spot, not both',
+  });
 export type PlanPayload = z.infer<typeof planPayloadSchema>;
 
 /** Options of a poll: two to four times, or two to four of the circle's places. */

@@ -16,7 +16,6 @@ import { DEFAULT_RADIUS, PLACE_RADII } from '@/features/places/place-model';
 import { usePlaces } from '@/features/places/places';
 import { places } from '@/features/places/places-session';
 import { useMeetingPlaceDraft } from '@/features/plan/meeting-place';
-import { rememberSpot } from '@/features/plan/my-spots';
 import { radius, space, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
 import { Button } from '@/ui/button';
@@ -28,8 +27,6 @@ import { toast } from '@/ui/toast';
 import { Toggle } from '@/ui/toggle';
 
 const EMOJIS = ['🏠', '🏫', '🏢', '🏋️', '☕', '🛒', '❤️', '📍'] as const;
-/** A meeting spot's icon: no choice asked. */
-const SPOT_EMOJI = '📍';
 /** Zoom that shows a place of each size whole, with some room around it. */
 const ZOOM_FOR: Record<(typeof PLACE_RADII)[number], number> = { 100: 16.2, 250: 15, 500: 14 };
 /** Somewhere to start when nothing better is known (Istanbul). */
@@ -43,7 +40,7 @@ export default function PlaceEditor() {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  // `forMeeting`: opened from "start a meeting"; a new place saved here may go with that meeting.
+  // `forMeeting`: opened from a meeting's form: the point picked goes into the meeting itself.
   const { circleId, id, forMeeting } = useLocalSearchParams<{
     circleId: string;
     id?: string;
@@ -51,7 +48,8 @@ export default function PlaceEditor() {
   }>();
   const [newId] = useState(randomUuid);
   // A spot picked for a meeting only (docs/ADR/0026 Ek 1; the owner, 2026-10-23): a point and,
-  // if wanted, a name; the map's own label there is offered ("Taksim"). It goes with the meeting.
+  // if wanted, a name; the map's own label there is offered ("Taksim"). Never saved as a place:
+  // it is handed to the meeting's form and lives in the meeting (QA-36).
   const spot = id === undefined && forMeeting === '1';
   const map = useRef<BarguMapHandle>(null);
   const [suggested, setSuggested] = useState<string | null>(null);
@@ -68,7 +66,7 @@ export default function PlaceEditor() {
       : [existing.lng, existing.lat];
   const [center, setCenter] = useState<[number, number]>(start);
   const [name, setName] = useState(existing?.name ?? '');
-  const [emoji, setEmoji] = useState<string>(existing?.emoji ?? (spot ? SPOT_EMOJI : EMOJIS[0]));
+  const [emoji, setEmoji] = useState<string>(existing?.emoji ?? EMOJIS[0]);
   const [size, setSize] = useState<number>(existing?.radius ?? DEFAULT_RADIUS);
   const [saving, setSaving] = useState(false);
   const startZoom = ZOOM_FOR[size === 100 || size === 500 ? size : 250];
@@ -83,6 +81,15 @@ export default function PlaceEditor() {
 
   const save = async () => {
     if (!valid || saving) return;
+    if (spot) {
+      useMeetingPlaceDraft.setState(
+        { circleId, spot: { name: finalName, lat: center[1], lng: center[0], radius: size } },
+        true,
+      );
+      feedback('success');
+      router.back();
+      return;
+    }
     setSaving(true);
     const result = await places.save(circleId, {
       id: existing?.id ?? newId,
@@ -94,12 +101,8 @@ export default function PlaceEditor() {
     });
     setSaving(false);
     if (result === 'saved') {
-      if (spot) {
-        rememberSpot(newId);
-        useMeetingPlaceDraft.setState({ circleId, placeId: newId }, true);
-      }
       feedback('success');
-      if (!spot) toast.success(t('places.saved'));
+      toast.success(t('places.saved'));
       router.back();
     } else if (result === 'conflict') {
       toast.info(t('places.conflict'));

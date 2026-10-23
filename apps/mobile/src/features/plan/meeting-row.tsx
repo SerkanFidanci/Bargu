@@ -12,6 +12,7 @@ import { endClock } from '../circles/event-ui';
 import { useNow } from '../location/clock';
 import { usePlaces } from '../places/places';
 import { docKey, useDocs } from './docs';
+import { meetingPlace } from './meeting';
 
 /**
  * A circle's meeting on its screen, outside an event (docs/ADR/0026): "Buluşma başlat" when there
@@ -22,9 +23,8 @@ export function MeetingRow({ circle }: { circle: Pick<Circle, 'id'> }) {
   const { colors } = useTheme();
   const now = useNow();
   const plan = useDocs((state) => state[docKey(circle.id, circle.id)])?.payload;
-  const place = usePlaces((state) =>
-    plan?.kind === 'plan' && plan.placeId !== undefined ? state[plan.placeId] : undefined,
-  );
+  const places = usePlaces();
+  const place = plan?.kind === 'plan' ? meetingPlace(plan, places) : undefined;
   const meeting = plan?.kind === 'plan' ? plan : undefined;
   const open = () => {
     router.push({ pathname: '/meeting/[circleId]', params: { circleId: circle.id } });

@@ -151,55 +151,71 @@ Dokununca çember sayfası açılıyor.
   kullanıcının dokunmasıyla olur.
 - Kaba konum paylaşan kişi buluşmada "bilinmiyor" görünür; geldiğini kendisi söyleyebilir.
 
-## Ek 1 (2026-10-22): buluşma için eklenen yer buluşmayla gider
+## Ek 1 (2026-10-22, 2026-10-23'te yeniden yazıldı): buluşma noktası buluşmanın içinde durur
 
-Sahip haritada "Woh date" adlı bir yeri buluşma sandı ve dokununca buluşmanın açılmasını bekledi.
-O yer, bir buluşmayı başlatırken "Yeni yer ekle" ile eklenmişti. Buluşma saatinden 3 saat sonra
-silindi, yer ise çemberde sıradan bir kayıtlı yer olarak kaldı. PM'in kararı:
+### Neden yeniden yazıldı
 
-- Başlatma ekranında "Yeni yer ekle" ile eklenen yer "bu buluşma için" sayılır. Yer düzenleyicisi
-  buluşma için açılır, yeni yerin kimliğini kendisi üretir ve kaydedince bildirir. Böylece çemberin
-  önceden kayıtlı bir yeri (ör. "Ev") hiçbir zaman yanlışlıkla bu sayılmaz.
-- Buluşma belgesi (`plan`) bunu `placeGoes` ile söyler: `true` yer buluşmayla gider, `false`
-  başlatan saklamayı seçti, alan yoksa yer çemberin önceden kayıtlı yeri ve hep kalır. Buluşma
-  belgesini eski uygulamalar esnek okur, alanı atar ve yeri bırakır.
-- Elle bitirirken ("Buluşmayı bitir") pencere "Bitir, yeri sakla" seçeneğini de sunar. Saklanınca
-  önce belge `placeGoes: false` olarak yazılır, sonra buluşma silinir; böylece başka bir telefon
-  yeri sonradan silmez.
-- Sunucu buluşmayı kendiliğinden silince yeri, buluşmayı başlatanın telefonu bir sonraki eşitlemede
-  siler. Yalnız onun telefonu siler ki birden çok telefon yarışmasın. Başlatan uygulamayı açmazsa
-  yer onun bir sonraki açılışına kadar kalır.
-- Başlatan ve yöneticiler buluşma ekranında "Bitince yeri sakla" anahtarıyla seçimi önceden
-  değiştirebilir.
-- Buluşma başka bir yere taşınınca, onun için eklenmiş eski yer hemen silinir. Yeni yer çemberin
-  kayıtlı yeridir ve kalır.
-- Bu düzeltmeden önce kalan yerler ("Woh date" gibi) olduğu gibi kalır; kullanıcı silebilir.
+İlk hâl şöyleydi:
 
-Sunucu değişmedi: yer ile buluşma arasındaki bağ şifreli belgenin içinde. Sunucu hangi yerin bir
-buluşma için eklendiğini bilmez.
+- Buluşma için "Yeni yer ekle" ile çemberde **kayıtlı bir yer** oluşuyordu.
+- Planda `placeGoes` "bu yer buluşmayla gider" diyordu.
+- Buluşma bitince başlatanın telefonu yeri siliyordu.
 
-### Ek 1 devamı (2026-10-23): buluşma noktası ve "Düzenle"
+Bu tasarım üç test turunda (QA-35, QA-36) üst üste açık verdi:
 
-Sahip: "Taksim'de buluşacak ama yer olarak tanımlı kalmasını istemiyor." Ayrıca haritadaki buluşmaya
-dokunmak bir şey açmıyordu, buluşmayı düzenlemenin yolu da belli değildi. Kararlar (sahibin doğrudan
-isteği; veri biçimi ve sunucu aynı):
+- Planı yazabilen biri `placeGoes` ile çemberin "Ev"ini sildirebiliyordu. QA-35 bunu telefonda
+  tutulan bir "kendi eklediğim noktalar" listesiyle kapattı.
+- Yönetici yeri değiştirince eski nokta ortada kalıyordu.
+- Saklanmış bir nokta, sahte bir plan sürümüyle yine sildirilebiliyordu.
+- Herhangi bir plan, bir yeri "Yerler" listesinden gizleyebiliyordu.
+- Uygulama öldürülünce seçilmiş nokta yer olarak kalıyordu.
 
-- "Yeni yer ekle" artık "Haritadan nokta seç". Açılan ekran yalnız noktayı ister. Ad isteğe bağlıdır;
-  yazılmazsa haritanın o noktadaki etiketi kullanılır ("Taksim"). Etiket telefonda, haritanın elindeki
-  veriden okunur, hiçbir yere gitmez (ADR 0013). Boyut 250 m, simge 📍; sorulmaz. Yine bir yer belgesi
-  olur (varış bildirimleri yer belgesiyle çalışır), `placeGoes: true` ile buluşmaya bağlanır.
-- Nokta, buluşma sürerken çemberin "Yerler" listesinde görünmez; haritada buluşma olarak çizilir.
-- Seçilip kullanılmayan nokta hemen silinir: yerine başkası seçilince ya da başlatmadan çıkılınca.
-  Uygulama tam o sırada kapanırsa nokta sıradan bir yer olarak kalabilir; kullanıcı silebilir.
-- Buluşma ekranında başlatan ve yöneticiler için "Düzenle". Başlatma formunun aynısı açılır, şimdiki
-  yer ve saatle dolu gelir: başka bir kayıtlı yer, yeni bir nokta ya da başka bir saat seçilip
-  kaydedilir. Kartın Saat ve Yer satırlarına dokunmak da aynı formu açar. Yeni nokta buluşmayla
-  gider, bırakılan eski nokta hemen silinir. Etkinliklerde bir şey değişmedi.
-- Haritada dokunma: Android'de harita bir işaretin (marker) üstündeki dokunuşu kendisi yakalayıp
-  işaretin `onPress`'ine verir; içindeki düğme duymaz. Bu yüzden buluşma bayrağı ve yer etiketi
-  dokunuşa cevap vermiyordu. Artık işaretin kendi `onPress`'i buluşmayı ya da yeri açar. Yan yana
-  duran buluşmalarda her satır ayrı bir işarettir. Buluşma alanının içine dokunmak da buluşmayı
-  açar. Aynı dokunuş hem işarete hem düğmeye ulaşırsa ekran bir kez açılır.
+Kök neden: geçici noktayı kayıtlı yer olarak yazıp sonra istemcilere temizletmek. PM'in kararı
+(2026-10-23) bu tasarımın değişmesi oldu.
+
+### Karar
+
+- Haritadan seçilen nokta (ad, enlem, boylam, yarıçap) buluşma belgesinin **kendi şifreli
+  içeriğinde** durur: `plan.spot = { name, lat, lng, radius }` (PROTOCOL §6).
+  - Kayıtlı yer olarak hiç yazılmaz.
+  - Buluşma silinince (elle ya da sunucunun işçisiyle) nokta da gider. Temizlenecek bir şey kalmaz.
+- `placeId` yalnız önceden kayıtlı bir yer seçildiğinde kullanılır. Bir buluşma ya kayıtlı yerdedir
+  ya noktadadır, ikisi birden değil (şema bunu reddeder).
+- Telefon bir noktayı yer gibi okur: kimliği çemberinki, simgesi 📍. Bu sayede haritada çizim, varış
+  tahtası, tahminler ve bildirimler ikisine aynı davranır.
+- `placeGoes`, telefonda tutulan nokta listesi ve "Yerler'den gizleme" kaldırıldı. Hiçbir plan
+  artık bir kayıtlı yeri silemez, gizleyemez.
+- "Bitir, yeri sakla": bitiren kişinin telefonu o noktadan çemberde **normal bir kayıtlı yer**
+  oluşturur, sonra buluşmayı bitirir. Bu, kişinin kendi açık eylemidir.
+  - "Bitince yeri sakla" anahtarı kalktı.
+- Nokta seçme ekranı (yer düzenleyici, buluşma için açılınca) hiçbir şey kaydetmez. Noktayı forma
+  geri verir; form başlatırken ya da "Düzenle"de kaydederken onu buluşmanın içine yazar.
+  - Seçilip kullanılmayan noktadan geriye bir şey kalmaz.
+- Kalıntılar ("Woh date", "Taksim" gibi önceki APK'larla oluşan yerler) olduğu gibi kalır;
+  kullanıcı silebilir.
+
+### Eski uygulamalar
+
+Eski uygulamalar planı esnek okur: `spot`'u atar, `placeId` bulamaz. Böyle bir buluşmayı yeri
+belirsiz gösterir, haritada nokta çizmez.
+
+İstemci seviyesi artırılmadı. Kayıp yalnız eski bir telefonda noktanın görünmemesi. Sahibin
+telefonları yeni APK'ya geçiyor.
+
+Sunucu değişmedi: nokta şifreli belgenin içinde, sunucu görmez.
+
+### Aynı Ek'in 2026-10-23 eklemeleri (değişmeden kalanlar)
+
+- "Yeni yer ekle" yerine "Haritadan nokta seç":
+  - ad isteğe bağlıdır; yazılmazsa haritanın oradaki etiketi kullanılır ("Taksim");
+  - etiket telefonda okunur, hiçbir yere gitmez (ADR 0013).
+- Buluşma ekranında başlatan ve yöneticiler için "Düzenle": başlatma formunun aynısı, yer (kayıtlı
+  yer ya da yeni nokta) ve saatle dolu gelir.
+- Haritada dokunma:
+  - Android'de harita, bir işaretin üstündeki dokunuşu işaretin `onPress`'ine verir. Bu yüzden
+    buluşma bayrağı, yan yana buluşmaların her satırı ve yer etiketi kendi `onPress`'iyle açılır.
+  - Buluşma alanının içine dokunmak da buluşmayı açar.
+  - Aynı dokunuş iki kez gelirse ekran bir kez açılır.
 
 ## Ek 2 (2026-10-22, kabul edildi): katılım yanıtı — Geliyorum / Belki / Gelemiyorum
 

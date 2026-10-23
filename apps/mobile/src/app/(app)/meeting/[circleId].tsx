@@ -1,7 +1,7 @@
-import type { Circle, PlanPayload } from '@bargu/schemas';
+import type { Circle, MeetingSpot, PlanPayload } from '@bargu/schemas';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Check, Flag, MapPin, Users } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
@@ -11,7 +11,7 @@ import { useCircle } from '@/features/circles/queries';
 import { useNow } from '@/features/location/clock';
 import { usePlaces } from '@/features/places/places';
 import { docKey, useDocs } from '@/features/plan/docs';
-import { meetingOf } from '@/features/plan/meeting';
+import { meetingOf, meetingPlace, SPOT_EMOJI } from '@/features/plan/meeting';
 import { MeetingCard } from '@/features/plan/meeting-card';
 import { useMeetingPlaceDraft } from '@/features/plan/meeting-place';
 import { PlaceIcon, TimeStepper, timeRange, useEventPlaces } from '@/features/plan/meeting-sheets';
@@ -23,12 +23,12 @@ import {
   MeetingWayCard,
 } from '@/features/plan/meeting-view';
 import {
-  forgetMeetingPlace,
   mayRunMeeting,
+  type MeetingWhere,
   setMeeting,
   startMeeting,
 } from '@/features/plan/plan-actions';
-import { MEETING, meetingSpots } from '@/features/plan/plan-model';
+import { MEETING } from '@/features/plan/plan-model';
 import { space, useTheme } from '@/theme';
 import { Button } from '@/ui/button';
 import { Card } from '@/ui/card';
@@ -68,7 +68,7 @@ export default function MeetingScreen() {
   }
   const plan = docs[docKey(circle.id, circle.id)]?.payload;
   const meeting = plan?.kind === 'plan' ? plan : undefined;
-  const place = meeting?.placeId === undefined ? undefined : places[meeting.placeId];
+  const place = meeting === undefined ? undefined : meetingPlace(meeting, places);
   const event = circle.kind === 'event';
   const title = circleTitle(circle, me);
 
@@ -151,34 +151,27 @@ function MeetingForm({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const now = useNow();
-  const docs = useDocs();
-  const circlePlaces = useEventPlaces(circle.id);
+  const saved = useEventPlaces(circle.id);
   const range = timeRange(circle, now);
-  const [placeId, setPlaceId] = useState<string | null>(current?.placeId ?? null);
-  // A spot picked here (docs/ADR/0026 Ek 1): taken at once. One left unused (another picked, or
-  // the form left without saving) goes at once, so it never stays behind as a place.
-  const [added, setAdded] = useState<string | null>(null);
-  const addedRef = useRef<string | null>(null);
-  const used = useRef(false);
+  // Where: a saved place, or the spot picked on the map (docs/ADR/0026 Ek 1), which lives in the
+  // meeting only: nothing is saved before the meeting is, and nothing is left if it is not.
+  const [spot, setSpot] = useState<MeetingSpot | undefined>(current?.spot);
+  const [where, setWhere] = useState<MeetingWhere | null>(
+    current?.spot !== undefined
+      ? { spot: current.spot }
+      : current?.placeId !== undefined
+        ? { placeId: current.placeId }
+        : null,
+  );
   useEffect(
     () =>
       useMeetingPlaceDraft.subscribe((draft) => {
         if (draft?.circleId !== circle.id) return;
-        const before = addedRef.current;
-        if (before !== null && before !== draft.placeId) void forgetMeetingPlace(before);
-        addedRef.current = draft.placeId;
-        setAdded(draft.placeId);
-        setPlaceId(draft.placeId);
+        setSpot(draft.spot);
+        setWhere({ spot: draft.spot });
         useMeetingPlaceDraft.setState(null, true);
       }),
     [circle.id],
-  );
-  useEffect(
-    () => () => {
-      const left = addedRef.current;
-      if (left !== null && !used.current) void forgetMeetingPlace(left);
-    },
-    [],
   );
   const [meetAt, setMeetAt] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -186,40 +179,21 @@ function MeetingForm({
     meetAt ??
     current?.meetAt ??
     (range === null ? now : Math.min(range.max, range.min + MEETING.stepMs));
-  // The spot this meeting has now, or the one just picked; the circle's own places below it.
-  const spots = meetingSpots(docs);
-  const spotId = added ?? (current?.placeGoes === true ? current.placeId : undefined);
-  const spot = circlePlaces.find((place) => place.id === spotId);
-  const saved = circlePlaces.filter((place) => place.id !== spotId && !spots.has(place.id));
 
   const save = async () => {
-    if (placeId === null) return;
+    if (where === null) return;
     setSaving(true);
-    const isSpot = placeId === added;
-    // Marked before the answer: the screen may turn to the meeting before the answer arrives.
-    used.current = isSpot;
     const done =
       current === undefined
-        ? await startMeeting(circle, {
-            placeId,
-            meetAt: chosenTime,
-            ...(isSpot ? { placeGoes: true } : {}),
-          })
-        : await setMeeting(circle.id, {
-            placeId,
-            meetAt: chosenTime,
-            ...(isSpot ? { spot: true } : {}),
-          });
+        ? await startMeeting(circle, { ...where, meetAt: chosenTime })
+        : await setMeeting(circle.id, { ...where, meetAt: chosenTime });
     setSaving(false);
-    if (!done) {
-      used.current = false;
-      return;
-    }
-    onDone?.();
+    if (done) onDone?.();
   };
 
-  const chosenMark = (id: string) =>
-    id === placeId ? <Check size={20} color={colors.primary} strokeWidth={2.5} /> : null;
+  const chosenMark = (chosen: boolean) =>
+    chosen ? <Check size={20} color={colors.primary} strokeWidth={2.5} /> : null;
+  const spotChosen = where !== null && 'spot' in where;
 
   return (
     <View style={styles.start} testID={current === undefined ? 'meeting-start' : 'meeting-form'}>
@@ -227,12 +201,12 @@ function MeetingForm({
         {spot === undefined ? null : (
           <ListRow
             testID="meeting-start-spot"
-            leading={<PlaceIcon emoji={spot.emoji} />}
+            leading={<PlaceIcon emoji={SPOT_EMOJI} />}
             title={spot.name}
             subtitle={t('meeting.spotOnly')}
-            trailing={chosenMark(spot.id)}
+            trailing={chosenMark(spotChosen)}
             onPress={() => {
-              setPlaceId(spot.id);
+              setWhere({ spot });
             }}
           />
         )}
@@ -263,9 +237,11 @@ function MeetingForm({
             leading={<PlaceIcon emoji={place.emoji} />}
             title={place.name}
             subtitle={t('places.meters', { meters: place.radius })}
-            trailing={chosenMark(place.id)}
+            trailing={chosenMark(
+              where !== null && 'placeId' in where && where.placeId === place.id,
+            )}
             onPress={() => {
-              setPlaceId(place.id);
+              setWhere({ placeId: place.id });
             }}
           />
         ))}
@@ -279,7 +255,7 @@ function MeetingForm({
         testID="meeting-start-go"
         label={t(current === undefined ? 'meeting.start' : 'plan.save')}
         icon={current === undefined ? Flag : Check}
-        disabled={placeId === null || range === null}
+        disabled={where === null || range === null}
         loading={saving}
         onPress={() => {
           void save();

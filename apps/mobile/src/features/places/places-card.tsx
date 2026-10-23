@@ -12,8 +12,6 @@ import { Text } from '@/ui/text';
 
 import { useNow } from '../location/clock';
 import { useSharing } from '../location/sharing';
-import { useDocs } from '../plan/docs';
-import { meetingSpots } from '../plan/plan-model';
 import { announcesTo } from './presence';
 import { usePlaces } from './places';
 
@@ -27,9 +25,8 @@ export function PlacesCard({ circleId }: { circleId: string }) {
   const { colors } = useTheme();
   const settings = useSharing();
   const now = useNow();
-  const spots = meetingSpots(useDocs());
   const places = Object.values(usePlaces())
-    .filter((place) => place.circleId === circleId && !spots.has(place.id))
+    .filter((place) => place.circleId === circleId)
     .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
   const open = (id?: string) => {
     router.push({

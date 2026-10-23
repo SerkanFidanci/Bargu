@@ -1,10 +1,11 @@
+import type { MeetingSpot } from '@bargu/schemas';
 import { create } from 'zustand';
 
 /**
- * A place added from the "start a meeting" screen (docs/ADR/0026 Ek 1): the place editor, opened
- * for a meeting, says which new place it saved, so the meeting can take it and let it go with it.
- * Only an id the editor made itself lands here, never a place the circle already had.
+ * A spot picked on the map from the "start a meeting" or "Düzenle" form (docs/ADR/0026 Ek 1): the
+ * place editor, opened for a meeting, hands the point and its name back to the form. Nothing is
+ * saved: the spot goes into the meeting itself.
  */
-export const useMeetingPlaceDraft = create<{ circleId: string; placeId: string } | null>(
+export const useMeetingPlaceDraft = create<{ circleId: string; spot: MeetingSpot } | null>(
   () => null,
 );

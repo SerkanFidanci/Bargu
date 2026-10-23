@@ -1,5 +1,12 @@
 import { randomUuid, voteId } from '@bargu/crypto';
-import type { Circle, PlanPayload, PollPayload, PushBody, VotePayload } from '@bargu/schemas';
+import type {
+  Circle,
+  MeetingSpot,
+  PlanPayload,
+  PollPayload,
+  PushBody,
+  VotePayload,
+} from '@bargu/schemas';
 
 import i18n from '@/i18n';
 import { toast } from '@/ui/toast';
@@ -7,12 +14,12 @@ import { toast } from '@/ui/toast';
 import { useAuth } from '../auth/auth-store';
 import { loadContacts } from '../notifications/push-contacts';
 import { usePlaces } from '../places/places';
+import { places } from '../places/places-session';
 import { sealPushes } from '../places/presence';
 import { vault } from '../storage/vault';
 import { docKey, type DocSaveResult, useDocs } from './docs';
 import { docs } from './docs-session';
-import { meetingStartPushes } from './meeting';
-import { forgetSpot } from './my-spots';
+import { meetingPlace, meetingStartPushes, SPOT_EMOJI } from './meeting';
 import {
   answerCounts,
   answersOf,
@@ -62,16 +69,24 @@ export function mayRunMeeting(circle: Pick<Circle, 'id' | 'kind' | 'myRole'>, me
 }
 
 /**
+ * Where a meeting is (docs/ADR/0026 Ek 1): one of the circle's saved places, or a spot picked on
+ * the map, kept inside the meeting and never saved as a place.
+ */
+export type MeetingWhere = { placeId: string } | { spot: MeetingSpot };
+
+/**
  * Starts a meeting in a circle that is no event (docs/ADR/0026): any member, with its place and
  * time. The others' phones hear it live; those not connected get one notification.
  */
 export async function startMeeting(
   circle: Pick<Circle, 'id'>,
-  meeting: { placeId: string; meetAt: number; placeGoes?: boolean },
+  meeting: MeetingWhere & { meetAt: number },
 ): Promise<boolean> {
   const { userId: me, device } = useAuth.getState();
-  const place = usePlaces.getState()[meeting.placeId];
-  if (me === null || device === null || place === undefined) return told('failed');
+  if (me === null || device === null) return told('failed');
+  const plan: PlanPayload = { kind: 'plan', id: circle.id, ...meeting, by: me, ts: 0 };
+  const place = meetingPlace(plan, usePlaces.getState());
+  if (place === undefined) return told('failed');
   const pushes = meetingStartPushes({
     circleId: circle.id,
     place,
@@ -80,79 +95,61 @@ export async function startMeeting(
     recipients: loadContacts(vault()).recipients[circle.id] ?? [],
     now: Date.now(),
   });
-  const { placeGoes, ...where } = meeting;
-  const plan: PlanPayload = {
-    kind: 'plan',
-    id: circle.id,
-    ...where,
-    ...(placeGoes === true ? { placeGoes } : {}),
-    by: me,
-    ts: 0,
-  };
   return told(await docs.save(circle.id, plan, { pushes }), i18n.t('meeting.started'));
 }
 
 /**
- * A place added for a meeting goes with it (docs/ADR/0026 Ek 1); one the circle had stays. Only
- * a spot this phone added itself (my-spots.ts, QA-35); nothing when it is gone already.
+ * Ends a circle's meeting at once ("Bitir", its starter or an admin); everyone's goes, and a spot
+ * picked for it with it: nothing else to clean up. `keepSpot`: the one who ends it keeps the
+ * spot as a saved place of the circle first, by their own choice ("Bitir, yeri sakla").
  */
-export async function forgetMeetingPlace(placeId: string): Promise<void> {
-  await forgetSpot(placeId);
-}
-
-/**
- * Ends a circle's meeting at once ("Bitir", its starter or an admin); everyone's goes too, and the
- * place added for it unless `keepPlace`. Kept: the plan says so first, so no other phone of the
- * starter takes it away afterwards.
- */
-export async function endMeeting(circleId: string, keepPlace = false): Promise<boolean> {
+export async function endMeeting(circleId: string, keepSpot = false): Promise<boolean> {
   const plan = planOf(circleId);
-  if (keepPlace && plan.placeGoes === true) {
-    await docs.save(circleId, { ...plan, placeGoes: false });
+  if (keepSpot && plan.spot !== undefined) {
+    const kept = await places.save(circleId, {
+      id: randomUuid(),
+      name: plan.spot.name,
+      emoji: SPOT_EMOJI,
+      lat: plan.spot.lat,
+      lng: plan.spot.lng,
+      radius: plan.spot.radius,
+    });
+    if (kept !== 'saved') {
+      toast.error(i18n.t('places.failed'));
+      return false;
+    }
   }
   const ended = await docs.remove(circleId, circleId);
-  if (ended) {
-    if (!keepPlace && plan.placeGoes === true && plan.placeId !== undefined) {
-      await forgetMeetingPlace(plan.placeId);
-    }
-    toast.success(i18n.t('meeting.ended'));
-  } else toast.error(i18n.t('plan.failed'));
+  if (ended) toast.success(i18n.t('meeting.ended'));
+  else toast.error(i18n.t('plan.failed'));
   return ended;
 }
 
 /**
- * Sets the meeting's time or place; the others' phones hear `docs.changed`. Moved away from a
- * place added for it, that place goes. The new one stays, unless it is a `spot` just picked on the
- * map for this meeting (docs/ADR/0026 Ek 1), which goes with the meeting in turn.
+ * Sets the meeting's time or place; the others' phones hear `docs.changed`. A new place is a
+ * saved one or a spot, never both; no place is ever saved or deleted by it.
  */
 export async function setMeeting(
   circleId: string,
-  change: Pick<PlanPayload, 'meetAt' | 'placeId'> & { spot?: boolean },
+  change: { meetAt?: number } & Partial<MeetingWhere>,
 ): Promise<boolean> {
   const before = planOf(circleId);
-  const { spot, ...where } = change;
-  const leftPlace =
-    where.placeId !== undefined &&
-    where.placeId !== before.placeId &&
-    before.placeGoes !== undefined;
-  const { placeGoes, ...rest } = before;
+  const { placeId, spot, ...rest } = before;
+  const where =
+    'spot' in change
+      ? { spot: change.spot }
+      : 'placeId' in change
+        ? { placeId: change.placeId }
+        : {
+            ...(placeId === undefined ? {} : { placeId }),
+            ...(spot === undefined ? {} : { spot }),
+          };
   const next: PlanPayload = {
     ...rest,
     ...where,
-    ...(spot === true
-      ? { placeGoes: true }
-      : leftPlace || placeGoes === undefined
-        ? {}
-        : { placeGoes }),
+    ...(change.meetAt === undefined ? {} : { meetAt: change.meetAt }),
   };
-  const saved = told(
-    await docs.save(circleId, next, movedNotices(before, next)),
-    i18n.t('plan.saved'),
-  );
-  if (saved && leftPlace && placeGoes === true && before.placeId !== undefined) {
-    await forgetMeetingPlace(before.placeId);
-  }
-  return saved;
+  return told(await docs.save(circleId, next, movedNotices(before, next)), i18n.t('plan.saved'));
 }
 
 /** This phone's sealed notices for the given members' devices in a circle (none: undefined). */
@@ -169,11 +166,16 @@ function pushesTo(circleId: string, to: ReadonlySet<string>, body: PushBody) {
  * A meeting whose time or place changed: "moved to 18:30, still coming?" to those who said
  * Geliyorum or Belki (docs/ADR/0026 Ek 2), never to this user.
  */
+function sameSpot(a: MeetingSpot, b: MeetingSpot | undefined): boolean {
+  return a.lat === b?.lat && a.lng === b.lng && a.name === b.name;
+}
+
 function movedNotices(before: PlanPayload, next: PlanPayload) {
   const moved =
     (next.meetAt !== undefined && next.meetAt !== before.meetAt) ||
-    (next.placeId !== undefined && next.placeId !== before.placeId);
-  const place = next.placeId === undefined ? undefined : usePlaces.getState()[next.placeId];
+    (next.placeId !== undefined && next.placeId !== before.placeId) ||
+    (next.spot !== undefined && !sameSpot(next.spot, before.spot));
+  const place = meetingPlace(next, usePlaces.getState());
   const me = useAuth.getState().userId;
   if (!moved || next.meetAt === undefined || place === undefined) return {};
   const coming = new Set(
@@ -223,13 +225,6 @@ export async function answerMeeting(circleId: string, answer: MeetingAnswer): Pr
       pushes === undefined ? {} : { pushes },
     ),
   );
-}
-
-/** "Keep the place" (the starter): the place added for the meeting stays when it ends, or not. */
-export async function keepMeetingPlace(circleId: string, keep: boolean): Promise<boolean> {
-  const plan = planOf(circleId);
-  if (plan.placeGoes === undefined) return true;
-  return told(await docs.save(circleId, { ...plan, placeGoes: !keep }));
 }
 
 export async function startPoll(

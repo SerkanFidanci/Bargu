@@ -1,5 +1,12 @@
 import { type DeviceKeys, encryptMessage } from '@bargu/crypto';
-import type { Circle, DevicePushes, LocPayload, PlaceEventRequest, PushBody } from '@bargu/schemas';
+import type {
+  Circle,
+  DevicePushes,
+  LocPayload,
+  PlaceEventRequest,
+  PlanPayload,
+  PushBody,
+} from '@bargu/schemas';
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -35,6 +42,34 @@ export interface Meeting {
   place: Place;
 }
 
+/** The icon of a spot picked on the map for a meeting. */
+export const SPOT_EMOJI = '📍';
+
+/**
+ * Where a meeting is: one of the circle's saved places, or the spot picked on the map for it,
+ * kept inside the meeting (docs/ADR/0026 Ek 1). A spot reads as a place named by the meeting
+ * (its id is the circle's), so the map, the board and the estimates treat both alike.
+ */
+export function meetingPlace(
+  plan: PlanPayload,
+  places: Readonly<Record<string, Place>>,
+): Place | undefined {
+  if (plan.spot !== undefined) {
+    return {
+      id: plan.id,
+      circleId: plan.id,
+      version: 0,
+      name: plan.spot.name,
+      emoji: SPOT_EMOJI,
+      lat: plan.spot.lat,
+      lng: plan.spot.lng,
+      radius: plan.spot.radius,
+      ts: plan.ts,
+    };
+  }
+  return plan.placeId === undefined ? undefined : places[plan.placeId];
+}
+
 /** The meeting of an event from its documents and places; null while time or place is open. */
 export function meetingOf(
   circleId: string,
@@ -42,10 +77,8 @@ export function meetingOf(
   places: Readonly<Record<string, Place>>,
 ): Meeting | null {
   const plan = docs[docKey(circleId, circleId)]?.payload;
-  if (plan?.kind !== 'plan' || plan.meetAt === undefined || plan.placeId === undefined) {
-    return null;
-  }
-  const place = places[plan.placeId];
+  if (plan?.kind !== 'plan' || plan.meetAt === undefined) return null;
+  const place = meetingPlace(plan, places);
   if (place?.circleId !== circleId) return null;
   return { circleId, meetAt: plan.meetAt, place };
 }

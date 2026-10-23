@@ -16,6 +16,8 @@ export {
   profilePayloadSchema,
   placePayloadSchema,
   planPayloadSchema,
+  meetingSpotSchema,
+  type MeetingSpot,
   pollPayloadSchema,
   votePayloadSchema,
   latePayloadSchema,

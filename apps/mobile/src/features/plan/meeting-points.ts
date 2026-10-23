@@ -6,6 +6,7 @@ import { memberName } from '../circles/names';
 import { worldPx } from '../map/cluster';
 import type { Place } from '../places/place-model';
 import { docKey } from './docs';
+import { meetingPlace } from './meeting';
 import { type Doc, MEETING } from './plan-model';
 
 /**
@@ -54,7 +55,7 @@ export function meetingPoints(
       meetAt: state === 'set' ? meeting?.meetAt : undefined,
       state,
     });
-    const chosen = meeting?.placeId === undefined ? undefined : places[meeting.placeId];
+    const chosen = meeting === undefined ? undefined : meetingPlace(meeting, places);
     if (circle.kind === 'event') {
       if (circle.expiresAt !== undefined && circle.expiresAt <= now) return [];
       if (chosen?.circleId === circle.id) return [point(chosen, 'set')];

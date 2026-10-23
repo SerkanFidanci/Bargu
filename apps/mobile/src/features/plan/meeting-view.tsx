@@ -33,7 +33,7 @@ import { BarguMap } from '../map/bargu-map';
 import type { Place } from '../places/place-model';
 import { docKey, useDocs } from './docs';
 import { type Meeting, useMeetingChoices } from './meeting';
-import { answerMeeting, endMeeting, keepMeetingPlace } from './plan-actions';
+import { answerMeeting, endMeeting } from './plan-actions';
 import {
   type Arrival,
   answerCounts,
@@ -169,7 +169,7 @@ export function MeetingHero({
               </Text>
             </View>
           </View>
-          {starter === undefined && plan?.placeGoes !== true ? null : (
+          {starter === undefined && plan?.spot === undefined ? null : (
             <View style={styles.tags}>
               {starter === undefined ? null : (
                 <View style={styles.starter}>
@@ -186,7 +186,7 @@ export function MeetingHero({
                   </Text>
                 </View>
               )}
-              {plan?.placeGoes === true ? (
+              {plan?.spot !== undefined ? (
                 <Badge label={t('meeting.spotOnly')} icon={MapPin} />
               ) : null}
             </View>
@@ -499,25 +499,28 @@ export function MeetingWayCard({ circleId }: { circleId: string }) {
   );
 }
 
-/** For whoever may change it: keep the spot when it ends, and end it now. */
+/**
+ * For whoever may change it: end it now. A spot picked for it goes with it; "Bitir, yeri sakla"
+ * keeps it as a saved place of the circle, by their own choice (docs/ADR/0026 Ek 1).
+ */
 export function MeetingManageCard({ circle }: { circle: Circle }) {
   const { t } = useTranslation();
   const plan = useDocs()[docKey(circle.id, circle.id)]?.payload;
-  const placeGoes = plan?.kind === 'plan' ? plan.placeGoes : undefined;
+  const spot = plan?.kind === 'plan' ? plan.spot : undefined;
   const [ending, setEnding] = useState(false);
-  const finish = (keepPlace: boolean) => {
+  const finish = (keepSpot: boolean) => {
     setEnding(true);
-    void endMeeting(circle.id, keepPlace).finally(() => {
+    void endMeeting(circle.id, keepSpot).finally(() => {
       setEnding(false);
     });
   };
   const end = () => {
     Alert.alert(
       t('meeting.endTitle'),
-      placeGoes === true ? t('meeting.endBodyPlace') : t('meeting.endBody'),
+      spot !== undefined ? t('meeting.endBodyPlace') : t('meeting.endBody'),
       [
         { text: t('common.cancel'), style: 'cancel' },
-        ...(placeGoes === true
+        ...(spot !== undefined
           ? [
               {
                 text: t('meeting.endKeepPlace'),
@@ -539,17 +542,6 @@ export function MeetingManageCard({ circle }: { circle: Circle }) {
   };
   return (
     <Card testID="meeting-manage">
-      {placeGoes === undefined ? null : (
-        <Toggle
-          testID="meeting-keep-place"
-          label={t('meeting.keepPlace')}
-          description={t('meeting.keepPlaceHint')}
-          value={!placeGoes}
-          onChange={(keep) => {
-            void keepMeetingPlace(circle.id, keep);
-          }}
-        />
-      )}
       <Button
         testID="meeting-end"
         label={t('meeting.end')}

@@ -69,7 +69,9 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
       say: z.enum(POKE_SAYINGS).optional(),
       ts: timestamp,
     })
-    .strict(),
+    .strict()
+    // As in the message: a reply says one of the ready replies, and only a reply does (QA-36).
+    .refine((poke) => (poke.style === 'reply') === (poke.say !== undefined)),
   // "Güvendeyim" (docs/ADR/0029): the receiving phone writes "Ali: İyiyim ✓ · %45" from it, and
   // keeps where they are (at that circle's precision) for a day, so a phone whose app is closed
   // can show the place when the notification is tapped. The location is in the sealed box only:

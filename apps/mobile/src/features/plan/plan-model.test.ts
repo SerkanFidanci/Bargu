@@ -16,7 +16,6 @@ import {
   leaveReminderAt,
   MEETING,
   meetingEnd,
-  meetingSpots,
   meetingTimes,
   PROGRESS,
   starterOf,
@@ -433,26 +432,6 @@ describe('answers to a meeting (docs/ADR/0026 Ek 2)', () => {
     ]);
     expect(answerCounts(answers)).toEqual({ going: 1, maybe: 1, not: 1 });
     expect(answersOf(all, '0190f7a4-1111-7111-8111-0000000000c2').size).toBe(0);
-  });
-});
-
-describe('a meeting spot (docs/ADR/0026 Ek 1)', () => {
-  const plan = (circleId: string, extra: Partial<PlanPayload>): Doc => ({
-    circleId,
-    version: 1,
-    shared: true,
-    authorId: 'ayse',
-    payload: { kind: 'plan', id: circleId, meetAt: 1, ts: 1, ...extra },
-  });
-
-  it('is the place a running meeting takes with it, never a place the circle keeps', () => {
-    const all = {
-      a: plan('c1', { placeId: 'taksim', placeGoes: true }),
-      b: plan('c2', { placeId: 'home' }),
-      c: plan('c3', { placeId: 'kept', placeGoes: false }),
-      d: plan('c4', { placeGoes: true }),
-    };
-    expect([...meetingSpots(all)]).toEqual(['taksim']);
   });
 });
 

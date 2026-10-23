@@ -407,22 +407,6 @@ export function answerCounts(
 }
 
 /**
- * The places that are only a running meeting's spot (docs/ADR/0026 Ek 1): picked on the map for it
- * and gone with it. They are not listed with the circle's places (the owner, 2026-10-23: a meeting
- * at Taksim should not leave Taksim behind as a place).
- */
-export function meetingSpots(all: Readonly<Record<string, Doc>>): ReadonlySet<string> {
-  const spots = new Set<string>();
-  for (const doc of Object.values(all)) {
-    const plan = doc.payload;
-    if (plan.kind === 'plan' && plan.placeGoes === true && plan.placeId !== undefined) {
-      spots.add(plan.placeId);
-    }
-  }
-  return spots;
-}
-
-/**
  * Who started a circle's meeting outside an event (docs/ADR/0026). Its first version is signed by
  * whoever started it: one naming someone else is not believed (QA-35). Later versions come only
  * from the starter or an admin (the server holds that rule), who keep the name as it was.

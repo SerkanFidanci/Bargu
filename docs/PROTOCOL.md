@@ -226,7 +226,7 @@ eder; epoch ilerleyince açabilen bir üye yeri kendi yeni anahtarıyla yeniden 
 eskisini açamaz).
 
 **Belgeler (etkinlik, ADR 0018).** Etkinliğin buluşması (`plan`: `id = circleId, meetAt?, placeId?,
-ts`), oylamaları (`poll`: `id, by, about (time | place), options (2–4), closed?, ts`) ve oyları
+spot?, by?, ts`; `spot = { name, lat, lng, radius }` haritadan seçilen nokta, buluşmanın içinde durur, hiçbir zaman kayıtlı yer olmaz; `placeId` ile birlikte olamaz, ADR 0026 Ek 1), oylamaları (`poll`: `id, by, about (time | place), options (2–4), closed?, ts`) ve oyları
 (`vote`: `id, pollId, choices, ts`) mesajla aynı başlık, anahtar ve imzayla, ama **1024 bayta**
 dolgulanarak şifrelenir (`ct` 1040 bayt; `encryptDocument` / `decryptDocument` /
 `verifyDocumentEnvelope`). Boyut iki zarfı ayırır: bir mesaj imzası belge, bir belge imzası mesaj
