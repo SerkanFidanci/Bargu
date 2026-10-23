@@ -68,6 +68,7 @@ psql() {
 roles="$(docker exec "$container" sh -c "pg_restore --list /tmp/backup.dump | awk '!/^;/ && NF { print \$NF }'" |
   grep -E '^[a-z_][a-z0-9_]*$' | sort -u || true)"
 for role in $roles bargu_app; do
+  case "$role" in pg_*) continue ;; esac
   psql -c "DO \$\$ BEGIN CREATE ROLE $role NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$"
 done
 

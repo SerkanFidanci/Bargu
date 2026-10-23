@@ -137,7 +137,7 @@ Sunucudaki her değişiklik sahibin onayıyla yapılır. Kurulum tek komuttur (`
 
 `bargu-backup` (`infra/staging/backup.sh`) iki zamanda çalışır:
 
-- her gece saat 03:30'da;
+- her gece saat 03:30'da (UTC, TSİ 06:30);
 - her dağıtımdan önce.
 
 Ne yapar:

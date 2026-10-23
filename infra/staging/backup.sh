@@ -42,6 +42,8 @@ fail() {
 [ -s "$RECIPIENTS" ] || fail "açık anahtar yok ($RECIPIENTS); yedek alınmadı"
 command -v age >/dev/null || fail "age kurulu değil; yedek alınmadı"
 [ -d "$BACKUP_DIR" ] || fail "yedek klasörü yok ($BACKUP_DIR)"
+# A folder the deploy user can read: started from root's (runuser), find would fail on it.
+cd "$BACKUP_DIR"
 
 # One backup at a time: a deploy during the nightly run waits for it.
 exec 9>"$BACKUP_DIR/.lock"

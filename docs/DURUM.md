@@ -75,26 +75,32 @@ cevaplanacak açık sorular:
 
 Alan adı alınınca DNS adımları ADR'nin 4. bölümünde.
 
-Ortak sunucunun zayıf yanları için yapılanlar:
+Ortak sunucunun zayıf yanları için yapılanlar. Sunucu adımlarını sahip 2026-10-23'te onayladı;
+kodlama oturumu çalıştırdı.
 
-| İş                                         | Durum                                                                                                                                                                                                                                          |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Şifreli yedek (`infra/staging/backup.sh`)  | Her gece 03:30'da ve her dağıtımdan önce `pg_dump`, age ile şifreli. 14 gece, 10 dağıtım öncesi yedek tutulur. Bilgisayarda Docker'da denendi (hata durumları ve eski yedek silme dahil). **Sunucuya kurulum sahibin onayını bekliyor**        |
-| Dağıtımdan önce yedek (`deploy.sh`)        | Yedek alınamazsa migration uygulanmaz, çalışan sürüm olduğu gibi kalır. Sunucudaki `bargu-deploy` 13 Ekim'den kalma. Kurulum depodaki sonraki düzeltmeyi de getirir: imaj, çekme ve migration başarılı olunca kaydedilir                       |
-| Geri yükleme denemesi (`restore-check.sh`) | Bilgisayarda, geçici bir Postgres'te. Denendi: doğru anahtar, yanlış anahtar, bozuk dosya. Sunucudaki ilk gerçek yedekle bir kez yapılacak (Faz 10 DoD), sonra ayda bir                                                                        |
-| Anahtar                                    | Sahibin bilgisayarında üretildi: `~/.bargu/backup-age-key.txt` (hiç yazdırılmadı). Açık anahtar depoda: `infra/staging/backup-recipients.txt`                                                                                                  |
-| Sunucu dışı kopya                          | Yer seçimi bekliyor (ADR §5a tablosu). Önerim sahibin Otenus sunucusu; oraya yazmak için sahibin ayrıca onayı gerekir                                                                                                                          |
-| Migration'lar yalnız ekler                 | `scripts/check-migrations.mjs` CI'da ve `ci-linux`'ta çalışır, 9 testi var. 0039'dan sonra silme, ad değiştirme ve daraltma ancak bir `-- contract:` satırıyla geçer                                                                           |
-| Test botu izin listesi                     | Bot yalnız izin listesindeki hesapların isteğini ve davetini kabul eder, ötekileri reddeder. Komutlar: `allow:`, `disallow:`, `allowlist`, `cleanup`. İlk açılışta liste bugünkü arkadaşlarından yazılır. **Kurulum sahibin onayını bekliyor** |
-| QA hesapları                               | Yalnız kendi `.test` hesaplarını kullanırlar. Gerçek testçileri eklemezler                                                                                                                                                                     |
+| İş                                         | Durum                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Şifreli yedek (`infra/staging/backup.sh`)  | **Kuruldu.** Her gece 03:30 UTC'de (TSİ 06:30) ve her dağıtımdan önce `pg_dump`, age ile şifreli. Sunucuda 14 gece, 10 dağıtım öncesi, 5 elle alınmış yedek tutulur. İlk yedek 859 KB                                                                                                                                                                  |
+| Dağıtımdan önce yedek (`deploy.sh`)        | **Kuruldu.** Yedek alınamazsa migration uygulanmaz, çalışan sürüm olduğu gibi kalır. Sunucudaki `bargu-deploy` 13 Ekim'den kalmaydı; depodaki sonraki düzeltme de geldi: imaj, çekme ve migration başarılı olunca kaydedilir. Eskisi `bargu-deploy.bak-20261023T140022Z`                                                                               |
+| Geri yükleme denemesi (`restore-check.sh`) | **Yapıldı** (Faz 10 DoD): sunucudaki ilk gerçek yedek geçici bir Postgres'e yüklendi; 39 migration, depoyla aynı; bütün tablolar geldi. Ayrıca denendi: yanlış anahtar ve bozuk dosya reddedilir. Ayda bir tekrarlanır                                                                                                                                 |
+| Anahtar                                    | Sahibin bilgisayarında üretildi: `~/.bargu/backup-age-key.txt` (hiç yazdırılmadı). Açık anahtar depoda: `infra/staging/backup-recipients.txt`                                                                                                                                                                                                          |
+| Sunucu dışı kopya                          | Yer seçimi bekliyor (ADR §5a tablosu). Önerim sahibin Otenus sunucusu; oraya yazmak için sahibin ayrıca onayı gerekir                                                                                                                                                                                                                                  |
+| Migration'lar yalnız ekler                 | `scripts/check-migrations.mjs` CI'da ve `ci-linux`'ta çalışır, 9 testi var. 0039'dan sonra silme, ad değiştirme ve daraltma ancak bir `-- contract:` satırıyla geçer                                                                                                                                                                                   |
+| Test botu izin listesi                     | **Kuruldu** (bot aynı cihazla yeniden açıldı, tur kipinde). Bot yalnız izin listesindeki hesapların isteğini ve davetini kabul eder, ötekileri reddeder. Komutlar: `allow:`, `disallow:`, `allowlist`, `cleanup`. Liste bugünkü arkadaşlarından yazıldı: `@aktansanhal`, `@otenus`, `@sirketserkan`. Eski bot `/root/bargu-test-friend.mjs.v13-level5` |
+| QA hesapları                               | Yalnız kendi `.test` hesaplarını kullanırlar. Gerçek testçileri eklemezler                                                                                                                                                                                                                                                                             |
+
+Kurulumda bulunan iki hata düzeltildi:
+
+- Elle yedek root'un klasöründen başlatılınca eski yedek temizliği izin hatası verdi. Gece ve
+  dağıtım yedeğini etkilemiyordu.
+- Geri yükleme denemesi Postgres'in kendi `pg_` rollerini oluşturmaya çalıştı.
 
 Sahipten:
 
-1. Gizli yedek anahtarını (`C:\Users\serkanfidanci\.bargu\backup-age-key.txt`) parola yöneticisine
+1. Gizli yedek anahtarını (`C:Usersserkanfidanci.barguackup-age-key.txt`) parola yöneticisine
    ve bir yere daha kopyala. O olmadan hiçbir yedek açılmaz.
-2. Sunucuya kurulum onayı (iki komut; kodlama oturumu çalıştırır, sen onaylarsın):
-   - `bash infra/staging/install-backup.sh --apply`: kuru çalıştırması temiz;
-   - botun yeni kopyası ve yeniden başlatma: aynı cihaz kalır.
+2. `@aktansanhal` senin hesabın mı? Değilse bot onu listeden çıkarır ve ortak çemberden ayrılır
+   (`disallow:aktansanhal`, sonra `cleanup`).
 3. Sunucu dışı kopyanın yeri.
 
 ## Faz 9B — Para Modeli & Bargu+ (sürüyor, 2026-10-16)
@@ -831,8 +837,8 @@ Sıra önemli:
      listesine girer (kodlama oturumu yapar, sertifikayı sen verirsin).
   4. **K8:** inceleyici için demo hesap kararı; **K9:** hava durumu (Open-Meteo) için ticari plan
      ya da kendi sunucu.
-  5. Sunucu yedeği ve bir kez geri yükleme denemesi: betikler hazır, kurulum onayın bekliyor
-     (yukarıda, Kapalı test sunucusu ve yedek).
+  5. ~~Sunucu yedeği ve bir kez geri yükleme denemesi~~: 2026-10-23'te kuruldu ve denendi (yukarıda,
+     Kapalı test sunucusu ve yedek). Kalan: sunucu dışı kopyanın yeri.
   6. Emülatörde açılış ve harita testi (Expo bulutu) ücretli: ilk oturumdan önce fiyatı sana ve
      PM'e söyleyeceğim.
 
