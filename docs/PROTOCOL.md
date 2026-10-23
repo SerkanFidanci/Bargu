@@ -171,6 +171,7 @@ alıcı yok sayar:
 | ------------- | ----------------------------------------------------------------------------------------- |
 | `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, since?, eta?, ts` (ADR 0018)                |
 | `bump`        | `ts`                                                                                      |
+| `poke`        | `to, style, say?, ts`: ifadeli dürtme; yalnız `to` gösterir (ADR 0031)                    |
 | `place_enter` | `placeId, ts`                                                                             |
 | `place_exit`  | `placeId, ts`                                                                             |
 | `share_stop`  | `ts`                                                                                      |
@@ -333,6 +334,7 @@ sunucudan (imzalı): 0x02 ‖ len(kid)(1) ‖ kid ‖ issuedAt(8) ‖ id(16) ‖
 sunucudan (eski):   0x00 ‖ gövde      (haber anahtarı olmayan sunucu)
 gövde (JSON) = { kind: "place", circleId, placeId, event: "enter" | "exit", name, emoji, ts }
              | { kind: "bump", circleId, ts }
+             | { kind: "poke", circleId, style, say?, ts }   (ADR 0031: yalnız dürtülene)
              | { kind: "safe", circleId, id, bat, lat?, lng?, acc?, ts }   (ADR 0029: ad yok, metin yok)
              | { kind: "late", circleId, minutes, ts }
              | { kind: "meeting", circleId, name, emoji, meetAt, ts }
