@@ -1,6 +1,7 @@
 # 0033. Anlık hikaye: 24 saatlik, uçtan uca şifreli fotoğraf
 
-- Durum: Taslak (proje sahibinin isteği, 2026-10-23; PM ve hukuk/Play kontrolü bekliyor)
+- Durum: Taslak, kapalı test sonrası (PM'in kararı 2026-10-23; sahip kararı PM'e bıraktı). Kapalı
+  testten ve avukat görüşmesinden önce kod yok.
 - Tarih: 2026-10-23
 - İlgili: [ADR 0032](0032-messaging.md) (bildir ve engelle aynı), [ADR 0023](0023-age-15-plus.md),
   [PROTOCOL §6](../PROTOCOL.md).

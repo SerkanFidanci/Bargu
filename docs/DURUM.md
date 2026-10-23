@@ -38,12 +38,12 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 Sahip: "dürtmeleri geliştir … mesajlaşma ve anlık hikaye paylaşım özelliği de gelsin. hepsini planla
 yapmaya başla." Ayrıca yeni logo. Plan ve durum:
 
-| İş                | Karar                                                            | Durum                                                                                     |
-| ----------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| İfadeli dürtmeler | [ADR 0031](ADR/0031-expressive-pokes.md), kabul (sahibin isteği) | Kodlandı (`b53cbe3`), sonraki APK'da                                                      |
-| Yeni logo         | ADR 0008 eki                                                     | Kodlandı (`2d34d4e`), sonraki APK'da                                                      |
-| Mesajlaşma        | [ADR 0032](ADR/0032-messaging.md), taslak                        | PM ve hukuk/Play kontrolü bekliyor; sonra B1 sunucu, B2 mobil, B3 bildir/engelle          |
-| Anlık hikaye      | [ADR 0033](ADR/0033-stories.md), taslak                          | PM ve hukuk/Play kontrolü bekliyor; yeni bağımlılık (kamera, resim) ve disk kotası kararı |
+| İş                | Karar                                                            | Durum                                                                                |
+| ----------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| İfadeli dürtmeler | [ADR 0031](ADR/0031-expressive-pokes.md), kabul (sahibin isteği) | Kodlandı (`b53cbe3`), sonraki APK'da                                                 |
+| Yeni logo         | ADR 0008 eki                                                     | Kodlandı (`2d34d4e`), sonraki APK'da                                                 |
+| Mesajlaşma        | [ADR 0032](ADR/0032-messaging.md), taslak                        | Kapalı test ve avukat görüşmesinden sonra (PM'in kararı, sahip ona bıraktı); kod yok |
+| Anlık hikaye      | [ADR 0033](ADR/0033-stories.md), taslak                          | Kapalı test ve avukat görüşmesinden sonra (PM'in kararı, sahip ona bıraktı); kod yok |
 
 İfadeli dürtmeler:
 
@@ -55,7 +55,9 @@ yapmaya başla." Ayrıca yeni logo. Plan ve durum:
 - Uygulama kapalıysa bildirim gelir ("Ayşe seni öptü 💋"); dokununca animasyon oynar.
 - Yeni şifreli mesaj türü `poke`. Sunucu değişmedi.
 
-Mesajlaşma ve hikaye için açık sorular (PM, sahip):
+Mesajlaşma ve hikaye (2026-10-23): sahip kararı PM'e bıraktı ("sen seç benim yerime"). PM'in kararı:
+kapalı testten ve avukat görüşmesinden sonra; ADR 0032 ve 0033 taslak kalır, kod yok. O zaman
+cevaplanacak açık sorular:
 
 1. Saklama süresi (önerim 30 gün).
 2. Play'in kullanıcı içeriği ve çocuk güvenliği şartları: bildir, engelle, topluluk kuralları
@@ -780,11 +782,12 @@ Sıra önemli:
 1. ~~Seviye 4 APK'sı ve sunucu betiği~~: betik 2026-10-22'de çalıştırıldı (yukarıda, Staging).
 2. **Son APK'yı bütün telefonlara kur** (`10d58b9`, seviye 5, bağlantı Telefonda denenecekler'de);
    56–69'a bak.
-3. Kurduktan sonra kodlama oturumuna "kurdum" yaz. Son adımı o çalıştırır: aynı betik
-   `--min-level 5` ile (önce kuru) ve test botunun istemci seviyesi 5 (bot 22 Ekim 18:14 civarı
-   kendiliğinden durur; o adımda yeniden başlatılır). Senden yalnız ssh adımının onayı istenir. Eski
-   sürümler kapanır, sahte haber açığı tamamen kapanır. Aynı çalıştırma nginx'teki davet
-   bloklarını büyük/küçük harf duyarsız yapar (QA-34, `e53f096`).
+3. ~~Seviye 5~~: 2026-10-23'te yapıldı. Sahip `061c011`'i kurdu, betik `--min-level 5` ile (önce
+   kuru, sonra gerçek; ssh adımını sahip onayladı) çalıştı. Sonuç:
+   - `MIN_CLIENT_LEVEL=5`: istemci seviyesi 4 ya da başlıksız istek 426 alıyor (eski sürümler
+     kapandı, sahte haber açığı kapandı);
+   - nginx davet blokları `~*` (QA-34): son kontrol `/I/` ve `/G/` ile de denedi, günlükte token yok;
+   - test botu istemci seviyesi 5 gönderiyor, aynı gün yeniden başlatıldı ve çalışıyor.
 
 - Mağazaya çıkış (Faz 10) için yalnız senin yapabileceklerin, acelesi yok; sıra Play hesabıyla
   gelir (`docs/play-store/KONTROL-LISTESI.md`):

@@ -37,8 +37,8 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0029](0029-safe-check-in.md)                        | Güvendeyim: tek dokunuşla iyiyim, konum ve pil; hep bedava, duraklamış çemberde de çalışır                             | Kabul edildi                                                         |
 | [0030](0030-own-location-history.md)                 | Kendi konum geçmişi: yalnız telefonda, kapalı başlar, ek GPS yok                                                       | Önerildi (tasarım PM onaylı; kod sahibin telefon denemesinden sonra) |
 | [0031](0031-expressive-pokes.md)                     | İfadeli dürtmeler: öp, sarıl, kız, gül, heyecan; "nerdesin?", "ne zaman?", "cevap ver"; dürtülenin ekranında animasyon | Kabul edildi (sahibin isteği)                                        |
-| [0032](0032-messaging.md)                            | Mesajlaşma: çemberde uçtan uca şifreli yazışma, sunucuda 30 gün şifreli kutu                                           | Taslak                                                               |
-| [0033](0033-stories.md)                              | Anlık hikaye: 24 saatlik, uçtan uca şifreli fotoğraf, EXIF silinir                                                     | Taslak                                                               |
+| [0032](0032-messaging.md)                            | Mesajlaşma: çemberde uçtan uca şifreli yazışma, sunucuda 30 gün şifreli kutu                                           | Taslak, kapalı test sonrası                                          |
+| [0033](0033-stories.md)                              | Anlık hikaye: 24 saatlik, uçtan uca şifreli fotoğraf, EXIF silinir                                                     | Taslak, kapalı test sonrası                                          |
 
 ## Şablon
 
