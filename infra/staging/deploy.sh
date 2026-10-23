@@ -55,8 +55,15 @@ if ! compose_new pull --quiet api; then
   exit 1
 fi
 
-# Schema first. Migrations only add (expand/contract), so the running release keeps working on
-# the migrated schema.
+# A backup before every migration (docs/ADR/0034 §5b): without one nothing is migrated. On a new
+# server, start postgres once by hand first (`docker compose ... up -d postgres`).
+if ! /usr/local/bin/bargu-backup pre-deploy; then
+  echo "deploy: no backup before the migration; the running release is untouched" >&2
+  exit 1
+fi
+
+# Schema first. Migrations only add (expand/contract, checked in CI by scripts/check-migrations.mjs),
+# so the running release keeps working on the migrated schema.
 if ! compose_new run --rm migrate; then
   echo "deploy: migration failed; the running release is untouched" >&2
   exit 1

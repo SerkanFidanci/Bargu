@@ -66,6 +66,37 @@ cevaplanacak açık sorular:
 4. Hikayede video olsun mu (önerim: sonra).
 5. Staging diskinde kota (rastamen de aynı sunucuda).
 
+## Kapalı test sunucusu ve yedek (ADR 0034, 2026-10-23)
+
+[ADR 0034](ADR/0034-domain-and-closed-test-server.md) kabul edildi (PM, seçenek A):
+
+- Kapalı test bugünkü sunucuda yapılır. Canlıya geçerken hizmet Türkiye'ye taşınır.
+- Adlar: `bargu.app` (davetler, passkey) ve `api.bargu.app` (API, harita, APK).
+
+Alan adı alınınca DNS adımları ADR'nin 4. bölümünde.
+
+Ortak sunucunun zayıf yanları için yapılanlar:
+
+| İş                                         | Durum                                                                                                                                                                                                                                          |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Şifreli yedek (`infra/staging/backup.sh`)  | Her gece 03:30'da ve her dağıtımdan önce `pg_dump`, age ile şifreli. 14 gece, 10 dağıtım öncesi yedek tutulur. Bilgisayarda Docker'da denendi (hata durumları ve eski yedek silme dahil). **Sunucuya kurulum sahibin onayını bekliyor**        |
+| Dağıtımdan önce yedek (`deploy.sh`)        | Yedek alınamazsa migration uygulanmaz, çalışan sürüm olduğu gibi kalır. Sunucudaki `bargu-deploy` 13 Ekim'den kalma. Kurulum depodaki sonraki düzeltmeyi de getirir: imaj, çekme ve migration başarılı olunca kaydedilir                       |
+| Geri yükleme denemesi (`restore-check.sh`) | Bilgisayarda, geçici bir Postgres'te. Denendi: doğru anahtar, yanlış anahtar, bozuk dosya. Sunucudaki ilk gerçek yedekle bir kez yapılacak (Faz 10 DoD), sonra ayda bir                                                                        |
+| Anahtar                                    | Sahibin bilgisayarında üretildi: `~/.bargu/backup-age-key.txt` (hiç yazdırılmadı). Açık anahtar depoda: `infra/staging/backup-recipients.txt`                                                                                                  |
+| Sunucu dışı kopya                          | Yer seçimi bekliyor (ADR §5a tablosu). Önerim sahibin Otenus sunucusu; oraya yazmak için sahibin ayrıca onayı gerekir                                                                                                                          |
+| Migration'lar yalnız ekler                 | `scripts/check-migrations.mjs` CI'da ve `ci-linux`'ta çalışır, 9 testi var. 0039'dan sonra silme, ad değiştirme ve daraltma ancak bir `-- contract:` satırıyla geçer                                                                           |
+| Test botu izin listesi                     | Bot yalnız izin listesindeki hesapların isteğini ve davetini kabul eder, ötekileri reddeder. Komutlar: `allow:`, `disallow:`, `allowlist`, `cleanup`. İlk açılışta liste bugünkü arkadaşlarından yazılır. **Kurulum sahibin onayını bekliyor** |
+| QA hesapları                               | Yalnız kendi `.test` hesaplarını kullanırlar. Gerçek testçileri eklemezler                                                                                                                                                                     |
+
+Sahipten:
+
+1. Gizli yedek anahtarını (`C:\Users\serkanfidanci\.bargu\backup-age-key.txt`) parola yöneticisine
+   ve bir yere daha kopyala. O olmadan hiçbir yedek açılmaz.
+2. Sunucuya kurulum onayı (iki komut; kodlama oturumu çalıştırır, sen onaylarsın):
+   - `bash infra/staging/install-backup.sh --apply`: kuru çalıştırması temiz;
+   - botun yeni kopyası ve yeniden başlatma: aynı cihaz kalır.
+3. Sunucu dışı kopyanın yeri.
+
 ## Faz 9B — Para Modeli & Bargu+ (sürüyor, 2026-10-16)
 
 Kararlar: [ADR 0024](ADR/0024-entitlements-and-test-billing.md) (hesap bazlı hak, çemberin
@@ -800,7 +831,8 @@ Sıra önemli:
      listesine girer (kodlama oturumu yapar, sertifikayı sen verirsin).
   4. **K8:** inceleyici için demo hesap kararı; **K9:** hava durumu (Open-Meteo) için ticari plan
      ya da kendi sunucu.
-  5. Sunucu yedeği ve bir kez geri yükleme denemesi.
+  5. Sunucu yedeği ve bir kez geri yükleme denemesi: betikler hazır, kurulum onayın bekliyor
+     (yukarıda, Kapalı test sunucusu ve yedek).
   6. Emülatörde açılış ve harita testi (Expo bulutu) ücretli: ilk oturumdan önce fiyatı sana ve
      PM'e söyleyeceğim.
 

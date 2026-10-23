@@ -42,6 +42,7 @@ lock_script="$(dirname "${BASH_SOURCE[0]}")/with-test-lock.sh"
     failed=0
     pnpm format:check > /tmp/format.log 2>&1 || { tail -20 /tmp/format.log; echo "ci-linux: format failed"; failed=1; }
     pnpm check:chars > /tmp/chars.log 2>&1 || { tail -20 /tmp/chars.log; echo "ci-linux: check:chars failed"; failed=1; }
+    pnpm check:migrations > /tmp/migrations.log 2>&1 || { tail -20 /tmp/migrations.log; echo "ci-linux: check:migrations failed"; failed=1; }
     # The tests after the rest, not beside it: jest (a worker per core) and the typed lint at once
     # ran out of memory in a 16 GB Docker (exit 137), though each passes alone.
     turbo_ok=1

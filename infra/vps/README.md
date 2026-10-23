@@ -194,5 +194,41 @@ curl -s http://127.0.0.1:3100/health/ready   # hazır olma kontrolü sadece sunu
 ```
 
 - Postgres ve Redis dışarıya port açmaz, iç ağdadır.
-- Yedekleme: henüz kurulu değil (Faz 0'da kullanıcı verisi yok). Gerçek kullanıcı verisinden önce
-  şifreli yedek ve geri yükleme testi şart (Faz 10).
+- Yedek: aşağıda.
+
+## Yedek (`install-backup.sh`, ADR 0034 §5a)
+
+Veritabanı her gece 03:30'da ve her dağıtımdan önce `pg_dump` ile alınır ve **age** ile
+şifrelenir. Sunucuda yalnız açık anahtar durur; sunucu kendi yedeğini okuyamaz. Yedekler
+`/opt/bargu/backups` altında (14 gece, 10 dağıtım öncesi, 5 elle).
+
+Bir kez, sahibin bilgisayarında (Docker gerekir):
+
+```bash
+bash infra/staging/backup-key.sh               # anahtar çifti; gizli anahtar ~/.bargu/ içinde, hiç yazdırılmaz
+bash infra/staging/install-backup.sh           # kuru çalıştırma: ne yapacağını söyler, hiçbir şey değiştirmez
+bash infra/staging/install-backup.sh --apply   # kurar ve ilk yedeği alır (sahibin onayıyla)
+```
+
+Kurulum yalnız Bargu yollarına yazar: age paketi, `/usr/local/bin/bargu-backup`, `/etc/bargu/`,
+`/opt/bargu/backups`, `bargu-backup.timer` ve `bargu-deploy` (eskisi `.bak-<zaman>` olarak kalır).
+Stack yeniden başlatılmaz.
+
+Gizli anahtarı parola yöneticisine ve bir yere daha kopyala: o olmadan hiçbir yedek açılmaz.
+
+Geri yükleme denemesi (sahibin bilgisayarında, ayda bir; kapalı testten önce bir kez):
+
+```bash
+bash infra/staging/restore-check.sh            # sunucudaki en yeni yedek
+bash infra/staging/restore-check.sh <dosya>    # bilgisayardaki bir yedek
+```
+
+Yedeği geçici bir Postgres'e yükler, migration sayısını depoyla karşılaştırır ve tabloların satır
+sayılarını yazar. Hiçbir satırın içeriğini yazdırmaz.
+
+Sunucuda kontrol: `systemctl list-timers bargu-backup.timer`, `journalctl -u bargu-backup`.
+
+Sunucu dışı kopya: `/etc/bargu/backup-offsite.conf` varsa her gece `rsync` ile gider. Dosyada
+`OFFSITE_TARGET=kullanıcı@sunucu:klasör` ve `OFFSITE_KEY=/etc/bargu/backup-offsite-key` olur.
+Hedefin anahtarı `/etc/bargu/backup-offsite-known-hosts` içinde durur. Hedefte bu anahtar yalnız
+yazabilir (`rrsync -wo`).

@@ -1,0 +1,16 @@
+# Nightly encrypted database backup (docs/ADR/0034 §5a); started by bargu-backup.timer.
+[Unit]
+Description=Bargu staging encrypted database backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+ExecStart=/usr/local/bin/bargu-backup nightly
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/opt/bargu/backups

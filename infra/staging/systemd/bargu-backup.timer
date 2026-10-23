@@ -1,0 +1,11 @@
+# Every night at 03:30 server time; a missed run (server off) runs at the next boot.
+[Unit]
+Description=Bargu staging nightly backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target
