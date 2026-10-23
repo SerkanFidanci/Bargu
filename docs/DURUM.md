@@ -33,6 +33,37 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Uygulama kimliği        | `app.bargu` (mağazaya çıkınca değiştirilemez)                                                                                                                                                                                                                                                                                                                                        |
 | Harita dosyaları        | Sunucuda `/srv/bargu-map`, `https://api.46-62-162-70.sslip.io/map/` (Türkiye, 1,6 GB)                                                                                                                                                                                                                                                                                                |
 
+## Sahibin yeni istekleri (2026-10-23): dürtme, mesajlaşma, hikaye, logo
+
+Sahip: "dürtmeleri geliştir … mesajlaşma ve anlık hikaye paylaşım özelliği de gelsin. hepsini planla
+yapmaya başla." Ayrıca yeni logo. Plan ve durum:
+
+| İş                | Karar                                                            | Durum                                                                                     |
+| ----------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| İfadeli dürtmeler | [ADR 0031](ADR/0031-expressive-pokes.md), kabul (sahibin isteği) | Kodlandı (`b53cbe3`), sonraki APK'da                                                      |
+| Yeni logo         | ADR 0008 eki                                                     | Kodlandı (`2d34d4e`), sonraki APK'da                                                      |
+| Mesajlaşma        | [ADR 0032](ADR/0032-messaging.md), taslak                        | PM ve hukuk/Play kontrolü bekliyor; sonra B1 sunucu, B2 mobil, B3 bildir/engelle          |
+| Anlık hikaye      | [ADR 0033](ADR/0033-stories.md), taslak                          | PM ve hukuk/Play kontrolü bekliyor; yeni bağımlılık (kamera, resim) ve disk kotası kararı |
+
+İfadeli dürtmeler:
+
+- Kişi kartında "Dürt" dokuz seçenekli bir pencere açar: Dürt, Öp, Sarıl, Kızdım, Gül, Heyecan,
+  Nerdesin?, Ne zaman?, Cevap ver!.
+- Dürtülen telefonda hangi ekran açıksa üstünde kısa bir animasyon oynar: öpücükler, sarılma ışığı,
+  kızgın sarsıntı, yükselen gülüşler, konfeti.
+- Sorular hazır cevaplarla bir kart açar.
+- Uygulama kapalıysa bildirim gelir ("Ayşe seni öptü 💋"); dokununca animasyon oynar.
+- Yeni şifreli mesaj türü `poke`. Sunucu değişmedi.
+
+Mesajlaşma ve hikaye için açık sorular (PM, sahip):
+
+1. Saklama süresi (önerim 30 gün).
+2. Play'in kullanıcı içeriği ve çocuk güvenliği şartları: bildir, engelle, topluluk kuralları
+   sayfası, iletişim noktası.
+3. 15–17 yaş kuralları.
+4. Hikayede video olsun mu (önerim: sonra).
+5. Staging diskinde kota (rastamen de aynı sunucuda).
+
 ## Faz 9B — Para Modeli & Bargu+ (sürüyor, 2026-10-16)
 
 Kararlar: [ADR 0024](ADR/0024-entitlements-and-test-billing.md) (hesap bazlı hak, çemberin
@@ -706,6 +737,14 @@ yeniden başlatma alıcısı) ve buluşma noktası, "Düzenle", haritada buluşm
     kartında herkesin yanıtı renkli etiketle; buluşmaya yarım saat kala kim orada, kim ne zaman
     gelir. Buluşma başlatma ekranı "Nerede?" ve "Ne zaman?" diye iki kart.
 71. Sonraki APK'da: ana ekranda hava durumu "Seni görenler"in hemen yanında, aynı satırda.
+72. Sonraki APK'da: haritada bir kişiye dokun > "Dürt": dokuz seçenek. "Öp" gönder; öbür telefonun
+    ekranında öpücükler uçar, üstte "… seni öptü 💋" yazar. Sarıl, Kızdım, Gül, Heyecan da kendi
+    animasyonuyla oynar. Uygulaması kapalıysa bildirim gelir; dokununca animasyon oynar.
+73. Sonraki APK'da: "Nerdesin?" gönder; öbür telefonda hazır cevaplı kart açılır ("Yoldayım", "Az
+    kaldı"…). Bir cevaba dokununca senin ekranında "…: Yoldayım" kartı çıkar.
+74. Sonraki APK'da: Ben > Görünüm > Efektler "Kapalı" iken dürtme animasyonsuz, yalnız bir satır.
+75. Sonraki APK'da: telefonun ana ekranında ve uygulama listesinde yeni logo; açılış ekranı beyaz
+    zeminde logo. Android 13+ temalı simgede logonun beyaz silueti.
 
 ### Senden gerekenler
 
