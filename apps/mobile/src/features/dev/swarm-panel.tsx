@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
@@ -7,6 +8,7 @@ import { Text } from '@/ui/text';
 
 import { GlidingMarker } from '../map/gliding-marker';
 import { activityOf } from '../map/activity';
+import { useMapCrowd } from '../map/crowd';
 import { MapAvatar } from '../map/map-avatar';
 import { LOW_BATTERY } from '../map/people-layer';
 import { useFrameMeter } from './frame-meter';
@@ -18,6 +20,11 @@ const MEASURE_SECONDS = 10;
 /** The fake people on the map (dev builds only, see map-swarm.ts). */
 export function SwarmLayer() {
   const people = useSwarm((state) => state.people);
+  // The map's crowd counts the swarm too (features/map/crowd.ts).
+  const count = people.length;
+  useEffect(() => {
+    useMapCrowd.setState({ swarm: count });
+  }, [count]);
   return (
     <>
       {people.map((person) => (

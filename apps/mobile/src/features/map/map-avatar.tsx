@@ -14,6 +14,7 @@ import { avatarPalette, space, spring, timing, useTheme } from '@/theme';
 import { AvatarMarker, type MarkerDetail, type MarkerWhy, PIN_HEIGHT } from '@/ui/avatar-marker';
 
 import type { Activity } from './activity';
+import { useCalmCrowd } from './crowd';
 import { Footprints } from './footprints';
 import { trailLevel } from './glide';
 import { MeetBurst } from './meet-burst';
@@ -103,6 +104,8 @@ export function MapAvatar({
   lookMine,
 }: MapAvatarProps) {
   const lift = useSharedValue(0);
+  // A crowd on the map: the pin holds still, and draws no trail (theme crowdFx).
+  const calm = useCalmCrowd();
   useEffect(() => {
     if (pokedAt === undefined) return;
     lift.set(withSequence(withTiming(-space.xl, timing.fast), withSpring(0, spring.bouncy)));
@@ -113,7 +116,9 @@ export function MapAvatar({
   const gait = activity === 'walking' ? 'walk' : activity === 'running' ? 'run' : null;
   const fast = activity === 'racing' || activity === 'train' || activity === 'plane';
   const level =
-    heading !== null && heading !== undefined && gait === null && !fast ? trailLevel(spd) : 0;
+    !calm && heading !== null && heading !== undefined && gait === null && !fast
+      ? trailLevel(spd)
+      : 0;
   const { colors } = useTheme();
   const color = avatarPalette[avatar?.color ?? 0] ?? colors.primary;
   const pin = (
@@ -132,11 +137,12 @@ export function MapAvatar({
       news={news}
       look={look}
       lookMine={lookMine}
+      still={calm}
     />
   );
   return (
     <View style={styles.box} pointerEvents="box-none">
-      {gait === null || heading === null || heading === undefined ? null : (
+      {calm || gait === null || heading === null || heading === undefined ? null : (
         <Footprints gait={gait} heading={heading} center={CENTER} color={color} news={news} />
       )}
       {level === 0 ? null : (

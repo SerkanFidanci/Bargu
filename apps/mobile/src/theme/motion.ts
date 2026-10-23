@@ -131,6 +131,14 @@ export const weatherFx = {
 export const meetFx = { particles: 28, durationMs: 1_400, reach: 72, size: 5 } as const;
 
 /**
+ * A crowd on the map (the owner's 50-person test, 2026-10-23: the map stuttered). Every pin is a
+ * view of its own over the map; each loop it plays redraws it every frame. With more people than
+ * `calmAbove` drawn, pins hold still (no breath, no steps, no low-battery pulse); with more than
+ * `stillAbove`, they also stop gliding and jump to each new spot.
+ */
+export const crowdFx = { calmAbove: 12, stillAbove: 25 } as const;
+
+/**
  * A poke with a feeling on the screen of whom it is for (docs/ADR/0031): how long it plays (shorter
  * at "Az"), the pieces flying out and how far, the big one in the middle, the shake of an angry
  * one, the glow at the edges of a hug or an angry one, and how long a question waits for an answer.

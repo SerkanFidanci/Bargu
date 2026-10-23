@@ -65,6 +65,8 @@ export interface AvatarMarkerProps {
   look?: Look | undefined;
   /** The user's own pin: its look is always one of the few that move. */
   lookMine?: boolean | undefined;
+  /** A crowd on the map (theme crowdFx): the pin plays no loop, whatever the effects level. */
+  still?: boolean | undefined;
 }
 
 /** What someone seems to be doing (features/map/activity.ts decides). */
@@ -199,6 +201,7 @@ export function AvatarMarker({
   news,
   look,
   lookMine = false,
+  still = false,
 }: AvatarMarkerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -206,7 +209,8 @@ export function AvatarMarker({
   const ring = stale ? colors.textMuted : colors.primary;
   const doing: MarkerActivity = stale ? 'still' : activity;
   const moving = doing !== 'still' && doing !== 'settled';
-  const level = useEffects();
+  const chosen = useEffects();
+  const level = still ? 'off' : chosen;
   const breath = useLoop(!stale && !moving, ambient.breathe.duration, level, news);
   const cycle = useCycle(periodOf(doing), level, news);
   const pulse = useLoop(lowBattery && !charging && !stale, ambient.pulse.duration, level, news);

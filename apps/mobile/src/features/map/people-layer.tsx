@@ -1,5 +1,5 @@
 import type { Circle, Me, MemberCard } from '@bargu/schemas';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { lookAt } from '../cosmetics/look-model';
 import { useLooks, useMyLook } from '../cosmetics/look-session';
@@ -20,6 +20,7 @@ import { type Cluster, capsuleOf, clusterPeople } from './cluster';
 import { UncertaintyLayer } from './uncertainty-layer';
 import { useMapZoom } from './map-zoom';
 import { activityOf } from './activity';
+import { useMapCrowd } from './crowd';
 import { motionDetail } from './motion-detail';
 import { ClusterBubble, type TogetherPerson } from './cluster-bubble';
 import type { ScreenPoint } from './person-focus';
@@ -114,6 +115,11 @@ export function PeopleLayer({
           },
         ];
   const clusters = clusterPeople(people, zoom);
+  // How many pins the map draws: in a crowd they hold still (crowd.ts, theme crowdFx).
+  const pins = clusters.length;
+  useEffect(() => {
+    useMapCrowd.setState({ people: pins });
+  }, [pins]);
 
   /** A person's sticker as drawn on its own or side by side with others. */
   const together = (person: PersonOnMap): TogetherPerson => {

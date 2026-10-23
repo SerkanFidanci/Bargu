@@ -11,6 +11,7 @@ import Animated, {
 import { duration } from '@/theme';
 import { useEffects } from '@/theme/effects';
 
+import { useStillCrowd } from './crowd';
 import { type GlideFix, glideStep } from './glide';
 
 /** MapLibre markers take their position from Reanimated on the UI thread (MapLibre RN v11). */
@@ -36,8 +37,11 @@ export function GlidingMarker({ id, fix, onPress, children }: GlidingMarkerProps
   const previous = useRef<GlideFix | null>(null);
   // The first position only: afterwards Reanimated moves it (a changing prop would fight it).
   const [initial] = useState<LngLat>(() => [fix.lng, fix.lat]);
-  // Read when a location arrives: a change of level alone starts no glide.
-  const level = useEffects();
+  // Read when a location arrives: a change of level alone starts no glide. In a crowd on the map
+  // every pin jumps instead (theme crowdFx): fifty glides at once stuttered the map.
+  const chosen = useEffects();
+  const crowded = useStillCrowd();
+  const level = crowded ? 'off' : chosen;
   const levelNow = useRef(level);
   useEffect(() => {
     levelNow.current = level;
