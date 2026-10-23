@@ -19,6 +19,7 @@ import {
 } from '@bargu/schemas';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { DocsService } from '../../src/docs/docs.service.js';
 import { MeetingSweeper } from '../../src/docs/meeting-sweeper.js';
 import { EventsService } from '../../src/events/events.service.js';
 import { DatabaseService } from '../../src/infra/database/database.service.js';
@@ -845,5 +846,23 @@ describe('answers to a meeting outside an event (docs/ADR/0026 Ek 2)', () => {
     await answer(gul, pair.id, phone(gul, pair).seal(answerOf(pair.id, gul, 0)), null, { pushes });
     expect(forwarded).toHaveBeenCalledWith(pushes, new Map([[fuat.userId, fuat.device.deviceId]]));
     forwarded.mockRestore();
+  });
+
+  it('say the meeting is gone when it ends while an answer is on its way (QA-35)', async () => {
+    const [hale, ilker] = await Promise.all([person(test), person(test)]);
+    const pair = await circleWith(test, hale, ilker);
+    // The check before the insert still saw the meeting; another transaction ended it since.
+    const raced = vi
+      .spyOn(DocsService.prototype as unknown as { isMeeting: () => Promise<boolean> }, 'isMeeting')
+      .mockResolvedValueOnce(true);
+    const late = await answer(
+      ilker,
+      pair.id,
+      phone(ilker, pair).seal(answerOf(pair.id, ilker, 0)),
+      null,
+    );
+    expect(late.statusCode).toBe(404);
+    expect(late.json()).toMatchObject({ code: 'NOT_FOUND' });
+    raced.mockRestore();
   });
 });

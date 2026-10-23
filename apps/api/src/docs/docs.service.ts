@@ -12,6 +12,7 @@ import { and, count, eq, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError } from '../common/api-error.js';
+import { isPgError, PG } from '../db/pg-errors.js';
 import { circleDocs, circleMembers, circles } from '../db/schema.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
@@ -177,20 +178,32 @@ export class DocsService {
         ) {
           throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
         }
-        saved = await tx
-          .insert(circleDocs)
-          .values({
-            circleId,
-            id: docId,
-            authorId: auth.userId,
-            shared,
-            kind,
-            pollId,
-            envelope,
-            endsAt: meetingEnd,
-          })
-          .onConflictDoNothing()
-          .returning({ version: circleDocs.version });
+        try {
+          saved = await tx
+            .insert(circleDocs)
+            .values({
+              circleId,
+              id: docId,
+              authorId: auth.userId,
+              shared,
+              kind,
+              pollId,
+              envelope,
+              endsAt: meetingEnd,
+            })
+            .onConflictDoNothing()
+            .returning({ version: circleDocs.version });
+        } catch (error) {
+          // The meeting or poll went in another transaction (its end, the worker) after the check
+          // above: the vote's row is refused (its policy, its foreign key). Gone, not a 500 (QA-35).
+          if (
+            pollId !== null &&
+            (isPgError(error, PG.foreignKeyViolation) || isPgError(error, PG.insufficientPrivilege))
+          ) {
+            throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+          }
+          throw error;
+        }
       } else {
         // Outside an event only its starter and the circle's admins change the meeting, either
         // one in a friendship (and row-level security); said so, rather than "someone was faster".

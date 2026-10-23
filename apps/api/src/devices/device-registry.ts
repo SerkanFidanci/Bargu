@@ -2,9 +2,9 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { BarguCryptoError, verifyDeviceKeyBundle } from '@bargu/crypto';
 import type { DeviceRegistration } from '@bargu/schemas';
 import { and, eq, isNull } from 'drizzle-orm';
-import { DatabaseError } from 'pg';
 
 import { ApiError } from '../common/api-error.js';
+import { isPgError, PG } from '../db/pg-errors.js';
 import { devices, pushTokens, refreshTokens, securityEvents } from '../db/schema.js';
 import type { Tx } from '../infra/database/database.service.js';
 import type { AttestationKind } from './attestation/attestation.service.js';
@@ -16,8 +16,6 @@ export interface VerifiedDevice {
   dhKey: Uint8Array;
   dhKeySignature: Uint8Array;
 }
-
-const UNIQUE_VIOLATION = '23505';
 
 /** Checks a key bundle: valid identity key, DH key signed by it for this device id. */
 export function verifyRegistration(registration: DeviceRegistration): VerifiedDevice {
@@ -117,8 +115,5 @@ export class DeviceRegistry {
 }
 
 export function isUniqueViolation(error: unknown): boolean {
-  const cause = error instanceof Error && 'cause' in error ? error.cause : undefined;
-  return [error, cause].some(
-    (candidate) => candidate instanceof DatabaseError && candidate.code === UNIQUE_VIOLATION,
-  );
+  return isPgError(error, PG.uniqueViolation);
 }
