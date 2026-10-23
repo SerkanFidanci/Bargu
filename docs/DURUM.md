@@ -5,19 +5,19 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Özet
 
-| Faz                              | Durum                                                                                                                                                                     |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                                                                                                              |
-| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                                                                                                             |
-| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                                                                                                              |
-| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)                                                                                                     |
-| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)                                                                                                     |
-| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)                                                                                                             |
-| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                                                                                                                           |
-| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                                                                                                                          |
-| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                                                                                                                |
-| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)                                                                                                             |
-| Faz 9B — Para modeli & Bargu+    | ✅ PM onayı 2026-10-22 (kod ve testler); telefon denemeleri ve kullanılabilirlik testi sahipte; seviye 5 APK'sı `cf3469b` (`869a7af` açılışta çöküyordu), kurulum sahipte |
+| Faz                              | Durum                                                                                                                                                                              |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Faz 0 — Temel & Güvenlik Altyapı | ✅ Onaylandı (açık madde: iPhone dev client)                                                                                                                                       |
+| Faz 1 — Kripto Çekirdeği         | ✅ Tamamlandı                                                                                                                                                                      |
+| Faz 2 — Auth & Cihazlar          | ✅ Onaylandı                                                                                                                                                                       |
+| Faz 3 — Tasarım Sistemi & Harita | ✅ Tamamlandı (telefonda fps ve büyük yazı proje sahibince onaylandı)                                                                                                              |
+| Faz 4 — Çemberler & Anahtarlar   | ✅ Onaylandı (telefonda denendi: arkadaşlık, çember, davet, bildirim)                                                                                                              |
+| Faz 5 — Konum Motoru & Relay     | ✅ Onaylandı (telefonda konum görüldü; saha testleri sonraya)                                                                                                                      |
+| Faz 6 — Harita Deneyimi          | ✅ Onaylandı (telefon ölçümleri sona bırakıldı)                                                                                                                                    |
+| Faz 7 — Yerler & Bildirimler     | ✅ Onaylandı (telefon denemeleri sona bırakıldı)                                                                                                                                   |
+| Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                                                                                                                         |
+| Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)                                                                                                                      |
+| Faz 9B — Para modeli & Bargu+    | ✅ PM onayı 2026-10-22 (kod ve testler); telefon denemeleri ve kullanılabilirlik testi sahipte; son APK `784eca6` (seviye 5, katılım yanıtı, yırtılma düzeltmesi), kurulum sahipte |
 
 ## Ortamlar
 
@@ -447,11 +447,11 @@ API'den bağlanır.
     - İyi çalışan: konum, kullanıcı yeniden seçene kadar hiçbir çembere gitmez ("Bu telefonda
       konumun kimseyle paylaşılmıyor" kartı); diğer üyelerde "güvenlik numarası değişti" ve
       Onayla; eski cihaz "değiştirildi" olarak kapanır.
-43. ~~Buluşma için eklenen yerin kalması~~: düzeltildi (ADR 0026 Ek 1); sonraki APK'da. Eski
+43. ~~Buluşma için eklenen yerin kalması~~: düzeltildi (ADR 0026 Ek 1); `784eca6` APK'sında. Eski
     kalıntılar ("Woh date") olduğu gibi kalır, kullanıcı silebilir.
-44. Sahibin isteği (2026-10-22): buluşmada katılım yanıtı ("Geliyorum / Gelemiyorum / Belki"),
-    kimin ne dediği, tahmini varış. Yeni özellik; PM onayladı, tasarım ve ADR 0026 Ek 2 şimdi, kod
-    sahip `cf3469b`'yi telefonda denedikten sonra.
+44. ~~Sahibin isteği (2026-10-22): buluşmada katılım yanıtı~~: Geliyorum / Belki / Gelemiyorum ve
+    kimin ne dediği `784eca6` APK'sında (ADR 0026 Ek 2; sahip "bitince yenisini yap" dedi, PM
+    onayladı). Tahmini varış yok, sonraya.
 45. `event-circles` entegrasyon testi ("clean-up is cut short", satır 350) bir kez CI'da kırıldı
     (run 39779707897, yalnız belge değiştiren `17007b3`'te): Redis hatasından sonra çembere dair
     beklenen iz kalmamıştı. API değişmemişti; testin kurulumunda bir zamanlama farkı olabilir.
@@ -461,6 +461,10 @@ API'den bağlanır.
     bakıyor (`af015ed`).
 46. iOS dilimine: davet ve ebeveyn bağlantılarının iOS'ta uygulamayı açması için AASA dosyasına
     `/i` ve `/g` yolları (QA-34). Android App Links bugün çalışıyor.
+47. `scripts/ci-linux-retry.sh` yük kaynaklı kırılmaları hiç yeniden denemiyordu: her kırılmanın
+    özet satırı ("typecheck, lint, test or build failed") "derleme hatası" sayılıyordu. Düzeltildi
+    (`784eca6`, testi `ci-linux-retry.test.sh` 6/6). `idle-frames.test.tsx` bir kez 106 sn'de
+    zaman aşımına uğradı (makine yüklüyken); yeniden denemede geçti.
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -630,9 +634,10 @@ Seviye 4: süs isteği, dünya haritası ve sahte haber 1. parça, APK (`c2754a1
 54. Ölçüm katmanında "Sayaçları sıfırla" arka plan sayaçlarını sıfırlar.
 55. Bildirimler (arkadaşlık isteği, davet) her zamanki gibi gelir.
 
-Seviye 5 APK'sı (`cf3469b`, sürüm 0.9.0, öncekilerin yerine; yalnız arm64, 85 MB). `869a7af` Android 14+'da
-açılışta çöküyordu, onu kurma:
-<https://api.46-62-162-70.sslip.io/apk/bargu-cf3469b-20c284b3af5d5752.apk>
+Son APK (`784eca6`, sürüm 0.9.0, seviye 5; `cf3469b`'nin yerine, yalnız arm64, 85 MB). İçinde
+katılım yanıtı, yırtılma düzeltmesi, buluşmayla giden yer ve dışa kapalı yeniden başlatma alıcısı
+var. `869a7af` Android 14+'da açılışta çöküyordu, onu kurma:
+<https://api.46-62-162-70.sslip.io/apk/bargu-784eca6-051b3426c06a3f69.apk>
 
 56. Güvendeyim: haritadaki "Güvendeyim" düğmesi > çember seç > "İyiyim, gönder". Öbür telefonda
     "İyiyim ✓ · %pil"; uygulaması kapalıysa bildirim gelir, dokununca haritada "… iyiyim dedi,
@@ -650,20 +655,20 @@ açılışta çöküyordu, onu kurma:
 60. Yeniden başlatma (Android 11+): paylaşım açıkken telefonu kapatıp aç. "Paylaşım durdu ·
     Telefon yeniden başladı ya da Bargu güncellendi…" bildirimi gelir; dokununca Bargu açılır ve
     konumun yeniden gider (bot ya da öbür telefon görür). Hayalet açıkken yeniden başlatınca bildirim
-    gelmez. Sonraki APK'da alıcı dışa kapalı (QA-34): bildirimin yine geldiğine bak.
+    gelmez. `784eca6`'da alıcı dışa kapalı (QA-34): bildirimin yine geldiğine bak.
 61. Ben > Uygulama: sürüm 0.9.0. Görünür başka bir değişiklik yok: sunucu haberleri artık imzasızsa
     atılıyor.
 62. Haritadaki kayıtlı yere (ör. ☕ dairesi) dokun: etikete ya da dairenin içine dokununca yerin
     ekranı açılır (ad, simge, boyut). Bir kişinin kartı açıkken ilk dokunuş yalnız kartı kapatır.
 63. Hava kartı: İstanbul dışındayken (ör. Bozüyük) kendi ilçenin adı ya da hiç ad; uzak bir büyük
     şehrin adı değil. Haritayı uzaklaştırıp yaklaştır, ad yine doğru kalır.
-64. Sonraki APK'da: bir buluşmayı başlatırken "Yeni yer ekle" ile yer ekle ve başlat. Buluşma
+64. Bir buluşmayı başlatırken "Yeni yer ekle" ile yer ekle ve başlat. Buluşma
     ekranında "Bitince yeri sakla" kapalıdır; "Buluşmayı bitir" deyince pencerede "Bitir, yeri
     sakla" da çıkar. Bitirince (saklamadan) o yer haritadan gider; önceden kayıtlı bir yerle
     başlatılan buluşmada yer kalır.
-65. Sonraki APK'da: haritada bir yere dokun; yer ekranı açılırken görüntü yırtılmamalı. Bir kişinin
+65. Haritada bir yere dokun; yer ekranı açılırken görüntü yırtılmamalı. Bir kişinin
     geçmişini açarken de aynısı.
-66. Sonraki APK'da: bir buluşma başlat. Buluşma ekranında "Geliyor musun?" altında Geliyorum / Belki /
+66. Bir buluşma başlat. Buluşma ekranında "Geliyor musun?" altında Geliyorum / Belki /
     Gelemiyorum; botun ya da öbür telefonun yanıtı adıyla görünür, haritadaki çip "1 geliyor" der.
     Öbür telefon yanıt verince başlatana bildirim gelir; saati değiştirince "Hâlâ geliyor musun?"
     bildirimi yalnız Geliyorum ya da Belki diyene gider. Test botu yanıt vermez (eski kod).
@@ -673,8 +678,8 @@ açılışta çöküyordu, onu kurma:
 Sıra önemli:
 
 1. ~~Seviye 4 APK'sı ve sunucu betiği~~: betik 2026-10-22'de çalıştırıldı (yukarıda, Staging).
-2. **Seviye 5 APK'sını bütün telefonlara kur** (`cf3469b`, bağlantı Telefonda denenecekler'de);
-   56–63'e bak.
+2. **Son APK'yı bütün telefonlara kur** (`784eca6`, seviye 5, bağlantı Telefonda denenecekler'de);
+   56–66'ya bak.
 3. Kurduktan sonra kodlama oturumuna "kurdum" yaz. Son adımı o çalıştırır: aynı betik
    `--min-level 5` ile (önce kuru) ve test botunun istemci seviyesi 5 (bot 22 Ekim 18:14 civarı
    kendiliğinden durur; o adımda yeniden başlatılır). Senden yalnız ssh adımının onayı istenir. Eski
