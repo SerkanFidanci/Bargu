@@ -245,6 +245,10 @@ kapalı testten önce.
   - Hiçbir plan artık bir kayıtlı yeri silemez ya da gizleyemez.
   - "Bitir, yeri sakla" noktadan normal bir kayıtlı yer oluşturur.
   - Dürtme bildiriminde cevap, hazır cevaplardan biri olmak zorunda.
+- QA-37 (nokta, güvenlik, kalabalık, `061c011`): yüksek bulgu yok, "sahip denemeye başlayabilir";
+  geçici nokta tasarımı sağlam. "Bitir, yeri sakla" bitirme başarısız olup yeniden denenince yeri
+  iki kez kaydedebiliyordu: çemberde aynı ad ve konumda yer varsa yenisi yazılmıyor. Eski
+  uygulamalı yönetici notu: açıklarda 50.
 
 ### Test sonuçları (son çalıştırma, `c2754a1`)
 
@@ -525,6 +529,10 @@ API'den bağlanır.
     "başlatan"ı değiştirmesi ancak sunucunun bildiği başlatanı istemciye göndermesiyle yakalanır;
     bu bir API değişikliği, gerekirse sonra. Artık "başlatan" bir yer silemez (nokta buluşmanın
     içinde).
+50. QA-37: eski uygulamalı (`d5266a1` öncesi) bir yönetici noktalı bir buluşmayı düzenlerse nokta
+    düşer: eski uygulama planı esnek okur, `spot` alanını tanımaz ve kaydederken atar. Sahibin
+    telefonları yeni sürümde. Seviye 5 kapısı açılınca eski sürümler kapanır, bu da kendiliğinden
+    biter.
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -762,6 +770,8 @@ yeniden başlatma alıcısı) ve buluşma noktası, "Düzenle", haritada buluşm
 77. Sonraki APK'da: Ben > Uygulama > geliştirici > 50 kişilik sürü: harita kasmamalı. Pinler
     kıpırdamaz ve kaymadan atlar; ölçümde fps yazar. Sürü durunca haritada kendi pinlerin yine
     canlı hareket eder.
+78. Telefonun yazı boyutunu en büyüğe al: üstteki üç kart yine aynı yükseklikte ve tek satır mı
+    (uzun metin kısalır, alt satıra düşmez)? Ekran görüntüsü yeter.
 
 ### Senden gerekenler
 
