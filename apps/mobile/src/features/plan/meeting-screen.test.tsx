@@ -28,14 +28,18 @@ jest.mock('@/features/circles/queries', () => ({
 }));
 const mockStart = jest.fn<Promise<boolean>, [unknown, unknown]>(() => Promise.resolve(true));
 const mockAnswer = jest.fn<Promise<boolean>, [string, string]>(() => Promise.resolve(true));
+const mockSet = jest.fn<Promise<boolean>, [string, unknown]>(() => Promise.resolve(true));
+const mockForget = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
+const mockMayRun = jest.fn<boolean, []>(() => false);
 jest.mock('@/features/plan/plan-actions', () => ({
   startMeeting: (circle: unknown, meeting: unknown) => mockStart(circle, meeting),
   answerMeeting: (circleId: string, answer: string) => mockAnswer(circleId, answer),
-  mayRunMeeting: () => false,
+  mayRunMeeting: () => mockMayRun(),
+  forgetMeetingPlace: (placeId: string) => mockForget(placeId),
   endMeeting: jest.fn(),
   closePoll: jest.fn(),
   removePoll: jest.fn(),
-  setMeeting: jest.fn(),
+  setMeeting: (circleId: string, change: unknown) => mockSet(circleId, change),
   vote: jest.fn(),
   votesOf: () => [],
 }));
@@ -63,11 +67,36 @@ const family: Circle = {
   members: [],
 };
 
+const TAKSIM = '00000000-0000-4000-8000-0000000000aa';
+const KADIKOY = '00000000-0000-4000-8000-0000000000bb';
+const OFFICE = '0190f7a4-2222-7222-8222-000000000002';
+
+/** The place editor saved a spot for this meeting (forMeeting): the form hears of it. */
+async function pickSpot(id: string, name: string): Promise<void> {
+  await act(() => {
+    usePlaces.setState({
+      [id]: {
+        id,
+        circleId: CIRCLE,
+        version: 1,
+        name,
+        emoji: '📍',
+        lat: 41.04,
+        lng: 28.96,
+        radius: 250,
+        ts: 2,
+      },
+    });
+    useMeetingPlaceDraft.setState({ circleId: CIRCLE, placeId: id }, true);
+  });
+}
+
 beforeAll(async () => {
   await i18n.changeLanguage('tr');
 });
 beforeEach(() => {
   jest.clearAllMocks();
+  mockMayRun.mockReturnValue(false);
   mockCircle.current = family;
   useAuth.setState({ userId: ME });
   usePlaces.setState(
@@ -103,40 +132,40 @@ describe('a meeting on its own screen (docs/ADR/0026 §4)', () => {
     });
   });
 
-  it('takes a place added here for the meeting, and lets it go with it (ADR 0026 Ek 1)', async () => {
+  it('takes a spot picked on the map for the meeting, which goes with it (ADR 0026 Ek 1)', async () => {
     await render(<MeetingScreen />);
+    expect(screen.getByText('Haritadan nokta seç')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('meeting-start-add-place'));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/place/[circleId]',
       params: { circleId: CIRCLE, forMeeting: '1' },
     });
-    // The editor saved a new place for this meeting: it is chosen at once.
-    const added = '00000000-0000-4000-8000-0000000000aa';
-    await act(() => {
-      usePlaces.setState({
-        [added]: {
-          id: added,
-          circleId: CIRCLE,
-          version: 1,
-          name: 'Woh date',
-          emoji: '📍',
-          lat: 41.04,
-          lng: 28.96,
-          radius: 100,
-          ts: 2,
-        },
-      });
-      useMeetingPlaceDraft.setState({ circleId: CIRCLE, placeId: added }, true);
-    });
+    // The editor saved a spot for this meeting: it is chosen at once, not listed as a place.
+    await pickSpot(TAKSIM, 'Taksim');
+    expect(within(screen.getByTestId('meeting-start-spot')).getByText('Taksim')).toBeTruthy();
+    expect(screen.getByText('Yalnız bu buluşma için')).toBeTruthy();
+    expect(screen.queryByTestId(`meeting-start-place-${TAKSIM}`)).toBeNull();
     await fireEvent.press(screen.getByTestId('meeting-start-go'));
     await waitFor(() => {
       expect(mockStart).toHaveBeenCalledWith(family, {
-        placeId: added,
+        placeId: TAKSIM,
         meetAt: expect.any(Number) as number,
         placeGoes: true,
       });
     });
     expect(useMeetingPlaceDraft.getState()).toBeNull();
+    await screen.unmount();
+    expect(mockForget).not.toHaveBeenCalled();
+  });
+
+  it('never leaves a spot behind: one replaced or left unused goes at once (the owner, 2026-10-23)', async () => {
+    await render(<MeetingScreen />);
+    await pickSpot(TAKSIM, 'Taksim');
+    await pickSpot(KADIKOY, 'Kadıköy');
+    expect(mockForget).toHaveBeenCalledWith(TAKSIM);
+    expect(mockStart).not.toHaveBeenCalled();
+    await screen.unmount();
+    expect(mockForget).toHaveBeenCalledWith(KADIKOY);
   });
 
   it('never lets a place the circle had go, nor one added for another circle', async () => {
@@ -174,6 +203,75 @@ describe('a meeting on its own screen (docs/ADR/0026 §4)', () => {
     await fireEvent.press(screen.getByTestId('meeting-directions'));
     expect(open).toHaveBeenCalledWith(expect.stringContaining('41.03,28.95'));
     open.mockRestore();
+  });
+
+  it('lets its starter edit it: another place or a spot on the map (the owner, 2026-10-23)', async () => {
+    mockMayRun.mockReturnValue(true);
+    const meetAt = Date.now() + 3600_000;
+    usePlaces.setState({
+      [OFFICE]: {
+        id: OFFICE,
+        circleId: CIRCLE,
+        version: 1,
+        name: 'Ofis',
+        emoji: '🏢',
+        lat: 41.05,
+        lng: 28.97,
+        radius: 250,
+        ts: 1,
+      },
+    });
+    useDocs.setState({
+      [docKey(CIRCLE, CIRCLE)]: {
+        circleId: CIRCLE,
+        version: 1,
+        shared: true,
+        authorId: ME,
+        payload: { kind: 'plan', id: CIRCLE, meetAt, placeId: HOME, by: ME, ts: 1 },
+      },
+    });
+    await render(<MeetingScreen />);
+    await fireEvent.press(screen.getByTestId('meeting-edit'));
+    expect(screen.getByTestId('meeting-form')).toBeTruthy();
+    expect(screen.getByText('Buluşmayı düzenle')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId(`meeting-start-place-${OFFICE}`));
+    await fireEvent.press(screen.getByTestId('meeting-start-go'));
+    await waitFor(() => {
+      expect(mockSet).toHaveBeenCalledWith(CIRCLE, { placeId: OFFICE, meetAt });
+    });
+    // Saved: back to the meeting.
+    expect(await screen.findByTestId('meeting-screen')).toBeTruthy();
+    // Again, to a spot picked on the map: it goes with the meeting.
+    await fireEvent.press(screen.getByTestId('meeting-edit'));
+    await pickSpot(TAKSIM, 'Taksim');
+    await fireEvent.press(screen.getByTestId('meeting-start-go'));
+    await waitFor(() => {
+      expect(mockSet).toHaveBeenLastCalledWith(CIRCLE, { placeId: TAKSIM, meetAt, spot: true });
+    });
+    expect(mockForget).not.toHaveBeenCalled();
+  });
+
+  it('shows no "Düzenle" to whoever may not change it, and the starter can leave the form', async () => {
+    const meetAt = Date.now() + 3600_000;
+    useDocs.setState({
+      [docKey(CIRCLE, CIRCLE)]: {
+        circleId: CIRCLE,
+        version: 1,
+        shared: true,
+        authorId: ME,
+        payload: { kind: 'plan', id: CIRCLE, meetAt, placeId: HOME, by: ME, ts: 1 },
+      },
+    });
+    const view = await render(<MeetingScreen />);
+    expect(screen.queryByTestId('meeting-edit')).toBeNull();
+    mockMayRun.mockReturnValue(true);
+    await view.rerender(<MeetingScreen />);
+    // The card's place row opens the same form, and "Vazgeç" leaves it unchanged.
+    await fireEvent.press(screen.getByTestId('meeting-place'));
+    expect(screen.getByTestId('meeting-form')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('meeting-form-cancel'));
+    expect(screen.getByTestId('meeting-screen')).toBeTruthy();
+    expect(mockSet).not.toHaveBeenCalled();
   });
 
   it('lets each member answer, and shows what the others said (ADR 0026 Ek 2)', async () => {

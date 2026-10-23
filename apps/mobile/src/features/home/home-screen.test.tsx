@@ -1,4 +1,4 @@
-import type { Me, WeatherSnapshot } from '@bargu/schemas';
+import type { Circle, Me, WeatherSnapshot } from '@bargu/schemas';
 import { act, render } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { Profiler, type ReactNode, type Ref } from 'react';
@@ -9,6 +9,8 @@ import { useMyFix } from '@/features/location/engine';
 import { usePersonFocus } from '@/features/map/person-focus';
 import type { Place } from '@/features/places/place-model';
 import { usePlaces } from '@/features/places/places';
+import { docKey, useDocs } from '@/features/plan/docs';
+import { openMeeting } from '@/features/plan/meeting-points-layer';
 import type { Fix } from '@/features/location/send';
 import { GALATA, moved } from '@/features/location/test-support';
 import {
@@ -57,7 +59,10 @@ jest.mock('@/features/live/live-session', () => ({
 jest.mock('@/features/profile/queries', () => ({
   useMe: () => ({ data: mockMe }),
 }));
-jest.mock('@/features/circles/queries', () => ({ useCircles: () => ({ data: [] }) }));
+const mockCircleList: { current: Circle[] } = { current: [] };
+jest.mock('@/features/circles/queries', () => ({
+  useCircles: () => ({ data: mockCircleList.current }),
+}));
 
 // What the screen draws under it: not what is tested here.
 jest.mock('@/features/home/dock', () => ({ Dock: () => null }));
@@ -83,7 +88,10 @@ jest.mock('@/features/notifications/notification-card', () => ({ NotificationCar
 jest.mock('@/features/location/use-location', () => ({ useWatchCircles: () => undefined }));
 jest.mock('@/features/map/people-layer', () => ({ PeopleLayer: () => null }));
 jest.mock('@/features/places/places-layer', () => ({ PlacesLayer: () => null }));
-jest.mock('@/features/plan/meeting-points-layer', () => ({ MeetingPointsLayer: () => null }));
+jest.mock('@/features/plan/meeting-points-layer', () => ({
+  MeetingPointsLayer: () => null,
+  openMeeting: jest.fn(),
+}));
 jest.mock('@/features/weather/weather-layer', () => ({ WeatherLayer: () => null }));
 jest.mock('@/features/map/map-credit', () => ({ MapCredit: () => null }));
 jest.mock('@/features/map/people-ui', () => ({
@@ -307,7 +315,12 @@ describe('a saved place on the map (the owner could not tap one)', () => {
     ts: 1,
   });
 
+  // Each test a while after the last: one tap opening the same place twice is held back
+  // (map-tap.ts), taps in different tests are not one tap.
+  let clock = Date.now();
   beforeEach(() => {
+    clock += 60_000;
+    jest.spyOn(Date, 'now').mockImplementation(() => clock);
     jest.mocked(router.push).mockClear();
     usePersonFocus.setState({ selected: null, menu: null });
     usePlaces.setState(
@@ -322,6 +335,39 @@ describe('a saved place on the map (the owner could not tap one)', () => {
 
   afterEach(() => {
     usePlaces.setState({}, true);
+    useDocs.setState({}, true);
+    mockCircleList.current = [];
+    jest.mocked(Date.now).mockRestore();
+  });
+
+  it('opens a meeting with a tap inside its area, never the place under it (the owner, 2026-10-23)', async () => {
+    mockCircleList.current = [
+      {
+        id: 'c1',
+        kind: 'family',
+        name: 'Aile',
+        epoch: 1,
+        epochStartedAt: 0,
+        myRole: 'member',
+        myStatus: 'active',
+        members: [],
+      },
+    ];
+    useDocs.setState({
+      [docKey('c1', 'c1')]: {
+        circleId: 'c1',
+        version: 1,
+        shared: true,
+        authorId: 'u2',
+        payload: { kind: 'plan', id: 'c1', meetAt: clock + 3_600_000, placeId: 'big', ts: 1 },
+      },
+    });
+    await drawHome();
+    await act(() => {
+      mockMap.onPress?.(GALATA);
+    });
+    expect(openMeeting).toHaveBeenCalledWith('c1', 'big');
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('opens the place with a tap inside its circle: the smallest one there', async () => {

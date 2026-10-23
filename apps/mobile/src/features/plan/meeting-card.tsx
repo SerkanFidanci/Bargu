@@ -65,8 +65,9 @@ import { useArrivals } from './use-arrivals';
  * A circle's meeting (docs/ADR/0018, 0026): when and where, polls on either (events only), who gets
  * there when as the time comes, and this phone's own way there (how it travels, a reminder to
  * leave, "I'll be late", "I'm here"). Everything here is end-to-end encrypted for the members.
+ * `onEdit`: the meeting screen's own form changes the place and time instead of the sheets.
  */
-export function MeetingCard({ circle }: { circle: Circle }) {
+export function MeetingCard({ circle, onEdit }: { circle: Circle; onEdit?: () => void }) {
   const { t, i18n } = useTranslation();
   const me = useAuth((state) => state.userId);
   const docs = useDocs();
@@ -150,6 +151,12 @@ export function MeetingCard({ circle }: { circle: Circle }) {
     setSaving(false);
     if (saved) timeSheet.current?.dismiss();
   };
+  const change =
+    onEdit === undefined || !admin ? null : (
+      <Text variant="callout" color="primary">
+        {t('plan.change')}
+      </Text>
+    );
   const pickPlace = async (id: string) => {
     placeSheet.current?.dismiss();
     await setMeeting(circle.id, { placeId: id, ...(meetAt === undefined ? {} : { meetAt }) });
@@ -163,7 +170,8 @@ export function MeetingCard({ circle }: { circle: Circle }) {
         leading={<RoundIcon icon={Clock} />}
         title={meetAt === undefined ? t('plan.noTime') : endClock(meetAt, now, i18n.language)}
         subtitle={meetAt === undefined ? (unset ?? t('plan.chooseTime')) : t('plan.time')}
-        onPress={admin ? openTime : undefined}
+        trailing={change}
+        onPress={admin ? (onEdit ?? openTime) : undefined}
       />
       <ListRow
         testID="meeting-place"
@@ -172,7 +180,8 @@ export function MeetingCard({ circle }: { circle: Circle }) {
         }
         title={place === undefined ? t('plan.noPlace') : place.name}
         subtitle={place === undefined ? (unset ?? t('plan.choosePlace')) : t('plan.place')}
-        onPress={admin ? () => placeSheet.current?.present() : undefined}
+        trailing={change}
+        onPress={admin ? (onEdit ?? (() => placeSheet.current?.present())) : undefined}
       />
 
       {starter === undefined ? null : (

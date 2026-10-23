@@ -55,7 +55,15 @@ export function PlacesLayer({
         />
       </GeoJSONSource>
       {shown.map((place) => (
-        <Marker key={place.id} id={`place-${place.id}`} lngLat={[place.lng, place.lat]}>
+        <Marker
+          key={place.id}
+          id={`place-${place.id}`}
+          lngLat={[place.lng, place.lat]}
+          // On Android the map hands a tap on the tag to the marker, never to the button in it.
+          onPress={() => {
+            openPlace(place);
+          }}
+        >
           {/* The tag is small; the touch area around it is a full target (a tap inside the
               circle opens the place too: the map screen's onPress). */}
           <PressableScale

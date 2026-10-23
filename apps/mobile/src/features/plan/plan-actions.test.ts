@@ -134,6 +134,21 @@ describe('the place added for a meeting (docs/ADR/0026 Ek 1)', () => {
     expect(mockForget).toHaveBeenCalledWith(expect.objectContaining({ id: ADDED }));
   });
 
+  it('moves to a spot picked on the map, which goes with it in turn (the owner, 2026-10-23)', async () => {
+    holdMeeting({ placeId: ADDED, placeGoes: true });
+    const spot = '00000000-0000-4000-8000-0000000000cc';
+    expect(await setMeeting(CIRCLE, { placeId: spot, spot: true })).toBe(true);
+    expect(mockSave.mock.calls[0]?.[1]).toMatchObject({ placeId: spot, placeGoes: true });
+    expect(mockForget).toHaveBeenCalledWith(expect.objectContaining({ id: ADDED }));
+    // From a place the circle had, too: that one stays.
+    mockSave.mockClear();
+    mockForget.mockClear();
+    holdMeeting({ placeId: HOME });
+    await setMeeting(CIRCLE, { placeId: spot, spot: true });
+    expect(mockSave.mock.calls[0]?.[1]).toMatchObject({ placeId: spot, placeGoes: true });
+    expect(mockForget).not.toHaveBeenCalled();
+  });
+
   it('is kept or let go with the switch, and a new time keeps the choice', async () => {
     holdMeeting({ placeId: ADDED, placeGoes: true });
     await keepMeetingPlace(CIRCLE, true);

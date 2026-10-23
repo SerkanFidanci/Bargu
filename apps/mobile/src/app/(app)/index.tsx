@@ -40,7 +40,7 @@ import { PlacesLayer } from '@/features/places/places-layer';
 import { usePlaces } from '@/features/places/places';
 import { useDocs } from '@/features/plan/docs';
 import { meetingPoints } from '@/features/plan/meeting-points';
-import { MeetingPointsLayer } from '@/features/plan/meeting-points-layer';
+import { MeetingPointsLayer, openMeeting } from '@/features/plan/meeting-points-layer';
 import { MeSheet } from '@/features/home/sheets';
 import { takeReturn } from '@/features/home/sheet-return';
 import { clearSpot, spotBounds, useSafeSpot } from '@/features/social/safe-spot';
@@ -200,14 +200,23 @@ export default function HomeScreen() {
           <BarguMap
             ref={map}
             onPress={(at) => {
-              // With a person's card open the tap only closes it; otherwise a tap inside a saved
-              // place's circle opens that place (the smallest one there). People, meetings and
-              // the place's own tag take their taps before the map sees one.
+              // With a person's card open the tap only closes it; otherwise a tap inside a
+              // meeting's area opens the meeting, and one inside a saved place's circle opens that
+              // place (the smallest one there). People and the tags take their taps before the
+              // map sees one.
               const closing = usePersonFocus.getState().selected !== null;
               people.onMapPress();
               clearSpot();
               setWake((count) => count + 1);
               if (closing) return;
+              const meeting = placeAt(
+                points.map((point) => point.place),
+                at,
+              );
+              if (meeting !== null) {
+                openMeeting(meeting.circleId, meeting.id);
+                return;
+              }
               const shown = Object.values(places).filter((place) => !meetingPlaces.has(place.id));
               const place = placeAt(shown, at);
               if (place !== null) openPlace(place);

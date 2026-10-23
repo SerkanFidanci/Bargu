@@ -41,8 +41,10 @@ import { useNow } from '@/features/location/clock';
 import { useSharingSummary } from '@/features/location/sharing-card';
 import { usePlaces } from '@/features/places/places';
 import { SettingsGroup, SettingsRow } from '@/ui/settings-row';
+import { useDocs } from '@/features/plan/docs';
 import { MeetingCard } from '@/features/plan/meeting-card';
 import { MeetingRow } from '@/features/plan/meeting-row';
+import { meetingSpots } from '@/features/plan/plan-model';
 import { isValidDisplayName } from '@/features/profile/profile-form';
 import { radius, space, touchTarget, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
@@ -147,8 +149,9 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const sharingSummary = useSharingSummary(circle.id);
+  const spots = meetingSpots(useDocs());
   const placeCount = Object.values(usePlaces()).filter(
-    (place) => place.circleId === circle.id,
+    (place) => place.circleId === circle.id && !spots.has(place.id),
   ).length;
   const actions = useCircleActions();
   const status = useCircleKeys((state) => state[circle.id]);

@@ -1,7 +1,6 @@
 import { GeoJSONSource, Layer, Marker } from '@maplibre/maplibre-react-native';
 import { router } from 'expo-router';
 import { Flag } from 'lucide-react-native';
-import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
@@ -10,18 +9,28 @@ import { PressableScale } from '@/ui/pressable-scale';
 import { Text } from '@/ui/text';
 
 import { endClock } from '../circles/event-ui';
+import { firstTap } from '../map/map-tap';
 import { useMapZoom } from '../map/map-zoom';
 import { circleRing } from '../places/place-model';
-import { groupMeetingPoints, type MeetingPoint, pointKey } from './meeting-points';
+import {
+  groupMeetingPoints,
+  type MeetingGroup,
+  type MeetingPoint,
+  pointKey,
+} from './meeting-points';
 
 /** Dash and gap of a meeting area's edge, in line widths: a meeting, not a saved place. */
 const DASH = [2, 1.5];
 /** Rows in one card of meetings standing together; more are counted. */
 export const STACK_MAX = 4;
+/** From one stacked row's middle to the next: a full touch target and a thin gap. */
+const ROW_STEP = touchTarget + space.xxs;
 
-const open = (circleId: string) => {
+/** A meeting's own screen, from its tag or area on the map; `placeId`: which tag was tapped. */
+export function openMeeting(circleId: string, placeId: string): void {
+  if (!firstTap(`meeting:${circleId}:${placeId}`)) return;
   router.push({ pathname: '/meeting/[circleId]', params: { circleId } });
-};
+}
 
 /**
  * Meetings on the map (the project owner's request, docs/ADR/0026 §3), never like a saved place:
@@ -81,11 +90,7 @@ export function MeetingPointsLayer({
         if (group.points.length === 1 && only !== undefined) {
           return <MeetingTag key={group.key} point={only} now={now} />;
         }
-        return (
-          <Marker key={group.key} id={`meetings-${group.key}`} lngLat={[group.lng, group.lat]}>
-            <MeetingStack points={group.points} now={now} />
-          </Marker>
-        );
+        return <MeetingStack key={group.key} group={group} now={now} />;
       })}
     </>
   );
@@ -98,7 +103,13 @@ function MeetingTag({ point, now }: { point: MeetingPoint; now: number }) {
   const key = pointKey(point);
   if (point.state !== 'set') {
     return (
-      <Marker id={`meeting-${key}`} lngLat={[point.place.lng, point.place.lat]}>
+      <Marker
+        id={`meeting-${key}`}
+        lngLat={[point.place.lng, point.place.lat]}
+        onPress={() => {
+          openMeeting(point.circleId, point.place.id);
+        }}
+      >
         <PressableScale
           testID={`meeting-option-${point.place.id}`}
           haptic="select"
@@ -108,7 +119,7 @@ function MeetingTag({ point, now }: { point: MeetingPoint; now: number }) {
             place: point.place.name,
           })}
           onPress={() => {
-            open(point.circleId);
+            openMeeting(point.circleId, point.place.id);
           }}
           style={[styles.option, { backgroundColor: colors.surfaceRaised }]}
         >
@@ -125,7 +136,15 @@ function MeetingTag({ point, now }: { point: MeetingPoint; now: number }) {
   }
   const time = point.meetAt === undefined ? null : endClock(point.meetAt, now, i18n.language);
   return (
-    <Marker id={`meeting-${key}`} lngLat={[point.place.lng, point.place.lat]} anchor="bottom">
+    <Marker
+      id={`meeting-${key}`}
+      lngLat={[point.place.lng, point.place.lat]}
+      anchor="bottom"
+      // On Android the map hands a tap on the flag to the marker, never to the button in it.
+      onPress={() => {
+        openMeeting(point.circleId, point.place.id);
+      }}
+    >
       <PressableScale
         testID={`meeting-point-${point.circleId}`}
         haptic="select"
@@ -136,7 +155,7 @@ function MeetingTag({ point, now }: { point: MeetingPoint; now: number }) {
           time: time ?? t('plan.noTime'),
         })}
         onPress={() => {
-          open(point.circleId);
+          openMeeting(point.circleId, point.place.id);
         }}
         style={styles.pin}
       >
@@ -158,19 +177,21 @@ function MeetingTag({ point, now }: { point: MeetingPoint; now: number }) {
 }
 
 /**
- * Meetings standing together: one card, a row each, every row a full touch target that opens its
- * meeting; the meeting itself first and in coral, then the places voted on, then the others.
+ * Meetings standing together: a row each, stacked, every row a full touch target that opens its
+ * meeting; the meeting itself first and in coral, then the places voted on, then the others. Each
+ * row is its own marker: on Android the map gives a tap to the marker, never to a button in it, so
+ * one marker for the whole card could not tell the rows apart.
  */
-export function MeetingStack({ points, now }: { points: readonly MeetingPoint[]; now: number }) {
+export function MeetingStack({ group, now }: { group: MeetingGroup; now: number }) {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
-  const shown = points.slice(0, STACK_MAX);
-  const more = points.length - shown.length;
+  const shown = group.points.slice(0, STACK_MAX);
+  const more = group.points.length - shown.length;
+  const rows = shown.length + (more > 0 ? 1 : 0);
+  // Rows centred on the group's point, one under the other.
+  const offset = (index: number): [number, number] => [0, (index - (rows - 1) / 2) * ROW_STEP];
   return (
-    <View
-      testID="meeting-stack"
-      style={[styles.stack, { backgroundColor: colors.surfaceRaised, borderColor: colors.accent }]}
-    >
+    <>
       {shown.map((point, index) => {
         const set = point.state === 'set';
         const time =
@@ -181,10 +202,15 @@ export function MeetingStack({ points, now }: { points: readonly MeetingPoint[];
             ? t('meeting.voting')
             : t('meeting.option');
         return (
-          <Fragment key={pointKey(point)}>
-            {index === 0 ? null : (
-              <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            )}
+          <Marker
+            key={pointKey(point)}
+            id={`meetings-${group.key}-${String(index)}`}
+            lngLat={[group.lng, group.lat]}
+            offset={offset(index)}
+            onPress={() => {
+              openMeeting(point.circleId, point.place.id);
+            }}
+          >
             <PressableScale
               testID={set ? `meeting-point-${point.circleId}` : `meeting-option-${point.place.id}`}
               haptic="select"
@@ -199,9 +225,13 @@ export function MeetingStack({ points, now }: { points: readonly MeetingPoint[];
                   : t('meeting.optionLabel', { title: point.title, place: point.place.name })
               }
               onPress={() => {
-                open(point.circleId);
+                openMeeting(point.circleId, point.place.id);
               }}
-              style={[styles.row, set ? { backgroundColor: colors.accent } : null]}
+              style={[
+                styles.row,
+                { backgroundColor: set ? colors.accent : colors.surfaceRaised },
+                { borderColor: colors.accent },
+              ]}
             >
               <Flag color={set ? colors.onAccent : colors.accent} size={14} strokeWidth={2.5} />
               <Text
@@ -220,15 +250,23 @@ export function MeetingStack({ points, now }: { points: readonly MeetingPoint[];
                 {status}
               </Text>
             </PressableScale>
-          </Fragment>
+          </Marker>
         );
       })}
       {more > 0 ? (
-        <Text variant="caption" color="textMuted" style={styles.more}>
-          {t('meeting.chip.more', { count: more })}
-        </Text>
+        <Marker
+          id={`meetings-${group.key}-more`}
+          lngLat={[group.lng, group.lat]}
+          offset={offset(shown.length)}
+        >
+          <View style={[styles.row, { backgroundColor: colors.surfaceRaised }]}>
+            <Text variant="caption" color="textMuted">
+              {t('meeting.chip.more', { count: more })}
+            </Text>
+          </View>
+        </Marker>
       ) : null}
-    </View>
+    </>
   );
 }
 
@@ -253,18 +291,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   optionText: { maxWidth: 120 },
-  stack: {
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs,
-    minHeight: touchTarget,
+    height: touchTarget,
     paddingHorizontal: space.md,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'transparent',
   },
-  divider: { height: StyleSheet.hairlineWidth },
-  more: { paddingHorizontal: space.md, paddingVertical: space.xs, textAlign: 'center' },
 });

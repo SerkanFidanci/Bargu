@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import type { ReactNode } from 'react';
 
 import i18n from '@/i18n';
 
 import type { Place } from '../places/place-model';
 import { MeetingStack, STACK_MAX } from './meeting-points-layer';
-import { groupMeetingPoints, type MeetingPoint } from './meeting-points';
+import { groupMeetingPoints, type MeetingGroup, type MeetingPoint } from './meeting-points';
 
 jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
@@ -19,6 +20,23 @@ jest.mock('expo-router', () => ({
     },
   },
 }));
+
+// The map's markers: plain views here, keeping their props (the tap Android gives the marker).
+const mockMarkers = new Map<string, { onPress?: () => void; offset?: [number, number] }>();
+jest.mock('@maplibre/maplibre-react-native', () => {
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    Marker: (props: {
+      id: string;
+      onPress?: () => void;
+      offset?: [number, number];
+      children: ReactNode;
+    }) => {
+      mockMarkers.set(props.id, props);
+      return <View>{props.children}</View>;
+    },
+  };
+});
 
 const NOW = 1_800_000_000_000;
 const MALTEPE = { lat: 40.9405, lng: 29.1291 };
@@ -45,6 +63,14 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   mockPush.mockClear();
+  mockMarkers.clear();
+});
+
+const stack = (points: MeetingPoint[]): MeetingGroup => ({
+  key: 'g',
+  points,
+  lat: MALTEPE.lat,
+  lng: MALTEPE.lng,
 });
 
 describe('meetings standing together (the owner, 2026-10-18)', () => {
@@ -71,7 +97,7 @@ describe('meetings standing together (the owner, 2026-10-18)', () => {
   });
 
   it('gives every meeting its own row and tap', async () => {
-    await render(<MeetingStack points={[avm, hilltown]} now={NOW} />);
+    await render(<MeetingStack group={stack([avm, hilltown])} now={NOW} />);
     expect(screen.getByText('📍 Avm')).toBeTruthy();
     expect(screen.getByText('📍 Hilltown')).toBeTruthy();
     expect(screen.getAllByText('aday')).toHaveLength(2);
@@ -88,7 +114,20 @@ describe('meetings standing together (the owner, 2026-10-18)', () => {
     const many = Array.from({ length: STACK_MAX + 2 }, (_, index) =>
       option(`p${String(index)}`, `Yer ${String(index)}`, index),
     );
-    await render(<MeetingStack points={many} now={NOW} />);
+    await render(<MeetingStack group={stack(many)} now={NOW} />);
     expect(screen.getByText('+2')).toBeTruthy();
+  });
+
+  it('opens a row with the tap Android gives its marker, once even when its button hears it too', async () => {
+    await render(<MeetingStack group={stack([avm, hilltown])} now={NOW} />);
+    // One marker a row, one under the other around the point.
+    expect(mockMarkers.get('meetings-g-0')?.offset).toEqual([0, -25]);
+    expect(mockMarkers.get('meetings-g-1')?.offset).toEqual([0, 25]);
+    await act(() => {
+      mockMarkers.get('meetings-g-1')?.onPress?.();
+    });
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByTestId('meeting-option-a'));
+    expect(mockPush).toHaveBeenCalledTimes(1);
   });
 });

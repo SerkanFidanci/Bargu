@@ -1,7 +1,7 @@
-import type { Circle } from '@bargu/schemas';
+import type { Circle, PlanPayload } from '@bargu/schemas';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Flag, Navigation, Plus, Users } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { Check, Flag, MapPin, Navigation, Pencil, Users } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
 
@@ -16,9 +16,14 @@ import { docKey, useDocs } from '@/features/plan/docs';
 import { MeetingCard } from '@/features/plan/meeting-card';
 import { useMeetingPlaceDraft } from '@/features/plan/meeting-place';
 import { PlaceIcon, TimeStepper, timeRange, useEventPlaces } from '@/features/plan/meeting-sheets';
-import { startMeeting } from '@/features/plan/plan-actions';
-import { MEETING } from '@/features/plan/plan-model';
-import { radius, space, useTheme } from '@/theme';
+import {
+  forgetMeetingPlace,
+  mayRunMeeting,
+  setMeeting,
+  startMeeting,
+} from '@/features/plan/plan-actions';
+import { MEETING, meetingSpots } from '@/features/plan/plan-model';
+import { space, useTheme } from '@/theme';
 import { Button } from '@/ui/button';
 import { EmptyState } from '@/ui/empty-state';
 import { ListRow } from '@/ui/list-row';
@@ -45,7 +50,7 @@ function openDirections(place: Pick<Place, 'lat' | 'lng'>): void {
 /**
  * A meeting's own screen (the project owner's request, docs/ADR/0026 §4): where and when, who
  * started it, who gets there when, the way there; outside an event, starting one when the circle
- * has none.
+ * has none, and "Düzenle" for whoever may change it (the owner, 2026-10-23).
  */
 export default function MeetingScreen() {
   const { circleId } = useLocalSearchParams<{ circleId: string }>();
@@ -55,6 +60,7 @@ export default function MeetingScreen() {
   const docs = useDocs();
   const places = usePlaces();
   const now = useNow();
+  const [editing, setEditing] = useState(false);
 
   if (circle?.myStatus !== 'active') {
     return (
@@ -69,10 +75,26 @@ export default function MeetingScreen() {
   const event = circle.kind === 'event';
   const title = circleTitle(circle, me);
 
+  // Outside an event the meeting is its starter's and the admins' to change (docs/ADR/0026).
+  const mayChange = !event && me !== null && mayRunMeeting(circle, me);
+
   if (!event && meeting === undefined) {
     return (
       <Screen title={t('meeting.startTitle')} subtitle={title}>
-        <StartMeeting circle={circle} />
+        <MeetingForm circle={circle} />
+      </Screen>
+    );
+  }
+  if (editing && mayChange && meeting !== undefined) {
+    return (
+      <Screen title={t('meeting.editTitle')} subtitle={title}>
+        <MeetingForm
+          circle={circle}
+          current={meeting}
+          onDone={() => {
+            setEditing(false);
+          }}
+        />
       </Screen>
     );
   }
@@ -93,6 +115,16 @@ export default function MeetingScreen() {
             </Text>
           </View>
         </View>
+        {mayChange ? (
+          <Button
+            testID="meeting-edit"
+            label={t('meeting.edit')}
+            icon={Pencil}
+            onPress={() => {
+              setEditing(true);
+            }}
+          />
+        ) : null}
         {place === undefined ? null : (
           <Button
             testID="meeting-directions"
@@ -110,7 +142,16 @@ export default function MeetingScreen() {
           </Text>
         )}
       </View>
-      <MeetingCard circle={circle} />
+      <MeetingCard
+        circle={circle}
+        {...(mayChange
+          ? {
+              onEdit: () => {
+                setEditing(true);
+              },
+            }
+          : {})}
+      />
       {event ? (
         <ListRow
           testID="meeting-open-event"
@@ -125,75 +166,117 @@ export default function MeetingScreen() {
   );
 }
 
-/** Starting a meeting in a circle that is no event: one of its places, and a time. */
-function StartMeeting({ circle }: { circle: Circle }) {
+/**
+ * Starting a meeting in a circle that is no event, or changing it (`current`): where and when.
+ * Where: a spot picked on the map for this meeting only, which goes with it (the owner, 2026-10-23:
+ * meeting at Taksim should not leave Taksim behind as a place), or one of the circle's places.
+ */
+function MeetingForm({
+  circle,
+  current,
+  onDone,
+}: {
+  circle: Circle;
+  current?: PlanPayload;
+  onDone?: () => void;
+}) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const now = useNow();
+  const docs = useDocs();
   const circlePlaces = useEventPlaces(circle.id);
   const range = timeRange(circle, now);
-  const [placeId, setPlaceId] = useState<string | null>(null);
-  // A place added here for this meeting (docs/ADR/0026 Ek 1): taken at once, and it goes with
-  // the meeting unless its starter keeps it. Places the circle had always stay.
+  const [placeId, setPlaceId] = useState<string | null>(current?.placeId ?? null);
+  // A spot picked here (docs/ADR/0026 Ek 1): taken at once. One left unused (another picked, or
+  // the form left without saving) goes at once, so it never stays behind as a place.
   const [added, setAdded] = useState<string | null>(null);
+  const addedRef = useRef<string | null>(null);
+  const used = useRef(false);
   useEffect(
     () =>
       useMeetingPlaceDraft.subscribe((draft) => {
         if (draft?.circleId !== circle.id) return;
+        const before = addedRef.current;
+        if (before !== null && before !== draft.placeId) void forgetMeetingPlace(before);
+        addedRef.current = draft.placeId;
         setAdded(draft.placeId);
         setPlaceId(draft.placeId);
         useMeetingPlaceDraft.setState(null, true);
       }),
     [circle.id],
   );
+  useEffect(
+    () => () => {
+      const left = addedRef.current;
+      if (left !== null && !used.current) void forgetMeetingPlace(left);
+    },
+    [],
+  );
   const [meetAt, setMeetAt] = useState<number | null>(null);
-  const [starting, setStarting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const chosenTime =
-    meetAt ?? (range === null ? now : Math.min(range.max, range.min + MEETING.stepMs));
-  const start = async () => {
+    meetAt ??
+    current?.meetAt ??
+    (range === null ? now : Math.min(range.max, range.min + MEETING.stepMs));
+  // The spot this meeting has now, or the one just picked; the circle's own places below it.
+  const spots = meetingSpots(docs);
+  const spotId = added ?? (current?.placeGoes === true ? current.placeId : undefined);
+  const spot = circlePlaces.find((place) => place.id === spotId);
+  const saved = circlePlaces.filter((place) => place.id !== spotId && !spots.has(place.id));
+
+  const save = async () => {
     if (placeId === null) return;
-    setStarting(true);
-    await startMeeting(circle, {
-      placeId,
-      meetAt: chosenTime,
-      ...(placeId === added ? { placeGoes: true } : {}),
-    });
-    setStarting(false);
+    setSaving(true);
+    const isSpot = placeId === added;
+    // Marked before the answer: the screen may turn to the meeting before the answer arrives.
+    used.current = isSpot;
+    const done =
+      current === undefined
+        ? await startMeeting(circle, {
+            placeId,
+            meetAt: chosenTime,
+            ...(isSpot ? { placeGoes: true } : {}),
+          })
+        : await setMeeting(circle.id, {
+            placeId,
+            meetAt: chosenTime,
+            ...(isSpot ? { spot: true } : {}),
+          });
+    setSaving(false);
+    if (!done) {
+      used.current = false;
+      return;
+    }
+    onDone?.();
   };
 
+  const chosenMark = (id: string) =>
+    id === placeId ? <Check size={20} color={colors.primary} strokeWidth={2.5} /> : null;
+
   return (
-    <View style={styles.start} testID="meeting-start">
-      <Text variant="callout" color="textMuted">
-        {t(circle.kind === 'pair' ? 'meeting.startBodyPair' : 'meeting.startBody')}
-      </Text>
-      <SectionTitle>{t('plan.placeTitle')}</SectionTitle>
-      {circlePlaces.length === 0 ? (
-        <Text variant="body" color="textMuted">
-          {t('meeting.noPlaces')}
+    <View style={styles.start} testID={current === undefined ? 'meeting-start' : 'meeting-form'}>
+      {current === undefined ? (
+        <Text variant="callout" color="textMuted">
+          {t(circle.kind === 'pair' ? 'meeting.startBodyPair' : 'meeting.startBody')}
         </Text>
-      ) : (
-        circlePlaces.map((place) => (
-          <ListRow
-            key={place.id}
-            testID={`meeting-start-place-${place.id}`}
-            leading={<PlaceIcon emoji={place.emoji} />}
-            title={place.name}
-            subtitle={t('places.meters', { meters: place.radius })}
-            trailing={
-              place.id === placeId ? (
-                <View style={[styles.chosen, { backgroundColor: colors.primary }]} />
-              ) : null
-            }
-            onPress={() => {
-              setPlaceId(place.id);
-            }}
-          />
-        ))
+      ) : null}
+      <SectionTitle>{t('plan.placeTitle')}</SectionTitle>
+      {spot === undefined ? null : (
+        <ListRow
+          testID="meeting-start-spot"
+          leading={<PlaceIcon emoji={spot.emoji} />}
+          title={spot.name}
+          subtitle={t('meeting.spotOnly')}
+          trailing={chosenMark(spot.id)}
+          onPress={() => {
+            setPlaceId(spot.id);
+          }}
+        />
       )}
       <Button
         testID="meeting-start-add-place"
-        label={t('plan.addPlace')}
-        icon={Plus}
+        label={t(spot === undefined ? 'meeting.pickSpot' : 'meeting.pickOtherSpot')}
+        icon={MapPin}
         variant="secondary"
         onPress={() => {
           router.push({
@@ -202,23 +285,55 @@ function StartMeeting({ circle }: { circle: Circle }) {
           });
         }}
       />
+      <Text variant="caption" color="textMuted">
+        {t('meeting.pickSpotHint')}
+      </Text>
+      {saved.length === 0 ? null : (
+        <Text variant="subhead" color="textMuted">
+          {t('meeting.orSaved')}
+        </Text>
+      )}
+      {saved.map((place) => (
+        <ListRow
+          key={place.id}
+          testID={`meeting-start-place-${place.id}`}
+          leading={<PlaceIcon emoji={place.emoji} />}
+          title={place.name}
+          subtitle={t('places.meters', { meters: place.radius })}
+          trailing={chosenMark(place.id)}
+          onPress={() => {
+            setPlaceId(place.id);
+          }}
+        />
+      ))}
       <SectionTitle>{t('plan.time')}</SectionTitle>
       {range === null ? null : (
         <TimeStepper value={chosenTime} onChange={setMeetAt} min={range.min} max={range.max} />
       )}
       <Button
         testID="meeting-start-go"
-        label={t('meeting.start')}
-        icon={Flag}
+        label={t(current === undefined ? 'meeting.start' : 'plan.save')}
+        icon={current === undefined ? Flag : Check}
         disabled={placeId === null || range === null}
-        loading={starting}
+        loading={saving}
         onPress={() => {
-          void start();
+          void save();
         }}
       />
-      <Text variant="caption" color="textMuted">
-        {t('meeting.startHint')}
-      </Text>
+      {current === undefined ? (
+        <Text variant="caption" color="textMuted">
+          {t('meeting.startHint')}
+        </Text>
+      ) : (
+        <Button
+          testID="meeting-form-cancel"
+          label={t('common.cancel')}
+          variant="ghost"
+          onPress={() => {
+            onDone?.();
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -228,5 +343,4 @@ const styles = StyleSheet.create({
   where: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   whereText: { flex: 1, gap: space.xxs },
   start: { gap: space.sm },
-  chosen: { width: space.md, height: space.md, borderRadius: radius.pill },
 });

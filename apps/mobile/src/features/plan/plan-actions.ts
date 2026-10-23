@@ -121,22 +121,28 @@ export async function endMeeting(circleId: string, keepPlace = false): Promise<b
 
 /**
  * Sets the meeting's time or place; the others' phones hear `docs.changed`. Moved away from a
- * place added for it, that place goes; the new one is one the circle has, and stays.
+ * place added for it, that place goes. The new one stays, unless it is a `spot` just picked on the
+ * map for this meeting (docs/ADR/0026 Ek 1), which goes with the meeting in turn.
  */
 export async function setMeeting(
   circleId: string,
-  change: Pick<PlanPayload, 'meetAt' | 'placeId'>,
+  change: Pick<PlanPayload, 'meetAt' | 'placeId'> & { spot?: boolean },
 ): Promise<boolean> {
   const before = planOf(circleId);
+  const { spot, ...where } = change;
   const leftPlace =
-    change.placeId !== undefined &&
-    change.placeId !== before.placeId &&
+    where.placeId !== undefined &&
+    where.placeId !== before.placeId &&
     before.placeGoes !== undefined;
   const { placeGoes, ...rest } = before;
   const next: PlanPayload = {
     ...rest,
-    ...change,
-    ...(leftPlace ? {} : placeGoes === undefined ? {} : { placeGoes }),
+    ...where,
+    ...(spot === true
+      ? { placeGoes: true }
+      : leftPlace || placeGoes === undefined
+        ? {}
+        : { placeGoes }),
   };
   const saved = told(
     await docs.save(circleId, next, movedNotices(before, next)),
