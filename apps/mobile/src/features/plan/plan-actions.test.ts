@@ -150,6 +150,17 @@ describe('a spot picked on the map for a meeting (docs/ADR/0026 Ek 1, QA-36)', (
     expect(mockPlaceSave.mock.invocationCallOrder[0]).toBeLessThan(
       mockRemove.mock.invocationCallOrder[0] ?? 0,
     );
+    // The ending failed after the place was kept: tried again, the place is not saved twice.
+    mockPlaceSave.mockClear();
+    mockRemove.mockResolvedValueOnce(false);
+    holdMeeting({ spot: SPOT });
+    expect(await endMeeting(CIRCLE, true)).toBe(false);
+    expect(mockPlaceSave).toHaveBeenCalledTimes(1);
+    usePlaces.setState({
+      kept: { ...SPOT, id: 'kept', circleId: CIRCLE, version: 1, emoji: '📍', ts: 2 },
+    });
+    expect(await endMeeting(CIRCLE, true)).toBe(true);
+    expect(mockPlaceSave).toHaveBeenCalledTimes(1);
     // A meeting at a saved place keeps nothing more.
     mockPlaceSave.mockClear();
     holdMeeting({ placeId: HOME });

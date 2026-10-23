@@ -101,18 +101,29 @@ export async function startMeeting(
 /**
  * Ends a circle's meeting at once ("Bitir", its starter or an admin); everyone's goes, and a spot
  * picked for it with it: nothing else to clean up. `keepSpot`: the one who ends it keeps the
- * spot as a saved place of the circle first, by their own choice ("Bitir, yeri sakla").
+ * spot as a saved place of the circle first, by their own choice ("Bitir, yeri sakla"). Tried
+ * again after the ending failed, the place it kept is not saved twice (QA-37).
  */
 export async function endMeeting(circleId: string, keepSpot = false): Promise<boolean> {
   const plan = planOf(circleId);
-  if (keepSpot && plan.spot !== undefined) {
+  const spot = plan.spot;
+  const keptAlready =
+    spot !== undefined &&
+    Object.values(usePlaces.getState()).some(
+      (place) =>
+        place.circleId === circleId &&
+        place.name === spot.name &&
+        place.lat === spot.lat &&
+        place.lng === spot.lng,
+    );
+  if (keepSpot && spot !== undefined && !keptAlready) {
     const kept = await places.save(circleId, {
       id: randomUuid(),
-      name: plan.spot.name,
+      name: spot.name,
       emoji: SPOT_EMOJI,
-      lat: plan.spot.lat,
-      lng: plan.spot.lng,
-      radius: plan.spot.radius,
+      lat: spot.lat,
+      lng: spot.lng,
+      radius: spot.radius,
     });
     if (kept !== 'saved') {
       toast.error(i18n.t('places.failed'));
