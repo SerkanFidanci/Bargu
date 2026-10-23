@@ -39,6 +39,7 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0031](0031-expressive-pokes.md)                     | İfadeli dürtmeler: öp, sarıl, kız, gül, heyecan; "nerdesin?", "ne zaman?", "cevap ver"; dürtülenin ekranında animasyon | Kabul edildi (sahibin isteği)                                        |
 | [0032](0032-messaging.md)                            | Mesajlaşma: çemberde uçtan uca şifreli yazışma, sunucuda 30 gün şifreli kutu                                           | Taslak, kapalı test sonrası                                          |
 | [0033](0033-stories.md)                              | Anlık hikaye: 24 saatlik, uçtan uca şifreli fotoğraf, EXIF silinir                                                     | Taslak, kapalı test sonrası                                          |
+| [0034](0034-domain-and-closed-test-server.md)        | Kalıcı alan adı bargu.app (davet ve RP ID kökte, api ve staging alt alanda) ve kapalı test sunucusu seçenekleri        | Önerildi                                                             |
 
 ## Şablon
 
