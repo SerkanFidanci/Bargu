@@ -17,6 +17,7 @@ const SAFE_ID = 'AAAAAAAAAAAAAAAAAAAAAA';
 const payloads = {
   loc: { kind: 'loc', lat: GALATA.lat, lng: GALATA.lng, acc: 8, bat: 50, chg: false, ts: NOW },
   bump: { kind: 'bump', ts: NOW },
+  poke: { kind: 'poke', to: '0190f7a4-1111-7111-8111-0000000000b0', style: 'kiss', ts: NOW },
   safe: {
     kind: 'safe',
     id: SAFE_ID,
@@ -57,6 +58,7 @@ function world(overrides: Partial<Circle> = {}, exchange = true): World {
     store: () => memoryStore(),
     now: () => NOW,
     onBump: () => heard.push('bump'),
+    onPoke: () => heard.push('poke'),
     onSafe: () => heard.push('safe'),
     onStatus: () => heard.push('status'),
     onProfile: () => heard.push('profile'),
@@ -90,6 +92,7 @@ describe('a message counts as the kind its route is for (QA-32 F-1, F-1.2)', () 
     const w = world();
     const cases: [Payload, Route, string][] = [
       [payloads.bump, 'bump', 'bump'],
+      [payloads.poke, 'bump', 'poke'],
       [payloads.safe, 'safe', 'safe'],
       [payloads.place, 'place', 'place'],
       [payloads.late, 'place', 'late'],

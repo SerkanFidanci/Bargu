@@ -118,3 +118,25 @@ describe('wire schemas', () => {
     expect(senderKeyDistributionSchema.parse(distribution)).toEqual(distribution);
   });
 });
+
+describe('a poke with a feeling or a question (docs/ADR/0031)', () => {
+  it('names whom it is for and its style; only a reply says a ready reply', () => {
+    for (const poke of [
+      { kind: 'poke', to: uuid, style: 'kiss', ts: 1 },
+      { kind: 'poke', to: uuid, style: 'where', ts: 1 },
+      { kind: 'poke', to: uuid, style: 'reply', say: 'onWay', ts: 1 },
+    ]) {
+      expect(payloadSchema.parse(poke)).toEqual(poke);
+    }
+    for (const wrong of [
+      { kind: 'poke', to: uuid, style: 'reply', ts: 1 },
+      { kind: 'poke', to: uuid, style: 'kiss', say: 'ok', ts: 1 },
+      { kind: 'poke', to: uuid, style: 'slap', ts: 1 },
+      { kind: 'poke', style: 'hug', ts: 1 },
+      { kind: 'poke', to: uuid, style: 'reply', say: 'merhaba', ts: 1 },
+      { kind: 'poke', to: uuid, style: 'hug', text: 'serbest metin', ts: 1 },
+    ]) {
+      expect(payloadSchema.safeParse(wrong).success).toBe(false);
+    }
+  });
+});

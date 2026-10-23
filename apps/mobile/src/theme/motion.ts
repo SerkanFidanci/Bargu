@@ -131,6 +131,26 @@ export const weatherFx = {
 export const meetFx = { particles: 28, durationMs: 1_400, reach: 72, size: 5 } as const;
 
 /**
+ * A poke with a feeling on the screen of whom it is for (docs/ADR/0031): how long it plays (shorter
+ * at "Az"), the pieces flying out and how far, the big one in the middle, the shake of an angry
+ * one, the glow at the edges of a hug or an angry one, and how long a question waits for an answer.
+ */
+export const pokeFx = {
+  durationMs: 1_600,
+  reducedMs: 800,
+  pieces: 14,
+  spread: 170,
+  rise: 360,
+  big: 112,
+  small: 34,
+  shake: { px: 12, times: 5 },
+  glow: 0.4,
+  edge: 56,
+  questionHoldMs: 12_000,
+  replyHoldMs: 4_000,
+} as const;
+
+/**
  * How a person's avatar moves with what they are doing (features/map/activity.ts): a step bob when
  * walking, a quicker bounce and a lean when running, a sway on a bike, a light engine shake in a
  * car, and a slow ripple when they have stayed in one place for a while. Periods in ms, distances

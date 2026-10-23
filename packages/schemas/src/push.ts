@@ -1,7 +1,14 @@
 import { z } from 'zod';
 
 import { messageEnvelopeSchema } from './envelope.js';
-import { placeEmojiSchema, placeNameSchema, safeIdSchema, timestamp } from './payload.js';
+import {
+  placeEmojiSchema,
+  placeNameSchema,
+  POKE_SAYINGS,
+  POKE_STYLES,
+  safeIdSchema,
+  timestamp,
+} from './payload.js';
 import { MAX_CIRCLE_MEMBERS } from './circles.js';
 
 /** News the server itself announces (it knows them anyway); the app words them in its language. */
@@ -52,6 +59,17 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
     })
     .strict(),
   z.object({ kind: z.literal('bump'), circleId: z.uuid(), ts: timestamp }).strict(),
+  // A poke with a feeling or a question (docs/ADR/0031), sealed only for the one it is for: the
+  // receiving phone writes "Ayşe seni öptü 💋" or "Ayşe: Nerdesin?" from it.
+  z
+    .object({
+      kind: z.literal('poke'),
+      circleId: z.uuid(),
+      style: z.enum(POKE_STYLES),
+      say: z.enum(POKE_SAYINGS).optional(),
+      ts: timestamp,
+    })
+    .strict(),
   // "Güvendeyim" (docs/ADR/0029): the receiving phone writes "Ali: İyiyim ✓ · %45" from it, and
   // keeps where they are (at that circle's precision) for a day, so a phone whose app is closed
   // can show the place when the notification is tapped. The location is in the sealed box only:

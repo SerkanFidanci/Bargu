@@ -15,7 +15,8 @@ import { useMyFix } from '../location/engine';
 import { useLocations } from '../location/receive';
 import { useMe } from '../profile/queries';
 import { MuteSheet } from '../notifications/mute-sheet';
-import { poke } from '../social/poke';
+import { poke, pokeWith } from '../social/poke';
+import { type PokeChoice, PokeSheet } from '../social/poke-sheet';
 import { circlesApi } from '../circles/circles-api';
 import { errorMessage } from '../errors';
 import { circleSync } from '../live/live-session';
@@ -63,13 +64,23 @@ export function usePeopleUi(
   const groupSheet = useRef<SheetRef>(null);
   const [group, setGroup] = useState<{ people: GroupMember[]; from: ScreenPoint } | null>(null);
 
+  // "Dürt" opens the ways to poke them (docs/ADR/0031): a plain poke, a feeling, a question.
+  const pokeSheet = useRef<SheetRef>(null);
+  const [poking, setPoking] = useState<PersonView | null>(null);
   const sendPoke = useCallback(
-    async (person: PersonView) => {
+    async (person: PersonView, choice: PokeChoice) => {
       if (person.circleId === null) return;
-      const result = await poke(person.circleId);
+      const result =
+        choice === 'bump'
+          ? await poke(person.circleId)
+          : await pokeWith(person.circleId, person.userId, choice);
       if (result === 'sent') {
         feedback('success');
-        toast.success(t('map.poke.sent', { name: person.name }));
+        toast.success(
+          choice === 'bump'
+            ? t('map.poke.sent', { name: person.name })
+            : t(`map.poke.sentStyle.${choice}`, { name: person.name }),
+        );
       } else if (result === 'limited') {
         toast.info(t('map.poke.limited'));
       } else {
@@ -78,6 +89,10 @@ export function usePeopleUi(
     },
     [t],
   );
+  const choosePoke = useCallback((person: PersonView) => {
+    setPoking(person);
+    pokeSheet.current?.present();
+  }, []);
 
   /** A meeting being set up: one at a time, whatever is tapped meanwhile (QA 3a-B1). */
   const meeting = useRef(false);
@@ -138,14 +153,16 @@ export function usePeopleUi(
       }
       if (action === 'profile') closeCard();
       runPersonAction(action, person, {
-        poke: (who) => void sendPoke(who),
+        poke: (who) => {
+          choosePoke(who);
+        },
         notifications: (who) => {
           setMuting({ userId: who.userId, name: who.name });
           muteSheet.current?.present();
         },
       });
     },
-    [circles, sendPoke, meet],
+    [circles, choosePoke, meet],
   );
 
   const handlersFor = useCallback(
@@ -250,6 +267,14 @@ export function usePeopleUi(
         }}
       />
       <MuteSheet ref={muteSheet} person={muting} />
+      <PokeSheet
+        ref={pokeSheet}
+        name={poking?.name ?? null}
+        onChoose={(choice) => {
+          pokeSheet.current?.dismiss();
+          if (poking !== null) void sendPoke(poking, choice);
+        }}
+      />
       <TogetherSheet
         ref={groupSheet}
         people={group?.people ?? []}

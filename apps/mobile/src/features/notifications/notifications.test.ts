@@ -59,6 +59,28 @@ describe('notification texts', () => {
     expect(
       pushText({ kind: 'bump', circleId: circle.id, ts: 1 }, ada.device.deviceId, contacts),
     ).toMatchObject({ body: 'Test seni dürttü 👋', channel: 'social' });
+    // A poke with a feeling, a question, a reply (docs/ADR/0031): tapping it plays it.
+    expect(
+      pushText(
+        { kind: 'poke', circleId: circle.id, style: 'kiss', ts: 5 },
+        ada.device.deviceId,
+        contacts,
+      ),
+    ).toMatchObject({ body: 'Test seni öptü 💋', poke: { style: 'kiss', ts: 5 } });
+    expect(
+      pushText(
+        { kind: 'poke', circleId: circle.id, style: 'where', ts: 5 },
+        ada.device.deviceId,
+        contacts,
+      )?.body,
+    ).toBe('Test: Nerdesin? 📍');
+    expect(
+      pushText(
+        { kind: 'poke', circleId: circle.id, style: 'reply', say: 'onWay', ts: 5 },
+        ada.device.deviceId,
+        contacts,
+      )?.body,
+    ).toBe('Test: Yoldayım');
     // An unknown device gets no notification at all.
     expect(pushText(body, me.device.deviceId, contacts)).toBeNull();
   });

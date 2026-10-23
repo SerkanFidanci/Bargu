@@ -1,4 +1,4 @@
-import type { PushBody } from '@bargu/schemas';
+import type { PokeSaying, PokeStyle, PushBody } from '@bargu/schemas';
 
 import i18n from '@/i18n';
 
@@ -26,6 +26,8 @@ export interface ShownPush {
    * notification shows it on the map.
    */
   spot?: SafeSpot;
+  /** A poke with a feeling or a question (docs/ADR/0031): tapping plays it on screen. */
+  poke?: { style: PokeStyle; say?: PokeSaying | undefined; ts: number };
 }
 
 const GUARDIAN_NOTICES: ReadonlySet<string> = new Set([
@@ -110,6 +112,24 @@ export function pushText(
       circleId: body.circleId,
       channel: SOCIAL_CHANNEL,
       fromUserId: sender.userId,
+    };
+  }
+  if (body.kind === 'poke') {
+    // "Ayşe seni öptü 💋", "Ayşe: Nerdesin?", "Ayşe: Yoldayım" (docs/ADR/0031).
+    const words =
+      body.style === 'reply' && body.say !== undefined
+        ? i18n.t('notifications.pokes.reply', {
+            name: sender.name,
+            say: i18n.t(`map.poke.say.${body.say}`),
+          })
+        : i18n.t(`notifications.pokes.${body.style}`, { name: sender.name });
+    return {
+      title: 'Bargu',
+      body: words,
+      circleId: body.circleId,
+      channel: SOCIAL_CHANNEL,
+      fromUserId: sender.userId,
+      poke: { style: body.style, say: body.say, ts: body.ts },
     };
   }
   if (body.kind === 'safe') {

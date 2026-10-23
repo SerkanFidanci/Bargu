@@ -489,6 +489,17 @@
     "arrived": "{{name}} arrived",
     "left": "{{name}} left",
     "poked": "{{name}} poked you 👋",
+    "pokes": {
+      "kiss": "{{name}} kissed you 💋",
+      "hug": "{{name}} hugged you 🤗",
+      "angry": "{{name}} is angry with you 😠",
+      "laugh": "{{name}} is laughing 😂",
+      "excited": "{{name}} is so excited 🤩",
+      "where": "{{name}}: Where are you? 📍",
+      "when": "{{name}}: When? ⏰",
+      "answer": "{{name}}: Answer me! 💬",
+      "reply": "{{name}}: {{say}}"
+    },
     "safe": "{{name}}: I'm safe ✓ · {{bat}}%",
     "safeAt": "{{name}}: I'm safe ✓ · {{bat}}% · {{time}}",
     "safeFolded": "{{name}}: {{count}} more messages saying they are safe, not shown one by one because they came too often",
@@ -669,7 +680,38 @@
       "sent": "You poked {{name}}",
       "received": "{{name}} poked you",
       "limited": "Wait a moment, that was a lot of pokes.",
-      "failed": "Could not poke. Check your connection."
+      "failed": "Could not poke. Check your connection.",
+      "title": "For {{name}}",
+      "replied": "Your answer went · {{name}}",
+      "styles": {
+        "bump": "Poke",
+        "kiss": "Kiss",
+        "hug": "Hug",
+        "angry": "Angry",
+        "laugh": "Laugh",
+        "excited": "Excited",
+        "where": "Where are you?",
+        "when": "When?",
+        "answer": "Answer me!"
+      },
+      "sentStyle": {
+        "kiss": "💋 Kiss sent · {{name}}",
+        "hug": "🤗 Hug sent · {{name}}",
+        "angry": "😠 Anger sent · {{name}}",
+        "laugh": "😂 Laugh sent · {{name}}",
+        "excited": "🤩 Excitement sent · {{name}}",
+        "where": "📍 \"Where are you?\" sent · {{name}}",
+        "when": "⏰ \"When?\" sent · {{name}}",
+        "answer": "💬 \"Answer me!\" sent · {{name}}"
+      },
+      "say": {
+        "onWay": "I'm on my way",
+        "soon": "Almost there",
+        "home": "I'm home",
+        "busy": "I can't right now",
+        "later": "I'll write later",
+        "ok": "OK"
+      }
     },
     "meet": "You and {{name}} met! 🎉",
     "cluster": "{{count}} people together: {{names}}. Tap to see who.",

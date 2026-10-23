@@ -81,6 +81,8 @@ describe('push bodies', () => {
         ts: 1,
       },
       { kind: 'bump', circleId: uuid, ts: 1 },
+      { kind: 'poke', circleId: uuid, style: 'kiss', ts: 1 },
+      { kind: 'poke', circleId: uuid, style: 'reply', say: 'home', ts: 1 },
       { kind: 'notice', notice: 'circleInvite', circleId: uuid, ts: 1 },
     ]) {
       expect(pushBodySchema.parse(body)).toEqual(body);

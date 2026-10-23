@@ -1,5 +1,11 @@
 import { BarguCryptoError, decryptMessage, ReplayGuard, type ReplayState } from '@bargu/crypto';
-import { type Circle, locPayloadSchema, type MessageEnvelope, type Payload } from '@bargu/schemas';
+import {
+  type Circle,
+  locPayloadSchema,
+  type MessageEnvelope,
+  type Payload,
+  type PokePayload,
+} from '@bargu/schemas';
 
 type StatusPayload = Extract<Payload, { kind: 'status' }>;
 type ProfilePayload = Extract<Payload, { kind: 'profile' }>;
@@ -69,7 +75,7 @@ export type Outcome = 'shown' | 'removed' | 'bumped' | 'waiting' | 'ignored';
 export type Route = 'loc' | 'bump' | 'safe' | 'place' | 'status' | 'profile' | 'look' | 'state';
 const ROUTE_KINDS: Readonly<Record<Route, readonly Payload['kind'][]>> = {
   loc: ['loc', 'share_stop'],
-  bump: ['bump'],
+  bump: ['bump', 'poke'],
   safe: ['safe'],
   place: ['place_enter', 'place_exit', 'late', 'arrived'],
   status: ['status'],
@@ -91,6 +97,8 @@ export interface ReceiverDeps {
   store: () => KeyValueStore;
   /** A member poked this phone (BARGU_PLAN §4.3 "Dürt"). */
   onBump?: (circleId: string, userId: string, ts: number) => void;
+  /** A member poked someone with a feeling or a question (docs/ADR/0031): shown only if for me. */
+  onPoke?: (circleId: string, userId: string, poke: PokePayload) => void;
   /** A member set or changed their status (emoji and short text). */
   onStatus?: (circleId: string, userId: string, status: StatusPayload) => void;
   /** A member's profile message (their photo key, docs/ADR/0014). */
@@ -141,6 +149,7 @@ export function createReceiver({
   circles,
   store,
   onBump,
+  onPoke,
   onStatus,
   onProfile,
   onLook,
@@ -310,6 +319,10 @@ export function createReceiver({
       }
       if (payload.kind === 'bump') {
         onBump?.(circle.id, sender.userId, payload.ts);
+        return 'bumped';
+      }
+      if (payload.kind === 'poke') {
+        onPoke?.(circle.id, sender.userId, payload);
         return 'bumped';
       }
       if (payload.kind === 'place_enter' || payload.kind === 'place_exit') {

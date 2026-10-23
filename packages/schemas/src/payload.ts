@@ -72,6 +72,44 @@ export type StatePayload = z.infer<typeof statePayloadSchema>;
 
 export const bumpPayloadSchema = z.object({ kind: z.literal('bump'), ts: timestamp }).strict();
 
+/**
+ * Pokes with a feeling or a question (docs/ADR/0031): kiss, hug, angry, laugh, excited; "Nerdesin?",
+ * "Ne zaman?", "Cevap ver!"; and a quick reply to one of those.
+ */
+export const POKE_STYLES = [
+  'kiss',
+  'hug',
+  'angry',
+  'laugh',
+  'excited',
+  'where',
+  'when',
+  'answer',
+  'reply',
+] as const;
+export type PokeStyle = (typeof POKE_STYLES)[number];
+/** The ready replies to a question poke: no free text (that is messaging, docs/ADR/0032). */
+export const POKE_SAYINGS = ['onWay', 'soon', 'home', 'busy', 'later', 'ok'] as const;
+export type PokeSaying = (typeof POKE_SAYINGS)[number];
+
+/**
+ * A poke for one member of the circle (`to`): the others' phones drop it. `say` only with a reply,
+ * and a reply always says one.
+ */
+export const pokePayloadSchema = z
+  .object({
+    kind: z.literal('poke'),
+    to: z.uuid(),
+    style: z.enum(POKE_STYLES),
+    say: z.enum(POKE_SAYINGS).optional(),
+    ts: timestamp,
+  })
+  .strict()
+  .refine((poke) => (poke.style === 'reply') === (poke.say !== undefined), {
+    message: 'a reply says one of the ready replies, and only a reply does',
+  });
+export type PokePayload = z.infer<typeof pokePayloadSchema>;
+
 export const placeEnterPayloadSchema = z
   .object({ kind: z.literal('place_enter'), placeId: z.uuid(), ts: timestamp })
   .strict();
@@ -303,6 +341,7 @@ export const lookPayloadSchema = z.object({
 export const payloadSchema = z.discriminatedUnion('kind', [
   locPayloadSchema,
   bumpPayloadSchema,
+  pokePayloadSchema,
   placeEnterPayloadSchema,
   placeExitPayloadSchema,
   shareStopPayloadSchema,

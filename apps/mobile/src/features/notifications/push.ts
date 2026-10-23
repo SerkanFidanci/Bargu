@@ -1,6 +1,13 @@
-import { safeIdSchema } from '@bargu/schemas';
+import {
+  POKE_SAYINGS,
+  POKE_STYLES,
+  type PokeSaying,
+  type PokeStyle,
+  safeIdSchema,
+} from '@bargu/schemas';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { z } from 'zod';
 import { create } from 'zustand';
 
 import {
@@ -137,6 +144,30 @@ export function safeOfResponse(response: Notifications.NotificationResponse): st
   if (typeof data !== 'object' || data === null) return null;
   const parsed = safeIdSchema.safeParse((data as Record<string, unknown>).safe);
   return parsed.success ? parsed.data : null;
+}
+
+/** A tapped poke's notification (docs/ADR/0031): who, which, when; null for any other. */
+const tappedPokeSchema = z.object({
+  circleId: z.uuid(),
+  poke: z.object({
+    style: z.enum(POKE_STYLES),
+    say: z.enum(POKE_SAYINGS).optional(),
+    ts: z.number().int().nonnegative(),
+    from: z.uuid(),
+  }),
+});
+
+export function pokeOfResponse(response: Notifications.NotificationResponse): {
+  circleId: string;
+  from: string;
+  style: PokeStyle;
+  say?: PokeSaying | undefined;
+  ts: number;
+} | null {
+  const parsed = tappedPokeSchema.safeParse(response.notification.request.content.data);
+  if (!parsed.success) return null;
+  const { circleId, poke } = parsed.data;
+  return { circleId, ...poke };
 }
 
 export function circleOfResponse(response: Notifications.NotificationResponse): string | null {

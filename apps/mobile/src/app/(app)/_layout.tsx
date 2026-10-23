@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
 import { useLiveSession } from '@/features/live/live-session';
 import { useLocationSession } from '@/features/location/use-location';
@@ -6,6 +7,7 @@ import { usePushNotifications } from '@/features/notifications/use-push';
 import { usePrivacyGate } from '@/features/account/privacy-gate';
 import { useLookSession } from '@/features/cosmetics/look-wiring';
 import { useAppLock } from '@/features/security/app-lock';
+import { PokeOverlay } from '@/features/social/poke-overlay';
 import { useSafeSpotNavigation } from '@/features/social/use-safe-spot';
 // Guardian links follow their events (docs/ADR/0023 §4).
 import '@/features/guardians/guardians-session';
@@ -41,35 +43,41 @@ export default function AppLayout() {
   if (locked) return <LockScreen />;
   if (timeUp) return <TimeUpScreen />;
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="circle/new" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="circle/[id]/index" />
-      <Stack.Screen name="circle/[id]/invite" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="circle/[id]/sharing" />
-      <Stack.Screen name="circle/[id]/places" />
-      <Stack.Screen name="circle/[id]/verify/[userId]" />
-      <Stack.Screen name="add/username" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="add/qr" />
-      <Stack.Screen name="add/scan" />
-      <Stack.Screen name="i/[token]" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="g/[token]" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="place/[circleId]" />
-      <Stack.Screen name="meeting/new" />
-      <Stack.Screen name="meeting/[circleId]" />
-      <Stack.Screen name="history/viewers" />
-      <Stack.Screen name="history/[userId]" />
-      <Stack.Screen name="security" />
-      <Stack.Screen name="seers" />
-      <Stack.Screen name="notifications" />
-      <Stack.Screen name="settings/location" />
-      <Stack.Screen name="settings/look" />
-      <Stack.Screen name="settings/about" />
-      <Stack.Screen name="privacy" />
-      <Stack.Screen name="plus" />
-      <Stack.Screen name="consent" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="notice" options={{ presentation: 'modal', gestureEnabled: false }} />
-    </Stack>
+    <View style={styles.app}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="circle/new" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="circle/[id]/index" />
+        <Stack.Screen name="circle/[id]/invite" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="circle/[id]/sharing" />
+        <Stack.Screen name="circle/[id]/places" />
+        <Stack.Screen name="circle/[id]/verify/[userId]" />
+        <Stack.Screen name="add/username" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="add/qr" />
+        <Stack.Screen name="add/scan" />
+        <Stack.Screen name="i/[token]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="g/[token]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="place/[circleId]" />
+        <Stack.Screen name="meeting/new" />
+        <Stack.Screen name="meeting/[circleId]" />
+        <Stack.Screen name="history/viewers" />
+        <Stack.Screen name="history/[userId]" />
+        <Stack.Screen name="security" />
+        <Stack.Screen name="seers" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="settings/location" />
+        <Stack.Screen name="settings/look" />
+        <Stack.Screen name="settings/about" />
+        <Stack.Screen name="privacy" />
+        <Stack.Screen name="plus" />
+        <Stack.Screen name="consent" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="notice" options={{ presentation: 'modal', gestureEnabled: false }} />
+      </Stack>
+      {/* A kiss, a hug, "Nerdesin?" for this phone, over whatever screen is open (docs/ADR/0031). */}
+      <PokeOverlay />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({ app: { flex: 1 } });

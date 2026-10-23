@@ -19,6 +19,7 @@ import {
   safeAge,
   safeFoldedWords,
 } from '../social/safe';
+import { pokeFromTap } from '../social/poke';
 import { keepSpot, showSpot } from '../social/safe-spot';
 import { vault } from '../storage/vault';
 import { SAFE_QUIET_CHANNEL } from './channels';
@@ -234,6 +235,11 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
     return 'muted';
   }
   if (AppState.currentState === 'active') {
+    // The open app plays a poke itself (it came by the socket too; it plays once).
+    if (shown.poke !== undefined && shown.fromUserId !== null) {
+      pokeFromTap({ circleId: shown.circleId, from: shown.fromUserId, ...shown.poke });
+      return 'inApp';
+    }
     if (spot !== undefined) {
       toast.notice(shown.body, 'success', () => {
         showSpot(spot);
@@ -252,9 +258,11 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
       data:
         shown.route !== undefined
           ? { route: shown.route }
-          : spot === undefined
-            ? { circleId: shown.circleId }
-            : { circleId: shown.circleId, safe: spot.id },
+          : spot !== undefined
+            ? { circleId: shown.circleId, safe: spot.id }
+            : shown.poke !== undefined && shown.fromUserId !== null
+              ? { circleId: shown.circleId, poke: { ...shown.poke, from: shown.fromUserId } }
+              : { circleId: shown.circleId },
     },
     trigger: { channelId: shown.channel },
   });

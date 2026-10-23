@@ -489,6 +489,17 @@
     "arrived": "{{name}} vardı",
     "left": "{{name}} ayrıldı",
     "poked": "{{name}} seni dürttü 👋",
+    "pokes": {
+      "kiss": "{{name}} seni öptü 💋",
+      "hug": "{{name}} sana sarıldı 🤗",
+      "angry": "{{name}} sana kızdı 😠",
+      "laugh": "{{name}} gülüyor 😂",
+      "excited": "{{name}} çok heyecanlı 🤩",
+      "where": "{{name}}: Nerdesin? 📍",
+      "when": "{{name}}: Ne zaman? ⏰",
+      "answer": "{{name}}: Cevap ver! 💬",
+      "reply": "{{name}}: {{say}}"
+    },
     "safe": "{{name}}: İyiyim ✓ · %{{bat}}",
     "safeAt": "{{name}}: İyiyim ✓ · %{{bat}} · {{time}}",
     "safeFolded": "{{name}}: {{count}} iyiyim mesajı daha geldi, çok sık olduğu için tek tek gösterilmiyor",
@@ -669,7 +680,38 @@
       "sent": "{{name}} dürtüldü",
       "received": "{{name}} seni dürttü",
       "limited": "Biraz bekle, çok sık dürttün.",
-      "failed": "Dürtülemedi. Bağlantını kontrol et."
+      "failed": "Dürtülemedi. Bağlantını kontrol et.",
+      "title": "{{name}} için",
+      "replied": "Cevabın gitti · {{name}}",
+      "styles": {
+        "bump": "Dürt",
+        "kiss": "Öp",
+        "hug": "Sarıl",
+        "angry": "Kızdım",
+        "laugh": "Gül",
+        "excited": "Heyecan",
+        "where": "Nerdesin?",
+        "when": "Ne zaman?",
+        "answer": "Cevap ver!"
+      },
+      "sentStyle": {
+        "kiss": "💋 Öpücük gitti · {{name}}",
+        "hug": "🤗 Sarılma gitti · {{name}}",
+        "angry": "😠 Kızgınlığın gitti · {{name}}",
+        "laugh": "😂 Gülüşün gitti · {{name}}",
+        "excited": "🤩 Heyecanın gitti · {{name}}",
+        "where": "📍 \"Nerdesin?\" gitti · {{name}}",
+        "when": "⏰ \"Ne zaman?\" gitti · {{name}}",
+        "answer": "💬 \"Cevap ver!\" gitti · {{name}}"
+      },
+      "say": {
+        "onWay": "Yoldayım",
+        "soon": "Az kaldı",
+        "home": "Evdeyim",
+        "busy": "Şu an müsait değilim",
+        "later": "Sonra yazarım",
+        "ok": "Tamam"
+      }
     },
     "meet": "{{name}} ile buluştunuz! 🎉",
     "cluster": "{{count}} kişi bir arada: {{names}}. Kimler olduğunu görmek için dokun.",

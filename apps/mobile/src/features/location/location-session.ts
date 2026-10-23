@@ -72,7 +72,7 @@ import {
 } from '../notifications/extension-share';
 import { queryClient } from '../query-client';
 import { publishProfile, receivedProfile, resetPhotos, restorePhotos } from '../profile/photo';
-import { receivePoke } from '../social/poke';
+import { receivePoke, receiveStyledPoke, showPoke } from '../social/poke';
 import { receivedSafe, restoreSafe, safeCheckIns } from '../social/safe-session';
 import {
   pruneStatuses,
@@ -744,6 +744,14 @@ const receiver = createReceiver({
     if (name === null || isMuted(loadMuteSettings(), { kind: 'bump' }, userId)) return;
     feedback('bump');
     toast.info(i18n.t('map.poke.received', { name }));
+  },
+  // A kiss, a hug, "Nerdesin?"… for this phone: it plays on screen (docs/ADR/0031).
+  onPoke: (circleId, userId, poke) => {
+    if (isMuted(loadMuteSettings(), { kind: 'bump' }, userId)) return;
+    const shown = receiveStyledPoke(circleId, userId, poke, useAuth.getState().userId);
+    if (shown === null) return;
+    feedback('bump');
+    showPoke(shown, poke.ts);
   },
 });
 

@@ -6,12 +6,14 @@ import { AppState, Platform } from 'react-native';
 import i18n, { resolveLanguage } from '@/i18n';
 
 import { api } from '../auth/auth-store';
+import { pokeFromTap } from '../social/poke';
 import { openSpot } from '../social/safe-spot';
 import { isVaultOpen, vault } from '../storage/vault';
 import { registerPushTask } from './background-push';
 import {
   circleOfResponse,
   enablePush,
+  pokeOfResponse,
   type PushState,
   routeOfResponse,
   safeOfResponse,
@@ -33,6 +35,12 @@ function open(response: Notifications.NotificationResponse): void {
   const route = routeOfResponse(response);
   if (route !== null) {
     router.push(route);
+    return;
+  }
+  // A kiss, a hug, "Nerdesin?": it plays on screen (docs/ADR/0031).
+  const poke = pokeOfResponse(response);
+  if (poke !== null) {
+    pokeFromTap(poke);
     return;
   }
   // "Güvendeyim" with a place: the map looks at it (a dot or a circle, docs/ADR/0029 §5). A place

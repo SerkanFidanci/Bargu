@@ -22,6 +22,7 @@ export {
   haptic,
   meetFx,
   pinFx,
+  pokeFx,
   orbit,
   press,
   shortcutFx,

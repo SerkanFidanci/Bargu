@@ -57,6 +57,8 @@ jest.mock('../auth/auth-store', () => ({
   useAuth: { getState: () => ({ device: mockDevice }) },
 }));
 jest.mock('../live/live-session', () => ({ ensureSession: () => Promise.resolve(true) }));
+// A poke with a feeling plays in the open app (docs/ADR/0031): not what is tested here.
+jest.mock('../social/poke', () => ({ pokeFromTap: jest.fn() }));
 jest.mock('../storage/vault', () => ({ vault: () => mockStore }));
 jest.mock('./notice-keys', () => ({
   get trustedNoticeKeys() {

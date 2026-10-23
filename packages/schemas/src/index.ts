@@ -1,5 +1,11 @@
 export {
   bumpPayloadSchema,
+  pokePayloadSchema,
+  POKE_SAYINGS,
+  POKE_STYLES,
+  type PokePayload,
+  type PokeSaying,
+  type PokeStyle,
   locPayloadSchema,
   docPayloadSchema,
   payloadSchema,
