@@ -16,6 +16,7 @@ import { DEFAULT_RADIUS, PLACE_RADII } from '@/features/places/place-model';
 import { usePlaces } from '@/features/places/places';
 import { places } from '@/features/places/places-session';
 import { useMeetingPlaceDraft } from '@/features/plan/meeting-place';
+import { rememberSpot } from '@/features/plan/my-spots';
 import { radius, space, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
 import { Button } from '@/ui/button';
@@ -94,6 +95,7 @@ export default function PlaceEditor() {
     setSaving(false);
     if (result === 'saved') {
       if (spot) {
+        rememberSpot(newId);
         useMeetingPlaceDraft.setState({ circleId, placeId: newId }, true);
       }
       feedback('success');

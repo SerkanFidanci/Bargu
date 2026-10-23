@@ -11,10 +11,10 @@ import { circleSync, keys, onOnline, onServerEvents } from '../live/live-session
 import { queryClient } from '../query-client';
 import { memberName } from '../circles/names';
 import { usePlaces } from '../places/places';
-import { places } from '../places/places-session';
 import { isVaultOpen, vault } from '../storage/vault';
 import { createDocs, type DocsApi } from './docs';
-import type { Doc } from './plan-model';
+import { forgetSpot } from './my-spots';
+import { type Doc, starterOf } from './plan-model';
 
 /**
  * Someone started a meeting in a circle that is no event (docs/ADR/0026 §6), seen live: a line in
@@ -23,7 +23,8 @@ import type { Doc } from './plan-model';
 function meetingStarted(circle: Circle, doc: Doc): void {
   const plan = doc.payload;
   if (plan.kind !== 'plan' || plan.meetAt === undefined || plan.placeId === undefined) return;
-  const by = circle.members.find((member) => member.userId === plan.by);
+  const startedBy = starterOf(doc);
+  const by = circle.members.find((member) => member.userId === startedBy);
   const place = usePlaces.getState()[plan.placeId];
   if (by === undefined || place === undefined) return;
   const time = new Date(plan.meetAt).toLocaleTimeString(i18n.language, {
@@ -81,10 +82,7 @@ export const docs = createDocs({
     return null;
   },
   onMeetingStarted: meetingStarted,
-  forgetPlace: async (placeId) => {
-    const place = usePlaces.getState()[placeId];
-    if (place !== undefined) await places.remove(place);
-  },
+  forgetPlace: forgetSpot,
   refreshCircle: async (circleId) => {
     await circleSync.refresh(circleId);
     return cachedCircles().find((circle) => circle.id === circleId) ?? null;

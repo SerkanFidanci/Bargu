@@ -7,18 +7,19 @@ import { toast } from '@/ui/toast';
 import { useAuth } from '../auth/auth-store';
 import { loadContacts } from '../notifications/push-contacts';
 import { usePlaces } from '../places/places';
-import { places } from '../places/places-session';
 import { sealPushes } from '../places/presence';
 import { vault } from '../storage/vault';
 import { docKey, type DocSaveResult, useDocs } from './docs';
 import { docs } from './docs-session';
 import { meetingStartPushes } from './meeting';
+import { forgetSpot } from './my-spots';
 import {
   answerCounts,
   answersOf,
   type Doc,
   MEETING_ANSWERS,
   type MeetingAnswer,
+  starterOf,
   tally,
   withChoice,
 } from './plan-model';
@@ -56,7 +57,8 @@ export function votesOf(all: Readonly<Record<string, Doc>>, circleId: string): D
 export function mayRunMeeting(circle: Pick<Circle, 'id' | 'kind' | 'myRole'>, me: string): boolean {
   // In a friendship the two are equal (docs/ADR/0026 §1).
   if (circle.myRole === 'owner' || circle.kind === 'pair') return true;
-  return circle.kind !== 'event' && planOf(circle.id).by === me;
+  const doc = useDocs.getState()[docKey(circle.id, circle.id)];
+  return circle.kind !== 'event' && starterOf(doc) === me;
 }
 
 /**
@@ -91,12 +93,11 @@ export async function startMeeting(
 }
 
 /**
- * A place added for a meeting goes with it (docs/ADR/0026 Ek 1); one the circle had stays.
- * Nothing when it is gone already or this phone cannot read it.
+ * A place added for a meeting goes with it (docs/ADR/0026 Ek 1); one the circle had stays. Only
+ * a spot this phone added itself (my-spots.ts, QA-35); nothing when it is gone already.
  */
 export async function forgetMeetingPlace(placeId: string): Promise<void> {
-  const place = usePlaces.getState()[placeId];
-  if (place !== undefined) await places.remove(place);
+  await forgetSpot(placeId);
 }
 
 /**
@@ -199,7 +200,7 @@ function movedNotices(before: PlanPayload, next: PlanPayload) {
 export async function answerMeeting(circleId: string, answer: MeetingAnswer): Promise<boolean> {
   const me = useAuth.getState().userId;
   if (me === null) return told('failed');
-  const starter = planOf(circleId).by;
+  const starter = starterOf(useDocs.getState()[docKey(circleId, circleId)]);
   const choice = MEETING_ANSWERS.indexOf(answer);
   const { going, maybe } = answerCounts(
     new Map(answersOf(useDocs.getState(), circleId)).set(me, answer),

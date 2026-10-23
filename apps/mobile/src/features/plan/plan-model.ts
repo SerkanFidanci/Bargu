@@ -280,7 +280,10 @@ const ARRIVAL_FRESH_MS = 15 * 60_000;
 /**
  * "Kim ne zaman orada?": there (inside the place), coming (with the time their phone estimated
  * for this meeting), or unknown (not sharing their exact location, or nothing recent). Those
- * there first, then by arrival, the unknown last.
+ * there first, then by arrival, the unknown last. With `answers` (a meeting outside an event,
+ * docs/ADR/0026 Ek 2) only who said "Geliyorum" is on it (QA-35): a "Belki", a "Gelemiyorum" or
+ * no answer never shows as coming. Its starter is, unless they said otherwise; and whoever said
+ * "Geldim".
  */
 export function arrivals(input: {
   meetAt: number;
@@ -291,10 +294,23 @@ export function arrivals(input: {
   told?: Readonly<Record<string, number | undefined>>;
   /** Who said "Geldim" themselves, for this meeting (docs/ADR/0026 §5). */
   arrived?: ReadonlySet<string>;
+  answers?: ReadonlyMap<string, MeetingAnswer> | undefined;
+  starter?: string | undefined;
   now: number;
 }): Arrival[] {
-  const { meetAt, place, now } = input;
-  const rows = input.members.map((userId): Arrival => {
+  const { meetAt, place, now, answers } = input;
+  const members =
+    answers === undefined
+      ? input.members
+      : input.members.filter((userId) => {
+          const answer = answers.get(userId);
+          return (
+            answer === 'going' ||
+            (answer === undefined && userId === input.starter) ||
+            input.arrived?.has(userId) === true
+          );
+        });
+  const rows = members.map((userId): Arrival => {
     const loc = input.locations[userId];
     const fresh = loc !== undefined && now - loc.ts <= ARRIVAL_FRESH_MS ? loc : undefined;
     // Only an exact location tells an arrival (a coarse one is a cell's centre), or their word.
@@ -404,4 +420,15 @@ export function meetingSpots(all: Readonly<Record<string, Doc>>): ReadonlySet<st
     }
   }
   return spots;
+}
+
+/**
+ * Who started a circle's meeting outside an event (docs/ADR/0026). Its first version is signed by
+ * whoever started it: one naming someone else is not believed (QA-35). Later versions come only
+ * from the starter or an admin (the server holds that rule), who keep the name as it was.
+ */
+export function starterOf(doc: Doc | undefined): string | undefined {
+  const plan = doc?.payload;
+  if (doc === undefined || plan?.kind !== 'plan' || plan.by === undefined) return undefined;
+  return doc.version === 1 && doc.authorId !== plan.by ? undefined : plan.by;
 }

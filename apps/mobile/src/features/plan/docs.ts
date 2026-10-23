@@ -15,7 +15,7 @@ import { verifiedBundle } from '../keys/bundle-cache';
 import type { KeyStore } from '../keys/key-store';
 import { timed } from '../location/probe';
 import type { KeyValueStore } from '../storage/vault';
-import { type Doc, meetingEnd } from './plan-model';
+import { type Doc, meetingEnd, starterOf } from './plan-model';
 
 /** Every circle's documents this phone could open, keyed by `docKey` (screens read this). */
 export const useDocs = create<Record<string, Doc>>(() => ({}));
@@ -117,7 +117,7 @@ function mayReseal(circle: Circle, doc: Doc, me: string | null): boolean {
   if (circle.myRole === 'owner') return true;
   // A friendship's meeting is either one's (docs/ADR/0026 §1).
   if (circle.kind === 'pair' && doc.payload.kind === 'plan') return true;
-  return circle.kind !== 'event' && doc.payload.kind === 'plan' && doc.payload.by === me;
+  return circle.kind !== 'event' && doc.payload.kind === 'plan' && starterOf(doc) === me;
 }
 
 /** What a save sends along: outside an event the meeting says its end (docs/ADR/0026 §2). */
@@ -263,7 +263,7 @@ export function createDocs(deps: DocsDeps) {
         restoredBefore &&
         circle.kind !== 'event' &&
         opened.payload.kind === 'plan' &&
-        opened.payload.by !== me
+        starterOf(opened) !== me
       ) {
         deps.onMeetingStarted?.(circle, opened);
       }
@@ -286,7 +286,7 @@ export function createDocs(deps: DocsDeps) {
     for (const doc of Object.values(current)) {
       const plan = doc.payload;
       if (doc.circleId !== circle.id || plan.kind !== 'plan' || ids.has(plan.id)) continue;
-      if (plan.placeGoes === true && plan.by === me && plan.placeId !== undefined) {
+      if (plan.placeGoes === true && starterOf(doc) === me && plan.placeId !== undefined) {
         leftPlaces.push(plan.placeId);
       }
     }

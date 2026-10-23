@@ -56,6 +56,7 @@ import {
   MEETING,
   MEETING_ANSWERS,
   type MeetingAnswer,
+  starterOf,
   tally,
   type TravelMode,
 } from './plan-model';
@@ -97,10 +98,8 @@ export function MeetingCard({ circle, onEdit }: { circle: Circle; onEdit?: () =>
   // its starter's too (docs/ADR/0026). Everyone votes and tells when late.
   const admin = mayRunMeeting(circle, me);
   const unset = admin ? undefined : t(event ? 'plan.adminChooses' : 'meeting.starterChooses');
-  const starter =
-    !event && plan?.kind === 'plan'
-      ? circle.members.find((member) => member.userId === plan.by)
-      : undefined;
+  const startedBy = event ? undefined : starterOf(docs[docKey(circle.id, circle.id)]);
+  const starter = circle.members.find((member) => member.userId === startedBy);
   // The place was added for this meeting (docs/ADR/0026 Ek 1): it goes with it unless kept.
   const placeGoes = plan?.kind === 'plan' ? plan.placeGoes : undefined;
   const finish = (keepPlace: boolean) => {

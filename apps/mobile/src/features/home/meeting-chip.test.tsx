@@ -1,3 +1,4 @@
+import { voteId } from '@bargu/crypto';
 import type { Circle, LocPayload } from '@bargu/schemas';
 import { act, render, screen } from '@testing-library/react-native';
 
@@ -33,6 +34,7 @@ import { MeetingChip } from '@/features/home/meeting-chip';
 import { useMyFix } from '@/features/location/engine';
 import { useLocations } from '@/features/location/receive';
 import type { Place } from '@/features/places/place-model';
+import { docKey, useDocs } from '@/features/plan/docs';
 import { useArrived, useLates } from '@/features/plan/meeting';
 import type { MeetingPoint } from '@/features/plan/meeting-points';
 import { useCelebration } from '@/ui/confetti';
@@ -111,6 +113,25 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   mockVault.clear();
+  // Everyone said "Geliyorum": only they are counted outside an event (QA-35).
+  useDocs.setState(
+    Object.fromEntries(
+      [ids.me, ids.bora, ids.can, ids.dana].map((userId) => {
+        const id = voteId(family.id, userId);
+        return [
+          docKey(family.id, id),
+          {
+            circleId: family.id,
+            version: 1,
+            shared: false,
+            authorId: userId,
+            payload: { kind: 'vote' as const, id, pollId: family.id, choices: [0], ts: 1 },
+          },
+        ];
+      }),
+    ),
+    true,
+  );
   useLocations.setState({}, true);
   useLates.setState({}, true);
   useArrived.setState({}, true);

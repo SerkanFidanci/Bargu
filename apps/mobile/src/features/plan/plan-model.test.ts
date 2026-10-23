@@ -19,6 +19,7 @@ import {
   meetingSpots,
   meetingTimes,
   PROGRESS,
+  starterOf,
   tally,
   travelMode,
   travelMs,
@@ -261,6 +262,51 @@ describe('who is there when', () => {
     ]);
   });
 
+  it('outside an event, shows only who said "Geliyorum", its starter and who said "Geldim" (QA-35)', () => {
+    const coming = { eta: { meetAt, at: meetAt + 10 * MIN } };
+    const rows = arrivals({
+      meetAt,
+      place,
+      members: [ids.ayse, ids.bora, ids.can, 'dana', 'emre', 'fatma'],
+      locations: {
+        [ids.ayse]: loc(north(2_000), coming),
+        // "Belki" and "Gelemiyorum", sharing their location with an estimate: not coming.
+        [ids.bora]: loc(north(2_000), coming),
+        [ids.can]: loc(north(2_000), coming),
+        // No answer: neither.
+        dana: loc(north(2_000), coming),
+        // The starter, who said nothing: coming.
+        emre: loc(north(2_000), coming),
+      },
+      arrived: new Set(['fatma']),
+      answers: new Map([
+        [ids.ayse, 'going'],
+        [ids.bora, 'maybe'],
+        [ids.can, 'not'],
+        ['fatma', 'maybe'],
+      ]),
+      starter: 'emre',
+      now,
+    });
+    expect(rows.map((row) => [row.userId, row.state])).toEqual([
+      ['fatma', 'there'],
+      [ids.ayse, 'coming'],
+      ['emre', 'coming'],
+    ]);
+    // The starter who said they cannot come is not on it either.
+    expect(
+      arrivals({
+        meetAt,
+        place,
+        members: ['emre'],
+        locations: { emre: loc(north(2_000), coming) },
+        answers: new Map([['emre', 'not']]),
+        starter: 'emre',
+        now,
+      }),
+    ).toEqual([]);
+  });
+
   it("takes people's own word when it says later than their phone", () => {
     const rows = arrivals({
       meetAt,
@@ -407,5 +453,23 @@ describe('a meeting spot (docs/ADR/0026 Ek 1)', () => {
       d: plan('c4', { placeGoes: true }),
     };
     expect([...meetingSpots(all)]).toEqual(['taksim']);
+  });
+});
+
+describe("a meeting's starter (QA-35)", () => {
+  const plan = (version: number, authorId: string): Doc => ({
+    circleId: 'c1',
+    version,
+    shared: true,
+    authorId,
+    payload: { kind: 'plan', id: 'c1', meetAt: 1, by: 'ayse', ts: 1 },
+  });
+
+  it('is whoever signed its first version; a first version naming someone else names nobody', () => {
+    expect(starterOf(plan(1, 'ayse'))).toBe('ayse');
+    expect(starterOf(plan(1, 'bora'))).toBeUndefined();
+    // Changed later by an admin (only the starter and admins may): the name stays.
+    expect(starterOf(plan(2, 'bora'))).toBe('ayse');
+    expect(starterOf(undefined)).toBeUndefined();
   });
 });

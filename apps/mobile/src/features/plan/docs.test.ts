@@ -309,6 +309,17 @@ describe('event documents on the phone', () => {
     expect(await endsOnItsOwn(circlePlace)).toEqual([]);
     // Someone else's meeting: their phone lets it go, not this one.
     expect(await endsOnItsOwn({ ...meeting, by: bora.userId })).toEqual([]);
+    // Someone who may write the plan names Ayşe its starter (QA-35): her phone does not believe it.
+    useDocs.setState({}, true);
+    forgot.mockClear();
+    const boras = docsOf(bora, () => [group], server.api);
+    expect(await boras.save(group.id, { ...meeting, by: ayse.userId }, { pushes: [] })).toBe(
+      'saved',
+    );
+    await ayses.sync();
+    server.rows.delete(group.id);
+    await ayses.sync();
+    expect(forgot).not.toHaveBeenCalled();
   });
 
   it('tell when someone else starts a meeting, and let its starter seal it again', async () => {

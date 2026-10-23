@@ -54,6 +54,17 @@ jest.mock('@/features/places/places-session', () => ({
     remove: jest.fn(),
   },
 }));
+// The vault (MMKV, native): a map here. It keeps the spots this phone added (QA-35).
+const mockVault = new Map<string, string>();
+jest.mock('@/features/storage/vault', () => ({
+  isVaultOpen: () => true,
+  vault: () => ({
+    get: (key: string) => mockVault.get(key),
+    set: (key: string, value: string) => {
+      mockVault.set(key, value);
+    },
+  }),
+}));
 jest.mock('@/ui/toast', () => ({
   toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
@@ -67,6 +78,7 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   jest.clearAllMocks();
+  mockVault.clear();
   useMeetingPlaceDraft.setState(null, true);
 });
 
@@ -96,6 +108,8 @@ describe('a meeting spot picked on the map (the owner, 2026-10-23)', () => {
     });
     const saved = mockSave.mock.calls[0]?.[1];
     expect(useMeetingPlaceDraft.getState()).toEqual({ circleId: CIRCLE, placeId: saved?.id });
+    // This phone remembers it added the spot: only such a place ever goes with a meeting.
+    expect(JSON.parse(mockVault.get('meeting:spots:v1') ?? '[]')).toEqual([saved?.id]);
     expect(toast.success).not.toHaveBeenCalled();
     expect(router.back).toHaveBeenCalled();
   });

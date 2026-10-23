@@ -15,13 +15,19 @@ jest.mock('expo-secure-store', () => ({
 jest.mock('@/ui/toast', () => ({
   toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
-// The vault is a native module (MMKV); these actions only read contacts from it when starting.
+// The vault is a native module (MMKV): here a map. It holds the spots this phone added.
+const mockVault = new Map<string, string>();
 jest.mock('../storage/vault', () => ({
+  isVaultOpen: () => true,
   vault: () => ({
-    get: () => undefined,
-    set: () => undefined,
-    delete: () => undefined,
-    keys: () => [],
+    get: (key: string) => mockVault.get(key),
+    set: (key: string, value: string) => {
+      mockVault.set(key, value);
+    },
+    delete: (key: string) => {
+      mockVault.delete(key);
+    },
+    keys: () => [...mockVault.keys()],
   }),
 }));
 // What the actions ask of the documents and the places: recorded, always granted.
@@ -60,6 +66,7 @@ jest.mock('../places/presence', () => ({
 import { useAuth } from '../auth/auth-store';
 import { usePlaces } from '../places/places';
 import { docKey, useDocs } from './docs';
+import { rememberSpot } from './my-spots';
 import { answerMeeting, endMeeting, keepMeetingPlace, setMeeting } from './plan-actions';
 
 const CIRCLE = '00000000-0000-4000-8000-000000000001';
@@ -75,7 +82,8 @@ function holdMeeting(plan: Partial<PlanPayload>): void {
         circleId: CIRCLE,
         version: 1,
         shared: true,
-        authorId: ME,
+        // Its first version is signed by its starter (QA-35).
+        authorId: payload.by ?? ME,
         payload,
       },
     },
@@ -97,6 +105,9 @@ beforeEach(() => {
     ts: 1,
   });
   usePlaces.setState({ [ADDED]: place(ADDED, 'Woh date'), [HOME]: place(HOME, 'Ev') }, true);
+  // This phone added "Woh date" for its meeting.
+  mockVault.clear();
+  rememberSpot(ADDED);
 });
 
 describe('the place added for a meeting (docs/ADR/0026 Ek 1)', () => {
@@ -146,6 +157,15 @@ describe('the place added for a meeting (docs/ADR/0026 Ek 1)', () => {
     holdMeeting({ placeId: HOME });
     await setMeeting(CIRCLE, { placeId: spot, spot: true });
     expect(mockSave.mock.calls[0]?.[1]).toMatchObject({ placeId: spot, placeGoes: true });
+    expect(mockForget).not.toHaveBeenCalled();
+  });
+
+  it('never takes a place this phone did not add, whatever the plan says (QA-35)', async () => {
+    // Someone who may write the plan said the circle's "Ev" goes with the meeting.
+    holdMeeting({ placeId: HOME, placeGoes: true });
+    expect(await endMeeting(CIRCLE)).toBe(true);
+    holdMeeting({ placeId: HOME, placeGoes: true });
+    await setMeeting(CIRCLE, { placeId: ADDED });
     expect(mockForget).not.toHaveBeenCalled();
   });
 
