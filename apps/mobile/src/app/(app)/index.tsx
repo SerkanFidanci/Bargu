@@ -252,14 +252,16 @@ export default function HomeScreen() {
           pointerEvents="box-none"
         >
           <View style={styles.topRow} pointerEvents="box-none">
-            <SeersPill
-              seers={seers}
-              ghost={sharing.ghost}
-              permission={permission}
-              onPress={() => {
-                router.push('/seers');
-              }}
-            />
+            <View style={styles.seers} pointerEvents="box-none">
+              <SeersPill
+                seers={seers}
+                ghost={sharing.ghost}
+                permission={permission}
+                onPress={() => {
+                  router.push('/seers');
+                }}
+              />
+            </View>
             {weather === null ? null : <WeatherChip here={weather} town={townIn(found, cell)} />}
           </View>
           <MeetingChip circles={circleList.data ?? []} points={points} now={now} me={myUserId} />
@@ -365,14 +367,14 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   bottom: { position: 'absolute', left: 0, right: 0 },
-  // "Who sees me" and the weather side by side; on a narrow screen or with large text the weather
-  // goes under.
+  // "Who sees me" and the weather always side by side (the owner, 2026-10-23: the weather had gone
+  // under it); on a narrow screen or with large text "who sees me" gives way, its text shortened.
   topRow: {
     alignSelf: 'stretch',
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
   },
+  seers: { flexShrink: 1 },
 });
