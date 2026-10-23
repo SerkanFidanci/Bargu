@@ -24,7 +24,7 @@ failing_files() { grep -E 'FAIL ' "$1" | sed -E 's/.*FAIL +//' | sort -u; }
 fails="$(failing_files "$log")"
 # Not the summary "ci-linux: typecheck, lint, test or build failed", which every failure prints:
 # a build, typecheck or lint task that failed names itself (@bargu/x#build: ERROR ...).
-other="$(grep -E 'error TS|✖ [0-9]+ problem|Code style issues|ERR_PNPM|@bargu/(api|crypto|schemas)#test: +ERROR|#(build|typecheck|lint): +ERROR|check:chars failed|format failed' "$log" | head -3)"
+other="$(grep -E 'error TS|✖ [0-9]+ problem|Code style issues|ERR_PNPM|@bargu/(api|crypto|schemas)#test: +ERROR|#(build|typecheck|lint): +ERROR|check:chars failed|check:migrations failed|format failed' "$log" | head -3)"
 load=yes
 if [ -z "$fails" ] || [ -n "$other" ]; then load=no; fi
 while IFS= read -r line; do
