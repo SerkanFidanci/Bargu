@@ -120,6 +120,24 @@ function phone(who: Person, circle: Circle) {
   };
 }
 
+/**
+ * Redis's DEL fails once, the first time it is asked to delete a key naming this circle; every
+ * other DEL (other circles' clean-ups, other tests) goes through.
+ */
+function failOnceFor(redis: RedisClient, circleId: string) {
+  const original = redis.del.bind(redis);
+  let failed = false;
+  const del = (keys: Parameters<RedisClient['del']>[0]) => {
+    const names = (Array.isArray(keys) ? keys : [keys]).map(String);
+    if (!failed && names.some((name) => name.includes(circleId))) {
+      failed = true;
+      return Promise.reject(new Error('redis hiccup'));
+    }
+    return original(keys);
+  };
+  return vi.spyOn(redis, 'del').mockImplementation(del);
+}
+
 describe('event circles', () => {
   it('end between a quarter of an hour and a week from now; groups have no end', async () => {
     const owner = await person(test);
@@ -340,9 +358,11 @@ describe('event circles', () => {
       exclusively(test, async () => {
         const { circle } = await eventWithEverything();
         await endOnTime(circle.id);
-        // Redis fails once, after the database already let the circle go.
+        // Redis fails once, after the database already let the circle go: for this circle's keys
+        // only. The sweep takes every pending clean-up in the shared database; a failure meant for
+        // this one, spent on another file's, left this circle cleaned at once (CI 39928609789).
         const redis = test.app.get<RedisClient>(REDIS);
-        const del = vi.spyOn(redis, 'del').mockRejectedValueOnce(new Error('redis hiccup'));
+        const del = failOnceFor(redis, circle.id);
         const expiry = test.app.get(EventExpiry);
         await expect(expiry.sweep()).rejects.toThrow('redis hiccup');
         del.mockRestore();
@@ -364,7 +384,7 @@ describe('event circles', () => {
         const event = await createEvent(owner);
         await join(ayse, await qrOf(owner, event));
         const redis = test.app.get<RedisClient>(REDIS);
-        const del = vi.spyOn(redis, 'del').mockRejectedValueOnce(new Error('redis hiccup'));
+        const del = failOnceFor(redis, event.id);
         expect((await as(test, owner, 'POST', `/v1/circles/${event.id}/end`)).statusCode).toBe(204);
         del.mockRestore();
         await test.app.get(EventExpiry).sweep();
