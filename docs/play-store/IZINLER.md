@@ -60,21 +60,39 @@ Eksikler (Play "belirgin açıklama" ölçütü için kod oturumu işi K10):
 
 iOS tarafı için (sonra): `NSLocationAlwaysAndWhenInUseUsageDescription` metni `native-locales` içinde zaten var.
 
-## 3. Konum izinleri (Android)
+## 3. Android izinleri (derlenmiş manifest, 2026-10-22, Faz 10 hazırlığı)
 
-| İzin                                                         | Durum                              | Not                                                                                                                                                                                                                         |
-| ------------------------------------------------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ACCESS_FINE_LOCATION`                                       | İsteniyor ("kullanırken")          | Harita ve canlı konum için. Kullanıcı yalnızca "yaklaşık" verirse çalışır ama ince hassasiyet kaybolur. Play'e: "Tam konum gerekli çünkü arkadaşlar sokak düzeyinde görür; kullanıcı hassasiyeti mahalle/şehre düşürebilir" |
-| `ACCESS_COARSE_LOCATION`                                     | İsteniyor                          |                                                                                                                                                                                                                             |
-| `ACCESS_BACKGROUND_LOCATION`                                 | **İstenmiyor**                     | Kodla doğrulandı. Manifest birleşiminde bir kitaplık ekliyorsa AAB'ye bak (`aapt dump permissions`) — kod oturumu K3 kontrolü                                                                                               |
-| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`          | Gerekli                            | Beyan: §0 yol A                                                                                                                                                                                                             |
-| `POST_NOTIFICATIONS`                                         | Android 13+ çalışma anı izni       | Arkadaş bildirimi, dürtme, varış için; reddedilirse uygulama çalışır, bildirim gelmez. Bağlamda iste (ilk çember/yer)                                                                                                       |
-| `CAMERA`                                                     | QR okuma                           | Mikrofon engelli, kayıt yok                                                                                                                                                                                                 |
-| `READ_MEDIA_IMAGES`                                          | Gerekmez                           | Android 13+ sistem fotoğraf seçici izinsiz                                                                                                                                                                                  |
-| `RECORD_AUDIO`                                               | **Engelli** (`blockedPermissions`) |                                                                                                                                                                                                                             |
-| `INTERNET`, `VIBRATE`, `WAKE_LOCK`, `RECEIVE_BOOT_COMPLETED` | Kitaplıklardan gelir, olağan       |                                                                                                                                                                                                                             |
+Kaynak: yerel AAB derlemesi (targetSdk 36, versionName 0.9.0) ve kod oturumunun kaynak bazlı incelemesi. Aynı tablo `apps/mobile/README.md` "Android izinleri" bölümünde. `release-config.test.ts`, tutulması gereken bir izin engellenirse; `check-manifest.mjs`, engellenen bir izin geri girerse derlemeyi kırar.
 
-Yayından önce AAB'nin birleşik manifestosundan gerçek izin listesi çıkar ve bu tabloyla karşılaştır.
+**Kalan 17 izin**
+
+| İzin                                                      | Kaynak              | Neden                                                                                                                                                                                            |
+| --------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`          | expo-location       | Konum paylaşımı, yalnızca "kullanırken". Kullanıcı hassasiyeti mahalle ya da şehre düşürebilir                                                                                                   |
+| `ACCESS_BACKGROUND_LOCATION`                              | —                   | **İstenmiyor** (derlenmiş manifestte doğrulandı)                                                                                                                                                 |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`       | expo-location       | Bildirimi görünen konum servisi; beyan §0 yol A                                                                                                                                                  |
+| `CAMERA`                                                  | expo-camera         | QR okuma; kayıt yok                                                                                                                                                                              |
+| `POST_NOTIFICATIONS`                                      | expo-notifications  | Android 13+ bildirim izni, bağlamda istenir                                                                                                                                                      |
+| `RECEIVE_BOOT_COMPLETED`                                  | expo-notifications  | Telefon yeniden başlayınca üç yerel hatırlatma yeniden kurulur: deneme sonu, haftalık "seni kim görüyor", buluşma "çıkmalısın"                                                                   |
+| `USE_BIOMETRIC`, `USE_FINGERPRINT`                        | biyometrik kilit    | Uygulama kilidi; `USE_FINGERPRINT` Android 7–8 için                                                                                                                                              |
+| `VIBRATE`                                                 | —                   | Dokunsal geri bildirim (sade modda kapanır)                                                                                                                                                      |
+| `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`   | —                   | Ağ ve bağlantı durumu                                                                                                                                                                            |
+| `WAKE_LOCK`, `com.google.android.c2dm.permission.RECEIVE` | Firebase            | Bildirim (push)                                                                                                                                                                                  |
+| `app.bargu.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`      | AndroidX            | Kitaplığın kendi imza izni; kullanıcı görmez                                                                                                                                                     |
+| `DETECT_SCREEN_CAPTURE`                                   | expo-screen-capture | Normal izin, kurulumda kendiliğinden verilir. Android 14+ ekran yakalama koruması açılışta bu izinle kayıt yapar; engellenince uygulama açılışta çöker (869a7af, düzeltme cf3469b). Kaldırılamaz |
+
+**Çıkarılan 21 izin** (`blockedPermissions`):
+
+- `SYSTEM_ALERT_WINDOW`: yalnızca geliştirici menüsü kullanıyordu.
+- `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`: fotoğraf sistem seçicisinden gelir, dışa aktarma kullanıcının seçtiği klasöre yazılır.
+- `READ_MEDIA_IMAGES`: gerekmiyor.
+- Install Referrer: kimse okumuyor.
+- `READ_APP_BADGE` ve 15 başlatıcı rozet izni (Samsung, Huawei, Sony vb.): uygulama rozet sayısı göstermiyor.
+- `RECORD_AUDIO`: zaten engelliydi.
+
+`DUMP` bir izin isteği değil, profileinstaller kitaplığının kendi koruması.
+
+**Bilinen davranış:** telefon yeniden başlayınca konum paylaşımı büyük olasılıkla kullanıcı Bargu'yu açana kadar durur; arka plan konum izni olmadan Android servisi açılışta başlatmaya izin vermez. Telefonda doğrulanacak. Açılışta "Paylaşım durdu, Bargu'yu aç" yerel bildirimi planlandı.
 
 ## 4. 30 saniyelik demo video senaryosu (ön plan servisi / arka plan beyanı)
 
