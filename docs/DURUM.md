@@ -237,6 +237,13 @@ kapalı testten önce.
   2. "Belki" ya da "Gelemiyorum" diyenin "yolda" görünmesi: tahta ve çip, buluşma dışı çemberde
      yalnız "Geliyorum" diyenleri, yanıt vermemiş başlatanı ve "Geldim" diyenleri sayar.
   3. Buluşma biterken gelen yanıtın 500 alması: artık 404.
+- QA-36 (dürtme, buluşma, logo, `dc045ea`): yüksek bulgu yok. "Geçici buluşma noktası" üçüncü kez
+  açık verdi. PM tasarımı değiştirdi (ADR 0026 Ek 1 yeniden yazıldı, `d5266a1`):
+  - Haritadan seçilen nokta artık buluşmanın kendi şifreli içeriğinde duruyor, kayıtlı yer olarak
+    hiç yazılmıyor. Buluşmayla birlikte gidiyor; temizlenecek bir şey kalmıyor.
+  - Hiçbir plan artık bir kayıtlı yeri silemez ya da gizleyemez.
+  - "Bitir, yeri sakla" noktadan normal bir kayıtlı yer oluşturur.
+  - Dürtme bildiriminde cevap, hazır cevaplardan biri olmak zorunda.
 
 ### Test sonuçları (son çalıştırma, `c2754a1`)
 
@@ -505,15 +512,15 @@ API'den bağlanır.
     özet satırı ("typecheck, lint, test or build failed") "derleme hatası" sayılıyordu. Düzeltildi
     (`784eca6`, testi `ci-linux-retry.test.sh` 6/6). `idle-frames.test.tsx` bir kez 106 sn'de
     zaman aşımına uğradı (makine yüklüyken); yeniden denemede geçti.
-48. Buluşma noktası (`e488c9b`): nokta seçilip buluşma başlatılmadan uygulama tam o anda
-    kapanırsa nokta sıradan bir kayıtlı yer olarak kalır; kullanıcı silebilir. Eski sürümlerdeki
-    telefonlar noktayı buluşma sürerken "Yerler" listesinde görür.
-49. QA-35 düzeltmesinden (`62d82ba`) sonra bir telefon yalnız kendi eklediği noktaları siler
-    (telefonda tutulan liste). Daha önceki APK'larla eklenen buluşma yerleri bu listede yok:
-    buluşma bitince kendiliğinden gitmezler, elle silinir. Buluşmanın "başlatan" bilgisi yalnız
-    ilk sürümde imzayla doğrulanır. Sonraki değişiklikleri zaten yalnız başlatan ve yöneticiler
-    yapabilir (sunucu kuralı). Bir yöneticinin "başlatan"ı değiştirmesi ancak sunucunun bildiği
-    başlatanı istemciye göndermesiyle yakalanır; bu bir API değişikliği, gerekirse sonra.
+48. ~~Buluşma noktasının kayıtlı yer olarak kalması~~: QA-36 tasarımıyla (`d5266a1`) nokta artık
+    hiç kayıtlı yer olmuyor. Önceki APK'larla oluşan noktalar ("Woh date", "Taksim") olduğu gibi
+    kalır, elle silinir. Eski uygulamalar noktalı bir buluşmada haritada nokta göstermez, yeri
+    "belli değil" görür (istemci seviyesi artırılmadı).
+49. Buluşmanın "başlatan" bilgisi yalnız ilk sürümde imzayla doğrulanır (QA-35). Sonraki
+    değişiklikleri zaten yalnız başlatan ve yöneticiler yapabilir (sunucu kuralı). Bir yöneticinin
+    "başlatan"ı değiştirmesi ancak sunucunun bildiği başlatanı istemciye göndermesiyle yakalanır;
+    bu bir API değişikliği, gerekirse sonra. Artık "başlatan" bir yer silemez (nokta buluşmanın
+    içinde).
 
 ### Telefonda denenecekler (proje sahibi, 2c APK'sı)
 
@@ -712,10 +719,10 @@ yeniden başlatma alıcısı) ve buluşma noktası, "Düzenle", haritada buluşm
     ekranı açılır (ad, simge, boyut). Bir kişinin kartı açıkken ilk dokunuş yalnız kartı kapatır.
 63. Hava kartı: İstanbul dışındayken (ör. Bozüyük) kendi ilçenin adı ya da hiç ad; uzak bir büyük
     şehrin adı değil. Haritayı uzaklaştırıp yaklaştır, ad yine doğru kalır.
-64. Bir buluşmayı başlatırken "Yeni yer ekle" ile yer ekle ve başlat. Buluşma
-    ekranında "Bitince yeri sakla" kapalıdır; "Buluşmayı bitir" deyince pencerede "Bitir, yeri
-    sakla" da çıkar. Bitirince (saklamadan) o yer haritadan gider; önceden kayıtlı bir yerle
-    başlatılan buluşmada yer kalır.
+64. Sonraki APK'da: haritadan seçilen noktayla başlatılan buluşmada "Buluşmayı bitir" deyince
+    pencerede "Bitir, yeri sakla" da çıkar. Saklamadan bitirince nokta haritadan gider ve "Yerler"
+    listesinde hiç görünmemiştir; "Bitir, yeri sakla" deyince "Yerler"de yeni bir 📍 yer olur.
+    Önceden kayıtlı bir yerle başlatılan buluşmada yer hep kalır.
 65. Haritada bir yere dokun; yer ekranı açılırken görüntü yırtılmamalı. Bir kişinin
     geçmişini açarken de aynısı.
 66. Bir buluşma başlat. Buluşma ekranında "Geliyor musun?" altında Geliyorum / Belki /
@@ -724,8 +731,9 @@ yeniden başlatma alıcısı) ve buluşma noktası, "Düzenle", haritada buluşm
     bildirimi yalnız Geliyorum ya da Belki diyene gider. Test botu yanıt vermez (eski kod).
 67. Buluşma başlat > "Haritadan nokta seç": haritayı kaydır, ad yazmadan "Bu noktayı
     seç". Ad haritadaki semt adı olur (ör. "Taksim"), satırda "Yalnız bu buluşma için" yazar.
-    Başlatmadan geri çıkarsan nokta kalmaz. Buluşma sürerken çemberin "Yerler" listesinde görünmez;
-    buluşma bitince haritadan da gider.
+    Başlatmadan geri çıkarsan hiçbir şey kalmaz. Sonraki APK'da nokta hiç kayıtlı yer olmaz:
+    "Yerler" listesinde görünmez, buluşma bitince haritadan da gider. "Düzenle" ile başka bir
+    noktaya ya da kayıtlı yere geçince eskisi de iz bırakmaz.
 68. Haritadaki buluşma bayrağına ya da buluşmanın kesik çizgili alanının içine dokun:
     buluşma ekranı açılır. Yan yana iki buluşmada her satır kendi buluşmasını açar. Kayıtlı yerin
     etiketine dokununca da yer açılır.
