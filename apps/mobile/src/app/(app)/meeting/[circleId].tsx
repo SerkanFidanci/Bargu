@@ -1,21 +1,27 @@
 import type { Circle, PlanPayload } from '@bargu/schemas';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, Flag, MapPin, Navigation, Pencil, Users } from 'lucide-react-native';
+import { Check, Flag, MapPin, Users } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/features/auth/auth-store';
-import { endClock } from '@/features/circles/event-ui';
 import { memberName } from '@/features/circles/names';
 import { useCircle } from '@/features/circles/queries';
 import { useNow } from '@/features/location/clock';
-import type { Place } from '@/features/places/place-model';
 import { usePlaces } from '@/features/places/places';
 import { docKey, useDocs } from '@/features/plan/docs';
+import { meetingOf } from '@/features/plan/meeting';
 import { MeetingCard } from '@/features/plan/meeting-card';
 import { useMeetingPlaceDraft } from '@/features/plan/meeting-place';
 import { PlaceIcon, TimeStepper, timeRange, useEventPlaces } from '@/features/plan/meeting-sheets';
+import {
+  MeetingAnswerCard,
+  MeetingHero,
+  MeetingManageCard,
+  MeetingPeopleCard,
+  MeetingWayCard,
+} from '@/features/plan/meeting-view';
 import {
   forgetMeetingPlace,
   mayRunMeeting,
@@ -25,9 +31,10 @@ import {
 import { MEETING, meetingSpots } from '@/features/plan/plan-model';
 import { space, useTheme } from '@/theme';
 import { Button } from '@/ui/button';
+import { Card } from '@/ui/card';
 import { EmptyState } from '@/ui/empty-state';
 import { ListRow } from '@/ui/list-row';
-import { Screen, SectionTitle } from '@/ui/screen';
+import { Screen } from '@/ui/screen';
 import { Text } from '@/ui/text';
 
 /** How a circle is named on the meeting: a friendship by the friend, a group by its name. */
@@ -38,23 +45,13 @@ function circleTitle(circle: Circle, me: string | null): string {
 }
 
 /**
- * Opens the phone's maps app with the way to the meeting place (docs/ADR/0026 §4): only on a tap,
- * and only then do the place's coordinates leave Bargu, to the app the person chose.
- */
-function openDirections(place: Pick<Place, 'lat' | 'lng'>): void {
-  const at = `${String(place.lat)},${String(place.lng)}`;
-  const url = Platform.OS === 'ios' ? `maps://?daddr=${at}` : `geo:${at}?q=${at}`;
-  void Linking.openURL(url).catch(() => undefined);
-}
-
-/**
  * A meeting's own screen (the project owner's request, docs/ADR/0026 §4): where and when, who
  * started it, who gets there when, the way there; outside an event, starting one when the circle
  * has none, and "Düzenle" for whoever may change it (the owner, 2026-10-23).
  */
 export default function MeetingScreen() {
   const { circleId } = useLocalSearchParams<{ circleId: string }>();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const me = useAuth((state) => state.userId);
   const circle = useCircle(circleId);
   const docs = useDocs();
@@ -99,59 +96,30 @@ export default function MeetingScreen() {
     );
   }
 
+  const shown = meetingOf(circle.id, docs, places);
+  const openForm = () => {
+    setEditing(true);
+  };
   return (
     <Screen title={t('meeting.title')} subtitle={title}>
-      <View testID="meeting-screen" style={styles.head}>
-        <View style={styles.where}>
-          {place === undefined ? null : <PlaceIcon emoji={place.emoji} />}
-          <View style={styles.whereText}>
-            <Text variant="title2" numberOfLines={2}>
-              {place?.name ?? t('plan.noPlace')}
-            </Text>
-            <Text variant="callout" color="textMuted">
-              {meeting?.meetAt === undefined
-                ? t('plan.noTime')
-                : endClock(meeting.meetAt, now, i18n.language)}
-            </Text>
-          </View>
-        </View>
-        {mayChange ? (
-          <Button
-            testID="meeting-edit"
-            label={t('meeting.edit')}
-            icon={Pencil}
-            onPress={() => {
-              setEditing(true);
-            }}
-          />
-        ) : null}
-        {place === undefined ? null : (
-          <Button
-            testID="meeting-directions"
-            label={t('meeting.directions')}
-            icon={Navigation}
-            variant="secondary"
-            onPress={() => {
-              openDirections(place);
-            }}
-          />
-        )}
-        {place === undefined ? null : (
-          <Text variant="caption" color="textMuted">
-            {t('meeting.directionsHint')}
-          </Text>
-        )}
-      </View>
-      <MeetingCard
+      <MeetingHero
         circle={circle}
-        {...(mayChange
-          ? {
-              onEdit: () => {
-                setEditing(true);
-              },
-            }
-          : {})}
+        me={me}
+        place={place}
+        meetAt={meeting?.meetAt}
+        now={now}
+        mayChange={mayChange}
+        onEdit={openForm}
       />
+      {event || me === null ? null : <MeetingAnswerCard circle={circle} me={me} />}
+      {event || me === null ? null : (
+        <MeetingPeopleCard circle={circle} meeting={shown} me={me} now={now} />
+      )}
+      {!event && shown !== null && now <= shown.meetAt + MEETING.etaUntilMs ? (
+        <MeetingWayCard circleId={circle.id} />
+      ) : null}
+      {mayChange ? <MeetingManageCard circle={circle} /> : null}
+      {event ? <MeetingCard circle={circle} /> : null}
       {event ? (
         <ListRow
           testID="meeting-open-event"
@@ -255,61 +223,58 @@ function MeetingForm({
 
   return (
     <View style={styles.start} testID={current === undefined ? 'meeting-start' : 'meeting-form'}>
-      {current === undefined ? (
-        <Text variant="callout" color="textMuted">
-          {t(circle.kind === 'pair' ? 'meeting.startBodyPair' : 'meeting.startBody')}
-        </Text>
-      ) : null}
-      <SectionTitle>{t('plan.placeTitle')}</SectionTitle>
-      {spot === undefined ? null : (
-        <ListRow
-          testID="meeting-start-spot"
-          leading={<PlaceIcon emoji={spot.emoji} />}
-          title={spot.name}
-          subtitle={t('meeting.spotOnly')}
-          trailing={chosenMark(spot.id)}
+      <Card title={t('meeting.where')}>
+        {spot === undefined ? null : (
+          <ListRow
+            testID="meeting-start-spot"
+            leading={<PlaceIcon emoji={spot.emoji} />}
+            title={spot.name}
+            subtitle={t('meeting.spotOnly')}
+            trailing={chosenMark(spot.id)}
+            onPress={() => {
+              setPlaceId(spot.id);
+            }}
+          />
+        )}
+        <Button
+          testID="meeting-start-add-place"
+          label={t(spot === undefined ? 'meeting.pickSpot' : 'meeting.pickOtherSpot')}
+          icon={MapPin}
+          variant={spot === undefined && saved.length === 0 ? 'primary' : 'secondary'}
           onPress={() => {
-            setPlaceId(spot.id);
+            router.push({
+              pathname: '/place/[circleId]',
+              params: { circleId: circle.id, forMeeting: '1' },
+            });
           }}
         />
-      )}
-      <Button
-        testID="meeting-start-add-place"
-        label={t(spot === undefined ? 'meeting.pickSpot' : 'meeting.pickOtherSpot')}
-        icon={MapPin}
-        variant="secondary"
-        onPress={() => {
-          router.push({
-            pathname: '/place/[circleId]',
-            params: { circleId: circle.id, forMeeting: '1' },
-          });
-        }}
-      />
-      <Text variant="caption" color="textMuted">
-        {t('meeting.pickSpotHint')}
-      </Text>
-      {saved.length === 0 ? null : (
-        <Text variant="subhead" color="textMuted">
-          {t('meeting.orSaved')}
+        <Text variant="caption" color="textMuted">
+          {t('meeting.pickSpotHint')}
         </Text>
-      )}
-      {saved.map((place) => (
-        <ListRow
-          key={place.id}
-          testID={`meeting-start-place-${place.id}`}
-          leading={<PlaceIcon emoji={place.emoji} />}
-          title={place.name}
-          subtitle={t('places.meters', { meters: place.radius })}
-          trailing={chosenMark(place.id)}
-          onPress={() => {
-            setPlaceId(place.id);
-          }}
-        />
-      ))}
-      <SectionTitle>{t('plan.time')}</SectionTitle>
-      {range === null ? null : (
-        <TimeStepper value={chosenTime} onChange={setMeetAt} min={range.min} max={range.max} />
-      )}
+        {saved.length === 0 ? null : (
+          <Text variant="subhead" color="textMuted">
+            {t('meeting.orSaved')}
+          </Text>
+        )}
+        {saved.map((place) => (
+          <ListRow
+            key={place.id}
+            testID={`meeting-start-place-${place.id}`}
+            leading={<PlaceIcon emoji={place.emoji} />}
+            title={place.name}
+            subtitle={t('places.meters', { meters: place.radius })}
+            trailing={chosenMark(place.id)}
+            onPress={() => {
+              setPlaceId(place.id);
+            }}
+          />
+        ))}
+      </Card>
+      <Card title={t('meeting.when')}>
+        {range === null ? null : (
+          <TimeStepper value={chosenTime} onChange={setMeetAt} min={range.min} max={range.max} />
+        )}
+      </Card>
       <Button
         testID="meeting-start-go"
         label={t(current === undefined ? 'meeting.start' : 'plan.save')}
@@ -321,8 +286,8 @@ function MeetingForm({
         }}
       />
       {current === undefined ? (
-        <Text variant="caption" color="textMuted">
-          {t('meeting.startHint')}
+        <Text variant="caption" color="textMuted" align="center">
+          {`${t(circle.kind === 'pair' ? 'meeting.startBodyPair' : 'meeting.startBody')} ${t('meeting.startHint')}`}
         </Text>
       ) : (
         <Button
@@ -339,8 +304,5 @@ function MeetingForm({
 }
 
 const styles = StyleSheet.create({
-  head: { gap: space.sm },
-  where: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  whereText: { flex: 1, gap: space.xxs },
-  start: { gap: space.sm },
+  start: { gap: space.md },
 });

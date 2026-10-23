@@ -266,8 +266,8 @@ describe('a meeting on its own screen (docs/ADR/0026 §4)', () => {
     expect(screen.queryByTestId('meeting-edit')).toBeNull();
     mockMayRun.mockReturnValue(true);
     await view.rerender(<MeetingScreen />);
-    // The card's place row opens the same form, and "Vazgeç" leaves it unchanged.
-    await fireEvent.press(screen.getByTestId('meeting-place'));
+    // "Düzenle" opens the form, and "Vazgeç" leaves it unchanged.
+    await fireEvent.press(screen.getByTestId('meeting-edit'));
     expect(screen.getByTestId('meeting-form')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('meeting-form-cancel'));
     expect(screen.getByTestId('meeting-screen')).toBeTruthy();
@@ -310,6 +310,44 @@ describe('a meeting on its own screen (docs/ADR/0026 §4)', () => {
     expect(screen.getByTestId('meeting-answer-counts')).toHaveTextContent('0 geliyor · 1 belki');
     await fireEvent.press(screen.getByRole('radio', { name: 'Geliyorum' }));
     expect(mockAnswer).toHaveBeenCalledWith(CIRCLE, 'going');
+  });
+
+  it('reads at a glance: where and when, then cards for the answer, who comes, the way and its end (the owner, 2026-10-23)', async () => {
+    mockMayRun.mockReturnValue(true);
+    mockCircle.current = {
+      ...family,
+      members: [
+        {
+          userId: ME,
+          role: 'member',
+          status: 'active',
+          username: null,
+          displayName: 'Ben',
+          avatar: null,
+          device: null,
+        },
+      ],
+    };
+    const meetAt = Date.now() + 90 * 60_000;
+    useDocs.setState({
+      [docKey(CIRCLE, CIRCLE)]: {
+        circleId: CIRCLE,
+        version: 1,
+        shared: true,
+        authorId: ME,
+        payload: { kind: 'plan', id: CIRCLE, meetAt, placeId: HOME, by: ME, ts: 1 },
+      },
+    });
+    await render(<MeetingScreen />);
+    expect(screen.getByTestId('meeting-when')).toHaveTextContent(/1 sa 30 dk kaldı/);
+    expect(screen.getByText('Buluşmayı sen başlattın.')).toBeTruthy();
+    for (const card of ['meeting-answers', 'meeting-people', 'meeting-way', 'meeting-manage']) {
+      expect(screen.getByTestId(card)).toBeTruthy();
+    }
+    // The actions side by side: the way there, edit, late, here.
+    for (const tile of ['meeting-directions', 'meeting-edit', 'late-open', 'meeting-here']) {
+      expect(screen.getByTestId(tile)).toBeTruthy();
+    }
   });
 
   it('says so when the circle is gone', async () => {

@@ -1232,6 +1232,21 @@
     "startHint": "The meeting ends on its own 3 hours after its time.",
     "edit": "Edit",
     "editTitle": "Edit the meeting",
+    "way": "Your way there",
+    "where": "Where?",
+    "when": "When?",
+    "left": {
+      "started": "Started",
+      "minutes": "{{minutes}} min to go",
+      "hours": "{{hours}} h {{minutes}} min to go"
+    },
+    "people": {
+      "title": "Who's coming",
+      "going": "Coming",
+      "maybe": "Maybe",
+      "not": "Can't come",
+      "none": "No answer"
+    },
     "pickSpot": "Pick a spot on the map",
     "pickOtherSpot": "Pick another spot",
     "pickSpotHint": "It is not saved as a place; it goes when the meeting ends.",

@@ -53,11 +53,12 @@ import { Appear } from '@/ui/appear';
 import { Avatar } from '@/ui/avatar';
 import { Badge } from '@/ui/badge';
 import { Button } from '@/ui/button';
+import { Card } from '@/ui/card';
 import { useCelebration } from '@/ui/confetti';
 import { EmptyState } from '@/ui/empty-state';
 import { IconButton } from '@/ui/icon-button';
 import { ListRow } from '@/ui/list-row';
-import { Screen, SectionTitle } from '@/ui/screen';
+import { Screen } from '@/ui/screen';
 import { Skeleton } from '@/ui/skeleton';
 import { Text } from '@/ui/text';
 import { TextField } from '@/ui/text-field';
@@ -361,22 +362,23 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
       ))}
 
       {pair ? null : (
-        <Appear index={3} style={styles.section}>
-          <SectionTitle>
-            {t('circles.detail.members', {
+        <Appear index={3}>
+          <Card
+            title={t('circles.detail.members', {
               count: circle.members.filter((m) => m.status === 'active').length,
             })}
-          </SectionTitle>
-          {circle.members.map((member) => (
-            <MemberRow
-              key={member.userId}
-              circle={circle}
-              member={member}
-              isMe={member.userId === me}
-              trust={status?.trust[member.userId]}
-              canManage={isOwner && active && member.userId !== me}
-            />
-          ))}
+          >
+            {circle.members.map((member) => (
+              <MemberRow
+                key={member.userId}
+                circle={circle}
+                member={member}
+                isMe={member.userId === me}
+                trust={status?.trust[member.userId]}
+                canManage={isOwner && active && member.userId !== me}
+              />
+            ))}
+          </Card>
         </Appear>
       )}
 

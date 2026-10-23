@@ -6,7 +6,6 @@ import {
   Clock,
   Hourglass,
   MapPin,
-  Square,
   Trash2,
   Vote,
 } from 'lucide-react-native';
@@ -18,9 +17,9 @@ import { useAuth } from '@/features/auth/auth-store';
 import { radius, space, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
+import { Card } from '@/ui/card';
 import { ListRow } from '@/ui/list-row';
 import { PressableScale } from '@/ui/pressable-scale';
-import { SectionTitle } from '@/ui/screen';
 import { Segmented } from '@/ui/segmented';
 import type { SheetRef } from '@/ui/sheet';
 import { Text } from '@/ui/text';
@@ -36,39 +35,17 @@ import { usePlaces } from '../places/places';
 import { docKey, useDocs } from './docs';
 import { type Meeting, meetingOf, useMeetingChoices } from './meeting';
 import { PlaceIcon, PlaceSheet, PollSheet, TimeSheet, timeRange } from './meeting-sheets';
-import {
-  closePoll,
-  answerMeeting,
-  endMeeting,
-  keepMeetingPlace,
-  mayRunMeeting,
-  removePoll,
-  setMeeting,
-  vote,
-  votesOf,
-} from './plan-actions';
-import {
-  answerCounts,
-  answersOf,
-  type Arrival,
-  type Doc,
-  inEtaWindow,
-  MEETING,
-  MEETING_ANSWERS,
-  type MeetingAnswer,
-  starterOf,
-  tally,
-  type TravelMode,
-} from './plan-model';
+import { closePoll, mayRunMeeting, removePoll, setMeeting, vote, votesOf } from './plan-actions';
+import { type Arrival, type Doc, inEtaWindow, MEETING, tally, type TravelMode } from './plan-model';
 import { useArrivals } from './use-arrivals';
 
 /**
  * A circle's meeting (docs/ADR/0018, 0026): when and where, polls on either (events only), who gets
  * there when as the time comes, and this phone's own way there (how it travels, a reminder to
  * leave, "I'll be late", "I'm here"). Everything here is end-to-end encrypted for the members.
- * `onEdit`: the meeting screen's own form changes the place and time instead of the sheets.
+ * An event's: a meeting in any other circle has its own cards (meeting-view.tsx).
  */
-export function MeetingCard({ circle, onEdit }: { circle: Circle; onEdit?: () => void }) {
+export function MeetingCard({ circle }: { circle: Circle }) {
   const { t, i18n } = useTranslation();
   const me = useAuth((state) => state.userId);
   const docs = useDocs();
@@ -79,7 +56,6 @@ export function MeetingCard({ circle, onEdit }: { circle: Circle; onEdit?: () =>
   const pollSheet = useRef<SheetRef>(null);
   const [draft, setDraft] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [ending, setEnding] = useState(false);
   if (me === null) return null;
 
   const plan = docs[docKey(circle.id, circle.id)]?.payload;
@@ -93,47 +69,10 @@ export function MeetingCard({ circle, onEdit }: { circle: Circle; onEdit?: () =>
     )
     .sort((a, b) => a.payload.ts - b.payload.ts);
   const range = timeRange(circle, now);
-  const event = circle.kind === 'event';
-  // An event's meeting and polls are its admins' (docs/ADR/0020); outside an event the meeting is
-  // its starter's too (docs/ADR/0026). Everyone votes and tells when late.
+  // An event's meeting and polls are its admins' (docs/ADR/0020). Everyone votes and tells when
+  // late.
   const admin = mayRunMeeting(circle, me);
-  const unset = admin ? undefined : t(event ? 'plan.adminChooses' : 'meeting.starterChooses');
-  const startedBy = event ? undefined : starterOf(docs[docKey(circle.id, circle.id)]);
-  const starter = circle.members.find((member) => member.userId === startedBy);
-  // The place was added for this meeting (docs/ADR/0026 Ek 1): it goes with it unless kept.
-  const placeGoes = plan?.kind === 'plan' ? plan.placeGoes : undefined;
-  const finish = (keepPlace: boolean) => {
-    setEnding(true);
-    void endMeeting(circle.id, keepPlace).finally(() => {
-      setEnding(false);
-    });
-  };
-  const end = () => {
-    Alert.alert(
-      t('meeting.endTitle'),
-      placeGoes === true ? t('meeting.endBodyPlace') : t('meeting.endBody'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        ...(placeGoes === true
-          ? [
-              {
-                text: t('meeting.endKeepPlace'),
-                onPress: () => {
-                  finish(true);
-                },
-              },
-            ]
-          : []),
-        {
-          text: t('meeting.end'),
-          style: 'destructive' as const,
-          onPress: () => {
-            finish(false);
-          },
-        },
-      ],
-    );
-  };
+  const unset = admin ? undefined : t('plan.adminChooses');
 
   const openTime = () => {
     setDraft(
@@ -150,27 +89,19 @@ export function MeetingCard({ circle, onEdit }: { circle: Circle; onEdit?: () =>
     setSaving(false);
     if (saved) timeSheet.current?.dismiss();
   };
-  const change =
-    onEdit === undefined || !admin ? null : (
-      <Text variant="callout" color="primary">
-        {t('plan.change')}
-      </Text>
-    );
   const pickPlace = async (id: string) => {
     placeSheet.current?.dismiss();
     await setMeeting(circle.id, { placeId: id, ...(meetAt === undefined ? {} : { meetAt }) });
   };
 
   return (
-    <View style={styles.card} testID="meeting-card">
-      <SectionTitle>{t('plan.title')}</SectionTitle>
+    <Card title={t('plan.title')} testID="meeting-card">
       <ListRow
         testID="meeting-time"
         leading={<RoundIcon icon={Clock} />}
         title={meetAt === undefined ? t('plan.noTime') : endClock(meetAt, now, i18n.language)}
         subtitle={meetAt === undefined ? (unset ?? t('plan.chooseTime')) : t('plan.time')}
-        trailing={change}
-        onPress={admin ? (onEdit ?? openTime) : undefined}
+        onPress={admin ? openTime : undefined}
       />
       <ListRow
         testID="meeting-place"
@@ -179,22 +110,13 @@ export function MeetingCard({ circle, onEdit }: { circle: Circle; onEdit?: () =>
         }
         title={place === undefined ? t('plan.noPlace') : place.name}
         subtitle={place === undefined ? (unset ?? t('plan.choosePlace')) : t('plan.place')}
-        trailing={change}
-        onPress={admin ? (onEdit ?? (() => placeSheet.current?.present())) : undefined}
+        onPress={admin ? () => placeSheet.current?.present() : undefined}
       />
-
-      {starter === undefined ? null : (
-        <Text variant="footnote" color="textMuted" testID="meeting-starter">
-          {starter.userId === me
-            ? t('meeting.startedByYou')
-            : t('meeting.startedBy', { name: memberName(starter) })}
-        </Text>
-      )}
 
       {polls.map((poll) => (
         <PollCard key={poll.payload.id} circle={circle} poll={poll.payload} me={me} />
       ))}
-      {admin && event ? (
+      {admin ? (
         <Button
           testID="poll-start"
           label={t('plan.pollStart')}
@@ -204,33 +126,11 @@ export function MeetingCard({ circle, onEdit }: { circle: Circle; onEdit?: () =>
         />
       ) : null}
 
-      {!event && plan?.kind === 'plan' ? <MeetingAnswers circle={circle} me={me} /> : null}
       {meeting !== null && inEtaWindow(meeting.meetAt, now) ? (
         <ArrivalsBoard circle={circle} meeting={meeting} me={me} now={now} />
       ) : null}
       {meeting !== null && now <= meeting.meetAt + MEETING.etaUntilMs ? (
         <MyWay circle={circle} meetAt={meeting.meetAt} />
-      ) : null}
-      {admin && !event && placeGoes !== undefined ? (
-        <Toggle
-          testID="meeting-keep-place"
-          label={t('meeting.keepPlace')}
-          description={t('meeting.keepPlaceHint')}
-          value={!placeGoes}
-          onChange={(keep) => {
-            void keepMeetingPlace(circle.id, keep);
-          }}
-        />
-      ) : null}
-      {admin && !event && plan?.kind === 'plan' ? (
-        <Button
-          testID="meeting-end"
-          label={t('meeting.end')}
-          icon={Square}
-          variant="secondary"
-          loading={ending}
-          onPress={end}
-        />
       ) : null}
 
       <TimeSheet
@@ -258,7 +158,7 @@ export function MeetingCard({ circle, onEdit }: { circle: Circle; onEdit?: () =>
         range={range}
         onDone={() => pollSheet.current?.dismiss()}
       />
-    </View>
+    </Card>
   );
 }
 
@@ -406,54 +306,6 @@ function PollCard({ circle, poll, me }: { circle: Circle; poll: PollPayload; me:
 }
 
 /** "Kim ne zaman orada?": everyone's arrival, as their own phones estimate it. */
-/**
- * "Geliyorum / Belki / Gelemiyorum" (docs/ADR/0026 Ek 2): this user's answer, how many come, and
- * what each other member said. Everyone in the circle sees the answers.
- */
-function MeetingAnswers({ circle, me }: { circle: Circle; me: string }) {
-  const { t } = useTranslation();
-  const docs = useDocs();
-  const answers = answersOf(docs, circle.id);
-  const others = circle.members.filter(
-    (member) => member.status === 'active' && member.userId !== me,
-  );
-  return (
-    <View style={styles.answers} testID="meeting-answers">
-      <SectionTitle>{t('meeting.answers.title')}</SectionTitle>
-      <Segmented<MeetingAnswer | 'none'>
-        testID="meeting-answer"
-        label={t('meeting.answers.title')}
-        options={MEETING_ANSWERS.map((answer) => ({
-          value: answer,
-          label: t(`meeting.answers.${answer}`),
-        }))}
-        value={answers.get(me) ?? 'none'}
-        onChange={(answer) => {
-          if (answer !== 'none') void answerMeeting(circle.id, answer);
-        }}
-      />
-      <Text variant="caption" color="textMuted" testID="meeting-answer-counts">
-        {t('meeting.answers.counts', answerCounts(answers))}
-      </Text>
-      {others.map((member) => {
-        const answer = answers.get(member.userId);
-        const name = memberName(member);
-        return (
-          <ListRow
-            key={member.userId}
-            testID={`meeting-answer-${member.userId}`}
-            leading={<Avatar avatar={member.avatar} name={name} userId={member.userId} size="sm" />}
-            title={name}
-            subtitle={
-              answer === undefined ? t('meeting.answers.none') : t(`meeting.answers.${answer}`)
-            }
-          />
-        );
-      })}
-    </View>
-  );
-}
-
 function ArrivalsBoard({
   circle,
   meeting,
@@ -623,8 +475,6 @@ function MyWay({ circle, meetAt }: { circle: Circle; meetAt: number }) {
 }
 
 const styles = StyleSheet.create({
-  answers: { gap: space.sm },
-  card: { gap: space.sm },
   round: {
     width: space.xxl,
     height: space.xxl,

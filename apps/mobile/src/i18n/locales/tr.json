@@ -1232,6 +1232,21 @@
     "startHint": "Buluşma, saatinden 3 saat sonra kendiliğinden biter.",
     "edit": "Düzenle",
     "editTitle": "Buluşmayı düzenle",
+    "way": "Yolculuğun",
+    "where": "Nerede?",
+    "when": "Ne zaman?",
+    "left": {
+      "started": "Başladı",
+      "minutes": "{{minutes}} dk kaldı",
+      "hours": "{{hours}} sa {{minutes}} dk kaldı"
+    },
+    "people": {
+      "title": "Kimler geliyor",
+      "going": "Geliyor",
+      "maybe": "Belki",
+      "not": "Gelemiyor",
+      "none": "Yanıt yok"
+    },
     "pickSpot": "Haritadan nokta seç",
     "pickOtherSpot": "Başka bir nokta seç",
     "pickSpotHint": "Kayıtlı yer olmaz; buluşma bitince silinir.",
