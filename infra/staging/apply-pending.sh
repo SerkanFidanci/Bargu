@@ -122,20 +122,19 @@ die() {
 }
 
 # Resolves "." and ".." in an absolute path without touching the disk; the result is in NORM.
+# Walks the path one part at a time with parameter expansion (no IFS, no word splitting).
 normalize() {
   NORM=""
-  old_ifs=$IFS
-  IFS=/
-  set -f
-  for part in $1; do
+  rest=$1
+  while [ -n "$rest" ]; do
+    part=${rest%%/*}
+    if [ "$part" = "$rest" ]; then rest=""; else rest=${rest#*/}; fi
     case "$part" in
       "" | .) ;;
       ..) NORM=${NORM%/*} ;;
       *) NORM="$NORM/$part" ;;
     esac
   done
-  set +f
-  IFS=$old_ifs
   if [ -z "$NORM" ]; then NORM=/; fi
 }
 

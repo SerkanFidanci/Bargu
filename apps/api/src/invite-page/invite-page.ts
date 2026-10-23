@@ -109,14 +109,21 @@ export const INVITE_PAGE_HEADERS: Readonly<Record<string, string>> = {
   'x-robots-tag': 'noindex, nofollow',
 };
 
-/** Escapes text for HTML text and double-quoted attribute values. */
+/** The characters that mean something in HTML text and quoted attribute values. */
+const HTML_ENTITIES: Readonly<Record<string, string>> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+/**
+ * Escapes text for HTML text and quoted attribute values, in one pass over the five characters
+ * that mean something there. The page's texts are its own (i18n), never a visitor's.
+ */
 function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+  return text.replace(/[&<>"']/g, (character) => HTML_ENTITIES[character] ?? character);
 }
 
 /** The page in one language; `host` is the invite host, for the card image's absolute address. */
