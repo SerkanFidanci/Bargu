@@ -77,6 +77,13 @@ Canlıya geçerken hizmet Türkiye'de bir sunucuya taşınır (sahibin kararı, 
 - `ANDROID_CERT_SHA256`: önizleme imzası, Play App Signing ve upload key sertifikaları (K6).
 - Haber imza anahtarı aynı kalır (`stg-n1`, tek sunucu). Türkiye'deki canlı sunucu kendi
   anahtarını alır.
+- E-posta, Google Workspace (ADR 0006, PM kararı 2026-10-23):
+  - `SMTP_URL`: `smtp-relay.gmail.com:587`, bir otenus.com kullanıcısı ve uygulama şifresiyle;
+  - `MAIL_FROM="Bargu <no-reply@otenus.com>"`.
+
+  Sahip `bargu-set-mail` ile girer; şifre gizli yazılır, hiç yazdırılmaz. Betiğe bunun için bir
+  Workspace kipi eklenir (bugün yalnız `smtp.gmail.com` ve gönderen olarak Gmail adresi).
+  Workspace'te relay izni sunucunun IP'sine verilir; Türkiye'ye taşınınca yeni IP eklenir.
 
 **API kodu:** `STAGING_INVITE_HOST` sabiti (`apps/api/src/config/env.ts`, sslip adı) kalkar ya da
 yeni ada geçer.
@@ -123,8 +130,15 @@ yeni ada geçer.
    Cloudflare'de iki A kaydının "Proxy" düğmesi kapalı ("DNS only", gri bulut) olmalı. Açık olursa
    canlı bağlantı ve sertifika düzeni değişir. Spaceship'te böyle bir düğme yok.
 
-   E-posta `bargu.app` adından gidecekse SPF, DKIM ve DMARC kayıtları da gerekir. Bunlar
-   gönderici seçilince eklenir; destek adresi `support@otenus.com` buna bağlı değil.
+   `bargu.app` posta göndermez: kodlar `no-reply@otenus.com`'dan gider (ADR 0006). Başkası
+   `bargu.app` adına sahte posta gönderemesin diye iki TXT kaydı daha ekle:
+
+   | Ad (Name / Host) | Tür | Değer                           | TTL  |
+   | ---------------- | --- | ------------------------------- | ---- |
+   | `@`              | TXT | `v=spf1 -all`                   | Auto |
+   | `_dmarc`         | TXT | `v=DMARC1; p=reject; sp=reject` | Auto |
+
+   Destek adresi `support@otenus.com` bunlardan etkilenmez.
 
 3. **Kodlama oturumuna "aldım" yaz.** Sertifikalar, nginx ve ayarları kodlama oturumu yapar;
    sunucu adımlarını sen onaylarsın.

@@ -288,6 +288,16 @@ kapalı testten önce.
   geçici nokta tasarımı sağlam. "Bitir, yeri sakla" bitirme başarısız olup yeniden denenince yeri
   iki kez kaydedebiliyordu: çemberde aynı ad ve konumda yer varsa yenisi yazılmıyor. Eski
   uygulamalı yönetici notu: açıklarda 50.
+- Eski menü adları (PM, 2026-10-23, sonraki APK'da). Üç metin kullanıcıyı artık olmayan bir yola
+  gönderiyordu. Hepsi tr ve en olarak düzeltildi:
+  - geçmiş rızası: "Gizlilik ve hesap" yerine Ben → Hesap ve veri;
+  - ebeveyn ekleme: Ben → Güvenlik → Ebeveyn bağlantısı (Güvenlik adımı eksikti);
+  - passkey: belirsiz "Ben bölümü" yerine Ben → Güvenlik → Passkey.
+
+  Güvenlik satırının açıklaması da satırların adlarıyla aynı oldu ("Passkey", "ebeveyn
+  bağlantısı"). Yeni test: metinlerdeki "A → B → C" yolunun her adımı bugün var olan bir etiket
+  olmalı, eski ad hiçbir metinde geçmemeli. Testin sınırı: adların varlığına bakar, menüdeki sırasına
+  bakmaz.
 
 ### Test sonuçları (son çalıştırma, `c2754a1`)
 
@@ -841,6 +851,23 @@ Sıra önemli:
      Kapalı test sunucusu ve yedek). Kalan: sunucu dışı kopyanın yeri.
   6. Emülatörde açılış ve harita testi (Expo bulutu) ücretli: ilk oturumdan önce fiyatı sana ve
      PM'e söyleyeceğim.
+  7. **Üretim e-postası, Google Workspace** (PM kararı 2026-10-23, ADR 0006). Giriş kodları
+     `no-reply@otenus.com`'dan gider. Kod şimdi gerekmiyor, üretim yığınıyla birlikte girilir.
+     Adımlar Google Admin konsolunda (admin.google.com):
+     1. **Gönderen adres:** `no-reply@otenus.com`'u var olan bir posta kutusuna takma ad olarak
+        ekle (Kullanıcılar → kullanıcı → Alternatif e-posta adresleri). Ücretsiz; ayrı kullanıcı
+        ücretli koltuk demek, gerekmez.
+     2. **SMTP relay:** Uygulamalar → Google Workspace → Gmail → Yönlendirme → SMTP relay hizmeti →
+        Yapılandır. Seçimler:
+        - izinli gönderenler: "Yalnızca alan adlarımdaki adresler";
+        - "Yalnızca belirtilen IP adreslerinden gelen postaları kabul et": sunucunun IP'si;
+        - "SMTP kimlik doğrulaması gerektir";
+        - "TLS şifrelemesi gerektir".
+     3. **Uygulama şifresi:** relay'e giriş yapacak kullanıcıda 2 adımlı doğrulama açık olmalı.
+        myaccount.google.com → Güvenlik → Uygulama şifreleri, ad "Bargu sunucu". Şifreyi kimseye
+        yazma: sunucuda `bargu-set-mail` sorar, gizli yazılır.
+     4. **SPF** otenus.com'da zaten var. Gmail → E-posta kimlik doğrulaması sayfasında DKIM'in açık
+        olduğuna bak. Kapalıysa oradaki TXT kaydını DNS'e ekle ve "Kimlik doğrulamayı başlat"a bas.
 
 - Arka planda canlı konum denemesi (iki telefon, komuttan sonra):
   1. A telefonu (izlenen): bildirimler açık, çembere tam konum, ayar açık, pil %20 üstü, pil

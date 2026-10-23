@@ -58,6 +58,21 @@ giriş kodu e-postaları (Faz 2), push dağıtımı (Faz 7), davet süresi (Faz 
   Sınırlar ve bedel: günde ~500 alıcı; kodlar ve alıcı adresleri Google'dan geçer; gönderen olarak
   o Gmail adresi görünür (bu yüzden ayrı bir Gmail hesabı öneriliyor). Gerçek alan adı gelince
   aktarıcıya geçilir.
+- **Üretim: Google Workspace (PM kararı, 2026-10-23).** Yukarıdaki "AB'de bir aktarıcı" planının
+  yerine geçer.
+  - Giriş kodları otenus.com'un Google Workspace hesabından gider. Gönderen `no-reply@otenus.com`.
+    Gizlilik politikası (otenus.com/bargu/gizlilik) bunu yazıyor.
+  - Yol, Google'ın önerdiği SMTP relay: `smtp-relay.gmail.com`, 587, TLS zorunlu. Yalnız
+    otenus.com adresleri gönderebilir.
+  - Kimlik doğrulama ikisi birden: sunucunun IP'si ve SMTP AUTH (bir Workspace kullanıcısı ve onun
+    uygulama şifresi). Aynı IP'deki başka bir uygulama şifresiz gönderemez.
+  - Sınır: gönderen kullanıcı başına 24 saatte 10.000 ileti ve 10.000 ayrı alıcı.
+  - Yedek yol: uygulama şifresiyle `smtp.gmail.com:587`, günde 2.000 ileti.
+  - Kod aynı kalır, değişen yalnız ayar (`SMTP_URL`, `MAIL_FROM`). `.test` hesapları yine Mailpit'e
+    gider. `bargu-set-mail` için bir Workspace kipi gerekir: relay adresi, giriş yapan kullanıcı ve
+    ayrı gönderen adresi. Üretim yığınıyla birlikte yapılır (ADR 0034 §3).
+  - otenus.com'da SPF var. Workspace'te DKIM'in açık olması ve bir DMARC kaydı teslimi güçlendirir.
+    `bargu.app` posta göndermez.
 - **E-posta içeriği**: yalnızca düz metin; bağlantı, HTML, izleme pikseli yok. Kod konu satırında
   değil (kilit ekranı önizlemesinde görünmesin).
 - **Push (Faz 7)**: aynı kuyrukla; WebSocket bağlıysa anında WS, değilse APNs / FCM v1 (aracısız),
