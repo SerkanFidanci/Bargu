@@ -499,13 +499,16 @@ API'den bağlanır.
 44. ~~Sahibin isteği (2026-10-22): buluşmada katılım yanıtı~~: Geliyorum / Belki / Gelemiyorum ve
     kimin ne dediği `784eca6` APK'sında (ADR 0026 Ek 2; sahip "bitince yenisini yap" dedi, PM
     onayladı). Tahmini varış yok, sonraya.
-45. `event-circles` entegrasyon testi ("clean-up is cut short", satır 350) bir kez CI'da kırıldı
-    (run 39779707897, yalnız belge değiştiren `17007b3`'te): Redis hatasından sonra çembere dair
-    beklenen iz kalmamıştı. API değişmemişti; testin kurulumunda bir zamanlama farkı olabilir.
-    Tekrar ederse incelenecek; o commit staging'e gitmedi (yalnız belge). Bir sonraki push'ta
-    başka bir test kırıldı (`age`, run 39782089816): çemberin yanıtında "age" harfleri aranıyordu,
-    üyelerin rastgele base64 anahtarları ara sıra bu harfleri içeriyor. Test artık alan adlarına
-    bakıyor (`af015ed`).
+45. ~~`event-circles` entegrasyon testi ("clean-up is cut short", satır 350)~~: ikinci kez kırıldı
+    (CI 39928609789, `dc045ea`; staging bu yüzden `263fad2`'de kaldı). Kök neden: test Redis'in
+    bir silme çağrısını "bir kez" başarısız yapıyordu, ama hangi çağrı olduğuna bakmıyordu. Süpürme,
+    ortak veritabanında bekleyen bütün temizlikleri alır. Paralel çalışan başka bir test dosyasının
+    bekleyen temizliği önce gelince hata ona harcandı; testin kendi çemberi bir seferde temizlendi ve
+    "geride bir şey kalır" beklentisi tutmadı. Artık hata yalnız bu testin çemberini adlandıran
+    anahtarlar silinirken veriliyor (`failOnceFor`). Uygulama kodu doğruydu. Bir önceki kırılma
+    (`age`, run 39782089816) ayrı bir hataydı: çemberin yanıtında "age" harfleri aranıyordu, üyelerin
+    rastgele base64 anahtarları ara sıra bu harfleri içeriyor. Test artık alan adlarına bakıyor
+    (`af015ed`).
 46. iOS dilimine: davet ve ebeveyn bağlantılarının iOS'ta uygulamayı açması için AASA dosyasına
     `/i` ve `/g` yolları (QA-34). Android App Links bugün çalışıyor.
 47. `scripts/ci-linux-retry.sh` yük kaynaklı kırılmaları hiç yeniden denemiyordu: her kırılmanın
