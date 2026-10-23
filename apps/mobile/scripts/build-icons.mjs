@@ -1,80 +1,138 @@
-// Renders the app icon, Android adaptive icon layers and splash mark as PNG (no image tools needed):
+// Renders the app icon, Android adaptive icon layers, splash mark and notification icon as PNG from
+// the brand logo (no image tools needed):
 //   node scripts/build-icons.mjs
-// A white location pin on the brand violet, a coral dot (a friend) in its hollow centre. A placeholder brand mark until the
-// final logo exists (docs/ADR/0008); change the shape or colours here and re-run.
+// The logo is the owner's (2026-10-23): a "b" that is a map pin, navy and orange, mountains, a
+// river, an eagle, a crescent and a star, on white (assets/brand/bargu-logo.png, an 8-bit RGB PNG).
+// Change the logo file and re-run.
 import { Buffer } from 'node:buffer';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import process from 'node:process';
-import { crc32, deflateSync } from 'node:zlib';
+import { crc32, deflateSync, inflateSync } from 'node:zlib';
 
-const VIOLET = [0x5b, 0x34, 0xf2];
-const WHITE = [0xff, 0xff, 0xff];
-const CORAL = [0xff, 0x6a, 0x3d];
-const SAMPLES = 4; // supersampling per axis for smooth edges
+/** Brighter than this on every channel is the logo's white background. */
+const PAPER = 235;
+/** The colour difference from white over which a pixel is fully "ink" for the one-colour icons. */
+const INK = { from: 20, to: 120 };
 
-/** Coral dot in the pin's hollow (same geometry as pinCoverage). */
-function dotCoverage(x, y, scale) {
-  const dx = x;
-  const dy = y + 0.1 * scale;
-  const r = 0.065 * scale;
-  return dx * dx + dy * dy <= r * r;
+// eslint-disable-next-line security/detect-non-literal-fs-filename -- the fixed logo file inside this repo
+const source = decode(readFileSync(new URL('../assets/brand/bargu-logo.png', import.meta.url)));
+const box = contentBox(source);
+
+/** An 8-bit, non-interlaced RGB or RGBA PNG as RGB rows (what the logo file is). */
+function decode(file) {
+  const width = file.readUInt32BE(16);
+  const height = file.readUInt32BE(20);
+  const [depth, colour, , , interlace] = file.subarray(24, 29);
+  if (depth !== 8 || interlace !== 0 || (colour !== 2 && colour !== 6)) {
+    throw new Error('the logo must be an 8-bit, non-interlaced RGB or RGBA PNG');
+  }
+  const channels = colour === 6 ? 4 : 3;
+  const parts = [];
+  for (let at = 8; at < file.length;) {
+    const length = file.readUInt32BE(at);
+    const type = file.toString('ascii', at + 4, at + 8);
+    if (type === 'IDAT') parts.push(file.subarray(at + 8, at + 8 + length));
+    at += 12 + length;
+  }
+  const raw = inflateSync(Buffer.concat(parts));
+  const stride = width * channels;
+  const pixels = Buffer.alloc(width * height * 3);
+  let previous = Buffer.alloc(stride);
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)];
+    const line = Buffer.from(raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1)));
+    for (let i = 0; i < stride; i++) {
+      const left = i >= channels ? line[i - channels] : 0;
+      const up = previous[i];
+      const corner = i >= channels ? previous[i - channels] : 0;
+      let add = 0;
+      if (filter === 1) add = left;
+      else if (filter === 2) add = up;
+      else if (filter === 3) add = (left + up) >> 1;
+      else if (filter === 4) {
+        const p = left + up - corner;
+        const pa = Math.abs(p - left);
+        const pb = Math.abs(p - up);
+        const pc = Math.abs(p - corner);
+        add = pa <= pb && pa <= pc ? left : pb <= pc ? up : corner;
+      }
+      line[i] = (line[i] + add) & 0xff;
+    }
+    for (let x = 0; x < width; x++) {
+      for (let c = 0; c < 3; c++) pixels[(y * width + x) * 3 + c] = line[x * channels + c];
+    }
+    previous = line;
+  }
+  return { width, height, pixels };
 }
 
-/** Pin in unit coordinates (-0.5..0.5, y down): head circle, tip, hollow centre. */
-function pinCoverage(x, y, scale) {
-  const head = { x: 0, y: -0.1 * scale, r: 0.27 * scale };
-  const tip = { x: 0, y: 0.36 * scale };
-  const hole = 0.11 * scale;
-  const dx = x - head.x;
-  const dy = y - head.y;
-  const inHead = dx * dx + dy * dy <= head.r * head.r;
-  // Triangle from the tangent points of the head circle to the tip.
-  const d = tip.y - head.y;
-  const sin = head.r / d;
-  const cos = Math.sqrt(1 - sin * sin);
-  const tangentY = head.y + head.r * sin;
-  const tangentX = head.r * cos;
-  const inTip =
-    y >= tangentY && y <= tip.y && Math.abs(x) <= tangentX * ((tip.y - y) / (tip.y - tangentY));
-  const inHole = dx * dx + dy * dy <= hole * hole;
-  return (inHead || inTip) && !inHole;
+/** The part of the logo that is not white paper. */
+function contentBox({ width, height, pixels }) {
+  let left = width;
+  let top = height;
+  let right = 0;
+  let bottom = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 3;
+      if (pixels[i] < PAPER || pixels[i + 1] < PAPER || pixels[i + 2] < PAPER) {
+        left = Math.min(left, x);
+        top = Math.min(top, y);
+        right = Math.max(right, x + 1);
+        bottom = Math.max(bottom, y + 1);
+      }
+    }
+  }
+  return { left, top, width: right - left, height: bottom - top };
 }
 
-function render(size, { background, scale, roundedCorner, dot = true }) {
+/** The logo's colour at a point, white paper outside it (paper whitened). */
+function at(x, y) {
+  const { width, height, pixels } = source;
+  const px = Math.min(width - 1, Math.max(0, Math.floor(x)));
+  const py = Math.min(height - 1, Math.max(0, Math.floor(y)));
+  if (x < 0 || y < 0 || x >= width || y >= height) return [255, 255, 255];
+  const i = (py * width + px) * 3;
+  const rgb = [pixels[i], pixels[i + 1], pixels[i + 2]];
+  return rgb.every((value) => value >= PAPER) ? [255, 255, 255] : rgb;
+}
+
+/** How much a colour is ink (0 white paper, 1 a colour of the logo), for the one-colour icons. */
+function inkOf([r, g, b]) {
+  const difference = Math.max(255 - r, 255 - g, 255 - b);
+  return Math.min(1, Math.max(0, (difference - INK.from) / (INK.to - INK.from)));
+}
+
+/**
+ * A square of `size` px with the logo's content `fill` of its height, centred: in colour on white,
+ * or (`mono`) as a white shape on transparent. Each pixel averages the logo pixels it covers.
+ */
+function render(size, { fill, mono = false }) {
+  const scale = (fill * size) / box.height;
+  const offsetX = (size - box.width * scale) / 2;
+  const offsetY = (size - box.height * scale) / 2;
+  const step = 1 / scale;
+  const samples = Math.max(1, Math.ceil(step));
   const rows = [];
   for (let py = 0; py < size; py++) {
     const row = Buffer.alloc(1 + size * 4);
     for (let px = 0; px < size; px++) {
-      let pin = 0;
-      let accent = 0;
-      let inside = 0;
-      for (let sy = 0; sy < SAMPLES; sy++) {
-        for (let sx = 0; sx < SAMPLES; sx++) {
-          const x = (px + (sx + 0.5) / SAMPLES) / size - 0.5;
-          const y = (py + (sy + 0.5) / SAMPLES) / size - 0.5;
-          if (pinCoverage(x, y, scale)) pin += 1;
-          else if (dot && dotCoverage(x, y, scale)) accent += 1;
-          if (roundedCorner === undefined) inside += 1;
-          else {
-            const r = roundedCorner;
-            const cx = Math.max(Math.abs(x) - (0.5 - r), 0);
-            const cy = Math.max(Math.abs(y) - (0.5 - r), 0);
-            if (cx * cx + cy * cy <= r * r) inside += 1;
-          }
+      let sum = [0, 0, 0];
+      let ink = 0;
+      for (let sy = 0; sy < samples; sy++) {
+        for (let sx = 0; sx < samples; sx++) {
+          const x = box.left + (px + (sx + 0.5) / samples - offsetX) / scale;
+          const y = box.top + (py + (sy + 0.5) / samples - offsetY) / scale;
+          const colour = at(x, y);
+          sum = sum.map((value, c) => value + colour[c]);
+          ink += inkOf(colour);
         }
       }
-      const total = SAMPLES * SAMPLES;
-      const p = pin / total;
-      const a = accent / total;
-      const fg = p + a;
-      const bgAlpha = background === null ? 0 : inside / total;
-      const alpha = fg + bgAlpha * (1 - fg);
-      const color = [0, 1, 2].map((c) => {
-        if (alpha === 0) return 0;
-        const bg = background === null ? 0 : background[c];
-        return Math.round((WHITE[c] * p + CORAL[c] * a + bg * bgAlpha * (1 - fg)) / alpha);
-      });
-      row.set([...color, Math.round(alpha * 255)], 1 + px * 4);
+      const count = samples * samples;
+      const pixel = mono
+        ? [255, 255, 255, Math.round((ink / count) * 255)]
+        : [...sum.map((value) => Math.round(value / count)), 255];
+      row.set(pixel, 1 + px * 4);
     }
     rows.push(row);
   }
@@ -104,16 +162,17 @@ function png(size, raw) {
 }
 
 const outputs = {
-  // iOS / store icon: full square (the OS applies its own mask).
-  'icon.png': render(1024, { background: VIOLET, scale: 0.92 }),
-  // Android adaptive icon: the pin inside the 66 % safe zone; background is a colour (app.config).
-  'android-icon-foreground.png': render(1024, { background: null, scale: 0.62 }),
-  // Themed icons are tinted by the launcher: one shape, no colour detail.
-  'android-icon-monochrome.png': render(1024, { background: null, scale: 0.62, dot: false }),
+  // iOS / store icon: the logo on white (the OS applies its own mask).
+  'icon.png': render(1024, { fill: 0.8 }),
+  // Android adaptive icon on a white background colour (app.config): the logo small enough that
+  // a round launcher mask (72 of 108 dp) never cuts its corners.
+  'android-icon-foreground.png': render(1024, { fill: 0.55 }),
+  // Themed icons are tinted by the launcher: the logo's shape alone, at the same size.
+  'android-icon-monochrome.png': render(1024, { fill: 0.55, mono: true }),
   // Android status-bar notification icon: white shape on transparent, filling the square.
-  'notification-icon.png': render(96, { background: null, scale: 0.9, dot: false }),
-  // Splash mark, shown small on the violet splash background.
-  'splash-icon.png': render(512, { background: null, scale: 1 }),
+  'notification-icon.png': render(96, { fill: 0.92, mono: true }),
+  // Splash mark on the white splash background.
+  'splash-icon.png': render(512, { fill: 0.96 }),
 };
 for (const [name, data] of Object.entries(outputs)) {
   const file = new URL(`../assets/images/${name}`, import.meta.url);

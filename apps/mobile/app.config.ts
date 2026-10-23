@@ -35,8 +35,10 @@ const APPLE_TEAM_ID = process.env.APPLE_TEAM_ID;
  */
 const PUSH_KEYCHAIN_GROUP = 'app.bargu.push';
 
-/** Brand violet (src/theme/colors.ts lightColors.primary), for the icon background and splash. */
+/** Brand violet (src/theme/colors.ts lightColors.primary), for the notification accent. */
 const BRAND_VIOLET = '#5B34F2';
+/** The logo's own paper (assets/brand/bargu-logo.png): behind the app icon and on the splash. */
+const LOGO_PAPER = '#FFFFFF';
 
 /**
  * Android App Links (docs/ADR/0009 Ek and Ek 2, 2026-10-22): with the invite host set for this
@@ -263,8 +265,8 @@ const appConfig = ({ config }: ConfigContext): ExpoConfig => ({
       ? {}
       : { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }),
     adaptiveIcon: {
-      // Brand violet behind the pin (scripts/build-icons.mjs renders the layers).
-      backgroundColor: BRAND_VIOLET,
+      // The logo on its white (scripts/build-icons.mjs renders the layers from the logo).
+      backgroundColor: LOGO_PAPER,
       foregroundImage: './assets/images/android-icon-foreground.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
@@ -285,9 +287,9 @@ const appConfig = ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: BRAND_VIOLET,
+        backgroundColor: LOGO_PAPER,
         image: './assets/images/splash-icon.png',
-        imageWidth: 76,
+        imageWidth: 140,
       },
     ],
     ['expo-localization', { supportedLocales: { ios: ['tr', 'en'], android: ['tr', 'en'] } }],
@@ -317,7 +319,8 @@ const appConfig = ({ config }: ConfigContext): ExpoConfig => ({
     ],
     // MapLibre Native; Android keeps its own location engine (no Google Play services).
     '@maplibre/maplibre-react-native',
-    // System notifications for friend and circle news (docs/ADR/0010); white pin on brand violet.
+    // System notifications for friend and circle news (docs/ADR/0010): the logo's shape in white,
+    // the brand violet as the accent.
     [
       'expo-notifications',
       {

@@ -291,3 +291,19 @@ yaptı. Harita, alt çubuk (Çemberler, +, Ben) ve haritadaki kontrollerin yeri 
     içerik olduğu için yerinde.
 - **Geri dönüş:** Ben ya da Çemberler sayfasından açılan bir ekrandan dönünce o sayfa yeniden açılır
   ve kaldığı yere kaydırılır (`sheet-return.ts`).
+
+## Ek (2026-10-23): gerçek logo
+
+Sahip logoyu verdi. Kaynak dosya `apps/mobile/assets/brand/bargu-logo.png`. Logo bir harita iğnesi olan
+"b": lacivert ve turuncu, içinde dağlar, bir nehir ve bir kartal, köşede ay yıldız; zemini beyaz.
+
+`scripts/build-icons.mjs` artık bu dosyadan üretiyor (ek bağımlılık yok):
+
+- uygulama simgesi;
+- Android'in uyarlanabilir katmanları (beyaz zemin, logo yuvarlak maskeye sığacak kadar küçük);
+- temalı simge (logonun beyaz silueti);
+- bildirim simgesi;
+- açılış işareti.
+
+Simge ve açılış ekranının zemini beyaz. Uygulamanın içindeki renkler (menekşe, mercan) değişmedi.
+Bildirimin vurgu rengi de menekşe kaldı.
