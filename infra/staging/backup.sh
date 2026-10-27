@@ -61,8 +61,10 @@ partial="$BACKUP_DIR/.$name.partial"
 trap 'rm -f "$partial"' EXIT
 
 # The variables are the container's own (single quotes): the password never passes through here.
+# Messages and moments live 24 hours (docs/ADR/0035 §7): their tables are backed up empty, so none
+# of it outlives its day in a 14-day backup. Reports are kept (their own 90 days).
 # shellcheck disable=SC2016
-if ! docker exec "$container" sh -c 'exec pg_dump --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom' |
+if ! docker exec "$container" sh -c 'exec pg_dump --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --exclude-table-data=app.chat_items --exclude-table-data=app.media_blobs' |
   age --encrypt --recipients-file "$RECIPIENTS" > "$partial"; then
   fail "pg_dump ya da şifreleme başarısız; yedek alınmadı"
 fi

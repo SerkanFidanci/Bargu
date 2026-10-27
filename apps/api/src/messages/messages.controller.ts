@@ -21,13 +21,16 @@ import {
   clientLevelOf,
   type Media,
   mediaUploadSchema,
+  type ReportRequest,
+  reportRequestSchema,
 } from '@bargu/schemas';
 import { z } from 'zod';
 
 import { type AuthContext, CurrentAuth } from '../auth/request-context.js';
 import { ZodPipe } from '../common/zod.pipe.js';
-import { MEDIA_UPLOAD_ROUTE } from '../http/http-adapter.js';
+import { MEDIA_UPLOAD_ROUTE, REPORT_ROUTE } from '../http/http-adapter.js';
 import { MessagesService } from './messages.service.js';
+import { ReportsService } from './reports.service.js';
 
 const id = new ZodPipe(z.uuid());
 
@@ -37,7 +40,10 @@ const id = new ZodPipe(z.uuid());
  */
 @Controller('v1')
 export class MessagesController {
-  constructor(private readonly messages: MessagesService) {}
+  constructor(
+    private readonly messages: MessagesService,
+    private readonly reports: ReportsService,
+  ) {}
 
   @Post('chat/circles/:circleId')
   @HttpCode(HttpStatus.OK)
@@ -104,6 +110,18 @@ export class MessagesController {
   ): Promise<Media> {
     this.messages.requireLevel(clientLevelOf(level));
     return this.messages.download(auth, blobId);
+  }
+
+  /** "Bildir" (docs/ADR/0035 §9): a person, or one of their items with that item's key. */
+  @Post(REPORT_ROUTE.slice('/v1/'.length))
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async report(
+    @CurrentAuth() auth: AuthContext,
+    @Headers(CLIENT_LEVEL_HEADER) level: string | undefined,
+    @Body(new ZodPipe(reportRequestSchema)) body: ReportRequest,
+  ): Promise<void> {
+    this.messages.requireLevel(clientLevelOf(level));
+    await this.reports.report(auth, body);
   }
 
   @Get('blocks')

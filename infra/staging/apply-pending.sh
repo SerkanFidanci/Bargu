@@ -21,6 +21,9 @@
 #   1. timestamped backup of .env and compose.yml (only when one of them is about to change)
 #   2. .env: MIN_CLIENT_LEVEL=N (4: slice 3c raised the app's CLIENT_LEVEL to 4)
 #   3. compose.yml: the three WATCH_PUSH lines after BILLING_TEST (as in infra/staging/compose.yml)
+#  3b. messages and moments (docs/ADR/0035 §10): compose.yml gets MEDIA_MAX_BYTES and OPS_EMAIL
+#      after BILLING_TEST, .env gets OPS_EMAIL=support@otenus.com when it has none (the address is
+#      never printed; the photos live in the database, so no folder is made)
 #   4. the server's notice signing key (infra/staging/notice-key.sh, embedded below because the
 #      owner runs ONE script): key in .env, its two lines in compose.yml, the public half in
 #      /opt/bargu/staging/notice-public-key.txt; the private key is never printed
@@ -98,6 +101,7 @@ BACKUP_STAMP=""
 NEED_ENV=false
 NEED_COMPOSE=false
 NEED_NOTICE=false
+NEED_MESSAGES=false
 MAP_FAILED=false
 NGINX_FAILED=false
 NOTICE_FAILED=false
@@ -230,7 +234,7 @@ compose() {
 # of the notice key (NOTICE_SIGNING_KID) is no secret; the key itself (..._KEY) is never matched.
 show_env() { # container-id
   docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$1" </dev/null |
-    grep -E '^(MIN_CLIENT_LEVEL|WATCH_PUSH[A-Z_]*|NOTICE_SIGNING_KID)=' || true
+    grep -E '^(MIN_CLIENT_LEVEL|WATCH_PUSH[A-Z_]*|NOTICE_SIGNING_KID|MEDIA_MAX_BYTES)=' || true
 }
 
 size_text() { # file
@@ -254,6 +258,14 @@ env_is_done() {
 
 compose_is_done() {
   grep -qF 'WATCH_PUSH:' "$COMPOSE_FILE"
+}
+
+# Messages and moments (step 3b): both compose lines, and an operator address in .env.
+messages_compose_done() {
+  grep -q '^  MEDIA_MAX_BYTES:' "$COMPOSE_FILE" && grep -q '^  OPS_EMAIL:' "$COMPOSE_FILE"
+}
+messages_env_done() {
+  grep -q '^OPS_EMAIL=.' "$ENV_FILE"
 }
 
 perms_ok() { # file mode
@@ -321,6 +333,10 @@ runtime_ok() { # service
   lines=$(show_env "$cid")
   printf '%s\n' "$lines" | grep -qxF "MIN_CLIENT_LEVEL=$WANT_LEVEL" || return 1
   printf '%s\n' "$lines" | grep -q '^WATCH_PUSH=' || return 1
+  printf '%s\n' "$lines" | grep -q '^MEDIA_MAX_BYTES=' || return 1
+  # The address itself is never read into the script: only whether the container has one.
+  docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$cid" </dev/null |
+    grep -q '^OPS_EMAIL=.' || return 1
   if notice_has_key; then
     want_kid=$(notice_kid)
     printf '%s\n' "$lines" | grep -qxF "NOTICE_SIGNING_KID=$want_kid" || return 1
@@ -383,6 +399,13 @@ preflight() {
   esac
 
   if env_is_done; then NEED_ENV=false; else NEED_ENV=true; fi
+  if messages_compose_done && messages_env_done; then NEED_MESSAGES=false; else NEED_MESSAGES=true; fi
+  if ! messages_compose_done; then
+    anchors=$(grep -c '^  BILLING_TEST: ' "$COMPOSE_FILE" || true)
+    if [ "$anchors" != 1 ]; then
+      die "compose.yml içinde '  BILLING_TEST: ' ile başlayan satır $anchors tane (1 olmalı); dosya beklenenden farklı, hiçbir şey değiştirilmedi."
+    fi
+  fi
   if notice_has_key && notice_compose_ok && notice_public_ok; then NEED_NOTICE=false; else NEED_NOTICE=true; fi
   if compose_is_done; then
     NEED_COMPOSE=false
@@ -399,7 +422,7 @@ preflight() {
 
 step_backup() {
   step "1/9" "Yedek: .env ve compose.yml, değişmeden önce tarih damgalı kopya"
-  if ! $NEED_ENV && ! $NEED_COMPOSE && ! $NEED_NOTICE; then
+  if ! $NEED_ENV && ! $NEED_COMPOSE && ! $NEED_NOTICE && ! $NEED_MESSAGES; then
     note "zaten yapılmış: değiştirilecek bir şey yok, yeni yedek alınmadı"
     return 0
   fi
@@ -475,6 +498,57 @@ step_compose() {
   safe_like "$COMPOSE_FILE" "$tmp"
   safe_mv "$tmp" "$COMPOSE_FILE"
   note "yapıldı: 3 satır eklendi"
+}
+
+step_messages() {
+  step "3b/9" "Mesajlar ve anlık fotoğraf (ADR 0035): compose.yml'e MEDIA_MAX_BYTES ve OPS_EMAIL, .env'e işletme e-postası"
+  if ! $NEED_MESSAGES; then
+    note "zaten yapılmış: MEDIA_MAX_BYTES ve OPS_EMAIL compose.yml'de, OPS_EMAIL .env'de var"
+    return 0
+  fi
+  if $DRY_RUN; then
+    if ! messages_compose_done; then
+      note "yapılacak: compose.yml'e MEDIA_MAX_BYTES (2 GB) ve OPS_EMAIL satırları BILLING_TEST'ten sonra eklenecek"
+    fi
+    if ! messages_env_done; then
+      note "yapılacak: .env'e OPS_EMAIL eklenecek (support@otenus.com; başka satıra dokunulmaz)"
+    fi
+    note "fotoğraflar veritabanında durur: klasör açılmaz"
+    return 0
+  fi
+  if ! messages_compose_done; then
+    tmp="$COMPOSE_FILE.new.$$"
+    # shellcheck disable=SC2016 # the ${...} below is compose.yml text, not for the shell to expand
+    safe_awk_to "$tmp" '
+      { print }
+      index($0, "  BILLING_TEST: ") == 1 {
+        print "  MEDIA_MAX_BYTES: ${MEDIA_MAX_BYTES:-2147483648}"
+        print "  OPS_EMAIL: ${OPS_EMAIL:-}"
+      }
+    ' "$COMPOSE_FILE"
+    old_lines=$(wc -l <"$COMPOSE_FILE")
+    new_lines=$(wc -l <"$tmp")
+    if [ "$new_lines" -ne $((old_lines + 2)) ] || ! grep -q '^  OPS_EMAIL:' "$tmp"; then
+      die "Yeni compose.yml beklenen gibi çıkmadı; eski dosya olduğu gibi duruyor."
+    fi
+    safe_like "$COMPOSE_FILE" "$tmp"
+    safe_mv "$tmp" "$COMPOSE_FILE"
+    note "yapıldı: compose.yml'e 2 satır eklendi"
+  fi
+  if ! messages_env_done; then
+    tmp="$ENV_FILE.new.$$"
+    safe_awk_to "$tmp" -v line="OPS_EMAIL=support@otenus.com" '
+      /^OPS_EMAIL=/ { next }
+      { print }
+      END { print line }
+    ' "$ENV_FILE"
+    if [ "$(grep -c '^OPS_EMAIL=.' "$tmp" || true)" != 1 ]; then
+      die "Yeni .env beklenen gibi çıkmadı; eski dosya olduğu gibi duruyor."
+    fi
+    safe_like "$ENV_FILE" "$tmp"
+    safe_mv "$tmp" "$ENV_FILE"
+    note "yapıldı: .env'e işletme e-postası eklendi"
+  fi
 }
 
 # Both edited files must still make a valid stack; otherwise the backups go back.
@@ -1199,7 +1273,7 @@ step_check() {
     problem "api konteyneri çalışmıyor"
     CHECK_FAILED=true
   else
-    note "api konteynerindeki ayarlar (yalnızca MIN_CLIENT_LEVEL, WATCH_PUSH* ve NOTICE_SIGNING_KID):"
+    note "api konteynerindeki ayarlar (yalnızca MIN_CLIENT_LEVEL, WATCH_PUSH*, NOTICE_SIGNING_KID ve MEDIA_MAX_BYTES; OPS_EMAIL gösterilmez):"
     show_env "$cid" | while read -r env_line; do note "  $env_line"; done
   fi
   if notice_has_key || $NOTICE_CHANGED; then check_notice_signing "$wait_tries"; else note "açık anahtar: sunucuda imza anahtarı yok"; fi
@@ -1276,6 +1350,7 @@ main() {
   step_backup
   step_env
   step_compose
+  step_messages
   step_notice
   step_validate
   step_perms

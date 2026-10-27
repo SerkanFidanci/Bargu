@@ -7,6 +7,7 @@ import {
   type ChatEnvelope,
   type DirectEnvelope,
 } from './chat.js';
+import { base64urlOf } from './envelope.js';
 import { timestamp } from './payload.js';
 import { devicePushesSchema } from './push.js';
 
@@ -86,6 +87,41 @@ const sealedFile = z
 export const mediaUploadSchema = z.object({ id: z.uuid(), bytes: sealedFile }).strict();
 export const mediaSchema = z.object({ id: z.uuid(), bytes: sealedFile }).strict();
 export type Media = z.infer<typeof mediaSchema>;
+
+/** Why someone reports an item or a person (docs/ADR/0035 §9). */
+export const REPORT_REASONS = [
+  'spam',
+  'harassment',
+  'sexual',
+  'child',
+  'violence',
+  'other',
+] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+/** Reports that are kept until the owner closes them (child abuse); the others 90 days. */
+export const REPORT_KEEP_DAYS = 90;
+
+/**
+ * A report: of a person, or of one of their items with that item's own key and nonce (never a
+ * circle's or a person's key). A photo's sealed file comes along when the server may no longer
+ * have it (the sender took the item back).
+ */
+export const reportRequestSchema = z
+  .object({
+    userId: z.uuid(),
+    reason: z.enum(REPORT_REASONS),
+    item: z
+      .object({
+        envelope: z.union([chatEnvelopeSchema, directEnvelopeSchema]),
+        key: base64urlOf(32),
+        nonce: base64urlOf(12),
+      })
+      .strict()
+      .optional(),
+    file: sealedFile.optional(),
+  })
+  .strict();
+export type ReportRequest = z.infer<typeof reportRequestSchema>;
 
 /** The people the caller blocked (only theirs; nobody learns they were blocked). */
 export const blockListSchema = z.object({ blocked: z.array(z.uuid()) }).strict();

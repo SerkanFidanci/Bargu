@@ -296,6 +296,20 @@ export const blocks = app.table(
   (table) => [primaryKey({ columns: [table.blockerId, table.blockedId] })],
 );
 
+/** Reports of messages and moments (docs/ADR/0035 §9); read by the owner on the server. */
+export const reports = app.table('reports', {
+  id: uuid('id').primaryKey().default(uuidv7),
+  reporterId: uuid('reporter_id').notNull(),
+  reportedId: uuid('reported_id').notNull(),
+  reason: text('reason').notNull(),
+  itemId: uuid('item_id'),
+  verified: boolean('verified').notNull(),
+  content: text('content'),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
+  retainUntil: timestamptz('retain_until'),
+  closedAt: timestamptz('closed_at'),
+});
+
 export const schema = {
   users,
   devices,
@@ -315,4 +329,5 @@ export const schema = {
   mediaBlobs,
   chatItems,
   blocks,
+  reports,
 };

@@ -176,14 +176,21 @@ Telefonda sıra:
 
 **Tablolar (yalnız ekleyen migration'lar, ADR 0034 §5b):**
 
-- `app.chat_items`: kimlik, çember ya da alıcı kişi (ikisi birden değil), gönderen kişi ve cihaz,
-  zarf, dosya kimliği (varsa), oluşturma ve bitiş zamanı. RLS: çember üyeleri ya da gönderen ve
-  alıcı.
-- `app.media_blobs(id, owner_user_id, size, created_at, expires_at)`. Dosyanın kendisi
-  `/srv/bargu-media` altında; adı kimliği, tahmin edilemez.
-- `app.media_access(blob_id, circle_id?, user_id?)`: dosyayı kim indirebilir.
-- `app.blocks(blocker_id, blocked_id, created_at)`.
-- `app.reports(...)`: §9.
+- `app.chat_items` (migration 0040): kimlik, çember ya da alıcı kişi (ikisi birden değil),
+  gönderen, zarf, dosya kimliği (varsa), oluşturma ve bitiş zamanı. RLS:
+  - gönderen kendi öğesini görür;
+  - çember öğesini, gönderildiği an orada olan ve hâlâ orada olan üyeler görür;
+  - kişisel öğeyi o kişi görür;
+  - kimse engellediği birinin öğesini görmez.
+- `app.media_blobs`: şifreli fotoğrafın kendisi **veritabanında** (profil fotoğrafları gibi),
+  boyutu, oluşturma ve bitiş zamanı. Uygulamada değişti: ADR'nin ilk hâli `/srv/bargu-media`
+  klasörü ve ayrı bir erişim tablosu diyordu. Veritabanında durunca:
+  - ortak sunucuda klasör ya da bağlama gerekmez;
+  - kim alabilir sorusunu RLS cevaplar: dosyayı, onu paylaşan bir öğeyi okuyabilen alır;
+  - dosya satırıyla birlikte gider;
+  - gece yedeği onu dışarıda bırakır.
+- `app.blocks(blocker_id, blocked_id, created_at)`: yalnız engelleyen görür.
+- `app.reports` (migration 0041): §9.
 
 **Uç noktalar** (hepsi zod doğrulamalı, cihaz imzalı, "başka kullanıcı erişemez" testli):
 
@@ -194,11 +201,12 @@ Telefonda sıra:
 - `GET /v1/chat?after=<imleç>`: son 24 saatin, bana görünen öğeleri. Uygulama açılınca ve canlı
   bağlantı yeniden kurulunca bir kez çağrılır; yoklama değildir.
 - `DELETE /v1/chat/:itemId`: yalnız gönderen.
-- `POST /v1/media`, `GET /v1/media/:blobId`: yükleme ve indirme. İndirme yalnız erişim
-  listesindeki ve hâlâ o çemberin üyesi olan kişiye açıktır.
+- `POST /v1/media`, `GET /v1/media/:blobId`: yükleme ve indirme. İndirme yalnız dosyayı paylaşan
+  bir öğeyi okuyabilen kişiye açıktır. Bu iki yol ve `POST /v1/reports` 900 KB'lık gövde alır,
+  öteki her yol 64 KB.
 - `PUT /v1/blocks/:userId`, `DELETE /v1/blocks/:userId`, `POST /v1/reports`.
 
-**Canlı olaylar:** `chat.new` (zarfın kendisi), `chat.gone` (silindi ya da süresi doldu). Durum
+**Canlı olaylar:** `chat` (öğenin kaydı, zarfıyla), `chat.gone` (gönderen geri aldı). Durum
 değişikliği olaydır; listeyi yenileme düğmesi yoktur.
 
 **Engelleme:**
@@ -216,9 +224,10 @@ değişikliği olaydır; listeyi yenileme düğmesi yoktur.
 **Sunucuda:**
 
 - Her satırın `expires_at = created_at + 24 saat`. Okumalar süresi dolmuşu hiç döndürmez.
-- İş kuyruğunda (pg-boss) 5 dakikada bir çalışan `chat-purge` işi süresi dolan satırları ve
-  dosyaları siler, kalanlara `chat.gone` olayı gönderir. İş kaçarsa bile okuma süzgeci süresi
-  dolanı göstermez.
+- İşçide 5 dakikada bir çalışan süpürücü (`MessagesSweeper`, konum geçmişininki gibi, Redis
+  kilidiyle) süresi dolan satırları ve hiçbir öğenin paylaşmadığı dosyaları siler. Süpürücü
+  gecikse de okuma süzgeci süresi dolanı göstermez. Telefonlar kendi saatleriyle sildikleri için
+  süre dolunca olay gönderilmez.
 - Gönderen silince satır ve dosya hemen gider.
 - Üye çemberden ayrılınca ya da çıkarılınca o çemberdeki öğeleri ve oraya paylaştığı hikayeler
   silinir ("çemberden çıkmak iz bırakmaz").
@@ -307,9 +316,11 @@ değişikliği olaydır; listeyi yenileme düğmesi yoktur.
     yazar. E-posta kuralı bildirimdekiyle aynı (§9): içerik ve kişi yok.
   - Doluysa yeni fotoğraf `MEDIA_FULL` ile reddedilir; yazı çalışmaya devam eder.
   - Türkiye'ye taşınınca sınır env'den büyütülür.
-- **Sunucu kurulumu** (PM eki 4): `/srv/bargu-media` dizini ve yeni env'ler (`MEDIA_MAX_BYTES`,
-  `OPS_EMAIL`) ortak sunucuda değişikliktir. `infra/staging/apply-pending.sh`'e kuru çalıştırmalı
-  yeni bir adım olarak girer. Çalıştırmayı sahip kendi onayıyla yapar (DURUM, "Senden gerekenler").
+- **Sunucu kurulumu** (PM eki 4): klasör gerekmez (fotoğraflar veritabanında). Yeni env'ler
+  (`MEDIA_MAX_BYTES`, `OPS_EMAIL`) ortak sunucuda değişikliktir. `infra/staging/apply-pending.sh`
+  adım 3b bunları compose.yml'e ve .env'e yazar; kuru çalıştırması denendi. Çalıştırmayı sahip
+  kendi onayıyla yapar (DURUM, "Senden gerekenler"). O çalışana kadar sunucu kodun varsayılanıyla
+  (2 GB, e-posta yerine günlük satırı) çalışır.
 
 ### 11. Bildirimler ve istemci seviyesi
 
@@ -386,7 +397,7 @@ Her dilim kendi testleriyle, "başka kullanıcı erişemez" testleri dahil, ayr�
 
 2. **M1, sunucu:**
    - tablolar, uç noktalar, canlı olaylar;
-   - `chat-purge` işi, engelleme, sınırlar, dosya erişimi, disk sınırı ve alarm;
+   - süpürücü, engelleme, sınırlar, dosya erişimi, disk sınırı ve alarm;
    - bildirim türleri, seviye 6;
    - yedek betiğinin sohbet tablolarını dışarıda bırakması;
    - `apply-pending.sh`'e medya dizini ve env adımı (kuru çalıştırmalı; sahip çalıştırır).

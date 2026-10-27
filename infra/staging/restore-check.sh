@@ -91,6 +91,10 @@ FROM pg_tables WHERE schemaname IN ('app', 'pgboss') ORDER BY schemaname, tablen
 \gexec
 SQL
 
+# Messages and moments never outlive their 24 hours in a backup (docs/ADR/0035 §7).
+kept="$(psql -c "SELECT coalesce((SELECT count(*) FROM app.chat_items WHERE to_regclass('app.chat_items') IS NOT NULL), 0) + coalesce((SELECT count(*) FROM app.media_blobs WHERE to_regclass('app.media_blobs') IS NOT NULL), 0)" 2>/dev/null || echo 0)"
+[ "$kept" = 0 ] || fail "yedekte mesaj ya da fotoğraf var ($kept satır); olmamalı"
+
 echo "restore-check: yedekte $applied migration (son: $last), depoda $repo"
 if [ "$applied" -lt "$repo" ]; then
   echo "restore-check: depodaki $((repo - applied)) migration bu yedekten sonra (henüz dağıtılmamış olabilir)"

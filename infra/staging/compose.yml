@@ -62,6 +62,10 @@ x-app-env: &app-env
   WATCH_PUSH: ${WATCH_PUSH:-on}
   WATCH_PUSH_MIN_SECONDS: ${WATCH_PUSH_MIN_SECONDS:-90}
   WATCH_PUSH_PER_HOUR: ${WATCH_PUSH_PER_HOUR:-20}
+  # Messages and moments (docs/ADR/0035 §10): the photos' space, and where the operator hears of a
+  # report or of that space filling up (empty: a log line instead).
+  MEDIA_MAX_BYTES: ${MEDIA_MAX_BYTES:-2147483648}
+  OPS_EMAIL: ${OPS_EMAIL:-}
   # The oldest app served (QA 19 P4): 0 serves all; raise it in .env to make old APKs update.
   MIN_CLIENT_LEVEL: ${MIN_CLIENT_LEVEL:-0}
   # Signs cosmetic passes (docs/ADR/0025): staging's own key, generated on the server into .env.

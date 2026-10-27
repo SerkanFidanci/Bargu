@@ -1,12 +1,17 @@
 import {
+  chatKeyOf,
   type DevicePublicKeys,
   encryptChat,
+  fromBase64url,
   generatePhotoKey,
   generateSenderKey,
+  openAtRest,
   photoHashOf,
   randomUuid,
+  revealChatItem,
   sealChatPhoto,
   sealDirect,
+  type SenderKey,
   toBase64url,
 } from '@bargu/crypto';
 import type {
@@ -17,13 +22,15 @@ import type {
   DirectEnvelope,
   Media,
 } from '@bargu/schemas';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { DatabaseService } from '../../src/infra/database/database.service.js';
 import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
+import { EmailJobs } from '../../src/jobs/email-jobs.js';
 import { MessagesSweeper } from '../../src/messages/messages-sweeper.js';
+import { REPORT_CONTENT_CONTEXT } from '../../src/messages/reports.service.js';
 import { call } from './support/client.js';
-import { createTestApp, type TestApp } from './support/app.js';
+import { createTestApp, type TestApp, testEnv } from './support/app.js';
 import { as, circleWith, type Person, person } from './support/people.js';
 
 let test: TestApp;
@@ -59,15 +66,26 @@ const publicKeys = (who: Person): DevicePublicKeys => ({
   dhKey: who.device.dh.publicKey,
 });
 
-/** An item of `who` for a circle, sealed with a sender key of the circle's epoch. */
-function circleItem(who: Person, circle: Pick<Circle, 'id' | 'epoch'>, payload = text()) {
-  const senderKey = generateSenderKey({
+/** The sender key a phone of `who` has for a circle's epoch. */
+const keyOf = (who: Person, circle: Pick<Circle, 'id' | 'epoch'>): SenderKey =>
+  generateSenderKey({
     circleId: circle.id,
     epoch: circle.epoch,
     senderDeviceId: who.device.deviceId,
   });
+
+/** An item of `who` for a circle, sealed with a sender key of the circle's epoch. */
+function circleItem(
+  who: Person,
+  circle: Pick<Circle, 'id' | 'epoch'>,
+  payload = text(),
+  senderKey = keyOf(who, circle),
+) {
   return encryptChat({ senderKey, sender: who.device, payload });
 }
+
+const sweeper = (env = test.env, email = test.app.get(EmailJobs)) =>
+  new MessagesSweeper(test.app.get(DatabaseService), test.app.get<RedisClient>(REDIS), email, env);
 
 const toCircle = async (who: Person, circleId: string, body: object) =>
   (await as(test, who, 'POST', `/v1/chat/circles/${circleId}`, body)).json<ChatSendReply>();
@@ -281,16 +299,183 @@ describe('the 24 hours (docs/ADR/0035 §7)', () => {
       [orphanId],
     );
     expect(ids(await list(carol))).not.toContain(envelope.id);
-    await new MessagesSweeper(
-      test.app.get(DatabaseService),
-      test.app.get<RedisClient>(REDIS),
-    ).sweep();
+    await sweeper().sweep();
     const left = await test.admin.query(
       `SELECT (SELECT count(*) FROM app.chat_items WHERE id = $1)::int AS items,
               (SELECT count(*) FROM app.media_blobs WHERE id = $2)::int AS files`,
       [envelope.id, orphanId],
     );
     expect(left.rows[0]).toEqual({ items: 0, files: 0 });
+  });
+});
+
+describe('reports (docs/ADR/0035 §9)', () => {
+  const report = (who: Person, body: object) => as(test, who, 'POST', '/v1/reports', body);
+  const stored = async (reporter: Person) =>
+    (
+      await test.admin.query<{
+        verified: boolean;
+        content: string | null;
+        reason: string;
+        retain_until: Date | null;
+        item_id: string | null;
+      }>(
+        `SELECT verified, content, reason, retain_until, item_id FROM app.reports
+          WHERE reporter_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        [reporter.userId],
+      )
+    ).rows[0];
+  const opened = (content: string | null | undefined) =>
+    JSON.parse(
+      new TextDecoder().decode(
+        openAtRest(test.env.JOB_PAYLOAD_KEY, content ?? '', REPORT_CONTENT_CONTEXT),
+      ),
+    ) as Record<string, unknown>;
+
+  it('verify the item with its own key and keep what it said, sealed, for 90 days', async () => {
+    const senderKey = keyOf(alice, family);
+    const envelope = circleItem(alice, family, text('Seni bulacağım'), senderKey);
+    await toCircle(alice, family.id, { envelope });
+    const key = revealChatItem({
+      envelope,
+      chatKey: chatKeyOf(senderKey),
+      sender: publicKeys(alice),
+    });
+    const filed = await report(bob, {
+      userId: alice.userId,
+      reason: 'harassment',
+      item: { envelope, ...key },
+    });
+    expect(filed.statusCode).toBe(204);
+    const row = await stored(bob);
+    expect(row).toMatchObject({ verified: true, reason: 'harassment', item_id: envelope.id });
+    expect(opened(row?.content)).toMatchObject({
+      kind: 'text',
+      text: 'Seni bulacağım',
+      circleId: family.id,
+    });
+    const days = ((row?.retain_until?.getTime() ?? 0) - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(89);
+    // Nobody but the reporter sees the report exists.
+    const seen = await test.app
+      .get(DatabaseService)
+      .asUser(carol.userId, (tx) => tx.execute('SELECT count(*)::int AS n FROM app.reports'));
+    expect(seen.rows[0]).toEqual({ n: 0 });
+  });
+
+  it('keep a photo as it was sent, also after the sender took it back', async () => {
+    const photoKey = generatePhotoKey();
+    const blobId = randomUuid();
+    const image = new Uint8Array(2000).fill(5);
+    const sealed = sealChatPhoto(photoKey, blobId, image);
+    await upload(carol, sealed, blobId);
+    const senderKey = keyOf(carol, family);
+    const photo: ChatPayload = {
+      kind: 'photo',
+      id: randomUuid(),
+      blobId,
+      key: toBase64url(photoKey),
+      size: sealed.length,
+      hash: photoHashOf(sealed),
+      w: 10,
+      h: 10,
+      caption: 'bak',
+      story: false,
+      ts: Date.now(),
+    };
+    const envelope = circleItem(carol, family, photo, senderKey);
+    await toCircle(carol, family.id, { envelope, blobId });
+    const key = revealChatItem({
+      envelope,
+      chatKey: chatKeyOf(senderKey),
+      sender: publicKeys(carol),
+    });
+    await as(test, carol, 'DELETE', `/v1/chat/${envelope.id}`);
+    await report(alice, {
+      userId: carol.userId,
+      reason: 'sexual',
+      item: { envelope, ...key },
+      file: toBase64url(sealed),
+    });
+    const content = opened((await stored(alice))?.content);
+    expect(content).toMatchObject({ kind: 'photo', caption: 'bak', story: false });
+    expect(fromBase64url(String(content.image))).toEqual(image);
+  });
+
+  it('keep nothing of an item that does not verify, and keep child abuse until closed', async () => {
+    const envelope = circleItem(alice, family);
+    await toCircle(alice, family.id, { envelope });
+    const forged = {
+      key: toBase64url(new Uint8Array(32).fill(1)),
+      nonce: toBase64url(new Uint8Array(12)),
+    };
+    const filed = await report(bob, {
+      userId: alice.userId,
+      reason: 'child',
+      item: { envelope, ...forged },
+    });
+    expect(filed.statusCode).toBe(204);
+    expect(await stored(bob)).toMatchObject({ verified: false, content: null, retain_until: null });
+    await report(bob, { userId: carol.userId, reason: 'spam' });
+    expect(await stored(bob)).toMatchObject({ verified: false, item_id: null, reason: 'spam' });
+    expect((await report(bob, { userId: bob.userId, reason: 'spam' })).statusCode).toBe(400);
+  });
+
+  it('never take someone else’s item as theirs', async () => {
+    const senderKey = keyOf(alice, family);
+    const envelope = circleItem(alice, family, text(), senderKey);
+    await toCircle(alice, family.id, { envelope });
+    const key = revealChatItem({
+      envelope,
+      chatKey: chatKeyOf(senderKey),
+      sender: publicKeys(alice),
+    });
+    await report(bob, { userId: carol.userId, reason: 'other', item: { envelope, ...key } });
+    expect(await stored(bob)).toMatchObject({ verified: false, content: null });
+  });
+});
+
+describe('the photos’ space (docs/ADR/0035 §10)', () => {
+  const mediaBytes = async () =>
+    Number(
+      (await test.admin.query<{ bytes: string }>('SELECT app.media_bytes()::text AS bytes')).rows[0]
+        ?.bytes,
+    );
+
+  it('warns the operator once a day past 80%, with no content', async () => {
+    const bytes = await mediaBytes();
+    await test.app.get<RedisClient>(REDIS).del('chat:media:alarm');
+    const enqueueOps = vi.fn(() => Promise.resolve());
+    const full = { ...test.env, MEDIA_MAX_BYTES: bytes, OPS_EMAIL: 'ops@example.test' };
+    const watcher = sweeper(full, { enqueueOps } as unknown as EmailJobs);
+    expect(await watcher.watchSpace()).toBeGreaterThanOrEqual(0.8);
+    expect(await watcher.watchSpace()).toBeGreaterThanOrEqual(0.8);
+    expect(enqueueOps).toHaveBeenCalledTimes(1);
+    expect(enqueueOps).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'ops@example.test', topic: 'media' }),
+    );
+  });
+
+  it('refuses a new photo once full; the words keep going', async () => {
+    const small = await createTestApp({
+      env: testEnv({ MEDIA_MAX_BYTES: String((await mediaBytes()) + 1_000_000) }),
+    });
+    try {
+      const who = await person(small, 'Dolu');
+      const send = (id: string) =>
+        as(small, who, 'POST', '/v1/media', {
+          id,
+          bytes: toBase64url(
+            sealChatPhoto(generatePhotoKey(), id, new Uint8Array(600 * 1024 - 61)),
+          ),
+        });
+      expect((await send(randomUuid())).statusCode).toBe(204);
+      const refused = await send(randomUuid());
+      expect(refused.statusCode).toBe(507);
+      expect(refused.json<{ code: string }>().code).toBe('MEDIA_FULL');
+    } finally {
+      await small.close();
+    }
   });
 });
 

@@ -156,6 +156,11 @@ const envSchema = z
       .min(1_000_000)
       .default(2 * 1024 ** 3),
     /**
+     * Where the operator hears of a new report and of the photos' space filling up (docs/ADR/0035
+     * §9, §10), without content. Unset (or empty): a log line says the same.
+     */
+    OPS_EMAIL: z.preprocess((value) => (value === '' ? undefined : value), z.email().optional()),
+    /**
      * Signs the cosmetic pass (docs/ADR/0025 §2): an Ed25519 seed, its id the apps know it by.
      * Staging and production each have their own; without one there is no pass and no cosmetic
      * shows. Both or neither; empty is unset (compose passes `${VAR:-}`).

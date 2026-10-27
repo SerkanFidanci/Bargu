@@ -7,6 +7,7 @@ import { ENV } from '../config/config.module.js';
 import { type Env, webOriginOf } from '../config/env.js';
 import { type EmailJob, EmailJobs } from './email-jobs.js';
 import { Mailer, type OutgoingEmail } from './mailer.js';
+import { opsEmail } from './ops-email.js';
 import { otpEmail, webCodeEmail, webUnlockEmail } from './otp-email.js';
 import { QUEUES } from './queues.js';
 import { JOB_QUEUE } from './tokens.js';
@@ -23,6 +24,7 @@ export function emailFor(
   otpKey: Uint8Array,
   origin: string | null,
 ): OutgoingEmail | null {
+  if (email.kind === 'ops') return opsEmail(email);
   if (email.kind === 'otp') {
     return otpEmail(email.to, email.locale, deriveOtpCode(otpKey, email.challengeId));
   }

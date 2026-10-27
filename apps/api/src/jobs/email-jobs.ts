@@ -14,7 +14,7 @@ const SEAL_CONTEXT = 'job/email';
  * A login code (`otp`), the account web page's code (`web`, docs/ADR/0021), or its "recognise
  * this browser" link (`web-unlock`, QA 4 K2b; the challenge id is the link's id).
  */
-const emailJobSchema = z
+const codeEmailSchema = z
   .object({
     kind: z.enum(['otp', 'web', 'web-unlock']),
     to: z.email(),
@@ -22,6 +22,25 @@ const emailJobSchema = z
     challengeId: z.uuid(),
   })
   .strict();
+type CodeEmailJob = z.infer<typeof codeEmailSchema>;
+
+/**
+ * A word to whoever runs the service (OPS_EMAIL, docs/ADR/0035 §9, §10): what happened and an id
+ * to look it up by on the server. Never what was reported, nor who.
+ */
+const opsEmailSchema = z
+  .object({
+    kind: z.literal('ops'),
+    to: z.email(),
+    topic: z.enum(['report', 'media']),
+    /** The reason of a report, or how full the photos' space is (a percentage). */
+    detail: z.string().max(40),
+    id: z.uuid(),
+  })
+  .strict();
+export type OpsEmailJob = z.infer<typeof opsEmailSchema>;
+
+const emailJobSchema = z.discriminatedUnion('kind', [codeEmailSchema, opsEmailSchema]);
 export type EmailJob = z.infer<typeof emailJobSchema>;
 
 /** What is stored in the queue: only a sealed blob, no address in clear. */
@@ -36,7 +55,7 @@ export class EmailJobs {
   ) {}
 
   /** Queues a login-code email. The code itself is derived by the worker, never stored. */
-  async enqueueOtp(job: Omit<EmailJob, 'kind'>): Promise<void> {
+  async enqueueOtp(job: Omit<CodeEmailJob, 'kind'>): Promise<void> {
     const box = sealAtRest(
       this.keys.jobPayloadKey,
       new TextEncoder().encode(JSON.stringify({ kind: 'otp', ...job } satisfies EmailJob)),
@@ -49,7 +68,7 @@ export class EmailJobs {
   }
 
   /** Queues the account web page's code (8 digits, its own label); derived by the worker too. */
-  async enqueueWebCode(job: Omit<EmailJob, 'kind'>): Promise<void> {
+  async enqueueWebCode(job: Omit<CodeEmailJob, 'kind'>): Promise<void> {
     const box = sealAtRest(
       this.keys.jobPayloadKey,
       new TextEncoder().encode(JSON.stringify({ kind: 'web', ...job } satisfies EmailJob)),
@@ -61,7 +80,7 @@ export class EmailJobs {
   }
 
   /** Queues the "recognise this browser" link; its secret is derived by the worker too. */
-  async enqueueWebUnlock(job: Omit<EmailJob, 'kind'>): Promise<void> {
+  async enqueueWebUnlock(job: Omit<CodeEmailJob, 'kind'>): Promise<void> {
     const box = sealAtRest(
       this.keys.jobPayloadKey,
       new TextEncoder().encode(JSON.stringify({ kind: 'web-unlock', ...job } satisfies EmailJob)),
@@ -70,6 +89,16 @@ export class EmailJobs {
     await this.boss.send(QUEUES.email, { v: 1, box } satisfies QueuedEmail, {
       id: job.challengeId,
     });
+  }
+
+  /** A word to the operator; at most one per id (a report, a day of the photos' alarm). */
+  async enqueueOps(job: Omit<OpsEmailJob, 'kind'>): Promise<void> {
+    const box = sealAtRest(
+      this.keys.jobPayloadKey,
+      new TextEncoder().encode(JSON.stringify({ kind: 'ops', ...job } satisfies OpsEmailJob)),
+      SEAL_CONTEXT,
+    );
+    await this.boss.send(QUEUES.email, { v: 1, box } satisfies QueuedEmail, { id: job.id });
   }
 
   open(data: unknown): EmailJob {
