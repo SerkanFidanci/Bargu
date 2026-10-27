@@ -1,4 +1,5 @@
 import {
+  chatKeyOf,
   createSenderKeyDistribution,
   type DeviceKeys,
   fromBase64url,
@@ -9,6 +10,7 @@ import {
   toBase64url,
 } from '@bargu/crypto';
 import {
+  CHAT_LIFETIME_MS,
   type Circle,
   HISTORY_KEEP_MS,
   type MemberCard,
@@ -32,6 +34,11 @@ const RETAINED_EPOCHS = 2;
  */
 export const HISTORY_KEY_KEEP_MS = HISTORY_KEEP_MS + 24 * 60 * 60_000;
 const historySchema = z.object({ key: z.string(), until: z.number().optional() }).strict();
+/**
+ * Chat keys (docs/ADR/0035 §2) of an epoch outlive its sender key by this long once the epoch is no
+ * longer accepted: an item sent in it may still arrive, or be shown, until its 24 hours are over.
+ */
+export const CHAT_KEY_KEEP_MS = CHAT_LIFETIME_MS + 60 * 60_000;
 
 const ownSchema = z.object({ key: z.string(), sentTo: z.array(z.string()) }).strict();
 const identitySchema = z
@@ -50,6 +57,8 @@ const k = {
     `recv:${circleId}:${String(epoch)}:${senderDeviceId}`,
   history: (circleId: string, epoch: number, senderDeviceId: string) =>
     `hist:${circleId}:${String(epoch)}:${senderDeviceId}`,
+  chat: (circleId: string, epoch: number, senderDeviceId: string) =>
+    `chat:${circleId}:${String(epoch)}:${senderDeviceId}`,
   floor: (circleId: string) => `floor:${circleId}`,
   identity: (userId: string) => `identity:${userId}`,
   seen: (circleId: string) => `seen:${circleId}`,
@@ -163,13 +172,13 @@ export class KeyStore {
   /**
    * Deletes what this phone holds from these devices, which belong to a person it shares no circle
    * with any more: their sender keys (messages and history), and their place in the lists of who
-   * this phone sent its own key to. Not the identity record (`identity:`): that stays on purpose,
+   * this phone sent its own key to; their chat keys too. Not the identity record (`identity:`): that stays on purpose,
    * it is what notices a changed key if the person is met again (docs/PROTOCOL.md).
    */
   forgetDevices(deviceIds: ReadonlySet<string>): void {
     for (const key of this.store.keys()) {
       const [kind, , , deviceId] = key.split(':');
-      if ((kind === 'recv' || kind === 'hist') && deviceId !== undefined) {
+      if ((kind === 'recv' || kind === 'hist' || kind === 'chat') && deviceId !== undefined) {
         if (deviceIds.has(deviceId)) this.store.delete(key);
       } else if (kind === 'own') {
         const stored = read(this.store, key, ownSchema);
@@ -346,6 +355,11 @@ export class KeyStore {
           k.history(circle.id, distribution.epoch, distribution.senderDeviceId),
           JSON.stringify({ key: toBase64url(historyKeyOf(opened).key) }),
         );
+        // And for the items sent in it until their 24 hours are over (docs/ADR/0035 §2).
+        this.store.set(
+          k.chat(circle.id, distribution.epoch, distribution.senderDeviceId),
+          JSON.stringify({ key: toBase64url(chatKeyOf(opened).key) }),
+        );
         added += 1;
       } catch {
         // Forged or damaged: dropped, the sender's next upload will be tried again.
@@ -373,6 +387,21 @@ export class KeyStore {
     return received === null ? null : historyKeyOf(received);
   }
 
+  /**
+   * The key a member's items for a circle in an epoch open with (docs/ADR/0035 §2): kept 25 hours
+   * after the epoch's sender key is gone. This device's own items open with its own key's.
+   */
+  chatKey(circleId: string, epoch: number, senderDeviceId: string): SenderKey | null {
+    if (senderDeviceId === this.me.device.deviceId) {
+      const own = this.storedOwnKey(circleId, epoch);
+      return own === null ? null : chatKeyOf(own);
+    }
+    const held = read(this.store, k.chat(circleId, epoch, senderDeviceId), historySchema);
+    if (held !== null) return { circleId, epoch, senderDeviceId, key: fromBase64url(held.key, 32) };
+    const received = this.receivedKey(circleId, epoch, senderDeviceId);
+    return received === null ? null : chatKeyOf(received);
+  }
+
   /** Whether every trusted active member's key for the current epoch has arrived, and ours went out. */
   readiness(circle: Circle): { ready: boolean; waitingFor: number } {
     const others = circle.members.filter(
@@ -391,13 +420,17 @@ export class KeyStore {
 
   /**
    * Drops keys of epochs the protocol no longer accepts, and everything of a circle we left. History
-   * keys of such epochs go two weeks later.
+   * keys of such epochs go two weeks later, chat keys 25 hours later.
    */
   prune(circleId: string, currentEpoch: number | null, now = Date.now()): void {
     for (const key of this.store.keys()) {
       const parts = key.split(':');
       if (parts[0] === 'hist' && parts[1] === circleId) {
-        this.pruneHistoryKey(key, Number(parts[2]), currentEpoch, now);
+        this.pruneLongKey(key, Number(parts[2]), currentEpoch, now, HISTORY_KEY_KEEP_MS);
+        continue;
+      }
+      if (parts[0] === 'chat' && parts[1] === circleId) {
+        this.pruneLongKey(key, Number(parts[2]), currentEpoch, now, CHAT_KEY_KEEP_MS);
         continue;
       }
       if (
@@ -415,11 +448,12 @@ export class KeyStore {
     }
   }
 
-  private pruneHistoryKey(
+  private pruneLongKey(
     key: string,
     epoch: number,
     currentEpoch: number | null,
     now: number,
+    keepMs: number,
   ): void {
     if (currentEpoch === null) {
       this.store.delete(key);
@@ -430,7 +464,7 @@ export class KeyStore {
     if (held === null || (held.until !== undefined && held.until <= now)) {
       this.store.delete(key);
     } else if (held.until === undefined) {
-      this.store.set(key, JSON.stringify({ ...held, until: now + HISTORY_KEY_KEEP_MS }));
+      this.store.set(key, JSON.stringify({ ...held, until: now + keepMs }));
     }
   }
 

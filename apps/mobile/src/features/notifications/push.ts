@@ -125,12 +125,19 @@ function set(state: PushState): PushState {
 /** A screen a tapped notification opens instead of a circle (the weekly reminder: who sees you). */
 export function routeOfResponse(
   response: Notifications.NotificationResponse,
-): '/seers' | '/guardians' | '/store?shelf=plus' | null {
+): '/seers' | '/guardians' | '/store?shelf=plus' | '/messages' | `/messages/${string}` | null {
   const data: unknown = response.notification.request.content.data;
   if (typeof data !== 'object' || data === null) return null;
   const { route } = data as Record<string, unknown>;
   if (route === 'seers') return '/seers';
   if (route === 'guardians') return '/guardians';
+  // A new item of messages and moments (docs/ADR/0035 §11): its conversation.
+  if (route === 'messages') {
+    const { conversation } = data as Record<string, unknown>;
+    return typeof conversation === 'string' && /^[cp]:[0-9a-f-]{36}$/.test(conversation)
+      ? `/messages/${conversation}`
+      : '/messages';
+  }
   // The trial's reminder (features/billing/trial-reminder.ts): Bargu+ is a shelf of the store.
   if (route === 'plus') return '/store?shelf=plus';
   return null;

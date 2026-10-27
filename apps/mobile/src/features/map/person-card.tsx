@@ -12,6 +12,7 @@ import {
   type LucideIcon,
   MapPin,
   MapPinOff,
+  MessageCircle,
   Navigation,
   UserRound,
   Users,
@@ -222,7 +223,7 @@ export function PersonCard({
   from: ScreenPoint;
   /** Place name, once the map has it (null: none nearby, undefined: still looking). */
   place: string | null | undefined;
-  onAction: (action: PersonAction | 'meet') => void;
+  onAction: (action: PersonAction | 'meet' | 'message') => void;
   /** The card's height, so the map keeps the person visible above it. */
   onHeight: (height: number) => void;
 }) {
@@ -271,19 +272,31 @@ export function PersonCard({
         .filter((part) => part !== undefined)
         .join(' · ')}
       buttons={
-        <IconButton
-          testID="card-notifications"
-          icon={quiet ? BellOff : Bell}
-          tone="plain"
-          label={
-            quiet
-              ? t('map.card.notificationsMuted', { name: person.name })
-              : t('map.card.notifications', { name: person.name })
-          }
-          onPress={() => {
-            onAction('notifications');
-          }}
-        />
+        <>
+          {/* Messages and moments (docs/ADR/0035): their own conversation. */}
+          <IconButton
+            testID="card-message"
+            icon={MessageCircle}
+            tone="plain"
+            label={t('messages.write')}
+            onPress={() => {
+              onAction('message');
+            }}
+          />
+          <IconButton
+            testID="card-notifications"
+            icon={quiet ? BellOff : Bell}
+            tone="plain"
+            label={
+              quiet
+                ? t('map.card.notificationsMuted', { name: person.name })
+                : t('map.card.notifications', { name: person.name })
+            }
+            onPress={() => {
+              onAction('notifications');
+            }}
+          />
+        </>
       }
     >
       {status === null ? null : (

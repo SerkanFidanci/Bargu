@@ -144,11 +144,17 @@ export function usePeopleUi(
   );
 
   const act = useCallback(
-    (userId: string, action: PersonAction | 'meet') => {
+    (userId: string, action: PersonAction | 'meet' | 'message') => {
       const person = personView(userId, circles, useLocations.getState());
       if (person === null) return;
       if (action === 'meet') {
         meet(person);
+        return;
+      }
+      if (action === 'message') {
+        // Their own conversation (docs/ADR/0035 §1); "Bildir" and "Engelle" are under its ⋮.
+        closeCard();
+        router.push(`/messages/p:${person.userId}`);
         return;
       }
       if (action === 'profile') closeCard();

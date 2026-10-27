@@ -13,6 +13,7 @@ import { useSafeSpotNavigation } from '@/features/social/use-safe-spot';
 import '@/features/guardians/guardians-session';
 // The plan follows its events; the trial reminder follows the plan (docs/ADR/0024).
 import '@/features/billing/billing-session';
+import '@/features/messages/messages-session';
 import { LockScreen, useAppLockWatcher } from '@/features/security/lock-screen';
 import { useTimeUp } from '@/features/guardians/screen-time-session';
 import { TimeUpScreen } from '@/features/guardians/time-up-screen';

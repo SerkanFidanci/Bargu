@@ -257,7 +257,10 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
       // system's notification store.
       data:
         shown.route !== undefined
-          ? { route: shown.route }
+          ? {
+              route: shown.route,
+              ...(shown.conversation === undefined ? {} : { conversation: shown.conversation }),
+            }
           : spot !== undefined
             ? { circleId: shown.circleId, safe: spot.id }
             : shown.poke !== undefined && shown.fromUserId !== null

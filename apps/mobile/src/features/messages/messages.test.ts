@@ -1,0 +1,338 @@
+import { randomUuid } from '@bargu/crypto';
+import { CHAT_LIFETIME_MS } from '@bargu/schemas';
+
+import type { KeyValueStore } from '../storage/vault';
+import {
+  applyPayload,
+  type ChatItem,
+  circleConversation,
+  conversations,
+  EMPTY_MESSAGES,
+  expired,
+  loadMessages,
+  MESSAGES_KEY,
+  type MessagesState,
+  nextExpiry,
+  personConversation,
+  saveMessages,
+  unreadIn,
+  unreadTotal,
+  withItem,
+  withoutCircle,
+  withoutItem,
+  withoutPerson,
+  withState,
+} from './messages';
+
+function memoryStore(): KeyValueStore & { data: Map<string, string> } {
+  const data = new Map<string, string>();
+  return {
+    data,
+    get: (key) => data.get(key),
+    set: (key, value) => {
+      data.set(key, value);
+    },
+    delete: (key) => {
+      data.delete(key);
+    },
+    keys: () => [...data.keys()],
+    clear: () => {
+      data.clear();
+    },
+  };
+}
+
+const NOW = 1_800_000_000_000;
+const ME = randomUuid();
+const ALI = randomUuid();
+const CIRCLE = randomUuid();
+const group = circleConversation(CIRCLE);
+const withAli = personConversation(ALI);
+
+const text = (overrides: Partial<ChatItem> = {}): ChatItem => ({
+  id: randomUuid(),
+  conversation: group,
+  from: ALI,
+  at: NOW - 1000,
+  kind: 'text',
+  text: 'merhaba',
+  state: 'sent',
+  ...overrides,
+});
+
+const photo = (overrides: Partial<ChatItem> = {}): ChatItem => ({
+  id: randomUuid(),
+  conversation: group,
+  from: ALI,
+  at: NOW - 1000,
+  kind: 'photo',
+  state: 'sent',
+  photo: {
+    blobId: randomUuid(),
+    key: 'k'.repeat(43),
+    size: 1000,
+    hash: 'h'.repeat(43),
+    w: 100,
+    h: 100,
+    story: false,
+  },
+  ...overrides,
+});
+
+const stateWith = (...items: ChatItem[]): MessagesState =>
+  items.reduce((state, item) => withItem(state, item), EMPTY_MESSAGES);
+
+describe('the vault copy', () => {
+  it('keeps the items of the last 24 hours and drops the older ones from the vault too', () => {
+    const store = memoryStore();
+    const fresh = text();
+    const old = text({ at: NOW - CHAT_LIFETIME_MS - 1 });
+    saveMessages(store, stateWith(fresh, old));
+
+    const loaded = loadMessages(store, NOW);
+
+    expect(loaded.items.map((item) => item.id)).toEqual([fresh.id]);
+    expect(loadMessages(store, NOW).items).toHaveLength(1);
+    expect(JSON.parse(store.get(MESSAGES_KEY) ?? '{}')).toMatchObject({
+      items: [{ id: fresh.id }],
+    });
+  });
+
+  it('starts empty and forgets a broken copy', () => {
+    const store = memoryStore();
+    expect(loadMessages(store, NOW).items).toEqual([]);
+    store.set(MESSAGES_KEY, '{nope');
+    expect(loadMessages(store, NOW).items).toEqual([]);
+    expect(store.get(MESSAGES_KEY)).toBeUndefined();
+    store.set(
+      MESSAGES_KEY,
+      JSON.stringify({ items: [{ id: 'x' }], read: {}, cursor: 0, seen: {} }),
+    );
+    expect(loadMessages(store, NOW).items).toEqual([]);
+    expect(store.get(MESSAGES_KEY)).toBeUndefined();
+  });
+
+  it('never writes what lives only in memory, and deletes the copy when nothing is left', () => {
+    const store = memoryStore();
+    const full: MessagesState = { ...stateWith(text()), loaded: true };
+    saveMessages(store, full);
+    const saved: unknown = JSON.parse(store.get(MESSAGES_KEY) ?? '{}');
+    expect(Object.keys(saved as object).sort()).toEqual(['cursor', 'items', 'read', 'seen']);
+
+    saveMessages(store, EMPTY_MESSAGES);
+    expect(store.get(MESSAGES_KEY)).toBeUndefined();
+  });
+});
+
+describe('the 24 hours', () => {
+  it('gives the same state back when nothing is over', () => {
+    const state = stateWith(text());
+    expect(expired(state, NOW)).toBe(state);
+  });
+
+  it('drops what is over, and forgets seen ids an hour after their day', () => {
+    const old = text({ at: NOW - CHAT_LIFETIME_MS - 1 });
+    const state = stateWith(old, text());
+    const later = expired(state, NOW);
+    expect(later.items).toHaveLength(1);
+    expect(later.seen[old.id]).toBe(old.at);
+
+    expect(expired(state, NOW + 60 * 60_000 + 1).seen[old.id]).toBeUndefined();
+  });
+
+  it('knows when the next item goes', () => {
+    expect(nextExpiry(EMPTY_MESSAGES)).toBeNull();
+    const first = text({ at: NOW - 5000 });
+    expect(nextExpiry(stateWith(text(), first))).toBe(first.at + CHAT_LIFETIME_MS);
+  });
+});
+
+describe('items', () => {
+  it('adds an item once, in time order, and marks it seen', () => {
+    const late = text({ at: NOW });
+    const early = text({ at: NOW - 5000 });
+    const state = stateWith(late, early);
+    expect(state.items.map((item) => item.id)).toEqual([early.id, late.id]);
+    expect(withItem(state, late)).toBe(state);
+    expect(state.seen[late.id]).toBe(late.at);
+  });
+
+  it('keeps the newest thousand of a conversation', () => {
+    let state: MessagesState = EMPTY_MESSAGES;
+    for (let index = 0; index < 1001; index += 1) {
+      state = withItem(state, text({ at: NOW - 2000 + index }));
+    }
+    const other = text({ conversation: withAli });
+    state = withItem(state, other);
+    expect(state.items.filter((item) => item.conversation === group)).toHaveLength(1000);
+    expect(state.items.some((item) => item.at === NOW - 2000)).toBe(false);
+    expect(state.items).toContainEqual(other);
+  });
+
+  it('changes the state of one item and removes one', () => {
+    const mine = text({ from: ME, state: 'sending' });
+    const state = withState(stateWith(mine, text()), mine.id, 'failed');
+    expect(state.items.find((item) => item.id === mine.id)?.state).toBe('failed');
+    expect(withoutItem(state, mine.id).items).toHaveLength(1);
+    expect(withoutItem(state, randomUuid())).toBe(state);
+  });
+});
+
+describe('what an opened item does', () => {
+  it('adds a text with what it answers and keeps its envelope only when given', () => {
+    const answered = randomUuid();
+    const id = randomUuid();
+    const state = applyPayload(
+      EMPTY_MESSAGES,
+      { kind: 'text', id, text: 'selam', ts: NOW, replyTo: answered },
+      ALI,
+      group,
+      undefined,
+    );
+    expect(state.items).toEqual([
+      {
+        id,
+        conversation: group,
+        from: ALI,
+        at: NOW,
+        kind: 'text',
+        text: 'selam',
+        replyTo: answered,
+        state: 'sent',
+      },
+    ]);
+    expect(state.seen[id]).toBe(NOW);
+  });
+
+  it('adds a photo with its key and caption', () => {
+    const id = randomUuid();
+    const blobId = randomUuid();
+    const state = applyPayload(
+      EMPTY_MESSAGES,
+      {
+        kind: 'photo',
+        id,
+        blobId,
+        key: 'k'.repeat(43),
+        size: 2000,
+        hash: 'h'.repeat(43),
+        w: 1600,
+        h: 1200,
+        story: true,
+        caption: 'deniz',
+        ts: NOW,
+      },
+      ALI,
+      group,
+      undefined,
+    );
+    expect(state.items[0]?.photo).toEqual({
+      blobId,
+      key: 'k'.repeat(43),
+      size: 2000,
+      hash: 'h'.repeat(43),
+      w: 1600,
+      h: 1200,
+      story: true,
+      caption: 'deniz',
+    });
+  });
+
+  it('takes an item back only for its own sender', () => {
+    const hers = text();
+    const mine = text({ from: ME });
+    const state = stateWith(hers, mine);
+
+    const fromAli = applyPayload(
+      state,
+      { kind: 'del', id: randomUuid(), target: hers.id, ts: NOW },
+      ALI,
+      group,
+      undefined,
+    );
+    expect(fromAli.items.map((item) => item.id)).toEqual([mine.id]);
+
+    const forged = applyPayload(
+      state,
+      { kind: 'del', id: randomUuid(), target: mine.id, ts: NOW },
+      ALI,
+      group,
+      undefined,
+    );
+    expect(forged.items).toHaveLength(2);
+  });
+
+  it('marks this phone own photo as screenshot, once per person, and nothing else', () => {
+    const mine = photo({ from: ME });
+    const hers = photo();
+    const words = text({ from: ME });
+    const state = stateWith(mine, hers, words);
+    const shot = (target: string, from: string, current: MessagesState) =>
+      applyPayload(
+        current,
+        { kind: 'shot', id: randomUuid(), target, ts: NOW },
+        from,
+        group,
+        undefined,
+      );
+
+    const twice = shot(mine.id, ALI, shot(mine.id, ALI, state));
+    expect(twice.items.find((item) => item.id === mine.id)?.shotBy).toEqual([ALI]);
+    expect(
+      shot(hers.id, ALI, state).items.find((item) => item.id === hers.id)?.shotBy,
+    ).toBeUndefined();
+    expect(
+      shot(words.id, ALI, state).items.find((item) => item.id === words.id)?.shotBy,
+    ).toBeUndefined();
+  });
+});
+
+describe('leaving', () => {
+  it('forgets a person: their conversation and what they wrote anywhere', () => {
+    const inGroup = text();
+    const direct = text({ conversation: withAli, from: ME });
+    const mineInGroup = text({ from: ME });
+    const state = {
+      ...stateWith(inGroup, direct, mineInGroup),
+      read: { [withAli]: NOW, [group]: NOW },
+    };
+    const left = withoutPerson(state, ALI);
+    expect(left.items.map((item) => item.id)).toEqual([mineInGroup.id]);
+    expect(left.read).toEqual({ [group]: NOW });
+  });
+
+  it('forgets a circle', () => {
+    const direct = text({ conversation: withAli });
+    const state = { ...stateWith(text(), direct), read: { [group]: NOW } };
+    const left = withoutCircle(state, CIRCLE);
+    expect(left.items).toEqual([direct]);
+    expect(left.read).toEqual({});
+  });
+});
+
+describe('unread', () => {
+  it('counts what others sent after the conversation was read', () => {
+    const state = {
+      ...stateWith(
+        text({ at: NOW - 3000 }),
+        text({ at: NOW - 1000 }),
+        text({ at: NOW, from: ME }),
+        text({ conversation: withAli, at: NOW }),
+      ),
+      read: { [group]: NOW - 2000 },
+    };
+    expect(unreadIn(state, group, ME)).toBe(1);
+    expect(unreadIn(state, withAli, ME)).toBe(1);
+    expect(unreadTotal(state, ME)).toBe(2);
+  });
+
+  it('lists conversations by their last item, the newest first', () => {
+    const lastInGroup = text({ at: NOW - 100 });
+    const lastWithAli = text({ conversation: withAli, at: NOW });
+    const state = stateWith(text({ at: NOW - 500 }), lastInGroup, lastWithAli);
+    expect(conversations(state)).toEqual([
+      { conversation: withAli, last: lastWithAli },
+      { conversation: group, last: lastInGroup },
+    ]);
+  });
+});

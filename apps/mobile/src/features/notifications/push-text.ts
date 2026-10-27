@@ -20,7 +20,9 @@ export interface ShownPush {
   /** Their name as this phone knows it ("Güvendeyim" counts and sums up messages by person). */
   fromName?: string;
   /** Tapping opens this screen instead of the circle (guardian notices name a link). */
-  route?: 'guardians';
+  route?: 'guardians' | 'messages';
+  /** For messages: the conversation tapping opens (`c:<circleId>` or `p:<userId>`). */
+  conversation?: string;
   /**
    * "Güvendeyim" with a place (docs/ADR/0029 §5): the phone keeps it for a day, and tapping the
    * notification shows it on the map.
@@ -112,6 +114,25 @@ export function pushText(
       circleId: body.circleId,
       channel: SOCIAL_CHANNEL,
       fromUserId: sender.userId,
+    };
+  }
+  if (body.kind === 'chat') {
+    // A new item of messages and moments (docs/ADR/0035 §11): who sent it, never what it says.
+    const circle = body.circleId === undefined ? undefined : contacts.circles[body.circleId]?.name;
+    const words =
+      circle === undefined
+        ? i18n.t(body.photo ? 'notifications.chat.photoAlone' : 'notifications.chat.textAlone')
+        : i18n.t(body.photo ? 'notifications.chat.photo' : 'notifications.chat.text', {
+            name: sender.name,
+          });
+    return {
+      title: circle ?? sender.name,
+      body: words,
+      circleId: body.circleId ?? '',
+      channel: SOCIAL_CHANNEL,
+      fromUserId: sender.userId,
+      route: 'messages',
+      conversation: body.circleId === undefined ? `p:${sender.userId}` : `c:${body.circleId}`,
     };
   }
   if (body.kind === 'poke') {

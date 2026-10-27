@@ -85,6 +85,33 @@ describe('notification texts', () => {
     expect(pushText(body, me.device.deviceId, contacts)).toBeNull();
   });
 
+  it('word a new message by who sent it, never what it says, and open its conversation (docs/ADR/0035 §11)', () => {
+    expect(
+      pushText(
+        { kind: 'chat', circleId: circle.id, photo: false, ts: 5 },
+        ada.device.deviceId,
+        contacts,
+      ),
+    ).toMatchObject({
+      title: 'Aile',
+      body: 'Test: yeni mesaj',
+      channel: 'social',
+      route: 'messages',
+      conversation: `c:${circle.id}`,
+    });
+    expect(
+      pushText({ kind: 'chat', photo: true, ts: 5 }, ada.device.deviceId, contacts),
+    ).toMatchObject({
+      title: 'Test',
+      body: 'Fotoğraf gönderdi',
+      route: 'messages',
+      conversation: `p:${ada.userId}`,
+    });
+    expect(
+      pushText({ kind: 'chat', photo: false, ts: 5 }, me.device.deviceId, contacts),
+    ).toBeNull();
+  });
+
   it('word a meeting started in the circle: who, when and where (docs/ADR/0026 §6)', () => {
     const meetAt = new Date(2026, 9, 16, 17, 30).getTime();
     const shown = pushText(

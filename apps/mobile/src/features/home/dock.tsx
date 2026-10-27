@@ -1,5 +1,5 @@
 import type { Me } from '@bargu/schemas';
-import { Plus, Users } from 'lucide-react-native';
+import { MessageCircle, Plus, Users } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -18,6 +18,9 @@ export interface DockProps {
   onCircles: () => void;
   onAdd: () => void;
   onMe: () => void;
+  /** Messages and moments (docs/ADR/0035): its screen, and how many items wait unread. */
+  onMessages: () => void;
+  unread: number;
   /** The add sheet is open: the + turns into a close cross. */
   addOpen: boolean;
   /** Invitations waiting for an answer, shown as a badge on Circles. */
@@ -26,8 +29,21 @@ export interface DockProps {
   active: 'circles' | 'me';
 }
 
-/** The three-item bar at the bottom of the map: Circles · Add · Me (BARGU_PLAN §4.3). */
-export function Dock({ me, onCircles, onAdd, onMe, addOpen, requests, active }: DockProps) {
+/**
+ * The bar at the bottom of the map: Circles · Messages · Add · Me (BARGU_PLAN §4.3; Messages since
+ * docs/ADR/0035).
+ */
+export function Dock({
+  me,
+  onCircles,
+  onAdd,
+  onMe,
+  onMessages,
+  unread,
+  addOpen,
+  requests,
+  active,
+}: DockProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const glow = useGlow();
@@ -65,6 +81,20 @@ export function Dock({ me, onCircles, onAdd, onMe, addOpen, requests, active }: 
             strokeWidth={2.25}
           />
           {requests > 0 ? <RequestBadge count={requests} /> : null}
+        </View>
+      </DockItem>
+      <DockItem
+        label={t('messages.dock')}
+        accessibilityLabel={
+          unread > 0 ? t('messages.dockUnread', { count: unread }) : t('messages.dock')
+        }
+        onPress={onMessages}
+        testID="dock-messages"
+        active={false}
+      >
+        <View>
+          <MessageCircle color={colors.text} size={24} strokeWidth={2.25} />
+          {unread > 0 ? <RequestBadge count={unread} /> : null}
         </View>
       </DockItem>
       <Animated.View style={[turned, styles.add, glow === undefined ? null : { boxShadow: glow }]}>

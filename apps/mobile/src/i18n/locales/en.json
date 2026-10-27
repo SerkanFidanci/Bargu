@@ -558,7 +558,13 @@
     "meeting": "{{name}} started a meeting: {{time}} · {{place}}",
     "meetingAnswer": "{{name}}: {{answer}} · {{going}} coming, {{maybe}} maybe",
     "meetingMoved": "{{name}} changed the meeting: {{place}}, {{time}}. Still coming?",
-    "meetingAnswersFolded": "{{name}} changed their answer a few times"
+    "meetingAnswersFolded": "{{name}} changed their answer a few times",
+    "chat": {
+      "text": "{{name}}: new message",
+      "photo": "{{name}}: photo",
+      "textAlone": "New message",
+      "photoAlone": "Sent a photo"
+    }
   },
   "location": {
     "service": {
@@ -1393,5 +1399,53 @@
       "plus": "New pin looks",
       "a11y": "Store: {{tagline}}"
     }
+  },
+  "messages": {
+    "title": "Messages",
+    "lifetime": "End-to-end encrypted · gone after 24 hours",
+    "conversations": "Conversations",
+    "start": "New conversation",
+    "circles": "Circles",
+    "people": "People",
+    "empty": "No messages yet",
+    "emptyBody": "Write to a circle or to someone. Everything is deleted after 24 hours.",
+    "noCircles": "To write, first join a circle or add a friend.",
+    "you": "You",
+    "photo": "Photo",
+    "placeholder": "Write a message",
+    "send": "Send",
+    "sending": "Sending",
+    "failed": "Not sent · tap to try again",
+    "limited": "You are sending quickly; try again in a little while.",
+    "gone": "This conversation is closed: you no longer share a circle.",
+    "unread": "{{count}} unread",
+    "more": "Options for this person",
+    "itemActions": "Message options",
+    "takeBack": "Delete for everyone",
+    "takeBackBody": "This message is deleted from everyone’s phone and from the server.",
+    "report": "Report",
+    "reportTitle": "Why are you reporting this?",
+    "reportBody": "The words of this message will be sent to Bargu. Only this message, nothing else.",
+    "reportPersonBody": "This person will be reported to Bargu.",
+    "reported": "Reported. Thank you; we will look into it.",
+    "reportFailed": "Could not report. Check your connection.",
+    "reasons": {
+      "spam": "Spam",
+      "harassment": "Harassment or threats",
+      "sexual": "Sexual content",
+      "child": "Child abuse",
+      "violence": "Violence",
+      "other": "Something else"
+    },
+    "block": "Block",
+    "blockTitle": "Block {{name}}?",
+    "blockBody": "Blocking does not hide your location. To hide it, leave the circle.",
+    "leave": "Leave the circle",
+    "blocked": "{{name}} is blocked. Their messages no longer show.",
+    "unblock": "Unblock",
+    "dock": "Messages",
+    "dockUnread": "Messages, {{count}} unread",
+    "chat": "Chat",
+    "write": "Write a message"
   }
 }

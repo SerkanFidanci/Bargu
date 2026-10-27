@@ -17,6 +17,7 @@ import {
   X,
   PauseCircle,
   MapPin,
+  MessageCircle,
   Radar,
   Sparkles,
 } from 'lucide-react-native';
@@ -39,6 +40,12 @@ import { EventCard } from '@/features/circles/event-card';
 import { EventBadge } from '@/features/circles/event-ui';
 import { useNow } from '@/features/location/clock';
 import { useSharingSummary } from '@/features/location/sharing-card';
+import {
+  circleConversation,
+  personConversation,
+  unreadIn,
+  useMessages,
+} from '@/features/messages/messages';
 import { usePlaces } from '@/features/places/places';
 import { SettingsGroup, SettingsRow } from '@/ui/settings-row';
 import { MeetingCard } from '@/features/plan/meeting-card';
@@ -164,6 +171,15 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
   const others = circle.members.filter((member) => member.userId !== me);
   const changed = others.filter((member) => status?.trust[member.userId] === 'changed');
   const title = pair ? (partner === undefined ? '' : memberName(partner)) : (circle.name ?? '');
+  // A friendship talks as the two people, any other circle as itself (docs/ADR/0035 §1).
+  const conversation = pair
+    ? partner === undefined
+      ? null
+      : personConversation(partner.userId)
+    : circleConversation(circle.id);
+  const unread = useMessages((state) =>
+    conversation === null || me === null ? 0 : unreadIn(state, conversation, me),
+  );
 
   const leave = () => {
     Alert.alert(
@@ -310,6 +326,17 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
         <Appear index={2}>
           {/* Each setting on its own screen, a line here saying how it is (the owner). */}
           <SettingsGroup>
+            {conversation === null ? null : (
+              <SettingsRow
+                testID="circle-chat"
+                icon={MessageCircle}
+                label={t('messages.chat')}
+                detail={unread > 0 ? t('messages.unread', { count: unread }) : undefined}
+                onPress={() => {
+                  router.push(`/messages/${conversation}`);
+                }}
+              />
+            )}
             <SettingsRow
               testID="circle-sharing"
               icon={Radar}

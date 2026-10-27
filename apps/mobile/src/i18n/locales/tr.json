@@ -558,7 +558,13 @@
     "meeting": "{{name}} buluşma başlattı: {{time}} · {{place}}",
     "meetingAnswer": "{{name}}: {{answer}} · {{going}} geliyor, {{maybe}} belki",
     "meetingMoved": "{{name}} buluşmayı değiştirdi: {{place}}, {{time}}. Hâlâ geliyor musun?",
-    "meetingAnswersFolded": "{{name}} yanıtını birkaç kez değiştirdi"
+    "meetingAnswersFolded": "{{name}} yanıtını birkaç kez değiştirdi",
+    "chat": {
+      "text": "{{name}}: yeni mesaj",
+      "photo": "{{name}}: fotoğraf",
+      "textAlone": "Yeni mesaj",
+      "photoAlone": "Fotoğraf gönderdi"
+    }
   },
   "location": {
     "service": {
@@ -1393,5 +1399,53 @@
       "plus": "Yeni pin süsleri",
       "a11y": "Mağaza: {{tagline}}"
     }
+  },
+  "messages": {
+    "title": "Mesajlar",
+    "lifetime": "Uçtan uca şifreli · 24 saat sonra silinir",
+    "conversations": "Sohbetler",
+    "start": "Yeni sohbet",
+    "circles": "Çemberler",
+    "people": "Kişiler",
+    "empty": "Henüz mesaj yok",
+    "emptyBody": "Bir çembere ya da bir kişiye yaz. Her şey 24 saat sonra silinir.",
+    "noCircles": "Mesaj yazmak için önce bir çembere katıl ya da arkadaş ekle.",
+    "you": "Sen",
+    "photo": "Fotoğraf",
+    "placeholder": "Mesaj yaz",
+    "send": "Gönder",
+    "sending": "Gönderiliyor",
+    "failed": "Gönderilemedi · dokun, tekrar dene",
+    "limited": "Çok hızlı gönderiyorsun; biraz sonra yeniden dene.",
+    "gone": "Bu sohbet artık açık değil: ortak çemberiniz kalmadı.",
+    "unread": "{{count}} okunmamış",
+    "more": "Kişi seçenekleri",
+    "itemActions": "Mesaj seçenekleri",
+    "takeBack": "Herkesten sil",
+    "takeBackBody": "Bu mesaj herkesin telefonundan ve sunucudan silinir.",
+    "report": "Bildir",
+    "reportTitle": "Neden bildiriyorsun?",
+    "reportBody": "Bu mesajın açık hâli Bargu’ya gönderilecek. Yalnızca bu mesaj; başka hiçbir şey.",
+    "reportPersonBody": "Bu kişi Bargu’ya bildirilecek.",
+    "reported": "Bildirildi. Teşekkürler; inceleyeceğiz.",
+    "reportFailed": "Bildirilemedi. Bağlantını kontrol et.",
+    "reasons": {
+      "spam": "İstenmeyen mesaj",
+      "harassment": "Taciz ya da tehdit",
+      "sexual": "Cinsel içerik",
+      "child": "Çocuğa yönelik istismar",
+      "violence": "Şiddet",
+      "other": "Başka bir şey"
+    },
+    "block": "Engelle",
+    "blockTitle": "{{name}} engellensin mi?",
+    "blockBody": "Engellemek konumunu gizlemez. Konumunu gizlemek için çemberden ayrıl.",
+    "leave": "Çemberden ayrıl",
+    "blocked": "{{name}} engellendi. Mesajları artık görünmez.",
+    "unblock": "Engeli kaldır",
+    "dock": "Mesajlar",
+    "dockUnread": "Mesajlar, {{count}} okunmamış",
+    "chat": "Sohbet",
+    "write": "Mesaj yaz"
   }
 }

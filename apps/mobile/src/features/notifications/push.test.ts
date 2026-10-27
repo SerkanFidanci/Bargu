@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { enablePush, usePushState } from './push';
+import { enablePush, routeOfResponse, usePushState } from './push';
 
 interface Permission {
   granted: boolean;
@@ -98,5 +98,21 @@ describe('enablePush', () => {
     mockToken.mockRejectedValue(new Error('No Firebase app'));
     await expect(run()).resolves.toBe('unavailable');
     expect(register).not.toHaveBeenCalled();
+  });
+});
+
+describe('routeOfResponse', () => {
+  const tapped = (data: Record<string, unknown>) =>
+    routeOfResponse({
+      notification: { request: { content: { data } } },
+    } as unknown as Notifications.NotificationResponse);
+
+  it('opens the conversation of a new message, or the list when it names none (docs/ADR/0035 §11)', () => {
+    const conversation = 'c:0190f7a4-2222-7222-8222-000000000001';
+    expect(tapped({ route: 'messages', conversation })).toBe(`/messages/${conversation}`);
+    expect(tapped({ route: 'messages', conversation: '../store' })).toBe('/messages');
+    expect(tapped({ route: 'messages' })).toBe('/messages');
+    expect(tapped({ route: 'guardians' })).toBe('/guardians');
+    expect(tapped({ route: 'elsewhere' })).toBeNull();
   });
 });

@@ -98,6 +98,12 @@ describe("a person's card (UX düzeni)", () => {
     expect(onAction).toHaveBeenCalledWith('notifications');
   });
 
+  it('opens their conversation from "Mesaj yaz" (docs/ADR/0035)', async () => {
+    const onAction = await renderCard();
+    await fireEvent.press(screen.getByLabelText('Mesaj yaz'));
+    expect(onAction).toHaveBeenCalledWith('message');
+  });
+
   it('says so when they are muted', async () => {
     useMutes.setState(withPersonMuted(NO_MUTES, ADA, { pokes: true }), true);
     await renderCard();

@@ -55,6 +55,7 @@ import { useWeatherHere, WeatherChip } from '@/features/weather/use-weather';
 import { WeatherLayer } from '@/features/weather/weather-layer';
 import { MapCredit } from '@/features/map/map-credit';
 import { useMe } from '@/features/profile/queries';
+import { unreadTotal, useMessages } from '@/features/messages/messages';
 import { space, touchTarget } from '@/theme';
 import { EffectsPaused } from '@/theme/effects';
 import { useMotion } from '@/theme/use-motion';
@@ -89,6 +90,8 @@ export default function HomeScreen() {
   const cell = useMyCell();
   const now = useNow();
   const map = useRef<BarguMapHandle>(null);
+  // Unread items of messages and moments (docs/ADR/0035): a number, so only its change redraws.
+  const unread = useMessages((state) => (myUserId === null ? 0 : unreadTotal(state, myUserId)));
   const people = usePeopleUi(map, circleList.data ?? [], insets.top, () => {
     statusSheet.current?.present();
   });
@@ -288,6 +291,10 @@ export default function HomeScreen() {
               meSheet.current?.present();
               setMeOpen(true);
             }}
+            onMessages={() => {
+              router.push('/messages');
+            }}
+            unread={unread}
             active={meOpen ? 'me' : 'circles'}
           />
         </Animated.View>

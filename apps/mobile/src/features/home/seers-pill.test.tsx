@@ -71,6 +71,8 @@ describe('the dock', () => {
       onCircles: jest.fn(),
       onAdd: jest.fn(),
       onMe: jest.fn(),
+      onMessages: jest.fn(),
+      unread: 0,
       addOpen: false,
       requests: 0,
     };
@@ -81,5 +83,11 @@ describe('the dock', () => {
     expect(screen.getByTestId('dock-me').props.accessibilityState).toEqual({ selected: true });
     await fireEvent.press(screen.getByTestId('dock-circles'));
     expect(props.onCircles).toHaveBeenCalled();
+
+    // Messages (docs/ADR/0035): its unread count is read out, and it opens the list.
+    await view.rerender(<Dock {...props} active="circles" unread={3} />);
+    expect(screen.getByTestId('dock-messages').props.accessibilityLabel).toContain('3');
+    await fireEvent.press(screen.getByTestId('dock-messages'));
+    expect(props.onMessages).toHaveBeenCalled();
   });
 });

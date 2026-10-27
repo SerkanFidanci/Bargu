@@ -143,6 +143,17 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
       ts: timestamp,
     })
     .strict(),
+  // A new item of messages and moments (docs/ADR/0035 §11): for a circle, or for the one it is
+  // sealed to (no circle). Never what it says: the receiving phone writes "Ayşe: yeni mesaj" or
+  // "fotoğraf". Signed by the sender's phone.
+  z
+    .object({
+      kind: z.literal('chat'),
+      circleId: z.uuid().optional(),
+      photo: z.boolean(),
+      ts: timestamp,
+    })
+    .strict(),
   z
     .object({
       kind: z.literal('notice'),

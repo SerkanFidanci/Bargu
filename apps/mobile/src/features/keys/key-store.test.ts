@@ -6,12 +6,13 @@ import {
   generateSenderKey,
   randomUuid,
   verifyDeviceKeyBundle,
+  chatKeyOf,
   historyKeyOf,
 } from '@bargu/crypto';
 import type { Circle, MemberCard } from '@bargu/schemas';
 
 import type { KeyValueStore } from '../storage/vault';
-import { HISTORY_KEY_KEEP_MS, KeyStore } from './key-store';
+import { CHAT_KEY_KEEP_MS, HISTORY_KEY_KEEP_MS, KeyStore } from './key-store';
 
 function memoryStore(): KeyValueStore {
   const data = new Map<string, string>();
@@ -216,6 +217,39 @@ describe('KeyStore', () => {
     store.accept(current, [keyFrom(bob, me, current).distribution]);
     store.prune(circleId, null);
     expect(store.historyKey(circleId, 5, bob.device.deviceId)).toBeNull();
+  });
+
+  it('keeps the chat key of an old epoch 25 hours after its sender key goes (docs/ADR/0035)', () => {
+    const bob = somebody();
+    const store = new KeyStore(memoryStore(), me);
+    const old = circleOf(circleId, 1, [card(me), card(bob)]);
+    store.observe(old);
+    const { senderKey, distribution } = keyFrom(bob, me, old);
+    store.accept(old, [distribution]);
+    const chatKey = chatKeyOf(senderKey).key;
+    expect(store.chatKey(circleId, 1, bob.device.deviceId)?.key).toEqual(chatKey);
+    expect(chatKey).not.toEqual(senderKey.key);
+
+    const now = 1_791_880_200_000;
+    store.prune(circleId, 4, now);
+    expect(store.receivedKey(circleId, 1, bob.device.deviceId)).toBeNull();
+    expect(store.chatKey(circleId, 1, bob.device.deviceId)?.key).toEqual(chatKey);
+    store.prune(circleId, 5, now + CHAT_KEY_KEEP_MS - 1);
+    expect(store.chatKey(circleId, 1, bob.device.deviceId)).not.toBeNull();
+    store.prune(circleId, 5, now + CHAT_KEY_KEEP_MS);
+    expect(store.chatKey(circleId, 1, bob.device.deviceId)).toBeNull();
+
+    // This phone's own items open with its own key's chat key, as long as it is kept.
+    const own = store.ownKey(old);
+    expect(store.chatKey(circleId, 1, me.device.deviceId)?.key).toEqual(chatKeyOf(own).key);
+    expect(store.chatKey(circleId, 9, me.device.deviceId)).toBeNull();
+
+    // Forgetting the person takes their chat keys too.
+    const current = circleOf(circleId, 5, [card(me), card(bob)]);
+    store.observe(current);
+    store.accept(current, [keyFrom(bob, me, current).distribution]);
+    store.forgetDevices(new Set([bob.device.deviceId]));
+    expect(store.chatKey(circleId, 5, bob.device.deviceId)).toBeNull();
   });
 
   describe('forgetting the devices of a person no circle is shared with any more', () => {
