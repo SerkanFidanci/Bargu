@@ -1,7 +1,7 @@
 # 0033. Anlık hikaye: 24 saatlik, uçtan uca şifreli fotoğraf
 
-- Durum: Taslak, kapalı test sonrası (PM'in kararı 2026-10-23; sahip kararı PM'e bıraktı). Kapalı
-  testten ve avukat görüşmesinden önce kod yok.
+- Durum: Yerine geçti: [ADR 0035](0035-messages-and-moments.md) (2026-10-27; sahip yapılmasına karar
+  verdi, mesajlaşmayla tek modül).
 - Tarih: 2026-10-23
 - İlgili: [ADR 0032](0032-messaging.md) (bildir ve engelle aynı), [ADR 0023](0023-age-15-plus.md),
   [PROTOCOL §6](../PROTOCOL.md).
