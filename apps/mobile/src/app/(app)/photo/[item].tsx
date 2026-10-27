@@ -14,6 +14,7 @@ import { loadMessagesOnce } from '@/features/messages/messages-session';
 import { memberIn } from '@/features/messages/names';
 import { takeBack, tellScreenshot } from '@/features/messages/outbox';
 import { openPhoto } from '@/features/messages/photo';
+import { useRulesGate } from '@/features/messages/rules';
 import { useSafety } from '@/features/messages/safety';
 import { mediaColors, space } from '@/theme';
 import { IconButton } from '@/ui/icon-button';
@@ -38,13 +39,16 @@ export default function PhotoScreen() {
     router.back();
   });
   const photo = item?.photo;
+  // The community rules before any photo opens (K14): whoever sees it has accepted them.
+  const rules = useRulesGate({ atOpen: true });
+  const open = rules.open;
   const mine = item?.from === me;
 
   useEffect(() => {
     loadMessagesOnce();
   }, []);
   useEffect(() => {
-    if (photo === undefined) return;
+    if (photo === undefined || !open) return;
     let shown = true;
     openPhoto(photo).then(
       (opened) => {
@@ -58,7 +62,7 @@ export default function PhotoScreen() {
       shown = false;
       setUri(null);
     };
-  }, [photo]);
+  }, [photo, open]);
 
   // A screenshot of someone else's photo tells its sender, once per opening (docs/ADR/0035 §12).
   useScreenshotListener(() => {
@@ -174,6 +178,7 @@ export default function PhotoScreen() {
         </View>
       </SafeAreaView>
       {safety.sheet}
+      {rules.sheet}
     </View>
   );
 }

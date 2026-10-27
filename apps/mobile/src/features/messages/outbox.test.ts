@@ -1,4 +1,10 @@
-import { generateDeviceKeys, generateSenderKey, randomUuid, type SenderKey } from '@bargu/crypto';
+import {
+  exportDeviceKeyBundle,
+  generateDeviceKeys,
+  generateSenderKey,
+  randomUuid,
+  type SenderKey,
+} from '@bargu/crypto';
 import type { ChatPayload, Circle } from '@bargu/schemas';
 
 jest.mock('@/config/env', () => ({
@@ -26,11 +32,16 @@ const mockUpload = jest.fn<Promise<void>, [string, Uint8Array]>(() => Promise.re
 const mockToCircle = jest.fn<Promise<{ ok: true }>, [string, unknown, unknown, string?]>(() =>
   Promise.resolve({ ok: true }),
 );
+const mockToPerson = jest.fn<Promise<{ ok: true }>, [string, unknown, unknown]>(() =>
+  Promise.resolve({ ok: true }),
+);
 jest.mock('./messages-api', () => ({
   messagesApi: {
     upload: (blobId: string, sealed: Uint8Array) => mockUpload(blobId, sealed),
     toCircle: (circleId: string, envelope: unknown, pushes: unknown, blobId?: string) =>
       mockToCircle(circleId, envelope, pushes, blobId),
+    toPerson: (userId: string, envelope: unknown, pushes: unknown) =>
+      mockToPerson(userId, envelope, pushes),
   },
 }));
 
@@ -38,11 +49,18 @@ import { useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
 import { queryClient } from '../query-client';
 import { EMPTY_MESSAGES, useMessages } from './messages';
-import { pushOf, shareStory, storyTargets } from './outbox';
+import { ApiError } from '../auth/api-client';
+import { type ChatItem } from './messages';
+import { pushOf, shareStory, storyTargets, tellScreenshot } from './outbox';
+import { rulesWereAccepted } from './rules-state';
 import { sealPhoto } from './photo';
 
 const ME = randomUuid();
 const NOW = 1_800_000_000_000;
+
+afterAll(() => {
+  queryClient.clear();
+});
 
 describe('what a closed app is told of an item', () => {
   const circleId = randomUuid();
@@ -104,11 +122,24 @@ describe('where a story goes (QA-38 Y1)', () => {
       myStatus: 'active',
       members: [member(ME), member(FRIEND)],
     };
-    const family: Circle = { ...pair, id: randomUuid(), kind: 'family', name: 'Aile' };
+    const family: Circle = {
+      ...pair,
+      id: randomUuid(),
+      kind: 'family',
+      name: 'Aile',
+      members: [member(ME), member(randomUuid())],
+    };
     expect(storyTargets([family.id, pair.id, pair.id], [family, pair], ME)).toEqual([
       `c:${family.id}`,
       `p:${FRIEND}`,
     ]);
+    // The friend is in a chosen circle too: one item, one notification, there (QA-38b).
+    const withFriend: Circle = { ...family, members: [member(ME), member(FRIEND)] };
+    expect(storyTargets([withFriend.id, pair.id], [withFriend, pair], ME)).toEqual([
+      `c:${withFriend.id}`,
+    ]);
+    // Not chosen, that circle does not count.
+    expect(storyTargets([pair.id], [withFriend, pair], ME)).toEqual([`p:${FRIEND}`]);
   });
 });
 
@@ -155,5 +186,63 @@ describe('a story', () => {
     expect(new Set(items.map((item) => item.id)).size).toBe(2);
     expect(items.every((item) => item.photo?.story === true && item.state === 'sent')).toBe(true);
     expect(items.every((item) => item.photo?.caption === 'deniz')).toBe(true);
+  });
+});
+
+describe('a screenshot notice (QA-38b)', () => {
+  it('is kept while the server has no record of the rules, and goes once they are accepted', async () => {
+    const device = generateDeviceKeys(randomUuid());
+    useAuth.setState({ userId: ME, device });
+    const sender = { userId: randomUuid(), device: generateDeviceKeys(randomUuid()) };
+    const circle: Circle = {
+      id: randomUuid(),
+      kind: 'family',
+      name: 'Aile',
+      epoch: 1,
+      epochStartedAt: 0,
+      myRole: 'member',
+      myStatus: 'active',
+      members: [
+        {
+          userId: sender.userId,
+          role: 'member',
+          status: 'active',
+          username: null,
+          displayName: 'Ali',
+          avatar: null,
+          device: { platform: 'android', bundle: exportDeviceKeyBundle(sender.device) },
+        },
+      ],
+    };
+    queryClient.setQueryData(circlesKey, [circle]);
+    const photo: ChatItem = {
+      id: randomUuid(),
+      conversation: `c:${circle.id}`,
+      from: sender.userId,
+      at: NOW,
+      kind: 'photo',
+      state: 'sent',
+      photo: {
+        blobId: randomUuid(),
+        key: 'k'.repeat(43),
+        size: 1000,
+        hash: 'h'.repeat(43),
+        w: 10,
+        h: 10,
+        story: false,
+      },
+    };
+    mockToPerson.mockRejectedValueOnce(new ApiError(403, 'RULES_REQUIRED'));
+    await tellScreenshot(photo);
+    expect(mockToPerson).toHaveBeenCalledTimes(1);
+
+    rulesWereAccepted({ rules: { version: 1, at: NOW } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockToPerson).toHaveBeenCalledTimes(2);
+    expect(mockToPerson.mock.calls[1]?.[0]).toBe(sender.userId);
+    // Sent: nothing is kept any more.
+    rulesWereAccepted({ rules: { version: 1, at: NOW } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockToPerson).toHaveBeenCalledTimes(2);
   });
 });

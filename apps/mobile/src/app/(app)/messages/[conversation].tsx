@@ -59,9 +59,11 @@ export default function ConversationScreen() {
   useEffect(() => {
     loadMessagesOnce();
   }, []);
+  // The community rules come as the conversation opens (K14); until then nothing of it shows.
+  const rules = useRulesGate({ atOpen: true });
   const shown = useMemo(
-    () => (conversation === null ? [] : itemsOf({ items }, conversation)),
-    [items, conversation],
+    () => (conversation === null || !rules.open ? [] : itemsOf({ items }, conversation)),
+    [items, conversation, rules.open],
   );
   const newest = shown[0]?.at ?? 0;
   useEffect(() => {
@@ -75,8 +77,6 @@ export default function ConversationScreen() {
   const safety = useSafety((userId) => {
     if (person === userId) router.back();
   });
-  // The community rules come before the first message or photo (K14).
-  const rules = useRulesGate();
 
   const send = () => {
     const text = draft.trim();

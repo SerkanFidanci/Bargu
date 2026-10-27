@@ -1,6 +1,7 @@
 import { COMMUNITY_RULES_URL, type RulesState } from '@bargu/schemas';
 import { useQuery } from '@tanstack/react-query';
-import { type ReactNode, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -12,12 +13,15 @@ import { toast } from '@/ui/toast';
 
 import { useAuth } from '../auth/auth-store';
 import { queryClient } from '../query-client';
-import { rulesAccepted, rulesApi, rulesKey } from './rules-state';
+import { rulesAccepted, rulesApi, rulesKey, rulesWereAccepted } from './rules-state';
 
 /**
  * The community rules (Play's rule for user content, K14; docs/play-store/TOPLULUK-KURALLARI.md):
- * shown once, before one's first message or photo, and again when their version goes up or the
- * server has no record of them. The server refuses messages and photos until they are accepted.
+ * shown once, at whichever comes first: the Messages section opening, a photo or story opening, or
+ * a first message (the PM, after QA-38b). Content stays closed until they are accepted, so whoever
+ * sees a photo has accepted them and its screenshot notice always goes. Shown again when their
+ * version goes up or the server has no record of them; the server refuses messages and photos
+ * until then.
  */
 
 /** The rules' own items, in the order of the text. */
@@ -26,12 +30,22 @@ const FORBIDDEN = ['children', 'harassment', 'intimate', 'sexual', 'violence', '
 export interface RulesGate {
   /** Runs `action` once the rules are accepted: at once, or after "Kabul ediyorum". */
   ensure: (action: () => void) => void;
+  /**
+   * Whether content may be shown: accepted, or the server could not be asked (offline: what this
+   * phone already holds stays readable; sending still waits for the rules).
+   */
+  open: boolean;
   /** The rules' sheet, to render once in the screen. */
   sheet: ReactNode;
 }
 
-/** The gate before a message, a photo or a story (K14). */
-export function useRulesGate(): RulesGate {
+/**
+ * The gate before a message, a photo or a story (K14). `atOpen`: the screen is content (the list,
+ * a conversation, a photo, a story), so the rules come as it opens, and closing them unaccepted
+ * leaves it.
+ */
+export function useRulesGate(options: { atOpen?: boolean } = {}): RulesGate {
+  const atOpen = options.atOpen ?? false;
   const { t } = useTranslation();
   const signedIn = useAuth((state) => state.userId !== null);
   const rules = useQuery({
@@ -43,6 +57,13 @@ export function useRulesGate(): RulesGate {
   const ref = useRef<SheetRef>(null);
   const pending = useRef<(() => void) | null>(null);
   const [saving, setSaving] = useState(false);
+  const accepted = rulesAccepted(rules.data);
+  const known = rules.isSuccess;
+  const open = accepted || rules.isError;
+
+  useEffect(() => {
+    if (atOpen && known && !accepted) ref.current?.present();
+  }, [atOpen, known, accepted]);
 
   const ensure = (action: () => void) => {
     // The cache as it is now: a refusal from the server may have just forgotten them.
@@ -59,10 +80,11 @@ export function useRulesGate(): RulesGate {
     rulesApi.accept().then(
       (state) => {
         setSaving(false);
-        queryClient.setQueryData(rulesKey, state);
-        ref.current?.dismiss();
+        rulesWereAccepted(state);
+        // What waited is taken before the sheet closes (closing forgets it).
         const action = pending.current;
         pending.current = null;
+        ref.current?.dismiss();
         action?.();
       },
       () => {
@@ -79,6 +101,10 @@ export function useRulesGate(): RulesGate {
       testID="rules-sheet"
       onDismiss={() => {
         pending.current = null;
+        // Closed without accepting them: a screen of content is left (K14).
+        if (atOpen && !rulesAccepted(queryClient.getQueryData<RulesState>(rulesKey))) {
+          router.back();
+        }
       }}
     >
       <Text variant="body">{t('messages.rules.intro')}</Text>
@@ -110,7 +136,7 @@ export function useRulesGate(): RulesGate {
     </Sheet>
   );
 
-  return { ensure, sheet };
+  return { ensure, open, sheet };
 }
 
 const styles = StyleSheet.create({

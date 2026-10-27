@@ -33,3 +33,16 @@ export function rulesAccepted(state: RulesState | undefined): boolean {
 export function forgetRules(): void {
   queryClient.setQueryData<RulesState>(rulesKey, { rules: null });
 }
+
+const accepted = new Set<() => void>();
+
+/** Runs `listener` each time the rules are accepted on this phone (what waited for them goes). */
+export function whenRulesAccepted(listener: () => void): void {
+  accepted.add(listener);
+}
+
+/** "Kabul ediyorum" went through: the cache knows, and whatever waited for it goes now. */
+export function rulesWereAccepted(state: RulesState): void {
+  queryClient.setQueryData(rulesKey, state);
+  for (const listener of accepted) listener();
+}

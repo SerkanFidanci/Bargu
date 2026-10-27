@@ -316,9 +316,14 @@ değişikliği olaydır; listeyi yenileme düğmesi yoktur.
 
 **Topluluk kuralları (PM eki, 2026-10-27; Play'in kullanıcı içeriği şartı, K14):**
 
-- İlk mesajdan, fotoğraftan ya da hikayeden önce bir kez kısa kurallar penceresi çıkar. Pencerede
-  "Kuralların tamamı" bağlantısı (`https://www.otenus.com/bargu/kurallar`) ve "Kabul ediyorum" düğmesi
-  vardır. Metin `docs/play-store/TOPLULUK-KURALLARI.md`'deki "Uygulama içi kısa metin"dir.
+- Kısa kurallar penceresi bir kez çıkar, hangisi önce gelirse (PM, QA-38b): Mesajlar bölümüne ilk
+  giriş, ilk fotoğraf ya da hikaye açılışı, ilk gönderim. Pencerede "Kuralların tamamı" bağlantısı
+  (`https://www.otenus.com/bargu/kurallar`) ve "Kabul ediyorum" düğmesi vardır. Metin
+  `docs/play-store/TOPLULUK-KURALLARI.md`'deki "Uygulama içi kısa metin"dir.
+- Kabul edilmeden içerik açılmaz: bir fotoğrafı gören herkes kabul etmiştir, ekran görüntüsü haberi
+  hep gider. Sunucu yine de reddederse (kayıt yok) haber silinmez; kabule kadar bekletilir, sonra
+  gönderilir. Sunucuya "bu bir ekran görüntüsü haberi" diye ayrı bir işaret gitmez (üst veri
+  sızmasın). Sunucuya ulaşılamazsa telefondakiler okunur, gönderim kabulü bekler.
 - Kabul, sürümüyle `app.consents`'e yeni bir amaç olarak yazılır (`rules`, migration 0042).
   `GET` ve `PUT /v1/me/rules` yalnız kişinin kendi kaydını okur ve yazar.
 - Sunucu kabul olmadan sohbet öğesini ve fotoğraf yüklemesini `403 RULES_REQUIRED` ile reddeder.

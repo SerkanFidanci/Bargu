@@ -23,10 +23,13 @@ import {
 } from './messages';
 import { messagesApi } from './messages-api';
 import { type PhotoFile, uploadPhoto } from './photo';
-import { forgetRules } from './rules-state';
+import { forgetRules, whenRulesAccepted } from './rules-state';
 
-/** `full`: the server's space for photos is full (texts still go, docs/ADR/0035 §10). */
-export type SendResult = 'sent' | 'limited' | 'full' | 'failed';
+/**
+ * `full`: the server's space for photos is full (texts still go, docs/ADR/0035 §10). `rules`: the
+ * server has no record of the community rules being accepted (K14); they are asked again.
+ */
+export type SendResult = 'sent' | 'limited' | 'full' | 'rules' | 'failed';
 
 const cachedCircles = () => queryClient.getQueryData<Circle[]>(circlesKey) ?? [];
 
@@ -121,7 +124,10 @@ async function deliver(conversation: Conversation, payload: ChatPayload): Promis
       reply = await messagesApi.toPerson(target.userId, envelope, pushes, blobId);
     }
   } catch (error) {
-    if (error instanceof ApiError && error.code === 'RULES_REQUIRED') forgetRules();
+    if (error instanceof ApiError && error.code === 'RULES_REQUIRED') {
+      forgetRules();
+      return 'rules';
+    }
     return 'failed';
   }
   if ('ok' in reply) return 'sent';
@@ -166,7 +172,10 @@ async function upload(blobId: string): Promise<SendResult> {
     return (await uploadPhoto(blobId)) ? 'sent' : 'failed';
   } catch (error) {
     if (!(error instanceof ApiError)) return 'failed';
-    if (error.code === 'RULES_REQUIRED') forgetRules();
+    if (error.code === 'RULES_REQUIRED') {
+      forgetRules();
+      return 'rules';
+    }
     if (error.code === 'MEDIA_FULL') return 'full';
     return error.code === 'RATE_LIMITED' ? 'limited' : 'failed';
   }
@@ -222,22 +231,38 @@ export interface StoryResult {
 /**
  * Where a story goes for each circle: a circle's own conversation, or for a friendship the friend
  * alone (a pair talks as the two people, docs/ADR/0035 §1; the server takes no circle item there).
- * Each place once.
+ * Each place once, and each person once: a friend who is also in a chosen circle gets it there,
+ * not a second time alone (one item, one notification; QA-38b).
  */
 export function storyTargets(
   circleIds: readonly string[],
   circles: readonly Circle[],
   me: string,
 ): Conversation[] {
+  const chosen = circleIds.flatMap((circleId) => {
+    const circle = circles.find((candidate) => candidate.id === circleId);
+    return circle === undefined ? [] : [circle];
+  });
+  const reached = new Set(
+    chosen
+      .filter((circle) => circle.kind !== 'pair')
+      .flatMap((circle) =>
+        circle.members
+          .filter((member) => member.status === 'active')
+          .map((member) => member.userId),
+      ),
+  );
   const targets = new Set<Conversation>();
   for (const circleId of circleIds) {
-    const circle = circles.find((candidate) => candidate.id === circleId);
+    const circle = chosen.find((candidate) => candidate.id === circleId);
     if (circle?.kind !== 'pair') {
       targets.add(circleConversation(circleId));
       continue;
     }
     const partner = partnerOf(circle, me);
-    if (partner !== undefined) targets.add(personConversation(partner.userId));
+    if (partner !== undefined && !reached.has(partner.userId)) {
+      targets.add(personConversation(partner.userId));
+    }
   }
   return [...targets];
 }
@@ -321,15 +346,32 @@ export async function takeBackPhoto(blobId: string): Promise<SendResult> {
 
 /**
  * "Ekran görüntüsü aldı" (docs/ADR/0035 §12): this phone took a screenshot of someone's photo; its
- * sender alone is told, with a `shot` item sealed to them (not to the whole circle). Best effort:
- * nothing is shown if it does not go.
+ * sender alone is told, with a `shot` item sealed to them (not to the whole circle). Nothing is
+ * shown here. If the server has no record of this user's rules (they open before any photo, so
+ * rarely), the notice is kept until they are accepted, then sent: it is never lost (QA-38b).
  */
 export async function tellScreenshot(item: ChatItem): Promise<void> {
   if (item.kind !== 'photo' || item.from === useAuth.getState().userId) return;
-  await deliver(personConversation(item.from), {
+  const told = await deliver(personConversation(item.from), {
     kind: 'shot',
     id: randomUuid(),
     target: item.id,
     ts: Date.now(),
   });
+  if (told === 'rules' && !heldScreenshots.some((held) => held.id === item.id)) {
+    heldScreenshots.push(item);
+  }
 }
+
+/** Screenshot notices waiting for the rules to be accepted (this run of the app). */
+const heldScreenshots: ChatItem[] = [];
+
+/** The rules were accepted: what waited for them goes now. */
+export async function sendHeldScreenshots(): Promise<void> {
+  const held = heldScreenshots.splice(0);
+  for (const item of held) await tellScreenshot(item);
+}
+
+whenRulesAccepted(() => {
+  void sendHeldScreenshots();
+});

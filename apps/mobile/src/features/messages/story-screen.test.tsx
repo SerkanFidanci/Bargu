@@ -57,12 +57,19 @@ jest.mock('@/features/messages/messages-session', () => ({
   block: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('@/features/messages/report', () => ({ report: jest.fn(() => Promise.resolve(true)) }));
+// Sade mod, as each test sets it.
+const mockEffects: { level: 'full' | 'reduced' | 'off' } = { level: 'full' };
+jest.mock('@/theme/effects', () => ({
+  ...jest.requireActual<typeof import('@/theme/effects')>('@/theme/effects'),
+  useEffects: () => mockEffects.level,
+}));
 // The community rules have their own tests (rules.test.tsx): here they are accepted.
 jest.mock('@/features/messages/rules', () => ({
   useRulesGate: () => ({
     ensure: (action: () => void) => {
       action();
     },
+    open: true,
     sheet: null,
   }),
 }));
@@ -210,5 +217,38 @@ describe("one's own story", () => {
       button?.onPress?.();
     });
     expect(mockTakeBackPhoto).toHaveBeenCalledWith('file-mine');
+  });
+});
+
+describe('sade mod "Kapalı" (QA-38)', () => {
+  afterEach(() => {
+    mockEffects.level = 'full';
+    jest.useRealTimers();
+  });
+
+  it('keeps the bar still, and a pause keeps what was left of the time', async () => {
+    mockEffects.level = 'off';
+    jest.useFakeTimers();
+    await render(<StoryScreen />);
+    expect(await screen.findByText('deniz')).toBeTruthy();
+    // Three of the five seconds, then a pause (writing a reply) as long as you like.
+    await act(() => {
+      jest.advanceTimersByTime(3_000);
+    });
+    await fireEvent(screen.getByTestId('story-reply'), 'focus');
+    await act(() => {
+      jest.advanceTimersByTime(30_000);
+    });
+    expect(router.back).not.toHaveBeenCalled();
+    await fireEvent(screen.getByTestId('story-reply'), 'blur');
+    // Two seconds were left, not five: just short of them it stays, at them it goes on.
+    await act(() => {
+      jest.advanceTimersByTime(1_900);
+    });
+    expect(router.back).not.toHaveBeenCalled();
+    await act(() => {
+      jest.advanceTimersByTime(200);
+    });
+    expect(router.back).toHaveBeenCalled();
   });
 });

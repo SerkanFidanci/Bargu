@@ -54,6 +54,7 @@ jest.mock('@/features/messages/rules', () => ({
     ensure: (action: () => void) => {
       action();
     },
+    open: true,
     sheet: null,
   }),
 }));

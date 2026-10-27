@@ -48,8 +48,8 @@ export default function MessagesScreen() {
   const me = useAuth((state) => state.userId);
   const circles = useCircles().data ?? [];
   const state = useMessages();
-  // The community rules come before the first photo (K14).
-  const rules = useRulesGate();
+  // The community rules come as the Messages section opens (K14); nothing of it shows before.
+  const rules = useRulesGate({ atOpen: true });
   useEffect(() => {
     loadMessagesOnce();
   }, []);
@@ -142,6 +142,14 @@ export default function MessagesScreen() {
         </ScrollView>
       </View>
     );
+
+  if (!rules.open) {
+    return (
+      <Screen title={t('messages.title')} subtitle={t('messages.lifetime')} testID="messages">
+        {rules.sheet}
+      </Screen>
+    );
+  }
 
   if (groups.length === 0 && people.length === 0 && recent.length === 0 && stories.length === 0) {
     return (

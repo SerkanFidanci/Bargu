@@ -85,7 +85,9 @@ export default function StoryScreen() {
   const safety = useSafety(() => {
     router.back();
   });
-  const rules = useRulesGate();
+  // The community rules before any story opens (K14): whoever sees it has accepted them.
+  const rules = useRulesGate({ atOpen: true });
+  const open = rules.open;
 
   useEffect(() => {
     loadMessagesOnce();
@@ -103,9 +105,10 @@ export default function StoryScreen() {
 
   // Open this one; it counts as seen once shown.
   useEffect(() => {
-    if (photo === undefined) return;
+    if (photo === undefined || !open) return;
     let shown = true;
     progress.set(0);
+    stillLeft.current = storyFx.show;
     openPhoto(photo).then(
       (image) => {
         if (!shown) return;
@@ -119,20 +122,25 @@ export default function StoryScreen() {
     return () => {
       shown = false;
     };
-  }, [photo, progress]);
+  }, [photo, progress, open]);
 
   // The bar fills on the UI thread; when it is full, the next story. Sade mod "Kapalı": the bar
   // stays still and the time still runs (QA-38).
   const still = useEffects() === 'off';
+  /** Sade mod "Kapalı": the time this story has left, kept across a pause. */
+  const stillLeft = useRef<number>(storyFx.show);
   useEffect(() => {
     if (uri === null || paused) {
       cancelAnimation(progress);
       return;
     }
     if (still) {
-      const timer = setTimeout(forward, storyFx.show);
+      // A pause keeps what was left of this story's time (QA-38b).
+      const started = Date.now();
+      const timer = setTimeout(forward, stillLeft.current);
       return () => {
         clearTimeout(timer);
+        stillLeft.current = Math.max(0, stillLeft.current - (Date.now() - started));
       };
     }
     const left = (1 - progress.get()) * storyFx.show;

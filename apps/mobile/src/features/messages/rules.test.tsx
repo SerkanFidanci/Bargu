@@ -1,6 +1,13 @@
-import { COMMUNITY_RULES_URL, COMMUNITY_RULES_VERSION, type RulesState } from '@bargu/schemas';
+import {
+  type Circle,
+  COMMUNITY_RULES_URL,
+  COMMUNITY_RULES_VERSION,
+  type MemberCard,
+  type RulesState,
+} from '@bargu/schemas';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import { Linking, Pressable, Text } from 'react-native';
 
 import i18n from '@/i18n';
@@ -22,10 +29,85 @@ jest.mock('./rules-state', () => {
   const actual = jest.requireActual<typeof import('./rules-state')>('./rules-state');
   return { ...actual, rulesApi: { get: () => mockGet(), accept: () => mockAccept() } };
 });
+// The screens behind the gate, with what they reach for (each has its own tests).
+const mockParams: Record<string, string | undefined> = {};
+jest.mock('expo-router', () => ({
+  router: { back: jest.fn(), push: jest.fn() },
+  useLocalSearchParams: () => mockParams,
+}));
+const mockCircles: { current: Circle[] } = { current: [] };
+jest.mock('@/features/circles/queries', () => ({
+  useCircles: () => ({ data: mockCircles.current }),
+}));
+const mockOutbox = {
+  sendText: jest.fn(() => Promise.resolve('sent')),
+  retry: jest.fn(() => Promise.resolve('sent')),
+  takeBack: jest.fn(() => Promise.resolve('sent')),
+  takeBackPhoto: jest.fn(() => Promise.resolve('sent')),
+  tellScreenshot: jest.fn(() => Promise.resolve()),
+  sendPhoto: jest.fn(() => Promise.resolve('sent')),
+  shareStory: jest.fn(() => Promise.resolve({ result: 'sent', failed: 0, total: 1 })),
+};
+jest.mock('@/features/messages/outbox', () => ({
+  sendText: (...args: unknown[]) => mockOutbox.sendText(...(args as [])),
+  retry: (...args: unknown[]) => mockOutbox.retry(...(args as [])),
+  takeBack: (...args: unknown[]) => mockOutbox.takeBack(...(args as [])),
+  takeBackPhoto: (...args: unknown[]) => mockOutbox.takeBackPhoto(...(args as [])),
+  tellScreenshot: (...args: unknown[]) => mockOutbox.tellScreenshot(...(args as [])),
+  sendPhoto: (...args: unknown[]) => mockOutbox.sendPhoto(...(args as [])),
+  shareStory: (...args: unknown[]) => mockOutbox.shareStory(...(args as [])),
+}));
+jest.mock('@/features/messages/messages-session', () => ({
+  loadMessagesOnce: () => true,
+  markRead: jest.fn(),
+  markViewed: jest.fn(),
+  block: jest.fn(() => Promise.resolve()),
+}));
+jest.mock('@/features/messages/report', () => ({ report: jest.fn(() => Promise.resolve(true)) }));
+const mockOpenPhoto = jest.fn(() => Promise.resolve('data:image/jpeg;base64,AQID'));
+const mockCanResend = jest.fn(() => true);
+jest.mock('@/features/messages/photo', () => ({
+  openPhoto: () => mockOpenPhoto(),
+  canResend: () => mockCanResend(),
+  preparePhoto: () => Promise.resolve({ jpeg: new Uint8Array([1]), w: 10, h: 10 }),
+  sealPhoto: () => ({
+    blobId: '0190f7a4-4444-7444-8444-000000000001',
+    key: 'k'.repeat(43),
+    size: 100,
+    hash: 'h'.repeat(43),
+    w: 10,
+    h: 10,
+  }),
+  jpegUri: () => 'data:image/jpeg;base64,AQ==',
+}));
+jest.mock('expo-screen-capture', () => ({ useScreenshotListener: jest.fn() }));
+jest.mock('expo-camera', () => {
+  const { createElement, forwardRef, useImperativeHandle } =
+    jest.requireActual<typeof import('react')>('react');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    useCameraPermissions: () => [{ granted: true, canAskAgain: true }, jest.fn()],
+    CameraView: forwardRef(function MockCamera(_props: object, ref) {
+      useImperativeHandle(ref, () => ({
+        takePictureAsync: () =>
+          Promise.resolve({ uri: 'file:///cache/a.jpg', width: 10, height: 10 }),
+      }));
+      return createElement(View);
+    }),
+  };
+});
 
+import CameraScreen from '@/app/(app)/camera';
+import MessagesScreen from '@/app/(app)/messages';
+import ConversationScreen from '@/app/(app)/messages/[conversation]';
+import PhotoScreen from '@/app/(app)/photo/[item]';
+import StoryScreen from '@/app/(app)/story/[userId]';
+
+import { ApiError } from '../auth/api-client';
 import { useAuth } from '../auth/auth-store';
 import { queryClient } from '../query-client';
 import { useRulesGate } from './rules';
+import { type ChatItem, EMPTY_MESSAGES, useMessages, withItem } from './messages';
 import { forgetRules, rulesAccepted, rulesKey } from './rules-state';
 
 const ACCEPTED: RulesState = { rules: { version: COMMUNITY_RULES_VERSION, at: 1 } };
@@ -125,5 +207,155 @@ describe('the community rules (K14)', () => {
     await fireEvent.press(screen.getByTestId('rules-accept'));
     expect(action).not.toHaveBeenCalled();
     expect(rulesAccepted(queryClient.getQueryData(rulesKey))).toBe(false);
+  });
+});
+
+describe('the rules before any content and any sending (K14, QA-38b)', () => {
+  const ME = '0190f7a4-1111-7111-8111-000000000001';
+  const ALI = '0190f7a4-1111-7111-8111-000000000002';
+  const CIRCLE = '0190f7a4-5b6c-7d8e-9f01-23456789abcd';
+  const member = (userId: string, displayName: string): MemberCard => ({
+    userId,
+    role: 'member',
+    status: 'active',
+    username: null,
+    displayName,
+    avatar: null,
+    device: null,
+  });
+  const item = (id: string, overrides: Partial<ChatItem>): ChatItem => ({
+    id,
+    conversation: `c:${CIRCLE}`,
+    from: ALI,
+    at: Date.now() - 1000,
+    kind: 'photo',
+    state: 'sent',
+    photo: {
+      blobId: '0190f7a4-4444-7444-8444-000000000009',
+      key: 'k'.repeat(43),
+      size: 100,
+      hash: 'h'.repeat(43),
+      w: 10,
+      h: 10,
+      story: false,
+      caption: 'deniz',
+    },
+    ...overrides,
+  });
+  const PHOTO = item('0190f7a4-3333-7333-8333-000000000001', {});
+  const STORY = item('0190f7a4-3333-7333-8333-000000000002', {
+    photo: { ...(PHOTO.photo ?? ({} as never)), story: true },
+  });
+  const FAILED = item('0190f7a4-3333-7333-8333-000000000003', {
+    from: ME,
+    kind: 'text',
+    text: 'gitmedi',
+    photo: undefined,
+    state: 'failed',
+  });
+  const LOST = item('0190f7a4-3333-7333-8333-000000000004', { from: ME, state: 'failed' });
+
+  const shown = (node: React.JSX.Element) =>
+    render(<QueryClientProvider client={queryClient}>{node}</QueryClientProvider>);
+  const settle = () =>
+    act(async () => {
+      await queryClient.refetchQueries({ queryKey: rulesKey });
+    });
+  const accept = async () => {
+    await fireEvent.press(screen.getByTestId('rules-accept'));
+  };
+
+  beforeEach(() => {
+    for (const key of Object.keys(mockParams)) mockParams[key] = undefined;
+    mockCanResend.mockReturnValue(true);
+    mockCircles.current = [
+      {
+        id: CIRCLE,
+        kind: 'family',
+        name: 'Aile',
+        epoch: 1,
+        epochStartedAt: 0,
+        myRole: 'member',
+        myStatus: 'active',
+        members: [member(ME, 'Ben'), member(ALI, 'Ali')],
+      },
+    ];
+    useMessages.setState(
+      [PHOTO, STORY, FAILED, LOST].reduce((state, next) => withItem(state, next), {
+        ...EMPTY_MESSAGES,
+        loaded: true,
+      }),
+      true,
+    );
+    mockGet.mockResolvedValue({ rules: null });
+    mockAccept.mockResolvedValue(ACCEPTED);
+  });
+
+  it('open the Messages section, and nothing of it shows before them', async () => {
+    await shown(<MessagesScreen />);
+    await settle();
+    expect(screen.getByTestId('rules-accept')).toBeTruthy();
+    expect(screen.queryByLabelText('Hikaye paylaş')).toBeNull();
+    await accept();
+    expect(screen.getByLabelText('Hikaye paylaş')).toBeTruthy();
+  });
+
+  it('come before a photo opens', async () => {
+    mockParams.item = PHOTO.id;
+    await shown(<PhotoScreen />);
+    await settle();
+    expect(mockOpenPhoto).not.toHaveBeenCalled();
+    await accept();
+    expect(await screen.findByText('deniz')).toBeTruthy();
+    expect(mockOpenPhoto).toHaveBeenCalledTimes(1);
+  });
+
+  it('come before a story opens, and a reply to it goes after them', async () => {
+    mockParams.userId = ALI;
+    await shown(<StoryScreen />);
+    await settle();
+    expect(mockOpenPhoto).not.toHaveBeenCalled();
+    await accept();
+    expect(mockOpenPhoto).toHaveBeenCalledTimes(1);
+    await fireEvent.changeText(screen.getByTestId('story-reply'), 'güzel');
+    await fireEvent.press(screen.getByTestId('story-reply-send'));
+    expect(mockOutbox.sendText).toHaveBeenCalledWith(`p:${ALI}`, 'güzel', STORY.id);
+  });
+
+  it('come before trying a failed item again, or taking a lost photo again', async () => {
+    // The server could not be asked (offline): what the phone holds shows, sending waits.
+    mockGet.mockRejectedValue(new ApiError(500, 'INTERNAL'));
+    mockParams.conversation = `c:${CIRCLE}`;
+    mockCanResend.mockReturnValue(false);
+    await shown(<ConversationScreen />);
+    await settle();
+    await fireEvent.press(screen.getByTestId(`item-${FAILED.id}`));
+    expect(mockOutbox.retry).not.toHaveBeenCalled();
+    await accept();
+    expect(mockOutbox.retry).toHaveBeenCalledWith(FAILED.id);
+
+    await act(() => {
+      forgetRules();
+    });
+    await fireEvent.press(screen.getByTestId(`item-${LOST.id}`));
+    expect(mockOutbox.takeBack).not.toHaveBeenCalled();
+    await accept();
+    expect(mockOutbox.takeBack).toHaveBeenCalledWith(LOST.id);
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/camera',
+      params: { to: `c:${CIRCLE}` },
+    });
+  });
+
+  it('come before a photo from the camera goes', async () => {
+    await shown(<CameraScreen />);
+    await settle();
+    await fireEvent.press(screen.getByTestId('camera-take'));
+    await screen.findByTestId('camera-send');
+    await fireEvent.press(screen.getByTestId('camera-pick-person'));
+    await fireEvent.press(screen.getByTestId(`camera-person-${ALI}`));
+    expect(mockOutbox.sendPhoto).not.toHaveBeenCalled();
+    await accept();
+    expect(mockOutbox.sendPhoto).toHaveBeenCalledWith(`p:${ALI}`, expect.anything(), undefined);
   });
 });
