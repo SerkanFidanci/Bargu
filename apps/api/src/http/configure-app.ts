@@ -4,6 +4,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
+import { MEDIA_BODY_LIMIT_BYTES, MEDIA_UPLOAD_ROUTE } from './http-adapter.js';
 
 const JSON_CONTENT_TYPE = /^application\/json(;|$)/i;
 
@@ -27,6 +28,12 @@ export function configureApp(app: NestFastifyApplication): NestFastifyApplicatio
 
   // CORS stays disabled: the only client is the native app.
   const fastify = app.getHttpAdapter().getInstance();
+  // Every body is small but a photo of messages and moments: only its upload takes more.
+  fastify.addHook('onRoute', (route) => {
+    if (route.url === MEDIA_UPLOAD_ROUTE && route.method === 'POST') {
+      route.bodyLimit = MEDIA_BODY_LIMIT_BYTES;
+    }
+  });
   fastify.addHook('onRequest', (request, reply, done) => {
     void reply.header('x-request-id', request.id);
     done();

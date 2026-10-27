@@ -147,6 +147,15 @@ const envSchema = z
      */
     MIN_CLIENT_LEVEL: z.coerce.number().int().min(0).max(9999).default(0),
     /**
+     * The space all live photos of messages and moments may take together (docs/ADR/0035 §10):
+     * 2 GB on the shared staging server, raised from the environment on a server of its own.
+     */
+    MEDIA_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1_000_000)
+      .default(2 * 1024 ** 3),
+    /**
      * Signs the cosmetic pass (docs/ADR/0025 §2): an Ed25519 seed, its id the apps know it by.
      * Staging and production each have their own; without one there is no pass and no cosmetic
      * shows. Both or neither; empty is unset (compose passes `${VAR:-}`).

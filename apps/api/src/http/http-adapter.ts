@@ -44,6 +44,12 @@ export interface HttpAdapterOptions {
 }
 
 export const BODY_LIMIT_BYTES = 64 * 1024;
+/**
+ * The one larger body: a sealed photo of messages and moments (docs/ADR/0035 §4), at most 600 KB,
+ * as base64url in JSON. Only its upload route takes it (configure-app.ts).
+ */
+export const MEDIA_UPLOAD_ROUTE = '/v1/media';
+export const MEDIA_BODY_LIMIT_BYTES = 900 * 1024;
 
 export function createHttpAdapter(env: Env, options: HttpAdapterOptions = {}): FastifyAdapter {
   return new FastifyAdapter({

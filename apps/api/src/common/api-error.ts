@@ -79,11 +79,16 @@ export type ApiErrorCode =
   | 'PLACES_FULL'
   /** The event already has as many documents (meeting, polls, votes) as allowed. */
   | 'DOCS_FULL'
+  /** The photos of messages and moments fill their space on the server (docs/ADR/0035 §10). */
+  | 'MEDIA_FULL'
   | 'INTERNAL';
+
+/** HTTP 426, which Nest's HttpStatus does not name: an app too old for what it asked for. */
+export const HTTP_UPGRADE_REQUIRED = 426;
 
 export class ApiError extends HttpException {
   constructor(
-    readonly httpStatus: HttpStatus,
+    readonly httpStatus: HttpStatus | typeof HTTP_UPGRADE_REQUIRED,
     readonly code: ApiErrorCode,
     /** Seconds the client should wait (429). */
     readonly retryAfter?: number,

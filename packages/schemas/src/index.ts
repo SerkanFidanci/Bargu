@@ -368,3 +368,22 @@ export {
   type ChatPhoto,
   type DirectEnvelope,
 } from './chat.js';
+export {
+  blockListSchema,
+  CHAT_LIST_MAX,
+  CHAT_REFUSALS,
+  chatCircleRequestSchema,
+  chatDirectRequestSchema,
+  chatEventSchema,
+  chatGoneEventSchema,
+  chatListQuerySchema,
+  chatListSchema,
+  chatRecordSchema,
+  chatSendReplySchema,
+  mediaSchema,
+  mediaUploadSchema,
+  type ChatRecord,
+  type ChatRefusal,
+  type ChatSendReply,
+  type Media,
+} from './messages.js';

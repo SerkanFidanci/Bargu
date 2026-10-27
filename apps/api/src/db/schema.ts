@@ -260,6 +260,42 @@ export const historyChunks = app.table('history_chunks', {
   createdAt: timestamptz('created_at').notNull().defaultNow(),
 });
 
+/** Sealed photo files of messages and moments (docs/ADR/0035 §4, §6), gone after 24 hours. */
+export const mediaBlobs = app.table('media_blobs', {
+  id: uuid('id').primaryKey(),
+  ownerId: uuid('owner_id').notNull(),
+  bytes: bytea('bytes').notNull(),
+  size: integer('size').generatedAlwaysAs(sql`octet_length(bytes)`),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
+  expiresAt: timestamptz('expires_at')
+    .notNull()
+    .default(sql`now() + interval '24 hours'`),
+});
+
+/** Items for a circle or for one person (docs/ADR/0035 §6), gone after 24 hours. */
+export const chatItems = app.table('chat_items', {
+  id: uuid('id').primaryKey(),
+  circleId: uuid('circle_id'),
+  recipientId: uuid('recipient_id'),
+  senderId: uuid('sender_id').notNull(),
+  envelope: jsonb('envelope').notNull(),
+  blobId: uuid('blob_id'),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
+  expiresAt: timestamptz('expires_at')
+    .notNull()
+    .default(sql`now() + interval '24 hours'`),
+});
+
+export const blocks = app.table(
+  'blocks',
+  {
+    blockerId: uuid('blocker_id').notNull(),
+    blockedId: uuid('blocked_id').notNull(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.blockerId, table.blockedId] })],
+);
+
 export const schema = {
   users,
   devices,
@@ -276,4 +312,7 @@ export const schema = {
   circleDocs,
   historyChunks,
   entitlements,
+  mediaBlobs,
+  chatItems,
+  blocks,
 };

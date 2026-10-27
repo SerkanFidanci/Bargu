@@ -15,6 +15,7 @@ import { EventExpiry } from './circles/event-expiry.js';
 import { EventSweeper } from './circles/event-sweeper.js';
 import { EventsService } from './events/events.service.js';
 import { HistorySweeper } from './history/history-sweeper.js';
+import { MessagesSweeper } from './messages/messages-sweeper.js';
 import { AccountPurge } from './account/account-purge.js';
 import { AccountSweeper } from './account/account-sweeper.js';
 import { GuardianSweeper } from './guardians/guardian-sweeper.js';
@@ -45,6 +46,7 @@ export class WorkerModule {
         EventExpiry,
         EventSweeper,
         HistorySweeper,
+        MessagesSweeper,
         AccountPurge,
         AccountSweeper,
         GuardianSweeper,

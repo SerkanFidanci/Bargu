@@ -44,6 +44,9 @@ export const INTENTIONALLY_NOT_LISTENED = {
     'The app keeps one photo per person, not per circle: someone who left one circle may still share another with this phone. People who left go from the map and lists through circle.changed / circle.gone, and a new photo (or none) comes as their next profile message.',
   'look.gone':
     'The app keeps one look per person, like the photo. It shows only for people on the map, who come and go with circle.changed / circle.gone, and their next look message replaces it.',
+  chat: 'Messages and moments (docs/ADR/0035) reach the app in slice M2, which brings the conversation screens; until then nothing on the phone could show an item.',
+  'chat.gone':
+    'Comes with chat in slice M2 (docs/ADR/0035): an item taken back only matters to a phone that shows items, and none does yet.',
 } as const satisfies Partial<Record<LiveEvent, string>>;
 
 /** How long a request may take before the caller falls back (HTTP, or tries later). */

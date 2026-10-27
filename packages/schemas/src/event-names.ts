@@ -49,6 +49,9 @@ export const LIVE_EVENTS = [
   'history',
   // A new weather snapshot, the same for everyone (docs/ADR/0013).
   'weather',
+  // Messages and moments (docs/ADR/0035): a new item, and one taken back.
+  'chat',
+  'chat.gone',
 ] as const;
 export type LiveEvent = (typeof LIVE_EVENTS)[number];
 
