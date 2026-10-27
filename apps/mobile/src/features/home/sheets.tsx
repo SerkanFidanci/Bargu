@@ -9,8 +9,8 @@ import {
   Pencil,
   ShieldCheck,
   ShieldHalf,
+  ShoppingBag,
   Smile,
-  Sparkles,
   UserCog,
 } from 'lucide-react-native';
 import { forwardRef } from 'react';
@@ -44,7 +44,7 @@ type MeScreen =
   | '/notifications'
   | '/settings/look'
   | '/security'
-  | '/plus'
+  | '/store'
   | '/privacy'
   | '/settings/about';
 
@@ -189,11 +189,16 @@ export const MeSheet = forwardRef<
       </SettingsGroup>
       <SettingsGroup>
         <SettingsRow
-          icon={Sparkles}
-          label={t('sheets.me.plus')}
-          detail={planDetail}
+          testID="me-store"
+          icon={ShoppingBag}
+          label={t('sheets.me.store')}
+          detail={
+            planDetail === undefined
+              ? t('store.subtitle')
+              : t('sheets.me.storeDetail', { plan: planDetail })
+          }
           onPress={() => {
-            go('/plus');
+            go('/store');
           }}
         />
         <SettingsRow

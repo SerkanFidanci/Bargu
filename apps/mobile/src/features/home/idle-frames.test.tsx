@@ -15,6 +15,8 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+// The store's button reads the plan; its light must stop with the other shortcuts' effects.
+jest.mock('@/features/billing/plan', () => ({ usePlan: () => ({ data: undefined }) }));
 // The camera itself is not what is measured: the scanner's sweeping line is.
 jest.mock('expo-camera', () => {
   const { View } = jest.requireActual<typeof import('react-native')>('react-native');

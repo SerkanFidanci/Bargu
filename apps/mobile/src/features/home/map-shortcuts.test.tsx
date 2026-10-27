@@ -16,6 +16,8 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+// The store's button has its own tests (store-button.test.tsx).
+jest.mock('./store-button', () => ({ StoreButton: () => null }));
 const mockSayArrived = jest.fn<Promise<void>, [unknown, number]>(() => Promise.resolve());
 const mockUpdateSharing = jest.fn<undefined, [(current: SharingSettings) => SharingSettings]>(
   (change) => {

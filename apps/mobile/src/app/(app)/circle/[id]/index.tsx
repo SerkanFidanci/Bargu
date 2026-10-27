@@ -281,7 +281,7 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
               label={t('circles.detail.pausedPlus')}
               icon={Sparkles}
               onPress={() => {
-                router.push('/plus');
+                router.push('/store?shelf=plus');
               }}
             />
           </Notice>

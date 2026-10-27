@@ -27,6 +27,9 @@ const pairs: readonly (readonly [keyof ColorTokens, keyof ColorTokens, number])[
   ['primary', 'primarySoft', LARGE],
   // An error message on a card is small text (QA 24 B-4).
   ['danger', 'surface', BODY],
+  // The store button's words lie on a band from primary to promo: both ends (ADR 0025 Ek 2).
+  ['onPromo', 'promo', BODY],
+  ['onPromo', 'primary', BODY],
 ];
 
 describe.each([

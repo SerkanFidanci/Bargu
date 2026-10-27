@@ -99,7 +99,7 @@ describe('the Me sheet, one row per part (the owner, 2026-10-21)', () => {
       'Bildirimler',
       'Görünüm ve harita',
       'Güvenlik',
-      'Bargu+',
+      'Mağaza',
       'Hesap ve veri',
       'Uygulama',
     ];
@@ -121,6 +121,7 @@ describe('the Me sheet, one row per part (the owner, 2026-10-21)', () => {
       ['me-notifications', '/notifications'],
       ['me-look', '/settings/look'],
       ['me-security', '/security'],
+      ['me-store', '/store'],
       ['me-account', '/privacy'],
       ['me-app', '/settings/about'],
     ] as const) {
@@ -129,7 +130,7 @@ describe('the Me sheet, one row per part (the owner, 2026-10-21)', () => {
       expect(mockPush).toHaveBeenLastCalledWith(path);
       expect(takeReturn()).toBe('me');
     }
-    expect(onClose).toHaveBeenCalledTimes(6);
+    expect(onClose).toHaveBeenCalledTimes(7);
   });
 
   it('has "Güvendeyim" in the safety group at the top, one tap from the sheet (docs/ADR/0029)', async () => {

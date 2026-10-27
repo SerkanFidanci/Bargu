@@ -27,6 +27,7 @@ export {
   orbit,
   press,
   shortcutFx,
+  storeFx,
   spring,
   timing,
   typingDebounceMs,

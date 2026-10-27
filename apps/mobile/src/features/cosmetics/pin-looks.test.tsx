@@ -91,10 +91,9 @@ jest.mock('./look-session', () => {
   };
 });
 
-import LookSettingsScreen from '@/app/(app)/settings/look';
-
 import { useMyLook } from './look-session';
 import { resetTrying, useTrying } from './look-trying';
+import { PinLooks } from './pin-looks';
 
 /** The flattened style of a rendered element (the test renderer types props loosely). */
 const styleOf = (element: { props: unknown }): ViewStyle & TextStyle =>
@@ -111,7 +110,7 @@ const show = async () => {
   });
   const view = await render(
     <QueryClientProvider client={cache}>
-      <LookSettingsScreen />
+      <PinLooks />
     </QueryClientProvider>,
   );
   // The plan and the age arrive: a pack to buy, a pack the account has, or no buying yet.
@@ -152,11 +151,10 @@ beforeEach(() => {
   useToasts.setState({ current: null });
 });
 
-describe('"Pin süsleri" in Görünüm ve harita (docs/ADR/0025, the pin addendum)', () => {
+describe('"Pin süsleri", a shelf of the store (docs/ADR/0025, the pin addendum, Ek 2)', () => {
   it('shows the own pin and the two packs with their styles', async () => {
     await show();
-    expect(await screen.findByText('Pin süsleri')).toBeTruthy();
-    expect(screen.getByTestId('pin-look-preview')).toBeTruthy();
+    expect(await screen.findByTestId('pin-look-preview')).toBeTruthy();
     expect(within(screen.getByTestId('pack-rings')).getByText('Halka desenleri')).toBeTruthy();
     expect(within(screen.getByTestId('pack-frames')).getByText('Pin çerçeveleri')).toBeTruthy();
     for (const style of [

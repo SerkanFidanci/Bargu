@@ -40,10 +40,11 @@ yapmaya başla." Ayrıca yeni logo. Plan ve durum:
 
 | İş                | Karar                                                            | Durum                                                                                |
 | ----------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| İfadeli dürtmeler | [ADR 0031](ADR/0031-expressive-pokes.md), kabul (sahibin isteği) | Kodlandı (`b53cbe3`), sonraki APK'da                                                 |
-| Yeni logo         | ADR 0008 eki                                                     | Kodlandı (`2d34d4e`), sonraki APK'da                                                 |
-| Mesajlaşma        | [ADR 0032](ADR/0032-messaging.md), taslak                        | Kapalı test ve avukat görüşmesinden sonra (PM'in kararı, sahip ona bıraktı); kod yok |
-| Anlık hikaye      | [ADR 0033](ADR/0033-stories.md), taslak                          | Kapalı test ve avukat görüşmesinden sonra (PM'in kararı, sahip ona bıraktı); kod yok |
+| İfadeli dürtmeler | [ADR 0031](ADR/0031-expressive-pokes.md), kabul (sahibin isteği) | `061c011` APK'sında |
+| Yeni logo         | ADR 0008 eki                                                     | `061c011` APK'sında |
+| Mağaza (2026-10-27) | [ADR 0025 Ek 2](ADR/0025-cosmetic-pass-and-look.md), sahibin isteği | Kodlandı, sonraki APK'da. Pin süsleri ve Bargu+ tek ekranda; haritanın sağında reklam gibi bir düğme; bütün abonelik yolları oraya çıkar |
+| Mesajlaşma        | [ADR 0032](ADR/0032-messaging.md), taslak                        | PM kararı 2026-10-27: yapılacak, hikayeyle tek modül. Tek ADR yazılıyor; kod sıradaki APK'dan ve PM onayından sonra |
+| Anlık hikaye      | [ADR 0033](ADR/0033-stories.md), taslak                          | Mesajlaşmayla aynı satır |
 
 İfadeli dürtmeler:
 
@@ -86,7 +87,7 @@ kodlama oturumu çalıştırdı.
 | Anahtar                                    | Sahibin bilgisayarında üretildi: `~/.bargu/backup-age-key.txt` (hiç yazdırılmadı). Açık anahtar depoda: `infra/staging/backup-recipients.txt`                                                                                                                                                                                                                    |
 | Sunucu dışı kopya                          | Yer seçimi bekliyor (ADR §5a tablosu). Önerim sahibin Otenus sunucusu; oraya yazmak için sahibin ayrıca onayı gerekir                                                                                                                                                                                                                                            |
 | Migration'lar yalnız ekler                 | `scripts/check-migrations.mjs` CI'da ve `ci-linux`'ta çalışır, 9 testi var. 0039'dan sonra silme, ad değiştirme ve daraltma ancak bir `-- contract:` satırıyla geçer                                                                                                                                                                                             |
-| Test botu izin listesi                     | **Kuruldu** (bot aynı cihazla yeniden açıldı, tur kipinde). Bot yalnız izin listesindeki hesapların isteğini ve davetini kabul eder, ötekileri reddeder. Komutlar: `allow:`, `disallow:`, `allowlist`, `cleanup`. Liste bugünkü arkadaşlarından yazıldı: `@aktansanhal`, `@otenus`, `@sirketserkan`. Eski bot `/root/bargu-test-friend.mjs.v13-level5`           |
+| Test botu izin listesi                     | **Kuruldu** (bot aynı cihazla yeniden açıldı, tur kipinde). Bot yalnız izin listesindeki hesapların isteğini ve davetini kabul eder, ötekileri reddeder. Komutlar: `allow:`, `disallow:`, `allowlist`, `cleanup`. Liste bugünkü arkadaşlarından yazıldı: `@aktansanhal` (sahibin arkadaşı, gerçek kişi), `@otenus`, `@sirketserkan`. Eski bot `/root/bargu-test-friend.mjs.v13-level5`           |
 | QA hesapları                               | Yalnız kendi `.test` hesaplarını kullanırlar. Gerçek testçileri eklemezler                                                                                                                                                                                                                                                                                       |
 
 Kurulumda bulunan iki hata düzeltildi:
@@ -95,13 +96,13 @@ Kurulumda bulunan iki hata düzeltildi:
   dağıtım yedeğini etkilemiyordu.
 - Geri yükleme denemesi Postgres'in kendi `pg_` rollerini oluşturmaya çalıştı.
 
-Sahipten:
+Sahipten (cevaplar 2026-10-27, PM üzerinden):
 
-1. Gizli yedek anahtarını (`C:Usersserkanfidanci.barguackup-age-key.txt`) parola yöneticisine
-   ve bir yere daha kopyala. O olmadan hiçbir yedek açılmaz.
-2. `@aktansanhal` senin hesabın mı? Değilse bot onu listeden çıkarır ve ortak çemberden ayrılır
-   (`disallow:aktansanhal`, sonra `cleanup`).
-3. Sunucu dışı kopyanın yeri.
+1. ~~Gizli yedek anahtarını kopyala~~: sahip başka bir yere kopyaladı.
+2. `@aktansanhal` sahibin arkadaşı, gerçek bir kişi. İzin listesinde kalır. Kapalı testten önce
+   bot gerçek kişilerin çemberlerinden çıkar (Faz 10 kuralı): `disallow:` ve `cleanup`.
+3. Sunucu dışı yedek kopyasının yeri: sonra karar verilecek, açık madde.
+4. `bargu.app` henüz alınmadı. Alınınca DNS adımlarını kodlama oturumu yazar (ADR 0034 §4).
 
 ## Faz 9B — Para Modeli & Bargu+ (sürüyor, 2026-10-16)
 

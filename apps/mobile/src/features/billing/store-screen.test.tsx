@@ -10,8 +10,18 @@ jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
   DEV_TOOLS_ENABLED: false,
 }));
-// ui/screen imports expo-router; this screen never navigates.
-jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
+// The store reads the shelf it was opened on; ui/screen imports expo-router too.
+let mockShelf: string | undefined = 'plus';
+jest.mock('expo-router', () => ({
+  router: { back: jest.fn(), push: jest.fn() },
+  useLocalSearchParams: () => ({ shelf: mockShelf }),
+}));
+// The pin looks have their own tests (features/cosmetics/pin-looks.test.tsx).
+jest.mock('@/features/cosmetics/pin-looks', () => {
+  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
+  return { PinLooks: () => createElement(Text, { testID: 'pin-looks' }, 'pin looks') };
+});
 
 const DAY = 86_400_000;
 const trial = (testBilling: boolean): Plan => ({
@@ -67,7 +77,7 @@ jest.mock('@/features/account/age-api', () => ({
   isMinor: (state: { age?: { band?: string } } | undefined) => state?.age?.band === '15-17',
 }));
 
-import PlusScreen from '@/app/(app)/plus';
+import StoreScreen from '@/app/(app)/store';
 
 const show = () =>
   render(
@@ -81,7 +91,7 @@ const show = () =>
         })
       }
     >
-      <PlusScreen />
+      <StoreScreen />
     </QueryClientProvider>,
   );
 
@@ -92,13 +102,37 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPlan = trial(true);
   mockBand = '18+';
+  mockShelf = 'plus';
   withTestBilling();
 });
 afterEach(() => {
   useTestBilling.setState({ api: null });
 });
 
-describe('Bargu+ (docs/ADR/0024 §9)', () => {
+describe('the store (docs/ADR/0025 Ek 2)', () => {
+  it('opens on the shelf it was asked for: the pin looks, with no Bargu+ purchase under them', async () => {
+    mockShelf = 'looks';
+    await show();
+    expect(await screen.findByTestId('pin-looks')).toBeTruthy();
+    expect(screen.queryByTestId('plus-buy')).toBeNull();
+    // Bargu+ is one tap away, with its purchase.
+    await fireEvent.press(screen.getByLabelText('Bargu+'));
+    expect(await screen.findByTestId('plus-buy')).toBeTruthy();
+    expect(screen.queryByTestId('pin-looks')).toBeNull();
+  });
+
+  it('with no shelf asked: Bargu+ for those without it, the pin looks for those with it', async () => {
+    mockShelf = undefined;
+    const first = await show();
+    expect(await screen.findByTestId('plus-buy')).toBeTruthy();
+    await first.unmount();
+    mockPlan = yearly;
+    await show();
+    expect(await screen.findByTestId('pin-looks')).toBeTruthy();
+  });
+});
+
+describe('Bargu+, a shelf of the store (docs/ADR/0024 §9)', () => {
   it('says it is a test, offers the yearly plan first and buys with no payment', async () => {
     await show();
     expect(await screen.findByTestId('plus-test-band')).toBeTruthy();

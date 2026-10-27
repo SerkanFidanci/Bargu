@@ -321,6 +321,22 @@ export const shortcutFx = {
   roll: { duration: 280, distance: 12 },
 } as const;
 
+/**
+ * The map's store button (docs/ADR/0025 Ek 2): a light crosses it a few times when the map shows,
+ * then it rests (never an endless loop; "reduced" plays one, "off" none).
+ */
+export const storeFx = {
+  /** Crossings at the full level of sade mod; all of them end within the map's first 10 s. */
+  shines: 3,
+  /** The wait before each crossing (the first one too: the map settles first). */
+  gap: 2_000,
+  /** One crossing. */
+  duration: 900,
+  /** The light's width, and its slant in degrees. */
+  width: 28,
+  slant: 20,
+} as const;
+
 /** Haptic feedback per interaction kind (expo-haptics), see haptics.ts. */
 export const haptic = {
   select: 'selection',

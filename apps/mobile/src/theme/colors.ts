@@ -35,6 +35,13 @@ export interface ColorTokens {
    * text, never animated; none at sade mod "off" (docs/ADR/0008, theme 2026-10-18).
    */
   glow: string;
+  /**
+   * The store's own advert on the map (docs/ADR/0025 Ek 2): a band from `primary` to this
+   * magenta, `onPromo` on both ends, and a light that crosses it a few times.
+   */
+  promo: string;
+  onPromo: string;
+  promoShine: string;
 }
 
 export const lightColors: ColorTokens = {
@@ -56,6 +63,9 @@ export const lightColors: ColorTokens = {
   ghost: '#8A8896',
   scrim: 'rgba(10, 10, 15, 0.4)',
   glow: 'rgba(91, 52, 242, 0.32)',
+  promo: '#C92E68',
+  onPromo: '#FFFFFF',
+  promoShine: 'rgba(255, 255, 255, 0.35)',
 };
 
 /**
@@ -81,6 +91,9 @@ export const darkColors: ColorTokens = {
   ghost: '#6E6A8A',
   scrim: 'rgba(5, 4, 20, 0.6)',
   glow: 'rgba(122, 85, 246, 0.55)',
+  promo: '#C92E68',
+  onPromo: '#FFFFFF',
+  promoShine: 'rgba(255, 255, 255, 0.3)',
 };
 
 /**

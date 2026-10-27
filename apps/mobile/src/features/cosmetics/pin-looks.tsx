@@ -18,7 +18,6 @@ import { Button } from '@/ui/button';
 import { useCelebration } from '@/ui/confetti';
 import { Hint } from '@/ui/hint';
 import { PressableScale } from '@/ui/pressable-scale';
-import { SectionTitle } from '@/ui/screen';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 
@@ -49,7 +48,7 @@ function previewOf(choice: LookChoice): Look | undefined {
 }
 
 /**
- * "Pin süsleri" in Görünüm ve harita (docs/ADR/0025 and its addendum of 2026-10-21): the user's
+ * "Pin süsleri", a shelf of the store (docs/ADR/0025, its addendum of 2026-10-21 and Ek 2): the user's
  * own pin as friends will see it, the two packs, and a style to choose from each. A style of a pack
  * not bought can be tried on the pin; buying (a test purchase where the server allows it, a
  * parent's yes for 15-17) opens it. What is chosen from a pack the account has goes to circles.
@@ -190,7 +189,6 @@ export function PinLooks() {
 
   return (
     <View style={styles.section} testID="pin-looks">
-      <SectionTitle>{t('cosmetics.title')}</SectionTitle>
       <Text variant="footnote" color="textMuted">
         {t('cosmetics.intro')}
       </Text>

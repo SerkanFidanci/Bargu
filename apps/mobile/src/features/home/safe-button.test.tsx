@@ -8,6 +8,8 @@ jest.mock('@/config/env', () => ({
 }));
 // map-shortcuts imports the location session and the router; neither is what is tested here.
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+// The store's button has its own tests (store-button.test.tsx).
+jest.mock('@/features/home/store-button', () => ({ StoreButton: () => null }));
 jest.mock('@/features/location/location-session', () => ({
   sayArrived: jest.fn(),
   updateSharing: jest.fn(),

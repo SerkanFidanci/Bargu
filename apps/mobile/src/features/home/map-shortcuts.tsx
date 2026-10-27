@@ -38,6 +38,7 @@ import { sharedCircles, useSharing } from '../location/sharing';
 import type { Place } from '../places/place-model';
 import { useArrived } from '../plan/meeting';
 import { hereDue } from './shortcuts-model';
+import { StoreButton } from './store-button';
 
 export interface MapShortcutsProps {
   circles: readonly Circle[];
@@ -64,7 +65,7 @@ let sprang = false;
  * Round shortcuts at the right edge of the map, above the dock (the project owner's request,
  * docs/ADR/0026 §8), three at most: back to me (once the map moved away), ghost mode, and start a
  * meeting, which gives way to the meeting's chip at the top while one is on; "Geldim" shows only
- * near its time or place. Their effects are short and one-off, scaled by sade mod; nothing moves
+ * near its time or place. On top of them the store's button (docs/ADR/0025 Ek 2). Their effects are short and one-off, scaled by sade mod; nothing moves
  * on its own once they are done.
  */
 export function MapShortcuts({
@@ -113,6 +114,9 @@ export function MapShortcuts({
 
   return (
     <View style={[styles.column, { bottom }]} pointerEvents="box-none" testID="map-shortcuts">
+      <Animated.View entering={entering(0)}>
+        <StoreButton level={level} />
+      </Animated.View>
       {away ? (
         <Animated.View entering={entering(0)} exiting={motion.fadeOut}>
           <RecenterButton level={level} label={t('map.shortcuts.recenter')} onPress={onRecenter} />
@@ -416,7 +420,8 @@ export function RoundButton({
 }
 
 const styles = StyleSheet.create({
-  column: { position: 'absolute', right: space.lg, alignItems: 'center', gap: space.sm },
+  // Right-aligned: the round buttons are all one width, the store's wider band ends with them.
+  column: { position: 'absolute', right: space.lg, alignItems: 'flex-end', gap: space.sm },
   slot: { width: touchTarget, height: touchTarget },
   button: {
     width: touchTarget,

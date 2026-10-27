@@ -125,13 +125,14 @@ function set(state: PushState): PushState {
 /** A screen a tapped notification opens instead of a circle (the weekly reminder: who sees you). */
 export function routeOfResponse(
   response: Notifications.NotificationResponse,
-): '/seers' | '/guardians' | '/plus' | null {
+): '/seers' | '/guardians' | '/store?shelf=plus' | null {
   const data: unknown = response.notification.request.content.data;
   if (typeof data !== 'object' || data === null) return null;
   const { route } = data as Record<string, unknown>;
   if (route === 'seers') return '/seers';
   if (route === 'guardians') return '/guardians';
-  if (route === 'plus') return '/plus';
+  // The trial's reminder (features/billing/trial-reminder.ts): Bargu+ is a shelf of the store.
+  if (route === 'plus') return '/store?shelf=plus';
   return null;
 }
 

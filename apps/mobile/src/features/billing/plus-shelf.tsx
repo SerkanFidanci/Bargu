@@ -1,7 +1,7 @@
 import type { Plan, PlusProduct } from '@bargu/schemas';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, FlaskConical, Sparkles } from 'lucide-react-native';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
@@ -17,7 +17,7 @@ import { Badge } from '@/ui/badge';
 import { Button } from '@/ui/button';
 import { useCelebration } from '@/ui/confetti';
 import { PressableScale } from '@/ui/pressable-scale';
-import { Screen, SectionTitle } from '@/ui/screen';
+import { SectionTitle } from '@/ui/screen';
 import { Skeleton } from '@/ui/skeleton';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
@@ -28,14 +28,16 @@ const GIVES = ['circles', 'history', 'until', 'themes', 'gift'] as const;
 const ALWAYS_FREE = ['join', 'safety'] as const;
 
 /**
- * Bargu+ (docs/ADR/0024): what it gives, the two plans with the yearly one first, the account's
- * plan now, and cancelling in one tap. In a build with test billing (development, preview) where the
- * server has it on (staging), buying is a test purchase with no payment and the screen says so on a
- * band; in a production build, and until a store is connected, buying is not offered: "coming
- * soon through Google Play". A production bundle has no code that could make a test purchase.
- * 15-17 needs a parent's yes.
+ * The Bargu+ shelf of the store (docs/ADR/0024; the store: ADR 0025 Ek 2): what it gives, the two
+ * plans with the yearly one first, the account's plan now, and cancelling in one tap. In a build
+ * with test billing (development, preview) where the server has it on (staging), buying is a test
+ * purchase with no payment and the shelf says so on a band; in a production build, and until a
+ * store is connected, buying is not offered: "coming soon through Google Play". A production
+ * bundle has no code that could make a test purchase. 15-17 needs a parent's yes.
+ *
+ * The store shows `content` and puts `footer` (buy, ask a parent, "soon") under it.
  */
-export default function PlusScreen() {
+export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const queryClient = useQueryClient();
@@ -210,8 +212,8 @@ export default function PlusScreen() {
     </Text>
   );
 
-  return (
-    <Screen title={t('plus.title')} subtitle={t('plus.subtitle')} footer={footer}>
+  const content = (
+    <>
       {testing ? (
         <View
           testID="plus-test-band"
@@ -290,8 +292,9 @@ export default function PlusScreen() {
           }}
         />
       ) : null}
-    </Screen>
+    </>
   );
+  return { content, footer };
 }
 
 const styles = StyleSheet.create({

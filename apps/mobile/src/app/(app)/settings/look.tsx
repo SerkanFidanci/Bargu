@@ -1,9 +1,9 @@
-import { Ban, Map as MapIcon, Moon, Sparkle, Sparkles, Sun } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { Ban, Map as MapIcon, Moon, Palette, Sparkle, Sparkles, Sun } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
-import { PinLooks } from '@/features/cosmetics/pin-looks';
 import { setEffectLevel } from '@/features/home/effect-prefs';
 import { MAP_APPEARANCES, useMapAppearance } from '@/features/map/appearance';
 import { space } from '@/theme';
@@ -11,13 +11,14 @@ import { EFFECT_LEVELS, useDeviceSaving, useEffectChoice } from '@/theme/effects
 import { Hint } from '@/ui/hint';
 import { Screen } from '@/ui/screen';
 import { Segmented } from '@/ui/segmented';
+import { SettingsGroup, SettingsRow } from '@/ui/settings-row';
 
 const APPEARANCE_ICONS = { auto: MapIcon, light: Sun, dark: Moon } as const;
 const EFFECT_ICONS = { full: Sparkles, reduced: Sparkle, off: Ban } as const;
 
 /**
- * "Görünüm ve harita" (from Me): the map's light or dark look, how much moves (sade mod), and the
- * looks of the user's own pin (features/cosmetics).
+ * "Görünüm ve harita" (from Me): the map's light or dark look and how much moves (sade mod). The
+ * looks of the user's own pin moved to the store (docs/ADR/0025 Ek 2); a row here still leads there.
  */
 export default function LookSettingsScreen() {
   const { t } = useTranslation();
@@ -60,7 +61,17 @@ export default function LookSettingsScreen() {
               : t(`sheets.me.effectsDetail_${effects}`)}
         </Hint>
       </View>
-      <PinLooks />
+      <SettingsGroup>
+        <SettingsRow
+          testID="look-pin-looks"
+          icon={Palette}
+          label={t('store.shelf_looks')}
+          detail={t('store.looksHere')}
+          onPress={() => {
+            router.push('/store?shelf=looks');
+          }}
+        />
+      </SettingsGroup>
     </Screen>
   );
 }

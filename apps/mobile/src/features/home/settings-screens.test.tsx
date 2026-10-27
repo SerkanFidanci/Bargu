@@ -40,8 +40,6 @@ jest.mock('@/features/auth/auth-store', () => ({
 }));
 // Watches the battery (expo-battery, native): not what is tested here.
 jest.mock('@/features/home/effect-prefs', () => ({ setEffectLevel: jest.fn() }));
-// The pin looks have their own tests (features/cosmetics/pin-looks.test.tsx).
-jest.mock('@/features/cosmetics/pin-looks', () => ({ PinLooks: () => null }));
 
 beforeAll(async () => {
   await i18n.changeLanguage('tr');
@@ -64,10 +62,12 @@ describe('the screens behind the Me rows (the owner, 2026-10-21)', () => {
     expect(mockPush).toHaveBeenLastCalledWith('/history/viewers');
   });
 
-  it('"Görünüm ve harita": the map look and the effects', async () => {
+  it('"Görünüm ve harita": the map look and the effects; the pin looks are in the store now', async () => {
     await render(<LookSettingsScreen />);
     expect(screen.getByTestId('map-appearance')).toBeTruthy();
     expect(screen.getByTestId('effects-level')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('look-pin-looks'));
+    expect(mockPush).toHaveBeenLastCalledWith('/store?shelf=looks');
   });
 
   it('"Uygulama": this phone, the map data and the version', async () => {

@@ -196,7 +196,8 @@
       "notifications_undetermined": "Kapalı · açmak için dokun",
       "guardians": "Ebeveyn bağlantısı",
       "guardiansDetail": "Ebeveyn ve çocuk hesapları",
-      "plus": "Bargu+",
+      "store": "Mağaza",
+      "storeDetail": "Bargu+: {{plan}} · pin süsleri",
       "plusFree": "Bedava",
       "plusTrial": "Deneme · {{days}} gün",
       "plusOn": "Açık",
@@ -1232,7 +1233,6 @@
     "teenSoon": "Satın almak için ebeveyn onayı gerekiyor. Mağaza bağlantısı henüz yok, yakında burada olacak."
   },
   "cosmetics": {
-    "title": "Pin süsleri",
     "intro": "Pinin haritada böyle görünür. Süs yalnızca görünüştür: arkadaşların seçtiğin süsü ancak satın aldıysan görür.",
     "preview": "Pinin: önizleme",
     "plain": "Düz",
@@ -1378,5 +1378,20 @@
   },
   "settingsLocation": {
     "perCircle": "Bir çemberin neyi, ne kadar süre gördüğünü o çemberin ekranından değiştirirsin."
+  },
+  "store": {
+    "title": "Mağaza",
+    "subtitle": "Bargu+ ve pin süsleri",
+    "shelves": "Bölümler",
+    "shelf_plus": "Bargu+",
+    "shelf_looks": "Pin süsleri",
+    "looksHere": "Halka desenleri ve çerçeveler artık Mağaza’da",
+    "button": {
+      "label": "Mağaza",
+      "free": "Bargu+’a geç",
+      "trial": "Deneme: {{days}} gün",
+      "plus": "Yeni pin süsleri",
+      "a11y": "Mağaza: {{tagline}}"
+    }
   }
 }

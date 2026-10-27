@@ -257,3 +257,41 @@ GUARDIAN_APPROVAL` alır (uygulama bunu hata değil "soruldu" sayar). Test satı
   tanımadıkları türü zaten atlar (dilim 2c'den beri esnek liste); yani eski bir ebeveyn uygulaması
   bozulmaz ve göremez. Süs isteği ancak ebeveyn uygulamayı güncelleyince görünür; istek 7 gün bekler.
 - `MIN_CLIENT_LEVEL` değişmedi; yükseltme kararı PM'indir (ADR 0024 §10).
+
+## Ek 2 (2026-10-27): Mağaza
+
+- Durum: Uygulandı (sahibin isteği).
+
+### İstek
+
+Sahip, 2026-10-27: "halka desni ve pin çerçevelerini mağaza kısmı yap oraya al aboneliklerde orada
+olsun. ana ekranda da sağ tarafta yine mağaza butonu olsun ama belirgin kendi reklamımızmış gibi.
+abonelik alan hep o mağazadan olsun."
+
+### Karar
+
+- **Tek yer:** Bütün satın almalar "Mağaza" ekranındadır (`/store`). Ekranın iki bölümü var:
+  - **Bargu+:** eski Bargu+ sayfasının içeriği, satın alma düğmesiyle (ADR 0024);
+  - **Pin süsleri:** halka desenleri ve pin çerçeveleri (bu ADR).
+
+  "Görünüm ve harita"da süs yok. Orada yalnız Mağaza'ya giden bir satır kalır.
+
+- **Her yol mağazaya çıkar:**
+  - haritadaki düğme;
+  - Ben → Mağaza (eski "Bargu+" satırının yerinde);
+  - duraklamış çemberdeki "Bargu+'ya bak" düğmesi;
+  - denemenin bitiş hatırlatması.
+
+  Hangi bölümün açılacağını `shelf` parametresi söyler. Parametre yoksa Bargu+'ı olmayan Bargu+
+  bölümünü, olan Pin süsleri bölümünü görür. Eski `/plus` adresi kalktı.
+
+- **Haritadaki düğme:** sağ kenardaki kısayolların en üstünde, kendi reklamımız gibi:
+  - menekşeden (`primary`) eflatuna (`promo`) giden bir bant;
+  - çanta simgesi, "Mağaza" yazısı ve hesaba göre bir satır: "Bargu+'a geç", "Deneme: N gün" ya da
+    "Yeni pin süsleri".
+
+  Yazı iki uçta da AA kontrastı geçer (`colors.test.ts`). Harita açılınca bandın üstünden bir ışık
+  birkaç kez geçer, sonra durur (`storeFx`). Sade modda bir kez geçer, kapalıyken hiç geçmez. Bir
+  kişinin kartı açıkken kısayollarla birlikte gizlenir.
+
+- Sunucu, şema ve istemci seviyesi değişmedi.
