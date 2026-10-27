@@ -1,8 +1,9 @@
 # 0035. Mesajlar ve anlık fotoğraf: 24 saatlik, uçtan uca şifreli tek modül
 
-- Durum: Önerildi (kodlama oturumu, 2026-10-27). PM onayı bekleniyor. Kod PM onayından hemen sonra
-  dilimler hâlinde başlar. Sıradaki APK bu modülün hepsi bitince çıkar (sahip, 2026-10-27: "hepsini
-  tamamlamadan yeni sürüm çıkmasın").
+- Durum: Kabul edildi (PM, 2026-10-27), beş ekle: anahtar bağlılığı (§2–§4, §9), etkinlik
+  çemberleri (§7, §8), gönderme ekranı (§1), sunucu kurulumu (§10, §15), engelleme ekranı (§6).
+  Kod dilimler hâlinde başladı (M0). Sıradaki APK bu modülün hepsi bitince çıkar (sahip,
+  2026-10-27: "hepsini tamamlamadan yeni sürüm çıkmasın").
 - Tarih: 2026-10-27
 - Yerine geçtiği: [ADR 0032](0032-messaging.md) (mesajlaşma) ve [ADR 0033](0033-stories.md)
   (hikaye). İkisi de "Yerine geçti" olur.
@@ -46,6 +47,13 @@ Kişiye yazmak için ortak bir çember yeter, arkadaş (ikili çember) olmak ger
 
 Mesaj ve hikaye duraklamış çemberde de çalışır ve bedavadır (iletişim temel hizmet).
 
+**Gönderme ekranı (PM eki 3).** Fotoğraf çekildikten sonra tek ekranda üç seçenek çıkar. Sahibin
+"birine de herkese de" isteği budur:
+
+- **Hikaye (bütün çemberlerim):** etkinlik çemberleri hariç bütün çemberler (§8);
+- **Çember seç:** bir ya da birkaç çember; etkinlik çemberleri de burada seçilebilir;
+- **Bir kişi:** ortak çemberi olan biri; kişisel öğe olarak gider (§3).
+
 ### 2. Kripto: çembere giden öğe (sohbet zarfı)
 
 Çemberin mevcut gönderen anahtarları ve epoch'ları kullanılır. Yeni anahtar dağıtımı yok. Ama
@@ -53,15 +61,29 @@ sohbet, konumla aynı anahtarı **kullanmaz**. Geçmişte olduğu gibi (PROTOCOL
 gönderen anahtarından ayrı bir sohbet anahtarı türetilir:
 
 ```
-chatKey   = HMAC-SHA256(senderKey, "bargu/v1/chat-key\0" ‖ circleId(16) ‖ epoch(4) ‖ senderDeviceId(16))
-header    = 0x01 ‖ circleId(16) ‖ epoch(4) ‖ senderDeviceId(16) ‖ itemId(16) ‖ salt(16)   // 69 bayt
-key, nonce = HKDF(chatKey, salt, "bargu/v1/chat\0", header)
-ct        = ChaCha20-Poly1305(key, nonce, aad = header, pt = pad(JSON(payload), 1024 | 8192))
-sig       = Ed25519.sign(sender.identity, "bargu/v1/chat-sig\0" ‖ header ‖ ct)
+chatKey    = HMAC-SHA256(senderKey, "bargu/v1/chat-key\0" ‖ circleId(16) ‖ epoch(4) ‖ senderDeviceId(16))
+base       = 0x01 ‖ circleId(16) ‖ epoch(4) ‖ senderDeviceId(16) ‖ itemId(16) ‖ salt(16)   // 69 bayt
+key, nonce = HKDF(chatKey, salt, "bargu/v1/chat\0", base)
+commit     = SHA-256("bargu/v1/chat-commit\0" ‖ key ‖ nonce)                              // 32 bayt
+header     = base ‖ commit                                                                // 101 bayt
+ct         = ChaCha20-Poly1305(key, nonce, aad = header, pt = pad(JSON(payload), 1024 | 8192))
+sig        = Ed25519.sign(sender.identity, "bargu/v1/chat-sig\0" ‖ header ‖ ct)
 ```
 
 - **Ayrı anahtar, ayrı etiket, ayrı başlık boyu.** Sohbet zarfı konum mesajının, belgenin ya da
   geçmişin yerine geçemez; tersi de olmaz.
+- **Anahtar bağlılığı (`commit`, PM eki 1).** ChaCha20-Poly1305 bir şifreli metni tek bir anahtara
+  bağlamaz: aynı şifreli metnin başka bir anahtarla da açıldığı durumlar kurulabilir. Bildirme
+  (§9) "şu anahtar bu öğenin anahtarıdır" kanıtına dayandığı için bu bağ açıkça kurulur:
+  - Gönderen, öğenin anahtarının ve nonce'unun SHA-256 özetini başlığa koyar. Başlık hem AEAD'in
+    ek verisidir hem de imzanın içindedir.
+  - Anahtar, bağlılığı içermeyen 69 baytlık temel başlıktan türetilir. Bağlılık anahtarın
+    kendisinden hesaplandığı için onu anahtarın türetildiği girdiye koymak döngü olurdu.
+  - **Alıcı** çözmeden önce bağlılığı denetler, uymayanı atar. Böylece hiçbir gönderen alıcıların
+    görüp sunucunun doğrulayamayacağı bir öğe gönderemez.
+  - **Sunucu** bildirimde aynı denetimi yapar (§9). Kanıt imzaya ve SHA-256'nın çarpışma
+    direncine dayanır, Poly1305'in özelliklerine değil.
+  - Nonce da özete girer; bildiren ikisini birlikte verir. Bedeli öğe başına 32 bayt.
 - **`itemId`:** her öğe için 16 rastgele bayt, başlıkta açık. Sunucu onu birincil anahtar yapar
   (aynı öğe ikinci kez yazılamaz). Silme ve bildirme de onu gösterir. `seq` yok; konumun tekrar
   penceresine dokunulmaz.
@@ -87,17 +109,21 @@ sig       = Ed25519.sign(sender.identity, "bargu/v1/chat-sig\0" ‖ header ‖ c
 Kişinin tek etkin cihazına mühürlenir. Gönderen anahtarı dağıtımıyla (PROTOCOL §4) aynı yapı:
 
 ```
-header  = 0x02 ‖ senderDeviceId(16) ‖ recipientDeviceId(16) ‖ itemId(16) ‖ ephPub(32)   // 81 bayt
-shared  = X25519(ephSecret, recipient.dhPub)                                           // her öğede taze
-key, nonce = HKDF(shared, salt = ephPub ‖ recipient.dhPub, "bargu/v1/dm\0", header)
-ct      = ChaCha20-Poly1305(key, nonce, aad = header, pt = pad(JSON(payload), 1024 | 8192))
-sig     = Ed25519.sign(sender.identity, "bargu/v1/dm-sig\0" ‖ header ‖ ct)
+base       = 0x02 ‖ senderDeviceId(16) ‖ recipientDeviceId(16) ‖ itemId(16) ‖ ephPub(32)   // 81 bayt
+shared     = X25519(ephSecret, recipient.dhPub)                                          // her öğede taze
+key, nonce = HKDF(shared, salt = ephPub ‖ recipient.dhPub, "bargu/v1/dm\0", base)
+commit     = SHA-256("bargu/v1/dm-commit\0" ‖ key ‖ nonce)                                // 32 bayt
+header     = base ‖ commit                                                                // 113 bayt
+ct         = ChaCha20-Poly1305(key, nonce, aad = header, pt = pad(JSON(payload), 1024 | 8192))
+sig        = Ed25519.sign(sender.identity, "bargu/v1/dm-sig\0" ‖ header ‖ ct)
 ```
 
-- İlk bayt `0x02`: sohbet zarfıyla (`0x01`, 69 bayt) ne tür ne boy olarak karışır.
+- İlk bayt `0x02`: sohbet zarfıyla (`0x01`, 101 bayt) ne tür ne boy olarak karışır.
+- Anahtar bağlılığı sohbet zarfındakiyle aynı gerekçeyle ve aynı kuralla vardır (§2), kendi
+  etiketiyle.
 - Alıcı sırası: biçim → alıcı bu cihaz mı → gönderen cihaz, ortak çemberi olan bir kişinin güvenilen
-  cihazı mı (güven kaydı, PROTOCOL §8) → imza → X25519 (düşük mertebe reddi) → çözme → dolgu →
-  şema → 24 saat ve tekrar kuralı (§2).
+  cihazı mı (güven kaydı, PROTOCOL §8) → imza → X25519 (düşük mertebe reddi) → bağlılık → çözme →
+  dolgu → şema → 24 saat ve tekrar kuralı (§2).
 - Gönderen kendi kopyasını telefonunda tutar; sunucuya kendine giden kopya gönderilmez.
 - Kişi telefonunu değiştirirse eski cihazına mühürlenmiş öğeleri yeni cihaz açamaz. 24 saatlik
   ömür içinde bu kabul edilir; gönderen "teslim edilemedi" görür.
@@ -114,27 +140,34 @@ Telefonda sıra:
 3. Rastgele 32 baytlık `blobKey` ve 12 baytlık nonce ile şifrelenir:
 
    ```
-   blob = ChaCha20-Poly1305(blobKey, nonce, aad = "bargu/v1/blob\0" ‖ blobId(16), pt = jpeg)
+   commit = SHA-256("bargu/v1/blob-commit\0" ‖ blobKey ‖ nonce)
+   head   = 0x01 ‖ nonce(12) ‖ commit(32)                                   // 45 bayt
+   blob   = head ‖ ChaCha20-Poly1305(blobKey, nonce, aad = "bargu/v1/blob\0" ‖ blobId(16) ‖ head, pt = jpeg)
    ```
 
 4. Sunucuya yüklenir (en çok 600 KB). Sunucu yalnız şifreli baytı görür.
 5. Anahtar, `photo` içeriğiyle, sohbet ya da kişisel zarfta gider (§5). Hikaye birden çok çembere
    giderse dosya bir kez yüklenir, anahtar her çemberin zarfında ayrı gider.
 
-`blobKey` tek kullanımlıktır; aynı anahtar başka bir dosyada kullanılmaz.
+- `blobKey` tek kullanımlıktır; aynı anahtar başka bir dosyada kullanılmaz.
+- Dosyanın kendi anahtar bağlılığı vardır (PM eki 1). Açan, çözmeden önce onu denetler.
+- `photo` içeriği dosyanın tamamının SHA-256 özetini (`hash`) taşır. İçerik imzalı ve bağlı
+  zarfın içinde olduğu için dosya, anahtarı ve göndereni birbirine bağlanır: sunucu bildirimde
+  önce özeti, sonra dosyanın bağlılığını denetler, sonra çözer (§9).
+- `blobId` ek veride olduğu için bir dosya başka bir dosyanın yerine konamaz.
 
 ### 5. İçerik türleri (PROTOCOL §6'ya, yalnız bu iki zarfta)
 
-| `kind`  | Alanlar                                                                                                              |
-| ------- | -------------------------------------------------------------------------------------------------------------------- |
-| `text`  | `id, text (1–1000 karakter), replyTo? (öğe kimliği ya da hikaye kimliği), ts`                                        |
-| `photo` | `id, blobId, key, nonce, size, hash (şifreli dosyanın SHA-256'sı), w, h, caption? (≤ 200), story (true / false), ts` |
-| `del`   | `id, ts`: gönderen kendi öğesini herkesten siler                                                                     |
-| `shot`  | `id, ts`: alıcı o fotoğrafın ekran görüntüsünü aldı (Android 14+)                                                    |
+| `kind`  | Alanlar                                                                                               |
+| ------- | ----------------------------------------------------------------------------------------------------- |
+| `text`  | `id, text (1–1000 karakter), replyTo? (öğe kimliği ya da hikaye kimliği), ts`                         |
+| `photo` | `id, blobId, key, size, hash (dosyanın SHA-256'sı), w, h, caption? (≤ 200), story (true / false), ts` |
+| `del`   | `id, target, ts`: gönderen kendi öğesini (`target`) herkesten siler                                   |
+| `shot`  | `id, target, ts`: alıcı o fotoğrafın (`target`) ekran görüntüsünü aldı (Android 14+)                  |
 
-- `id` başlıktaki `itemId`'ye eşit olmalıdır.
-- `del` ve `shot` yalnız ilgili öğeyi gören kişiler arasında gider. `del`'i yalnız öğenin
-  gönderenin cihazı imzalayabilir, alıcı bunu denetler.
+- `id` her türde başlıktaki `itemId`'ye eşit olmalıdır.
+- `del` ve `shot` yalnız ilgili öğeyi gören kişiler arasında gider. `del` yalnız `target` öğeyi
+  gönderen kişinin cihazından gelirse uygulanır; alıcı bunu denetler.
 - Bu türler konum yollarından gelirse ya da konum türleri bu zarflardan gelirse reddedilir (alıcı
   türü yola bağlar, bugünkü kural).
 
@@ -142,9 +175,9 @@ Telefonda sıra:
 
 **Tablolar (yalnız ekleyen migration'lar, ADR 0034 §5b):**
 
-- `app.chat_items(id, circle_id?, recipient_user_id?, sender_user_id, sender_device_id, envelope,
-blob_id?, created_at, expires_at)`. Ya çember ya kişi dolu, ikisi birden değil. RLS: çember
-  üyeleri ya da gönderen ve alıcı.
+- `app.chat_items`: kimlik, çember ya da alıcı kişi (ikisi birden değil), gönderen kişi ve cihaz,
+  zarf, dosya kimliği (varsa), oluşturma ve bitiş zamanı. RLS: çember üyeleri ya da gönderen ve
+  alıcı.
 - `app.media_blobs(id, owner_user_id, size, created_at, expires_at)`. Dosyanın kendisi
   `/srv/bargu-media` altında; adı kimliği, tahmin edilemez.
 - `app.media_access(blob_id, circle_id?, user_id?)`: dosyayı kim indirebilir.
@@ -167,10 +200,15 @@ blob_id?, created_at, expires_at)`. Ya çember ya kişi dolu, ikisi birden deği
 **Canlı olaylar:** `chat.new` (zarfın kendisi), `chat.gone` (silindi ya da süresi doldu). Durum
 değişikliği olaydır; listeyi yenileme düğmesi yoktur.
 
-**Engelleme:** engellenen kişi bana kişisel öğe gönderirse sunucu `{ ok: true }` der ama iletmez
-(engellendiğini öğrenmez). Ortak çemberlerdeki öğeleri ve hikayeleri bana gösterilmez: sunucu bana
-iletmez, telefon da süzer. Engellemek çembere ya da konuma dokunmaz; ekranda "Çemberden ayrıl" ve
-yönetici için "Çemberden çıkar" ayrıca önerilir.
+**Engelleme:**
+
+- Engellenen kişi bana kişisel öğe gönderirse sunucu `{ ok: true }` der ama iletmez
+  (engellendiğini öğrenmez).
+- Ortak çemberlerdeki öğeleri ve hikayeleri bana gösterilmez: sunucu bana iletmez, telefon da
+  süzer.
+- Engellemek çembere ya da konuma dokunmaz. Engelleme ekranı bunu açıkça yazar (PM eki 5):
+  "Engellemek konumunu gizlemez. Konumunu gizlemek için çemberden ayrıl." Hemen altında o kişiyle
+  ortak çemberlerden ayrılma düğmesi vardır; yöneticiye ayrıca "Çemberden çıkar" önerilir.
 
 ### 7. Silme: 24 saat
 
@@ -184,6 +222,9 @@ yönetici için "Çemberden çıkar" ayrıca önerilir.
 - Üye çemberden ayrılınca ya da çıkarılınca o çemberdeki öğeleri ve oraya paylaştığı hikayeler
   silinir ("çemberden çıkmak iz bırakmaz").
 - Hesap silinince bütün öğeleri ve dosyaları gider.
+- **Etkinlik bitince** (PM eki 2) çember silinir; içindeki bütün öğeler ve yalnız oraya
+  paylaşılmış dosyalar da 24 saati beklemeden gider. Başka çemberlere de paylaşılmış bir hikayenin
+  dosyası kalır, yalnız o çemberin erişimi silinir.
 - Bildirilen öğenin açık kopyası ayrı tutulur (§9); 24 saat kuralı ona uygulanmaz.
 - Gece yedeği (ADR 0034) bu tabloları **almaz**: 24 saatlik veri 14 günlük yedekte durmamalı.
   Yedek betiği bu tabloları dışarıda bırakır, geri yükleme denemesi de bunu denetler.
@@ -201,6 +242,9 @@ yönetici için "Çemberden çıkar" ayrıca önerilir.
 - **Çember öğesi ve hikaye:** gönderildiği an o çemberde olan ve hâlâ orada olan üyeler. Sonradan
   katılan göremez: katılınca epoch yenilenir, eski sohbet anahtarı ona gitmez. Sunucu da dosyayı
   ona vermez.
+- **Hikayenin varsayılan kitlesi** (PM eki 2): etkinlik çemberleri hariç bütün çemberler. Etkinlik
+  çemberinde bir kez görülen insanlar olabilir; etkinlik çemberi ancak "Çember seç"te elle seçilirse
+  hikayeyi görür.
 - **Kişisel öğe:** yalnız gönderen ve alıcı. Ortak çember kalmazsa yeni öğe gönderilemez.
 - **Hikaye halkası:** bir kişinin bana görünen, süresi dolmamış hikayesi varsa haritadaki pininin
   çevresinde ince, renk geçişli bir dış halka çıkar. Süs halkasının (ADR 0025) dışında durur, onunla
@@ -220,14 +264,23 @@ yönetici için "Çemberden çıkar" ayrıca önerilir.
    - öğenin şifreli zarfı;
    - o tek öğenin çözme anahtarı (`key`, `nonce`; çemberin ya da kişinin anahtarı değil);
    - fotoğrafsa dosya da (sunucuda yoksa).
-4. Sunucu zarfın imzasını gönderen cihazın kimlik anahtarıyla doğrular ve verilen anahtarla
-   çözer. Fotoğrafta dosyanın özetini içerikteki `hash` ile karşılaştırır.
-5. Böylece bildirilen içeriğin o kişiden geldiği kanıtlıdır. Bildiren uydurma bir metin
-   gönderemez: imzalı şifreli metni başka bir anahtarla anlamlı başka bir metne çözmek, Poly1305
-   etiketini tutturmak demektir (2^128 deneme). Bildiren, öğenin anahtarından başka hiçbir şey
-   vermez.
-6. Bildirim sahibe e-postayla haber verilir (içerik e-postada yok). İnceleme sunucudaki bir
-   komutla yapılır (`bargu-reports`); yönetim web sayfası yok.
+4. Sunucu sırayla denetler:
+   - zarfın imzası, gönderen cihazın kimlik anahtarıyla;
+   - verilen anahtar ve nonce'un özeti, başlıktaki bağlılıkla (§2, §3);
+   - çözme (AEAD) ve içeriğin şeması; içerikteki `id` başlıktaki kimlikle aynı mı;
+   - fotoğrafta: dosyanın özeti içerikteki `hash` ile, dosyanın kendi bağlılığı içerikteki anahtarla
+     (§4), sonra dosyayı çözer.
+
+   Biri tutmazsa bildirim "doğrulanamadı" olarak kaydedilir, içerik saklanmaz.
+
+5. Böylece bildirilen içeriğin o kişiden geldiği kanıtlıdır. İmza, başlıktaki bağlılığı da
+   kapsadığı için bildiren başka bir anahtar uyduramaz: uyan bir anahtar bulmak SHA-256'da çarpışma
+   bulmak demektir. Bildiren, o tek öğenin anahtarından başka hiçbir şey vermez; çemberin ya da
+   kişinin anahtarı açığa çıkmaz.
+6. Sahibe e-postayla haber verilir (`OPS_EMAIL`, support@otenus.com). E-posta yalnız şunu yazar:
+   "Yeni bildirim var, neden: X, kimlik: Y". İçerik, kişi adı ya da e-posta adresi yok. Staging'de
+   gönderim hazır değilse aynı bilgiyle içeriksiz bir günlük satırı yazılır.
+7. İnceleme sunucudaki bir komutla yapılır (`bargu-reports`); yönetim web sayfası yok.
 
 **Saklama ve sonuç:**
 
@@ -245,11 +298,17 @@ yönetici için "Çemberden çıkar" ayrıca önerilir.
   hikaye kaç çembere giderse gitsin bir fotoğraf sayılır.
 - Gönderen ve çember başına dakikada en çok 30 öğe. Aşınca `RATE_LIMITED`.
 - Fotoğraf dosyası en çok 600 KB.
-- **Disk:** canlı dosyaların toplam boyu `MEDIA_MAX_BYTES` (staging 5 GB) ile sınırlı. Toplam,
-  veritabanındaki `size` alanlarından hesaplanır.
-  - Doluluk %80'i geçince işçi günde bir kez uyarı e-postası gönderir (`OPS_EMAIL`) ve günlüğe yazar.
+- **Disk:** canlı dosyaların toplam boyu `MEDIA_MAX_BYTES` ile sınırlı; staging'de **2 GB** (PM).
+  Toplam, veritabanındaki `size` alanlarından hesaplanır.
+  - Gerekçe: 20 test kullanıcısının hepsi her gün sınıra kadar fotoğraf atsa bile 24 saatte en çok
+    ~600 MB olur (20 × 50 × 600 KB). Disk rastamen'le ortak.
+  - Doluluk %80'i geçince işçi günde bir kez uyarı e-postası gönderir (`OPS_EMAIL`) ve günlüğe
+    yazar. E-posta kuralı bildirimdekiyle aynı (§9): içerik ve kişi yok.
   - Doluysa yeni fotoğraf `MEDIA_FULL` ile reddedilir; yazı çalışmaya devam eder.
-  - Staging diski rastamen'le ortak: 5 GB, bugün boş olan 15 GB'ın üçte biridir.
+  - Türkiye'ye taşınınca sınır env'den büyütülür.
+- **Sunucu kurulumu** (PM eki 4): `/srv/bargu-media` dizini ve yeni env'ler (`MEDIA_MAX_BYTES`,
+  `OPS_EMAIL`) ortak sunucuda değişikliktir. `infra/staging/apply-pending.sh`'e kuru çalıştırmalı
+  yeni bir adım olarak girer. Çalıştırmayı sahip kendi onayıyla yapar (DURUM, "Senden gerekenler").
 
 ### 11. Bildirimler ve istemci seviyesi
 
@@ -274,7 +333,8 @@ yönetici için "Çemberden çıkar" ayrıca önerilir.
 - Sunucu sohbet uç noktalarını seviye 6'dan eski uygulamaya `426` ile kapatır.
 - `chat.*` olaylarını yalnız seviye 6 ve üstüne gönderir.
 - Eski uygulama yeni bildirim türlerini tanımaz ve sessizce atar.
-- `MIN_CLIENT_LEVEL`'ı 6 yapma kararı PM'indir.
+- `MIN_CLIENT_LEVEL` 5'te kalır. 6'ya çıkarmak, bütün telefonlar yeni APK'yı kurduktan sonra PM'in
+  kararıdır.
 
 ### 12. Ekran görüntüsü haberi
 
@@ -327,7 +387,8 @@ Her dilim kendi testleriyle, "başka kullanıcı erişemez" testleri dahil, ayr�
    - tablolar, uç noktalar, canlı olaylar;
    - `chat-purge` işi, engelleme, sınırlar, dosya erişimi, disk sınırı ve alarm;
    - bildirim türleri, seviye 6;
-   - yedek betiğinin sohbet tablolarını dışarıda bırakması.
+   - yedek betiğinin sohbet tablolarını dışarıda bırakması;
+   - `apply-pending.sh`'e medya dizini ve env adımı (kuru çalıştırmalı; sahip çalıştırır).
 3. **M2, mobil yazı:**
    - sohbet listesi (çemberler ve kişiler, okunmamış sayısı);
    - sohbet ekranı, gönderme ve alma, herkesten silme;
@@ -339,7 +400,8 @@ Her dilim kendi testleriyle, "başka kullanıcı erişemez" testleri dahil, ayr�
 4. **M3, fotoğraf ve hikaye:**
    - kamera, küçültme, şifreleme ve yükleme;
    - fotoğraf görüntüleyici;
-   - hikaye paylaşma (bütün çemberler ya da seçilenler), pinde hikaye halkası;
+   - gönderme ekranı: "Hikaye (bütün çemberlerim)", "Çember seç", "Bir kişi" (§1);
+   - pinde hikaye halkası;
    - hikayeye yanıt, ekran görüntüsü haberi.
 5. **M4:** QA turu, sahibin telefon denemesi, sayfalar ve beyanlar (PM).
 
@@ -355,8 +417,8 @@ Her dilim kendi testleriyle, "başka kullanıcı erişemez" testleri dahil, ayr�
 - Ekran görüntüsü haberi yalnız Android 14+ ve yalnız bu uygulamanın ekranında çalışır.
 - Kapsam büyük: M0–M3 dört dilim, her biri QA ister. Hedef kapalı testin ilk güncellemesi (PM).
 
-## Açık sorular (PM)
+## PM'in cevapları (2026-10-27)
 
-1. Okundu bilgisi v1'de olmasın mı? Önerim: olmasın. 24 saatlik sohbette baskı yaratır.
-2. Disk sınırı staging için 5 GB uygun mu?
-3. Bildirim e-postası hangi adrese gitsin (`OPS_EMAIL`)? Önerim `support@otenus.com`.
+1. Okundu bilgisi yok (24 saatlik sohbette baskı yaratır).
+2. Staging diski 2 GB (§10).
+3. `OPS_EMAIL` support@otenus.com; e-postada içerik, kişi adı ya da e-posta adresi yok (§9).
