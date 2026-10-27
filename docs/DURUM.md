@@ -46,12 +46,34 @@ yapmaya başla." Ayrıca yeni logo. Plan ve durum:
 | Mesajlaşma          | [ADR 0035](ADR/0035-messages-and-moments.md) (0032'nin yerine), kabul | Sahip 2026-10-27'de yapılmasına karar verdi; hikayeyle tek modül. ADR kabul edildi (PM, 2026-10-27, beş ekle). Dilimler M0–M4. **M0 (kripto) bitti:** packages/crypto (çember ve kişi zarfı, anahtar bağlılığı, fotoğraf dosyası, bildirim doğrulaması), packages/schemas, PROTOCOL.md; 280 kripto testi, %100 kapsam. **M1 (sunucu) bitti:** migration 0040 (öğeler, fotoğraflar veritabanında, engellemeler) ve 0041 (bildirimler), gönderme, listeleme, geri alma, fotoğraf, engelleme ve bildirme uç noktaları, istemci seviyesi 6, 24 saat süpürücüsü, %80 disk uyarısı, işletme e-postası; gece yedeği bu tabloları dışarıda bırakır; 20 entegrasyon testi. **M2 (mobil yazı) bitti:** alt çubukta "Mesajlar" (okunmamış sayısıyla), kişi kartında "Mesaj yaz", çember ekranında "Sohbet"; sohbet listesi, sohbet ekranı, gönderme, yeniden deneme, herkesten silme, Bildir (öğe ve kişi), Engelle (PM metni, hemen altında "Çemberden ayrıl"). Öğeler yalnız telefonun şifreli kasasında durur, 24 saatte silinir; anahtarı gelmemiş öğe bekler, anahtar gelince açılır; bildirim kimin yazdığını söyler, ne yazdığını asla. Kişiyi "Bildir" kişi kartında değil, o kişiyle sohbetin ⋮ menüsünde (kart dar; QA'da bakılsın). **M3 (fotoğraf ve hikaye) bitti:** yalnız uygulamanın kamerası (galeri yok); fotoğraf telefonda küçültülür (uzun kenar 1600 px, en çok 500 KB, EXIF ve konum yok), kendi tek seferlik anahtarıyla şifrelenir, bir kez yüklenir; kameranın açık dosyası diskte kalmaz. Gönderme ekranı: "Hikaye (bütün çemberlerim)" (etkinlikler hariç), "Çember seç" (etkinlik de seçilebilir), "Bir kişi"; sohbetten açılınca o sohbete gider. Fotoğraf görüntüleyici, hikaye görüntüleyici (5 sn, dokunarak ileri geri, yanıt kişiye gider), pinde ve Mesajlar listesinde hikaye halkası (açılınca gri), kişi kartında hikaye düğmesi, ekran görüntüsü haberi (Android 14+, yalnız gönderene), bildirimde fotoğraf dosyası, kişi bazında "Mesajları ve hikayeleri" sessize alma, sohbet başına tek bildirim. Kamera izin metni QR ve fotoğrafı söyleyecek şekilde değişti (PM: Play izin açıklaması). Sırada M4 (QA, sunucu adımları, APK). **Sıradaki APK bu modülün hepsi bitince çıkar** (sahip: "hepsini tamamlamadan yeni sürüm çıkmasın"); `52f338f`, `7de32c1` ve sonrası o APK'ya biner. Arada APK yalnız gerçek bir çökme ya da güvenlik sorunu için, önce PM'e sorulur |
 | Anlık hikaye        | [ADR 0035](ADR/0035-messages-and-moments.md) (0033'ün yerine)         | Mesajlaşmayla aynı satır                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
-Mesajlaşmalı APK’dan önce sahipten (sunucu değişikliği; kodlama oturumu çalıştırır, sen onaylarsın):
+**Senden gerekenler (mesajlaşmalı APK’dan önce, sunucu değişikliği).** PM sana sunar. Sen kodlama
+oturumuna yazınca, senin onayınla ve bu sırayla çalışır:
 
-1. Yedeğin yeniden kurulması: `bash infra/staging/install-backup.sh --apply`. Yeni yedek mesaj ve
-   fotoğraf tablolarını boş alır.
-2. `apply-pending.sh` adım 3b: `MEDIA_MAX_BYTES` ve `OPS_EMAIL` (support@otenus.com) ayarları.
-   Kuru çalıştırması temiz. Komut: `ssh bargu-server 'sh -s -- --min-level 5' < infra/staging/apply-pending.sh`.
+1. Yedeğin yeniden kurulması. Yeni yedek, mesaj ve fotoğraf tablolarını boş alır:
+
+   ```bash
+   bash infra/staging/install-backup.sh --apply
+   ```
+
+2. `apply-pending.sh` adım 3b: `MEDIA_MAX_BYTES` (2 GB) ve `OPS_EMAIL` (support@otenus.com):
+
+   ```bash
+   ssh bargu-server 'sh -s -- --min-level 5' < infra/staging/apply-pending.sh
+   ```
+
+Sonra kodlama oturumu denetler:
+
+- yedek sohbet tablolarını ve `/srv/bargu-media`'yı almıyor;
+- `MEDIA_MAX_BYTES` 2 GB.
+
+APK sırası (PM, 2026-10-27):
+
+1. QA-38'in yüksek ve orta bulguları düzelir. Onlarla birlikte (PM şartı): yeniden denenemeyen
+   fotoğraf sessizce kalmaz, balonunda "Gönderilemedi, yeniden çek" yazar.
+2. Bu iki adım çalışır.
+3. APK çıkar.
+
+`MIN_CLIENT_LEVEL` 5'te kalır.
 
 İfadeli dürtmeler:
 
