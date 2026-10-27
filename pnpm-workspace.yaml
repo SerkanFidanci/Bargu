@@ -73,3 +73,8 @@ audit:
     # reached only via Metro's file map (bundler, dev/build time); patterns come from our own config,
     # not from users. No fixed version exists yet.
     - GHSA-vfj7-8cjw-p6xm
+    # zod <4.6.6 can exhaust memory validating oversized constrained collections. Reviewed 2026-10-27:
+    # our own zod (api, mobile, schemas) is 4.6.6, patched; the only vulnerable copy is 3.25.76 inside
+    # @expo/cli (dev server and build tooling, never bundled into the app), validating our own config.
+    # The fix exists only in zod 4, a different API @expo/cli 57 cannot take. Remove with Expo SDK 58.
+    - GHSA-mrhx-c7xc-m3w5
