@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** Unpadded base64url text of exactly `bytes` bytes. */
-function base64urlOf(bytes: number) {
+export function base64urlOf(bytes: number) {
   const length = Math.ceil((bytes * 4) / 3);
   return z
     .string()
@@ -9,14 +9,14 @@ function base64urlOf(bytes: number) {
     .regex(/^[A-Za-z0-9_-]*$/);
 }
 
-const u32 = z.number().int().min(0).max(0xffff_ffff);
+export const u32 = z.number().int().min(0).max(0xffff_ffff);
 
 /**
  * Every message plaintext is padded to exactly this size, whatever its kind or precision, so the
  * envelope size reveals nothing (docs/PROTOCOL.md §5). All v1 payloads fit; a WS frame stays < 2 KB.
  */
 export const MESSAGE_PADDED_BYTES = 512;
-const AEAD_TAG_BYTES = 16;
+export const AEAD_TAG_BYTES = 16;
 
 /**
  * Encrypted message on the wire (BARGU_PLAN §3.1, docs/PROTOCOL.md §5). The server can verify

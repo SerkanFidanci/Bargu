@@ -47,6 +47,10 @@ Kendi primitive'imiz yoktur; yalnızca audit edilmiş kütüphanelerin standart 
 | `bargu/v1/push`    | Bildirim kutusu, HKDF info     |
 | `bargu/v1/safety`  | Güvenlik numarası              |
 
+Mesajlar ve anlık fotoğraf (ADR 0035, §6'nın sonunda) kendi etiketlerini kullanır:
+`bargu/v1/chat-key`, `bargu/v1/chat`, `bargu/v1/chat-sig`, `bargu/v1/chat-commit`, `bargu/v1/dm`,
+`bargu/v1/dm-sig`, `bargu/v1/dm-commit`, `bargu/v1/blob`, `bargu/v1/blob-commit`.
+
 `HKDF(ikm, salt, label, ctx)` = HKDF-SHA256, `info = label ‖ ctx`, çıktı 44 bayt:
 ilk 32'si **anahtar**, son 12'si **nonce**.
 
@@ -252,6 +256,49 @@ etiketler sayesinde geçmiş ile canlı mesajlar birbirinin yerine geçemez; al�
 iki epoch sonra silmeye devam eder, yalnızca geçmiş anahtarını 15 gün daha tutar. Alıcı, parçanın
 üyenin güncel cihazınca imzalandığını ve dosyalandığı çeyrek saatle (`from`) aynı olduğunu denetler.
 
+**Mesajlar ve anlık fotoğraf (ADR 0035).** Çembere ya da bir kişiye giden yazı ve fotoğraf; hepsi
+gönderildikten 24 saat sonra silinir. Konumla aynı anahtarı kullanmaz, kendi zarflarında gider:
+
+```
+// Çembere giden öğe
+chatKey    = HMAC-SHA256(senderKey, "bargu/v1/chat-key\0" ‖ circleId(16) ‖ epoch(4) ‖ senderDeviceId(16))
+base       = 0x01 ‖ circleId(16) ‖ epoch(4) ‖ senderDeviceId(16) ‖ id(16) ‖ salt(16)        // 69 bayt
+key, nonce = HKDF(chatKey, salt, "bargu/v1/chat\0", base)
+commit     = SHA-256("bargu/v1/chat-commit\0" ‖ key ‖ nonce)
+header     = base ‖ commit                                                               // 101 bayt
+ct         = ChaCha20-Poly1305(key, nonce, aad = header, pt = pad(JSON(öğe), 1024 | 8192))
+sig        = Ed25519.sign(sender.identity, "bargu/v1/chat-sig\0" ‖ header ‖ ct)
+
+// Bir kişiye giden öğe: alıcının cihazına, her öğede taze geçici anahtarla
+base       = 0x01 ‖ senderDeviceId(16) ‖ recipientDeviceId(16) ‖ id(16) ‖ ephPub(32)       // 81 bayt
+key, nonce = HKDF(X25519(eph, recipient.dhPub), salt = ephPub ‖ recipient.dhPub, "bargu/v1/dm\0", base)
+commit     = SHA-256("bargu/v1/dm-commit\0" ‖ key ‖ nonce)
+header     = base ‖ commit                                                               // 113 bayt
+ct, sig    = yukarıdaki gibi, imza etiketi "bargu/v1/dm-sig\0"
+
+// Fotoğraf dosyası: tek kullanımlık anahtarla
+commit     = SHA-256("bargu/v1/blob-commit\0" ‖ blobKey ‖ nonce)
+head       = 0x01 ‖ nonce(12) ‖ commit(32)                                                // 45 bayt
+dosya      = head ‖ ChaCha20-Poly1305(blobKey, nonce, aad = "bargu/v1/blob\0" ‖ blobId(16) ‖ head, pt = jpeg)
+```
+
+- Öğe türleri (`chatPayloadSchema`): `text` (`id, text 1–1000 karakter, replyTo?, ts`), `photo`
+  (`id, blobId, key, size, hash = SHA-256(dosya), w, h, caption? ≤ 200, story, ts`), `del` ve `shot`
+  (`id, target, ts`). İçerikteki `id` başlıktaki `id` olmalıdır.
+- **Anahtar bağlılığı (`commit`):** ChaCha20-Poly1305 bir şifreli metni tek bir anahtara bağlamaz;
+  imzanın kapsadığı bu özet bağlar. Anahtar bağlılığı içermeyen temel başlıktan türetilir (yoksa
+  döngü olurdu). Alıcı çözmeden önce denetler; uymayan öğe gösterilmez. Bildirimde (`revealChatItem`,
+  `revealDirectItem`) telefon yalnız o öğenin `key` ve `nonce`'unu verir; sunucu imzayı, bağlılığı,
+  çözmeyi ve şemayı denetler (`openReportedItem`). Uyan ikinci bir anahtar SHA-256 çarpışması olurdu.
+- **Tekrar penceresi yok:** öğeyi rastgele `id`'si adlandırır; sunucu aynı `id`'yi iki kez yazmaz,
+  telefon bir `id`'yi bir kez gösterir. `ts` son 24 saatin içinde ve en çok 5 dakika ileride olmalı;
+  epoch tabanı (§5) sohbete uygulanmaz. Alıcı bir epoch'un sohbet anahtarını epoch bittikten sonra
+  25 saat daha tutar.
+- Boy ve etiketler zarfları ayırır: sohbet öğesi konum mesajının, belgenin ya da geçmişin yerine
+  geçemez, tersi de olmaz; çember öğesi ile kişi öğesi de birbirinin yerine geçemez.
+- Fotoğrafı açan önce dosyanın özetini içerikteki `hash` ile, sonra dosyanın bağlılığını denetler.
+  Sunucuya en çok 600 KB'lık şifreli dosya yüklenir.
+
 ## 7. Hassasiyet (şifrelemeden önce, gönderende)
 
 | Seviye  | Hücre  | Etki                                                                                    |
@@ -372,7 +419,11 @@ ayrıca içeriksiz bir yer tutucu metni görür.
 
 ## 10. Değişmezler (testlerle korunur)
 
-- Herhangi bir bitin değiştirilmesi reddedilir (property testi, 300 rastgele deneme).
+- Herhangi bir bitin değiştirilmesi reddedilir (property testi, 300 rastgele deneme); sohbet ve kişi
+  öğelerinde de.
+- Sohbet öğesi: yanlış bağlılık, bozuk dolgu, geçersiz UTF-8 / JSON / şema ve başlığından farklı
+  `id` reddedilir; 24 saatten eski ya da ileri tarihli öğe düşer; bildirimde uydurma anahtar, başka
+  imza ya da başka öğe reddedilir (`test/chat.spec.ts`).
 - Tekrar, pencere dışı `seq` ve epoch tabanının altı reddedilir; doğrulanamayan mesaj pencereyi
   ilerletmez; iki çemberdeki aynı gönderici birbirini etkilemez; eski konum `STALE` olur.
 - Her içerik türünün en büyük hâli dahil tüm zarfların `ct` boyutu aynıdır (528 bayt).

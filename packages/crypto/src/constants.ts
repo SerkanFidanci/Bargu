@@ -61,6 +61,17 @@ export const LABELS = {
   cosmeticPass: 'bargu/v1/cosmetic-pass',
   // The server's signature on its own notices (docs/ADR/0016, Ek 2026-10-21): its own key, too.
   serverNotice: 'bargu/v1/server-notice',
+  // Messages and moments (docs/ADR/0035): a circle's items with a chat key of their own, items for
+  // one person sealed to their device, photo files; each with a key commitment for reports.
+  chatKey: 'bargu/v1/chat-key',
+  chatKdf: 'bargu/v1/chat',
+  chatSignature: 'bargu/v1/chat-sig',
+  chatCommit: 'bargu/v1/chat-commit',
+  directKdf: 'bargu/v1/dm',
+  directSignature: 'bargu/v1/dm-sig',
+  directCommit: 'bargu/v1/dm-commit',
+  photoFile: 'bargu/v1/blob',
+  photoCommit: 'bargu/v1/blob-commit',
 } as const;
 
 export type Label = (typeof LABELS)[keyof typeof LABELS];

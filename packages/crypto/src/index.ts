@@ -36,6 +36,23 @@ export {
   type SenderState,
 } from './message.js';
 export { REPLAY_WINDOW, ReplayGuard, type ReplayState, type ReplayVerdict } from './replay.js';
+export {
+  CHAT_MAX_FUTURE_MS,
+  chatKeyOf,
+  decryptChat,
+  encryptChat,
+  openChatPhoto,
+  openDirect,
+  openReportedItem,
+  photoHashOf,
+  revealChatItem,
+  revealDirectItem,
+  sealChatPhoto,
+  sealDirect,
+  verifyChatEnvelope,
+  verifyDirectEnvelope,
+  type ItemKey,
+} from './chat.js';
 export { openSealed, sealForDevice } from './sealed.js';
 export { openPush, sealPush, type OpenedPush, type PushRecipient } from './push.js';
 export {

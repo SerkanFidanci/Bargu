@@ -7,11 +7,29 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { PUSH_NOTICES, pushBodySchema } from '@bargu/schemas';
-import { bytesToHex } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { describe, expect, it } from 'vitest';
 
+import {
+  chatKeyOf,
+  decryptChat,
+  encryptChatWith,
+  openChatPhoto,
+  openDirect,
+  openReportedItem,
+  photoHashOf,
+  revealChatItem,
+  sealChatPhotoWith,
+  sealDirectWith,
+} from '../src/chat.js';
 import { LABELS, PROTOCOL_VERSION, SAFETY_NUMBER_ITERATIONS } from '../src/constants.js';
-import { concatBytes, toBase64url, utf8Decode, utf8Encode } from '../src/encoding.js';
+import {
+  concatBytes,
+  fromBase64url,
+  toBase64url,
+  utf8Decode,
+  utf8Encode,
+} from '../src/encoding.js';
 import { exportDeviceKeyBundle, verifyDeviceKeyBundle } from '../src/keys.js';
 import { decryptMessage, encryptMessageWith } from '../src/message.js';
 import { ReplayGuard } from '../src/replay.js';
@@ -130,6 +148,79 @@ function noticeFixtures(bob: ReturnType<typeof testDevice>, alice: ReturnType<ty
   };
 }
 
+/** Messages and moments (docs/ADR/0035): an item for a circle, one for a person, a photo file. */
+const CHAT_TS = 1_791_880_000_000;
+const chatIds = {
+  text: '0190f7a4-3333-7333-8333-000000000001',
+  photo: '0190f7a4-3333-7333-8333-000000000002',
+  direct: '0190f7a4-3333-7333-8333-000000000003',
+  blob: '0190f7a4-4444-7444-8444-000000000001',
+};
+
+function chatFixtures(
+  alice: ReturnType<typeof testDevice>,
+  bob: ReturnType<typeof testDevice>,
+  senderKey: { circleId: string; epoch: number; senderDeviceId: string; key: Uint8Array },
+) {
+  const photoKey = fixtureRandom('chat', 'photo/key', 32);
+  const image = utf8Encode('TEST ONLY: the bytes of a JPEG');
+  const file = sealChatPhotoWith(
+    photoKey,
+    chatIds.blob,
+    image,
+    fixtureRandom('chat', 'photo/nonce', 12),
+  );
+  const text = { kind: 'text', id: chatIds.text, text: 'Merhaba 👋', ts: CHAT_TS } as const;
+  const photo = {
+    kind: 'photo',
+    id: chatIds.photo,
+    blobId: chatIds.blob,
+    key: toBase64url(photoKey),
+    size: file.length,
+    hash: photoHashOf(file),
+    w: 1200,
+    h: 1600,
+    story: true,
+    ts: CHAT_TS,
+  } as const;
+  const direct = { kind: 'text', id: chatIds.direct, text: 'Yalnız sana', ts: CHAT_TS } as const;
+  const circleItem = encryptChatWith(
+    { senderKey, sender: alice, payload: text },
+    fixtureRandom('chat', 'text/salt', 16),
+  );
+  return {
+    chat: {
+      sender: 'alice',
+      senderKey: bytesToHex(senderKey.key),
+      chatKey: bytesToHex(chatKeyOf(senderKey).key),
+      now: CHAT_TS,
+      text: { envelope: circleItem, plaintext: JSON.stringify(text) },
+      photo: {
+        envelope: encryptChatWith(
+          { senderKey, sender: alice, payload: photo },
+          fixtureRandom('chat', 'photo/salt', 16),
+        ),
+        plaintext: JSON.stringify(photo),
+        file: toBase64url(file),
+        image: toBase64url(image),
+      },
+      direct: {
+        recipient: 'bob',
+        envelope: sealDirectWith(
+          { sender: alice, recipient: publicKeysOf(bob), payload: direct },
+          fixtureRandom('chat', 'direct/ephemeral', 32),
+        ),
+        plaintext: JSON.stringify(direct),
+      },
+      report: revealChatItem({
+        envelope: circleItem,
+        chatKey: chatKeyOf(senderKey),
+        sender: publicKeysOf(alice),
+      }),
+    },
+  };
+}
+
 function buildFixtures() {
   const alice = testDevice(ids.aliceDevice, 1);
   const bob = testDevice(ids.bobDevice, 3);
@@ -220,6 +311,7 @@ function buildFixtures() {
     },
     noticePush: { recipient: 'bob', sealed: noticePush, body: JSON.stringify(unsignedNotice) },
     ...noticeFixtures(bob, alice),
+    ...chatFixtures(alice, bob, senderKey),
     safetyNumber: {
       alice: { userId: ids.aliceUser, identityKey: bytesToHex(alice.identity.publicKey) },
       bob: { userId: ids.bobUser, identityKey: bytesToHex(bob.identity.publicKey) },
@@ -280,6 +372,51 @@ describe('cross-implementation fixtures', () => {
       body: pushBodySchema.parse(JSON.parse(fixtures.noticePush.body)),
       serverSignature: null,
     });
+  });
+
+  it('open messages and moments with the public API (docs/ADR/0035)', () => {
+    const alice = testDevice(ids.aliceDevice, 1);
+    const bob = testDevice(ids.bobDevice, 3);
+    const { chat } = fixtures;
+    const chatKey = {
+      circleId: ids.circle,
+      epoch: 4,
+      senderDeviceId: alice.deviceId,
+      key: hexToBytes(chat.chatKey),
+    };
+    const open = (envelope: unknown) =>
+      decryptChat({ envelope, chatKey, sender: publicKeysOf(alice), now: chat.now });
+    expect(JSON.stringify(open(chat.text.envelope))).toBe(chat.text.plaintext);
+    const photo = open(chat.photo.envelope);
+    expect(JSON.stringify(photo)).toBe(chat.photo.plaintext);
+    if (photo.kind !== 'photo') throw new Error('expected a photo');
+    expect(
+      openChatPhoto({
+        key: fromBase64url(photo.key),
+        blobId: photo.blobId,
+        hash: photo.hash,
+        sealed: fromBase64url(chat.photo.file),
+      }),
+    ).toEqual(fromBase64url(chat.photo.image));
+    expect(
+      JSON.stringify(
+        openDirect({
+          envelope: chat.direct.envelope,
+          recipient: bob,
+          sender: publicKeysOf(alice),
+          now: chat.now,
+        }),
+      ),
+    ).toBe(chat.direct.plaintext);
+    expect(
+      JSON.stringify(
+        openReportedItem({
+          envelope: chat.text.envelope,
+          ...chat.report,
+          senderIdentityKey: alice.identity.publicKey,
+        }),
+      ),
+    ).toBe(chat.text.plaintext);
   });
 
   it('take their randomness from their names: a new notice kind changes no other entry', () => {

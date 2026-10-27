@@ -348,3 +348,23 @@ export {
   type FrameStyle,
   type RingPattern,
 } from './cosmetics.js';
+export {
+  CHAT_CAPTION_MAX,
+  CHAT_LIFETIME_MS,
+  CHAT_PADDED_SIZES,
+  CHAT_PHOTO_MAX_BYTES,
+  CHAT_PHOTO_MAX_SIDE,
+  CHAT_TEXT_MAX,
+  codePointsOf,
+  chatDeleteSchema,
+  chatEnvelopeSchema,
+  chatPayloadSchema,
+  chatPhotoSchema,
+  chatShotSchema,
+  chatTextSchema,
+  directEnvelopeSchema,
+  type ChatEnvelope,
+  type ChatPayload,
+  type ChatPhoto,
+  type DirectEnvelope,
+} from './chat.js';

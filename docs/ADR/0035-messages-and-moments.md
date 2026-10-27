@@ -109,7 +109,7 @@ sig        = Ed25519.sign(sender.identity, "bargu/v1/chat-sig\0" ‖ header ‖ 
 Kişinin tek etkin cihazına mühürlenir. Gönderen anahtarı dağıtımıyla (PROTOCOL §4) aynı yapı:
 
 ```
-base       = 0x02 ‖ senderDeviceId(16) ‖ recipientDeviceId(16) ‖ itemId(16) ‖ ephPub(32)   // 81 bayt
+base       = 0x01 ‖ senderDeviceId(16) ‖ recipientDeviceId(16) ‖ itemId(16) ‖ ephPub(32)   // 81 bayt
 shared     = X25519(ephSecret, recipient.dhPub)                                          // her öğede taze
 key, nonce = HKDF(shared, salt = ephPub ‖ recipient.dhPub, "bargu/v1/dm\0", base)
 commit     = SHA-256("bargu/v1/dm-commit\0" ‖ key ‖ nonce)                                // 32 bayt
@@ -118,7 +118,8 @@ ct         = ChaCha20-Poly1305(key, nonce, aad = header, pt = pad(JSON(payload),
 sig        = Ed25519.sign(sender.identity, "bargu/v1/dm-sig\0" ‖ header ‖ ct)
 ```
 
-- İlk bayt `0x02`: sohbet zarfıyla (`0x01`, 101 bayt) ne tür ne boy olarak karışır.
+- İlk bayt, bütün başlıklar gibi sürümdür (`0x01`, PROTOCOL §11). Sohbet zarfından (101 bayt) ayrı
+  etiketleri ve boyu (113 bayt) ayırır; JSON'da da biri çemberini, öteki alıcı cihazını adlandırır.
 - Anahtar bağlılığı sohbet zarfındakiyle aynı gerekçeyle ve aynı kuralla vardır (§2), kendi
   etiketiyle.
 - Alıcı sırası: biçim → alıcı bu cihaz mı → gönderen cihaz, ortak çemberi olan bir kişinin güvenilen

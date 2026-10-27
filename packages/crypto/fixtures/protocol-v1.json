@@ -24,7 +24,16 @@
     "historyKdf": "bargu/v1/hist",
     "historySignature": "bargu/v1/hist-sig",
     "cosmeticPass": "bargu/v1/cosmetic-pass",
-    "serverNotice": "bargu/v1/server-notice"
+    "serverNotice": "bargu/v1/server-notice",
+    "chatKey": "bargu/v1/chat-key",
+    "chatKdf": "bargu/v1/chat",
+    "chatSignature": "bargu/v1/chat-sig",
+    "chatCommit": "bargu/v1/chat-commit",
+    "directKdf": "bargu/v1/dm",
+    "directSignature": "bargu/v1/dm-sig",
+    "directCommit": "bargu/v1/dm-commit",
+    "photoFile": "bargu/v1/blob",
+    "photoCommit": "bargu/v1/blob-commit"
   },
   "safetyNumberIterations": 5200,
   "devices": {
@@ -186,6 +195,60 @@
     "unknownKid": "AZCkUB_R31ADe_qXKHfCU93P4sfElniZeEFYRszaALpH-M7Gbh2TfpwVJx-WQyEBi7sQ-gTdbRjsaPo1LiHEbILIeP5OeMfTIl9HvK48DWjrhz7d4v7mDRUnqBH6O1Eu72AnOaTHg9nyQirdXlu2nBQNrrrh-niSxawYic4VLRQesYq3KcEjuc_hOUMFaGs3ObVl1UWmH11hMyncv8eFzk2jo2PVOZ9osgybQ5IqQNMgR9rtg46rtW9pEGhxW4nMr0pKFwtbNFZtDXIIBysWrS6eban4sKYDF1F-LQx0aBay1RpY7h8CXhEcx_udTw1P24e-8j_eaABIwhW8Jc410a_aIAVlObgJsWP16m9c2QOrU5VyCpR1L2TdGpfrGg6BpFt2LeQHFsedsPv--h_JsrE",
     "otherRecipient": "AdXxKi9qLsxKglKlrwilz0I1epnXdCnnQody7CvH11k-H6fADitGV21XyxCeOAD1KCdVs3EAFWlZcrY8djBe422y17SB1NBwmm5AZND-oseVnMto8n9_ZwJbQ9n1BS3gJZ-_U2TBoZxHLNCfoRJknNLbyjuVtYhGGTnsNLFfQbsiR6UYtDycqU-rXYNtAsV5AnVh_YcNqktHlTFi8ZazRYFLDuyOHnuoK7nR1nXbzWHknf7hj8A__rxA6p5AMoKnm1v8WAxkQPGsXM53y2hb8puafB-nEJxJeGLZeMWkLgaNavAwZEYzIRU6MKBXUHLmLNb-p0xQ1U4A8MgYlXi_EknuzkzvnHvQu82YAPsCnNdYrYDWN52xhPwLeIpsmsn6bgT_f4kNyEL64D28kYSP6q0",
     "bodyChanged": "ATbFoNErD3Wzst16ErbCS9cAnaE8-9d-TWX5irtDbHoPBjGVAjng4DDHnK5xKE7gsmHGBdGmi3TenTiewfIFE3mNLBMn2gzWfV4F4cH08rUBwaYyIMRILt-KUDYpixKIYCZOUPUP97Vih-RS3XMWpPHbBzb2Bem0fisOTerWvC0b68XVLis_EY8biI82ePQdy6rpd_y_qD600_Zc8r7C1I-6DUBxanc2wZmOyXlvfJLL4-FAH6Xw9OhckFLEZbL0LbVctkH-O5N4vbPg5WtFG_SwyWHwEbI58nDcbraBEUmricxgHNot_S9U_gtUt8Qw3RdXTCjgrrNUZwm3oRexl8tujYulJK2-d6BKH5SwqaubQXezIf9B_KIibT3pqcxFvFLMA1t3hfU2fzjMPZ638TE"
+  },
+  "chat": {
+    "sender": "alice",
+    "senderKey": "4242424242424242424242424242424242424242424242424242424242424242",
+    "chatKey": "e027701f93f7210fc2b7dd05786b6245695d3c97f6e7fce443fdd19b03c41a43",
+    "now": 1791880000000,
+    "text": {
+      "envelope": {
+        "v": 1,
+        "circleId": "0190f7a4-5b6c-7d8e-9f01-23456789abcd",
+        "epoch": 4,
+        "senderDeviceId": "0190f7a4-0000-7000-8000-00000000a11c",
+        "id": "0190f7a4-3333-7333-8333-000000000001",
+        "salt": "d7MY1V6QDeWuTqmNGQVaHA",
+        "commit": "ByyEE-Fh7eqAcAUjVyQ5RGBBNCAU3CP-yHTvUKMA94U",
+        "ct": "PHAAv6noFw17riLTSGBpvGEtIOw_fLlH0kGYOtBgVEmX8HIk7L8vUDUjWPWYg9ppygloclEMDNi9wPMQQCGfUXbCm5zbSi3Lejv4I4_nKYuLZLx7RDw2gEjzUckF_P-aup6eE0OnbhOkpiby4WfqITs9QRDUTleGGv5Ise5Rx5zwaavExkNgUQ6gZqvXQexVbcCBKuvWnlcbUsOfCGrBhCruhFACP0vjbo-FawEXtgoYvI3awKSiZIDnY4bFOoUYK4EjGxQB346hbG9UJkivfp37dQUDROkEy39wkhS8dfEhwPl7SzvLubCvqb5MRvp8BfBrLkocFemV9u9SrY_QTECkPgV6fnxPW11eTae8Kl9K4c1rm_BSrO7K8svaAlYjVx11xZGh2wH5NFEPH0kUSssaYGt7y8OgILsSUvx3mQLf_vOCqbmeAZn4YRfg3dr_sYlftTbFjs6aEHlSHGSdwoUxz8ItEMjSoMHF1cR_bkIqURpxlaSeClGDMelpXlPgfBLAWIxXtu43tw432t-hf8ocx4TDPGxU4lgjWyKb79ZnHfzMkB-v8mtltfRKJ--rM9gEoEhCGFXwL1kpB44sUqsf4HTmKh9lBAa7F5aSUaGFxirALOma_fVziUZLKyUkRzNiCEKsHYt7eq9kcq8LW8odXyNVv7iQA0TeBwCQBdOn1zaL-7n74mT-iULzc8FgmSWY1pKodvTPqZCoeYZ-ifQP54kK9wLKhAHS4FIGZYzkvs05cBmoPJoh8BdyM6M5BiO9UZ0Tv0uohaj5LxjK490pkj2ccwR_xz0GXhRxzxHC4CuOf9S1YZw_D_f5pylzRE7i-bGELXE1lXdzUBQVTjQv2HlbwrKhhlQNLTwvihsoMAAbIO5NkmFedOOnty5t7bQmEqJGPJw6ZMqFX-krAN4jWRcjcZwca7sUhLnV7henCzV3fwZe_2Zv2hwUr6Cuak8LEA9bIdADxsR8pulA9dfp1jInorv7g5vWqD8nd5iGJPchh1BTjd-RuSP8pFinadknCf6BBlGH3kgxdbMdvsfxgHaX32oMZOX9MWyzoreMX1up6oTVk2E9o7Oc10Zj7_B4tpGq59mMIFbxJbFheOhHJtDZdxJsOVI_anvZhwOmih_-ZKvJ2ghlGccHXMeLKuEGS5BHtVolH48T-_2k7TbhTI9re2yXs6opcSWKX0p-4_LRtogDZrNVSDPUww-n8qc_y_H0vq1LFzSoX7MgJWfxC0KPlkxJKdtwfELe9VlvoSJLNrv2ngyrLAQdsLOqh9njH9VYxDBkxRpeKx-iET4C9sKKlDpyZDZ1n7O5YxBW37NSd1sd2C9ySraPezbck4RF1QfhcGaxeELiubzkIS0qJkMfTMLAWgtzkg90lJU",
+        "sig": "oyGUlc2MWqve9ipSX9E10jCpf-BDv3cus8jQM4vC2vCDZVtxFv7X3ArMCkVBM6pXrT_LxmTcW8sVg7IKS-VbAg"
+      },
+      "plaintext": "{\"kind\":\"text\",\"id\":\"0190f7a4-3333-7333-8333-000000000001\",\"text\":\"Merhaba 👋\",\"ts\":1791880000000}"
+    },
+    "photo": {
+      "envelope": {
+        "v": 1,
+        "circleId": "0190f7a4-5b6c-7d8e-9f01-23456789abcd",
+        "epoch": 4,
+        "senderDeviceId": "0190f7a4-0000-7000-8000-00000000a11c",
+        "id": "0190f7a4-3333-7333-8333-000000000002",
+        "salt": "cP2w_N8mue0xAfp9QQTaxw",
+        "commit": "_-8iKd5sSfC2Y61z2Nw7q7n6CywwxUiXD-sQLqyiIVE",
+        "ct": "7V-hSJrUZBCvBLW4tOVv4ZjEwMWEWbUEtD4wVHbqPQbsKueas214xBaLaDCxyvQepNiIg5802MY7Ss2_bCvGwvMQ1CvEAJRhnK43ewzvyWRIRkCzk5A1X0kfktUP7Osff1TRpNisoCPposmuvbOyV-vWtzGd-3yPfcH-K-PQwj481-cBSve5ZjTFinIezHzN8HRDwH7wkWfucJXKbmZhelHTsMP6cWWEtY1Rci6uZ5cOgAaYvkLBJleKm18tF1KCVN5BX2dr5VDD2ALDj9azsKopz3iB82FqXuhzku0-Qy9pKrzr3snepOIQvQ98PfC4h-VSxTf1xlLmdekVTWYNLlnRS_fHIhLdTPewrzwQCkqGmy4FNX6xN_P4PghxN1TW44bhkWg7j4qLiT8FeARN9iqvprWx41VmYPDJG72-q6ytDzCaSIy9yyJ7JBb7tzQ-rA6SPSacIs30XyE0RW-5uL6jPvh0vOwYD1JmZRL4a8tvZQdAIslw2hEjGgvYFvfDSwlcDYkq5DOR6GiNThYfq1KCz20knK_vGEuLebNFGBGBA4YFNaTHj65rkcS3SLwkF55kLSmSHztCdpjab2Dom6AONB1V_FM1oweQWbXwu4Rg2sAkySfAKrxRFtDK91X7rTG1w8ny2pZPEAeO5VT-0vjJV5SQuxUyVMzzrPS_ghJtBncePAapbVfYZM0y8ZQmTy7TnKrAC3GonJZNfXRj-DKXs3IVPOV_cWBSmTAhGHHldMPGGSQDZIGyna10etbTsWOvZrEH8dQe77TNrDsRFB8JCIPxgS1Ifk3O1qLerRBZu4SIMiAo4G2DEgS9gSZ-mcHO7PCklTGzl1tsgNBuHptCXNL20S2mFI1LtRlfJQrI12wpXW4ukXwEbQeHB0NqvqTZGUamFObZDyMWPnVwX2u7XwECrRUFcuSfG3085Fm7odeCWZYhIvDh0_8cEFTyj4oeXXTQ6tnNDyY37fz6UgnZstC8An7M3NYtdVmANaTm_CTFLAThH0KjwMt5oeF9RHD5zW6drZmI8egVFE5hdHE8co5dwdzlzDhGImySmrsMezAPK-kFeicFrINfXcxDJGCt90Wt06nXEM6I4u1EYis_H8s2UGU7jLyPyaWuGusaPTaKsV9xJMXsZKhi0cyhCEGReeUo428jS1sFZJxYuaUmIFRywUyQZSVSQmSzBMW6xvO4ZhWTeG-WRJloaMDHZ1-VHo7UJ-vQDo5jzPN_1i9HHb_lVN1yFbh2TZdf1LTFxmxGl08F5-xgkSHqMoWXgEq2Oj1TWefRfY9BF_96Pu3mQnKJTCiem8Jg-OVC_2piauAJyufLkaN--io80tRfXA8dQnpZAf0uUsd8bSuj_bVyIsKFwvT6KwUf2CM3RRI",
+        "sig": "hv7lViuyz6mWOPA2tUNSgTIsNG78VGpVANXSs3iAw2ZeOhKIFSZ2GXMOzDYKQBaMQ7QHyGjPpWodizgIF1HBAA"
+      },
+      "plaintext": "{\"kind\":\"photo\",\"id\":\"0190f7a4-3333-7333-8333-000000000002\",\"blobId\":\"0190f7a4-4444-7444-8444-000000000001\",\"key\":\"n5Lw6drokqJwHgiWwsclqK9S9Prru8q5uhhuOFXhY1s\",\"size\":91,\"hash\":\"J8QFncNi6V8Hrc65p2d3jA1cSGlkq5GWQGX86qC4Wqk\",\"w\":1200,\"h\":1600,\"story\":true,\"ts\":1791880000000}",
+      "file": "AeHRyRDm7cuaTPmMyMzUJq3VTBPupa6CGwD03L7NFZLdPWdmX4fcWKwECqF_hp6lQ9q9lnRwuOl6PQKXCmP3ro9znQmFK2tHhFqPaG3F0b59kqNj1vnwocE1zw",
+      "image": "VEVTVCBPTkxZOiB0aGUgYnl0ZXMgb2YgYSBKUEVH"
+    },
+    "direct": {
+      "recipient": "bob",
+      "envelope": {
+        "v": 1,
+        "senderDeviceId": "0190f7a4-0000-7000-8000-00000000a11c",
+        "recipientDeviceId": "0190f7a4-0000-7000-8000-000000000b0b",
+        "id": "0190f7a4-3333-7333-8333-000000000003",
+        "ephemeralKey": "-bNhDUOdQhwi9ccTsmqEIUdwVeQp5jXgG-w8jPQXfjA",
+        "commit": "H86njDmeNBuYVyPxyeMrnEEv0xX8R1IYeQNIaphALlI",
+        "ct": "8c8wSa99JAZcLbyfVIieFKVoIeJxAdpGwMqnHWBnERHKnyj5er_eoEvXonT4TPideG_1CypZQhxx5KDa8cJJczFvVnk-yLdN64YkTy8nwmHOn_TKt5oolvYU1k6UC_Nb8zIdpH9fme7dD8Mu6f4mbhNkTIyD3nQUUsXX7VsMTwAIgoE4JdYDMJTcrqdlb-dJ38VEAUvep22Kw6BvRZJojKUgjxuTn4VkrQlQZ2nCTPUXhekYs1Nae8rEtXQou7GWmP6gJ4jLjqirB_muZaEpz9S5JPr7Uvmovvaa70TU4EyOIhiym_B-kKIPCHsp4YVZb16q8R0DHe9Oa5Kow8HdW-UHOEcNu3ObpTGxXgQ7vesS-Q5hZIXfLGj2A4bjjLlybjqA_9dR0shD3FlxHlISblwaQhWKGL7PpTAk3ngGrzmHk66VPZhexMx0oNdiiRICoAPnGEAPKxUkgzwe83Jb88q6z9ObZr3y5sAW81-EQMgq_10pwZT15QRu8-dG3FebBNJlh4YQ_APyxQT2EGICOFwicwpLxbbiohYR_dZwxgLXeOSK79I-glCQ_2blibXzff_mon5SsZDo00w6FgKt8dYVB60cMDZWdbVgyIdY5i-Yn4Pi_F_3oSptxOCwjo-Q4wJWCZHtuMx283bF9uqOHpXuZ4ptYmrwQAAEmqbz9_p6E2_LXR-3VzvQ6QpGyoaTFc9P2iw7451SaPLNy1EXbvO4D68XAiOd1ZObxyesIDwRUqPr6vVaUsmOTycYyCo5oEGH4fNhBn5zy29z6C-AqJDdFm_tnk3w93c4qT5Qce87mSvIDPFJi1z1fEFzHJ-fss4Hk3J7tRluKnFEfJsUzTBBsXorgz18DxzSgdKUcF_ydqqj4r0GACE6lazCEeGo4p9XqXqNg_uc3bY5h3V8YmO5gALYtFGGYiW_KEQvmJAe2EYbT3aXW4Ax-9adDGmU4f_UrK_2q2ijOZ0wLrPyUILugPDzSfy4eX854gL3PbyolsKqUPhm6W-QGTAFTauphiYy_sCQKyuQrbYq6Ui-t3iuU1KowYVsMfZU11snPEVlVVgGGXJM8M1H_amPee8qYVHVrO5hEhn5z4mwrrUUk-RdeGx7d3WD1KpknDBq1GPKWoPnD_DN8nIbgXwxXhOh7KUxmZ8VoDb0YbKSJnTsmcbjol28nZGqMOuOq1-5TkNtuDY8q4f6vhGsxjGLnEybm66f4DXl1Qi3vLJfe6VqVrCulDjb8d_1xYofF4HG2YZxZFM6fy457Fzjw6w4tJ6A8ra6KK5rsaWke8ZZdYjxEu7XNguXdx9D9-HONIs7A9ypbJuuWm4pprKBRnu758iXe3ZqK6PowAYBmq8pfFDjTdrSDZOKff6_8GAJqojFr6s",
+        "sig": "ezz2FDrTT9HQ4Jh9jKRhTp4fs2x9JhIJOYOW9Bf7SFTRGYLe1xVE3JBvkm8TuV4HUGqZg_3QELEQN5qoFhvODw"
+      },
+      "plaintext": "{\"kind\":\"text\",\"id\":\"0190f7a4-3333-7333-8333-000000000003\",\"text\":\"Yalnız sana\",\"ts\":1791880000000}"
+    },
+    "report": {
+      "key": "56SVLtKrOk0dOY92gPWmI5BRaLwxYlI4xAjNOE-Cx4c",
+      "nonce": "jU5DXJmL6M0IQks6"
+    }
   },
   "safetyNumber": {
     "alice": {
