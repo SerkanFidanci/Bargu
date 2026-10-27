@@ -144,11 +144,16 @@ export function usePeopleUi(
   );
 
   const act = useCallback(
-    (userId: string, action: PersonAction | 'meet' | 'message') => {
+    (userId: string, action: PersonAction | 'meet' | 'message' | 'story') => {
       const person = personView(userId, circles, useLocations.getState());
       if (person === null) return;
       if (action === 'meet') {
         meet(person);
+        return;
+      }
+      if (action === 'story') {
+        closeCard();
+        router.push({ pathname: '/story/[userId]', params: { userId: person.userId } });
         return;
       }
       if (action === 'message') {

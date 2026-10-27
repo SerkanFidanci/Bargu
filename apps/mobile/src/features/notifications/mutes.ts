@@ -5,12 +5,19 @@ import type { KeyValueStore } from '../storage/vault';
 
 /**
  * Notifications the user silenced (BARGU_PLAN Faz 7 "kişi/yer bazlı sessize alma"): per person,
- * their arrivals and departures and their pokes; per place, everyone's comings and goings there.
+ * their arrivals and departures, their pokes and their messages and stories (docs/ADR/0035 §11);
+ * per place, everyone's comings and goings there.
  * Only on this phone: the server never learns who mutes whom.
  */
 const mutesSchema = z
   .object({
-    people: z.record(z.string(), z.object({ places: z.boolean(), pokes: z.boolean() }).strict()),
+    people: z.record(
+      z.string(),
+      // `messages` came with docs/ADR/0035: absent in what was saved before, it means not muted.
+      z
+        .object({ places: z.boolean(), pokes: z.boolean(), messages: z.boolean().optional() })
+        .strict(),
+    ),
     places: z.record(z.string(), z.literal(true)),
   })
   .strict();
@@ -33,19 +40,32 @@ export function saveMutes(store: KeyValueStore, mutes: Mutes): void {
 }
 
 /** What someone's notification is about, as far as muting goes (lateness: like their comings). */
-export type Mutable = { kind: 'place'; placeId: string } | { kind: 'bump' } | { kind: 'late' };
+export type Mutable =
+  { kind: 'place'; placeId: string } | { kind: 'bump' } | { kind: 'late' } | { kind: 'message' };
 
 /** Whether this news from that person stays quiet (no banner, no in-app line). */
 export function isMuted(mutes: Mutes, about: Mutable, fromUserId: string): boolean {
   const person = mutes.people[fromUserId];
   if (about.kind === 'bump') return person?.pokes === true;
+  if (about.kind === 'message') return person?.messages === true;
   if (about.kind === 'late') return person?.places === true;
   return person?.places === true || mutes.places[about.placeId] === true;
 }
 
-/** The person's switches, with both on when never touched. */
-export function personMutes(mutes: Mutes, userId: string): { places: boolean; pokes: boolean } {
-  return mutes.people[userId] ?? { places: false, pokes: false };
+export interface PersonMutes {
+  places: boolean;
+  pokes: boolean;
+  messages: boolean;
+}
+
+/** The person's switches, all on when never touched. */
+export function personMutes(mutes: Mutes, userId: string): PersonMutes {
+  const person = mutes.people[userId];
+  return {
+    places: person?.places ?? false,
+    pokes: person?.pokes ?? false,
+    messages: person?.messages ?? false,
+  };
 }
 
 /**
@@ -59,15 +79,13 @@ export function withoutPersonMuted(mutes: Mutes, userId: string): Mutes {
   };
 }
 
-export function withPersonMuted(
-  mutes: Mutes,
-  userId: string,
-  change: Partial<{ places: boolean; pokes: boolean }>,
-): Mutes {
-  const next = { ...personMutes(mutes, userId), ...change };
+export function withPersonMuted(mutes: Mutes, userId: string, change: Partial<PersonMutes>): Mutes {
+  const { places, pokes, messages } = { ...personMutes(mutes, userId), ...change };
+  // `messages` is kept only when on: what was saved before it came reads the same.
+  const entry = { places, pokes, ...(messages ? { messages } : {}) };
   const others = Object.entries(mutes.people).filter(([id]) => id !== userId);
   const people = Object.fromEntries(
-    next.places || next.pokes ? [...others, [userId, next] as const] : others,
+    places || pokes || messages ? [...others, [userId, entry] as const] : others,
   );
   return { ...mutes, people };
 }

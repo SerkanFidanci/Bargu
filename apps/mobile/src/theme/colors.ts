@@ -166,3 +166,16 @@ if (avatarPalette.length !== AVATAR_COLORS) {
 
 /** QR codes are always dark on white, in both themes: scanners expect that contrast. */
 export const qrColors = { dark: '#16151C', light: '#FFFFFF' } as const;
+
+/**
+ * Photos (docs/ADR/0035): the camera and the viewer are dark in both themes, so a picture is seen as
+ * it is; text and controls on it are white over a shade; the story ring is the brand's sweep.
+ */
+export const mediaColors = {
+  backdrop: '#000000',
+  onBackdrop: '#FFFFFF',
+  shade: 'rgba(0, 0, 0, 0.45)',
+  track: 'rgba(255, 255, 255, 0.35)',
+  storyFrom: '#F5A524',
+  storyTo: '#C92E68',
+} as const;

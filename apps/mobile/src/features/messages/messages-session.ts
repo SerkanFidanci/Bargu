@@ -33,8 +33,10 @@ import {
   withoutCircle,
   withoutItem,
   withoutPerson,
+  withViewed,
 } from './messages';
 import { messagesApi } from './messages-api';
+import { forgetPhotoFiles } from './photo';
 
 /**
  * Messages and moments on this phone (docs/ADR/0035): read from the vault once it is open, kept
@@ -132,6 +134,11 @@ export function markRead(conversation: string, upTo: number): void {
   );
 }
 
+/** A story was shown: its ring turns grey once all of that person's are (docs/ADR/0035 §8). */
+export function markViewed(blobId: string): void {
+  useMessages.setState((state) => withViewed(state, blobId, Date.now()));
+}
+
 // ---- the day of each item ------------------------------------------------------------------
 
 let expiryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -218,4 +225,5 @@ onSignedOut(() => {
   saved = null;
   useMessages.setState(EMPTY_MESSAGES, true);
   useBlocked.setState({ blocked: [] });
+  forgetPhotoFiles();
 });

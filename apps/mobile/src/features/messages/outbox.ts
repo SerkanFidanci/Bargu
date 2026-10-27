@@ -1,6 +1,7 @@
 import { type DevicePublicKeys, encryptChat, randomUuid, sealDirect } from '@bargu/crypto';
-import type { ChatPayload, ChatSendReply, Circle } from '@bargu/schemas';
+import type { ChatPayload, ChatSendReply, Circle, PushBody } from '@bargu/schemas';
 
+import { ApiError } from '../auth/api-client';
 import { useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
 import { verifiedBundle } from '../keys/bundle-cache';
@@ -10,16 +11,20 @@ import { sealPushes } from '../places/presence';
 import { queryClient } from '../query-client';
 import {
   type ChatItem,
+  circleConversation,
   type Conversation,
   conversationTarget,
+  personConversation,
   useMessages,
   withItem,
   withoutItem,
   withState,
 } from './messages';
 import { messagesApi } from './messages-api';
+import { type PhotoFile, uploadPhoto } from './photo';
 
-export type SendResult = 'sent' | 'limited' | 'failed';
+/** `full`: the server's space for photos is full (texts still go, docs/ADR/0035 §10). */
+export type SendResult = 'sent' | 'limited' | 'full' | 'failed';
 
 const cachedCircles = () => queryClient.getQueryData<Circle[]>(circlesKey) ?? [];
 
@@ -47,6 +52,30 @@ function deviceOf(
 }
 
 /**
+ * What a closed app is told of an item (docs/ADR/0035 §11), never what it says: a text or a photo,
+ * a story, a screenshot of one's photo. Taking an item back tells nobody.
+ */
+export function pushOf(payload: ChatPayload, circleId: string | undefined): PushBody | null {
+  switch (payload.kind) {
+    case 'text':
+    case 'photo':
+      if (payload.kind === 'photo' && payload.story && circleId !== undefined) {
+        return { kind: 'moment', circleId, ts: payload.ts };
+      }
+      return {
+        kind: 'chat',
+        ...(circleId === undefined ? {} : { circleId }),
+        photo: payload.kind === 'photo',
+        ts: payload.ts,
+      };
+    case 'shot':
+      return { kind: 'shot', ts: payload.ts };
+    case 'del':
+      return null;
+  }
+}
+
+/**
  * Seals and sends one payload to a conversation (docs/ADR/0035 §2, §3): for a circle with this
  * device's sender key of its current epoch, for a person sealed to their current device; with a
  * notification sealed for each device whose app may be closed (never what it says).
@@ -56,7 +85,7 @@ async function deliver(conversation: Conversation, payload: ChatPayload): Promis
   if (device === null || userId === null) return 'failed';
   const circles = cachedCircles();
   const target = conversationTarget(conversation);
-  const photo = payload.kind === 'photo';
+  const blobId = payload.kind === 'photo' ? payload.blobId : undefined;
   let reply: ChatSendReply;
   try {
     if ('circleId' in target) {
@@ -65,24 +94,28 @@ async function deliver(conversation: Conversation, payload: ChatPayload): Promis
       const store = keys();
       const envelope = encryptChat({ senderKey: store.ownKey(circle), sender: device, payload });
       const recipients = contactsOf([circle], store, userId).recipients[circle.id] ?? [];
-      const pushes = sealPushes(recipients, device, {
-        kind: 'chat',
-        circleId: circle.id,
-        photo,
-        ts: payload.ts,
-      });
-      const blobId = payload.kind === 'photo' ? payload.blobId : undefined;
+      const push = pushOf(payload, circle.id);
+      const pushes = push === null ? [] : sealPushes(recipients, device, push);
       reply = await messagesApi.toCircle(circle.id, envelope, pushes, blobId);
     } else {
       const recipient = deviceOf(circles, target.userId);
       if (recipient === null) return 'failed';
       const envelope = sealDirect({ sender: device, recipient: recipient.keys, payload });
-      const pushes = sealPushes(
-        [{ userId: target.userId, deviceId: recipient.keys.deviceId, dhKey: recipient.dhKey }],
-        device,
-        { kind: 'chat', photo, ts: payload.ts },
-      );
-      const blobId = payload.kind === 'photo' ? payload.blobId : undefined;
+      const push = pushOf(payload, undefined);
+      const pushes =
+        push === null
+          ? []
+          : sealPushes(
+              [
+                {
+                  userId: target.userId,
+                  deviceId: recipient.keys.deviceId,
+                  dhKey: recipient.dhKey,
+                },
+              ],
+              device,
+              push,
+            );
       reply = await messagesApi.toPerson(target.userId, envelope, pushes, blobId);
     }
   } catch {
@@ -118,9 +151,21 @@ async function sendItem(item: ChatItem): Promise<SendResult> {
       ? withState(state, item.id, 'sending')
       : withItem(state, { ...item, state: 'sending' }),
   );
-  const result = await deliver(item.conversation, payload);
+  const uploaded = payload.kind === 'photo' ? await upload(payload.blobId) : 'sent';
+  const result = uploaded === 'sent' ? await deliver(item.conversation, payload) : uploaded;
   useMessages.setState((state) => withState(state, item.id, result === 'sent' ? 'sent' : 'failed'));
   return result;
+}
+
+/** The photo's file to the server first (once, however many items share it). */
+async function upload(blobId: string): Promise<SendResult> {
+  try {
+    return (await uploadPhoto(blobId)) ? 'sent' : 'failed';
+  } catch (error) {
+    if (!(error instanceof ApiError)) return 'failed';
+    if (error.code === 'MEDIA_FULL') return 'full';
+    return error.code === 'RATE_LIMITED' ? 'limited' : 'failed';
+  }
 }
 
 /** A text for a conversation (1–1000 characters, docs/ADR/0035 §5). */
@@ -141,6 +186,53 @@ export function sendText(
     state: 'sending',
     ...(replyTo === undefined ? {} : { replyTo }),
   });
+}
+
+/** A photo for one conversation (a circle's, or one person's): an item of it, not a story. */
+export function sendPhoto(
+  conversation: Conversation,
+  file: PhotoFile,
+  caption?: string,
+): Promise<SendResult> {
+  const me = useAuth.getState().userId;
+  if (me === null) return Promise.resolve('failed');
+  return sendItem({
+    id: randomUuid(),
+    conversation,
+    from: me,
+    at: Date.now(),
+    kind: 'photo',
+    photo: { ...file, story: false, ...(caption === undefined ? {} : { caption }) },
+    state: 'sending',
+  });
+}
+
+/**
+ * A story (docs/ADR/0035 §1, §4): one photo, uploaded once, with an item of its own for each
+ * circle, its key sealed in each circle's envelope. What did not go can be tried again.
+ */
+export async function shareStory(
+  circleIds: readonly string[],
+  file: PhotoFile,
+  caption?: string,
+): Promise<SendResult> {
+  const me = useAuth.getState().userId;
+  if (me === null || circleIds.length === 0) return 'failed';
+  const at = Date.now();
+  const results = await Promise.all(
+    circleIds.map((circleId) =>
+      sendItem({
+        id: randomUuid(),
+        conversation: circleConversation(circleId),
+        from: me,
+        at,
+        kind: 'photo',
+        photo: { ...file, story: true, ...(caption === undefined ? {} : { caption }) },
+        state: 'sending',
+      }),
+    ),
+  );
+  return results.find((result) => result !== 'sent') ?? 'sent';
 }
 
 /** Tries a failed item again, as it was (the server keeps an id once). */
@@ -175,13 +267,24 @@ export async function takeBack(itemId: string): Promise<SendResult> {
   return 'sent';
 }
 
+/** "Herkesten sil" for a photo shared as a story: every circle's item of it. */
+export async function takeBackPhoto(blobId: string): Promise<SendResult> {
+  const me = useAuth.getState().userId;
+  const mine = useMessages
+    .getState()
+    .items.filter((item) => item.from === me && item.photo?.blobId === blobId);
+  const results = await Promise.all(mine.map((item) => takeBack(item.id)));
+  return results.find((result) => result !== 'sent') ?? 'sent';
+}
+
 /**
- * "Ekran görüntüsü aldı" (docs/ADR/0035 §12): this phone took a screenshot of someone's photo; the
- * sender is told with a `shot` item. Best effort: nothing is shown if it does not go.
+ * "Ekran görüntüsü aldı" (docs/ADR/0035 §12): this phone took a screenshot of someone's photo; its
+ * sender alone is told, with a `shot` item sealed to them (not to the whole circle). Best effort:
+ * nothing is shown if it does not go.
  */
 export async function tellScreenshot(item: ChatItem): Promise<void> {
-  if (item.kind !== 'photo') return;
-  await deliver(item.conversation, {
+  if (item.kind !== 'photo' || item.from === useAuth.getState().userId) return;
+  await deliver(personConversation(item.from), {
     kind: 'shot',
     id: randomUuid(),
     target: item.id,

@@ -12,9 +12,11 @@ import {
   loadMessages,
   MESSAGES_KEY,
   type MessagesState,
+  itemsOf,
   nextExpiry,
   personConversation,
   saveMessages,
+  storiesOf,
   unreadIn,
   unreadTotal,
   withItem,
@@ -22,6 +24,7 @@ import {
   withoutItem,
   withoutPerson,
   withState,
+  withViewed,
 } from './messages';
 
 function memoryStore(): KeyValueStore & { data: Map<string, string> } {
@@ -117,7 +120,13 @@ describe('the vault copy', () => {
     const full: MessagesState = { ...stateWith(text()), loaded: true };
     saveMessages(store, full);
     const saved: unknown = JSON.parse(store.get(MESSAGES_KEY) ?? '{}');
-    expect(Object.keys(saved as object).sort()).toEqual(['cursor', 'items', 'read', 'seen']);
+    expect(Object.keys(saved as object).sort()).toEqual([
+      'cursor',
+      'items',
+      'read',
+      'seen',
+      'viewed',
+    ]);
 
     saveMessages(store, EMPTY_MESSAGES);
     expect(store.get(MESSAGES_KEY)).toBeUndefined();
@@ -334,5 +343,57 @@ describe('unread', () => {
       { conversation: withAli, last: lastWithAli },
       { conversation: group, last: lastInGroup },
     ]);
+  });
+});
+
+describe('stories', () => {
+  const OTHER = randomUuid();
+  const story = (overrides: Partial<ChatItem> = {}, blobId = randomUuid()): ChatItem => {
+    const base = photo(overrides);
+    if (base.photo === undefined) throw new Error('a photo');
+    return { ...base, photo: { ...base.photo, blobId, story: true } };
+  };
+
+  it('are not items of their conversation: not listed, not counted, not the last one', () => {
+    const shared = story({ at: NOW });
+    const words = text({ at: NOW - 5000 });
+    const state = stateWith(words, shared);
+    expect(itemsOf(state, group)).toEqual([words]);
+    expect(unreadIn(state, group, ME)).toBe(1);
+    expect(unreadTotal(state, ME)).toBe(1);
+    expect(conversations(state)).toEqual([{ conversation: group, last: words }]);
+  });
+
+  it('count a photo shared to several circles once, and only once it went', () => {
+    const blobId = randomUuid();
+    const first = story({ at: NOW - 3000 }, blobId);
+    const second = story(
+      { at: NOW - 3000, conversation: circleConversation(randomUuid()) },
+      blobId,
+    );
+    const later = story({ at: NOW - 1000 });
+    const going = story({ from: ME, state: 'sending' });
+    const [ali] = storiesOf(stateWith(first, second, later, going), ME);
+    expect(ali?.stories.map((item) => item.photo?.blobId)).toEqual([blobId, later.photo?.blobId]);
+    expect(storiesOf(stateWith(going), ME)).toEqual([]);
+  });
+
+  it("put the user's own first, then the unseen, then the newest", () => {
+    const mine = story({ from: ME, at: NOW - 9000 });
+    const seenOne = story({ at: NOW - 100 });
+    const fresh = story({ from: OTHER, at: NOW - 5000 });
+    const state = withViewed(stateWith(mine, seenOne, fresh), seenOne.photo?.blobId ?? '', NOW);
+    expect(storiesOf(state, ME).map((person) => [person.userId, person.unseen])).toEqual([
+      [ME, false],
+      [OTHER, true],
+      [ALI, false],
+    ]);
+  });
+
+  it('remember what was seen for 24 hours, once', () => {
+    const state = withViewed(EMPTY_MESSAGES, 'file', NOW);
+    expect(withViewed(state, 'file', NOW + 1)).toBe(state);
+    expect(expired(state, NOW + CHAT_LIFETIME_MS - 1).viewed).toEqual({ file: NOW });
+    expect(expired(state, NOW + CHAT_LIFETIME_MS + 1).viewed).toEqual({});
   });
 });

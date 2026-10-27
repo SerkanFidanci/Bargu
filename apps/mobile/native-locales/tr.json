@@ -1,6 +1,6 @@
 {
   "ios": {
-    "NSCameraUsageDescription": "Bargu, arkadaşının QR kodunu okumak için kamerayı kullanır. Görüntü kaydedilmez.",
+    "NSCameraUsageDescription": "Bargu, arkadaşının QR kodunu okumak ve çemberlerinle şifreli paylaştığın fotoğrafları çekmek için kamerayı kullanır. Video ya da ses kaydetmez.",
     "NSLocationWhenInUseUsageDescription": "Bargu konumunu uçtan uca şifreli olarak, yalnızca seçtiğin çemberlerle paylaşır.",
     "NSLocationAlwaysAndWhenInUseUsageDescription": "Uygulama kapalıyken de çemberlerin seni görebilsin diye. Konumun uçtan uca şifrelenir.",
     "NSLocationAlwaysUsageDescription": "Uygulama kapalıyken de çemberlerin seni görebilsin diye. Konumun uçtan uca şifrelenir.",

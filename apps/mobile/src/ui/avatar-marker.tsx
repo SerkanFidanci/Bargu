@@ -4,6 +4,7 @@ import { Zap } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -19,9 +20,11 @@ import {
   avatarPalette,
   avatarSize,
   elevation,
+  mediaColors,
   pinFx,
   radius,
   space,
+  storyFx,
   useTheme,
 } from '@/theme';
 import { type EffectLevel, repeatFinite, useEffects } from '@/theme/effects';
@@ -67,6 +70,11 @@ export interface AvatarMarkerProps {
   lookMine?: boolean | undefined;
   /** A crowd on the map (theme crowdFx): the pin plays no loop, whatever the effects level. */
   still?: boolean | undefined;
+  /**
+   * They have a story (docs/ADR/0035 §8): a thin ring outside the pin's own, in colour while one
+   * is not opened yet, grey after. It does not move.
+   */
+  story?: 'new' | 'seen' | undefined;
 }
 
 /** What someone seems to be doing (features/map/activity.ts decides). */
@@ -150,6 +158,8 @@ function periodOf(activity: MarkerActivity): number | null {
 
 /** The pin's circle: the avatar in its ring. */
 export const PIN_CIRCLE = avatarSize.md + pinFx.ring * 2;
+/** How far the story ring reaches beyond the pin's circle. */
+const STORY_OFFSET = storyFx.gap + storyFx.ring;
 /** From the top of the circle to the dot on the person's exact position. */
 export const PIN_HEIGHT = PIN_CIRCLE + pinFx.tail;
 const BADGE = space.lg;
@@ -202,6 +212,7 @@ export function AvatarMarker({
   look,
   lookMine = false,
   still = false,
+  story,
 }: AvatarMarkerProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -282,6 +293,7 @@ export function AvatarMarker({
     doingLabel,
     line === null ? null : markerDetailText(line, t, true),
     battery,
+    story === undefined ? null : t(story === 'new' ? 'ui.marker.storyNew' : 'ui.marker.story'),
   ]
     .filter((part) => part !== null)
     .join(', ');
@@ -320,6 +332,9 @@ export function AvatarMarker({
             ]}
           >
             <Avatar avatar={avatar} name={name} size="md" muted={stale} userId={userId} />
+            {story === undefined || framed ? null : (
+              <StoryRing seen={story === 'seen'} id={userId ?? name} />
+            )}
             {look === undefined || framed ? null : (
               <PinLook
                 look={look}
@@ -465,6 +480,11 @@ const styles = StyleSheet.create({
     width: BADGE_WIDE.width,
     height: BADGE_WIDE.height,
   },
+  storyRing: {
+    position: 'absolute',
+    top: -pinFx.ring - STORY_OFFSET,
+    left: -pinFx.ring - STORY_OFFSET,
+  },
   lowBattery: {
     position: 'absolute',
     top: -pinFx.ring - space.xxs,
@@ -500,3 +520,30 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
 });
+
+/** The story ring (docs/ADR/0035 §8): the brand's sweep while new, grey once seen. */
+function StoryRing({ seen, id }: { seen: boolean; id: string }) {
+  const { colors } = useTheme();
+  const size = PIN_CIRCLE + STORY_OFFSET * 2;
+  const gradient = `story-${id}`;
+  return (
+    <View style={styles.storyRing} pointerEvents="none" testID="marker-story">
+      <Svg width={size} height={size}>
+        <Defs>
+          <LinearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={mediaColors.storyFrom} />
+            <Stop offset="1" stopColor={mediaColors.storyTo} />
+          </LinearGradient>
+        </Defs>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={(size - storyFx.ring) / 2}
+          stroke={seen ? colors.textMuted : `url(#${gradient})`}
+          strokeWidth={storyFx.ring}
+          fill="none"
+        />
+      </Svg>
+    </View>
+  );
+}

@@ -265,7 +265,9 @@
           "stayHours": "{{n}} saattir aynı yerde",
           "stayDays": "{{n}} gündür aynı yerde"
         }
-      }
+      },
+      "story": "hikayesi var",
+      "storyNew": "yeni hikayesi var"
     },
     "sheet": {
       "close": "Kapat"
@@ -543,7 +545,8 @@
       "title": "{{name}} için bildirimler",
       "places": "Varışları ve ayrılışları",
       "pokes": "Dürtmeleri",
-      "hint": "Kapattıkların yalnızca bu telefonda susar; sunucu kimi sessize aldığını bilmez."
+      "hint": "Kapattıkların yalnızca bu telefonda susar; sunucu kimi sessize aldığını bilmez.",
+      "messages": "Mesajları ve hikayeleri"
     },
     "meetingsChannel": "Buluşmalar",
     "late": "{{name}} yaklaşık {{minutes}} dk gecikecek",
@@ -564,7 +567,9 @@
       "photo": "{{name}}: fotoğraf",
       "textAlone": "Yeni mesaj",
       "photoAlone": "Fotoğraf gönderdi"
-    }
+    },
+    "moment": "{{name}} bir hikaye paylaştı",
+    "shot": "{{name}} fotoğrafının ekran görüntüsünü aldı"
   },
   "location": {
     "service": {
@@ -1380,7 +1385,8 @@
     "unmuteLabel": "{{name}} için bildirimler yeniden açılır",
     "removeFromList": "Listeden kaldır",
     "removeFromListLabel": "Bu kişinin sessize alma kaydı listeden silinir",
-    "howTo": "Bir kişiyi haritada kartındaki zilden, bir yeri kendi ekranından sessize alırsın. Sessize almak yalnızca bu telefonda geçerli."
+    "howTo": "Bir kişiyi haritada kartındaki zilden, bir yeri kendi ekranından sessize alırsın. Sessize almak yalnızca bu telefonda geçerli.",
+    "messages": "Mesajlar"
   },
   "settingsLocation": {
     "perCircle": "Bir çemberin neyi, ne kadar süre gördüğünü o çemberin ekranından değiştirirsin."
@@ -1446,6 +1452,54 @@
     "dock": "Mesajlar",
     "dockUnread": "Mesajlar, {{count}} okunmamış",
     "chat": "Sohbet",
-    "write": "Mesaj yaz"
+    "write": "Mesaj yaz",
+    "camera": {
+      "take": "Fotoğraf çek",
+      "flip": "Kamerayı çevir",
+      "close": "Kapat",
+      "retake": "Yeniden çek",
+      "caption": "Açıklama ekle (isteğe bağlı)",
+      "permissionTitle": "Fotoğraf için kamera izni",
+      "permissionBody": "Bargu fotoğrafı yalnızca o an, kendi kamerasıyla çeker; galerine bakmaz. Fotoğraf telefonundan şifreli çıkar ve 24 saat sonra silinir.",
+      "allow": "Kameraya izin ver",
+      "settings": "Ayarları aç",
+      "failed": "Fotoğraf hazırlanamadı. Yeniden dene.",
+      "story": "Hikaye (bütün çemberlerim)",
+      "storyHint": "Etkinlik çemberleri hariç. 24 saat boyunca pininin çevresinde görünür.",
+      "pickCircles": "Çember seç",
+      "pickPerson": "Bir kişi",
+      "share": "Paylaş",
+      "sendTo": "Gönder: {{name}}",
+      "noCircles": "Paylaşacak çemberin yok: önce bir çembere katıl ya da arkadaş ekle.",
+      "event": "Etkinlik",
+      "sent": "Fotoğraf gönderildi",
+      "shared": "Hikaye paylaşıldı",
+      "full": "Fotoğraf alanı şu an dolu; biraz sonra yeniden dene. Yazı gönderebilirsin.",
+      "notSent": "Gönderilemedi. Sohbette dokunup yeniden deneyebilirsin."
+    },
+    "openPhoto": "Fotoğrafı açar",
+    "opening": "Açılıyor",
+    "photoFailed": "Fotoğraf açılamadı.",
+    "photoGone": "Bu fotoğrafın 24 saati doldu.",
+    "reportPhotoBody": "Bu fotoğrafın açık hâli Bargu’ya gönderilecek. Yalnızca bu fotoğraf; başka hiçbir şey.",
+    "shotBy": "Ekran görüntüsü aldı: {{names}}",
+    "shotSeen": "ekran görüntüsü alındı",
+    "story": {
+      "title": "Hikayeler",
+      "share": "Hikaye paylaş",
+      "yours": "Hikayen",
+      "open": "{{name}}: hikaye",
+      "openNew": "{{name}}: yeni hikaye",
+      "openOf": "{{name}}: hikayesini gör",
+      "gone": "Görülecek hikaye kalmadı.",
+      "next": "Sonraki",
+      "previous": "Önceki",
+      "photoOf": "{{name}} hikayesi",
+      "replied": "Yanıtın gönderildi",
+      "repliedTo": "{{name}} hikayesine yanıt",
+      "repliedToYours": "Hikayene yanıt",
+      "reply": "Yanıt yaz",
+      "takeBackBody": "Bu hikaye paylaştığın bütün çemberlerden ve sunucudan silinir."
+    }
   }
 }

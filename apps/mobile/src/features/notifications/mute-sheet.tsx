@@ -9,8 +9,8 @@ import { loadMuteSettings, updateMutes } from './mute-session';
 import { personMutes, useMutes, withPersonMuted } from './mutes';
 
 /**
- * One person's notifications (radial menu "Bildirimler"): their arrivals and departures, and
- * their pokes. Switched off only on this phone (mutes.ts).
+ * One person's notifications (radial menu "Bildirimler"): their arrivals and departures, their
+ * pokes, and their messages and stories (docs/ADR/0035 §11). Switched off only on this phone (mutes.ts).
  */
 export const MuteSheet = forwardRef<SheetRef, { person: { userId: string; name: string } | null }>(
   function MuteSheet({ person }, ref) {
@@ -36,6 +36,14 @@ export const MuteSheet = forwardRef<SheetRef, { person: { userId: string; name: 
               value={!current.pokes}
               onChange={(on) => {
                 updateMutes((all) => withPersonMuted(all, person.userId, { pokes: !on }));
+              }}
+            />
+            <Toggle
+              testID="mute-messages"
+              label={t('notifications.mute.messages')}
+              value={!current.messages}
+              onChange={(on) => {
+                updateMutes((all) => withPersonMuted(all, person.userId, { messages: !on }));
               }}
             />
             <Text variant="caption" color="textMuted">

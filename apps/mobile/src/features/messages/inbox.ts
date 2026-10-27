@@ -116,6 +116,12 @@ export function ingest(
       continue;
     }
     waiting.delete(record.id);
+    // A screenshot is news only about this phone's own photo (§12); anyone else's is dropped.
+    const shot = opened === 'drop' || opened.payload.kind !== 'shot' ? null : opened.payload;
+    if (shot !== null && next.items.find((item) => item.id === shot.target)?.from !== context.me) {
+      next = { ...next, seen: { ...next.seen, [record.id]: record.at } };
+      continue;
+    }
     if (opened === 'drop') {
       next = { ...next, seen: { ...next.seen, [record.id]: record.at } };
       continue;

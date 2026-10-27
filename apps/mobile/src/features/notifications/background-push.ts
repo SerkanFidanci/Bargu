@@ -227,7 +227,9 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
               body.kind === 'meetingAnswer' ||
               body.kind === 'meetingMoved'
                 ? 'late'
-                : 'bump',
+                : body.kind === 'chat' || body.kind === 'moment' || body.kind === 'shot'
+                  ? 'message'
+                  : 'bump',
           },
       shown.fromUserId,
     )
@@ -250,6 +252,8 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
     return 'inApp';
   }
   await Notifications.scheduleNotificationAsync({
+    // One notification per conversation, renewed by each new item (docs/ADR/0035 §11).
+    ...(shown.conversation === undefined ? {} : { identifier: `chat:${shown.conversation}` }),
     content: {
       title: shown.title,
       body: shown.body,

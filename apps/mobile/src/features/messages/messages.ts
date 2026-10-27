@@ -70,6 +70,8 @@ const savedSchema = z
     cursor: z.number(),
     /** Ids already shown or dropped, with when: an item comes once (docs/ADR/0035 §2). */
     seen: z.record(z.string(), z.number()),
+    /** Stories opened here, by file, with when: their ring turns grey (docs/ADR/0035 §8). */
+    viewed: z.record(z.string(), z.number()),
   })
   .strict();
 type Saved = z.infer<typeof savedSchema>;
@@ -84,7 +86,7 @@ export interface MessagesState extends Saved {
   loaded: boolean;
 }
 
-const EMPTY: Saved = { items: [], read: {}, cursor: 0, seen: {} };
+const EMPTY: Saved = { items: [], read: {}, cursor: 0, seen: {}, viewed: {} };
 
 export const EMPTY_MESSAGES: MessagesState = { ...EMPTY, waitingRecords: [], loaded: false };
 export const useMessages = create<MessagesState>(() => EMPTY_MESSAGES);
@@ -115,8 +117,8 @@ export function saveMessages(store: KeyValueStore, saved: Saved): void {
     store.delete(MESSAGES_KEY);
     return;
   }
-  const { items, read, cursor, seen } = saved;
-  store.set(MESSAGES_KEY, JSON.stringify({ items, read, cursor, seen }));
+  const { items, read, cursor, seen, viewed } = saved;
+  store.set(MESSAGES_KEY, JSON.stringify({ items, read, cursor, seen, viewed }));
 }
 
 /** The same state without what is older than 24 hours (the same object when nothing went). */
@@ -125,10 +127,16 @@ export function expired<T extends Saved>(saved: T, now: number): T {
   const items = saved.items.filter((item) => item.at >= since);
   const seenEntries = Object.entries(saved.seen);
   const seen = Object.fromEntries(seenEntries.filter(([, at]) => at >= since - 60 * 60_000));
-  if (items.length === saved.items.length && seenEntries.length === Object.keys(seen).length) {
+  const viewedEntries = Object.entries(saved.viewed);
+  const viewed = Object.fromEntries(viewedEntries.filter(([, at]) => at >= since));
+  if (
+    items.length === saved.items.length &&
+    seenEntries.length === Object.keys(seen).length &&
+    viewedEntries.length === Object.keys(viewed).length
+  ) {
     return saved;
   }
-  return { ...saved, items, seen };
+  return { ...saved, items, seen, viewed };
 }
 
 /** When the next item's day is over (to delete it then), or null with nothing kept. */
@@ -241,19 +249,30 @@ export function withoutCircle<T extends Saved>(saved: T, circleId: string): T {
   };
 }
 
+/** A story is not an item of its conversation: it is a ring on its sender's pin (§8). */
+const isStory = (item: ChatItem) => item.photo?.story === true;
+
 /** Items of others in a conversation after it was last read. */
 export function unreadIn(saved: Saved, conversation: Conversation, me: string): number {
   const read = saved.read[conversation] ?? 0;
   return saved.items.filter(
-    (item) => item.conversation === conversation && item.from !== me && item.at > read,
+    (item) =>
+      item.conversation === conversation && item.from !== me && item.at > read && !isStory(item),
   ).length;
 }
 
 /** Every unread item of others, in all conversations (the dock's count). */
 export function unreadTotal(saved: Saved, me: string): number {
   return saved.items.filter(
-    (item) => item.from !== me && item.at > (saved.read[item.conversation] ?? 0),
+    (item) => item.from !== me && item.at > (saved.read[item.conversation] ?? 0) && !isStory(item),
   ).length;
+}
+
+/** The items shown in a conversation, the newest first (stories are not among them). */
+export function itemsOf(saved: Pick<Saved, 'items'>, conversation: Conversation): ChatItem[] {
+  return saved.items
+    .filter((item) => item.conversation === conversation && !isStory(item))
+    .sort((a, b) => b.at - a.at);
 }
 
 /** Conversations with items, the newest first, each with its last item. */
@@ -262,10 +281,59 @@ export function conversations(
 ): { conversation: Conversation; last: ChatItem }[] {
   const last = new Map<Conversation, ChatItem>();
   for (const item of saved.items) {
+    if (isStory(item)) continue;
     const kept = last.get(item.conversation);
     if (kept === undefined || item.at >= kept.at) last.set(item.conversation, item);
   }
   return [...last.entries()]
     .map(([conversation, item]) => ({ conversation, last: item }))
     .sort((a, b) => b.last.at - a.last.at);
+}
+
+/** One person's stories as this phone sees them: each photo once, the oldest first. */
+export interface PersonStories {
+  userId: string;
+  stories: ChatItem[];
+  /** Some of them not opened yet: the ring is in colour. */
+  unseen: boolean;
+}
+
+/**
+ * Everyone's stories (docs/ADR/0035 §8): a photo shared to several circles is one story. This
+ * phone's own user first, then those with something new, then the newest.
+ */
+export function storiesOf(
+  saved: Pick<Saved, 'items' | 'viewed'>,
+  me: string | null,
+): PersonStories[] {
+  const byPerson = new Map<string, Map<string, ChatItem>>();
+  for (const item of saved.items) {
+    if (item.photo?.story !== true || item.state !== 'sent') continue;
+    const photos = byPerson.get(item.from) ?? new Map<string, ChatItem>();
+    const kept = photos.get(item.photo.blobId);
+    if (kept === undefined || item.at < kept.at) photos.set(item.photo.blobId, item);
+    byPerson.set(item.from, photos);
+  }
+  return [...byPerson.entries()]
+    .map(([userId, photos]) => {
+      const stories = [...photos.values()].sort((a, b) => a.at - b.at);
+      const unseen =
+        userId !== me &&
+        stories.some(
+          (story) => story.photo !== undefined && saved.viewed[story.photo.blobId] === undefined,
+        );
+      return { userId, stories, unseen };
+    })
+    .sort((a, b) => {
+      if (a.userId === me) return -1;
+      if (b.userId === me) return 1;
+      if (a.unseen !== b.unseen) return a.unseen ? -1 : 1;
+      return (b.stories.at(-1)?.at ?? 0) - (a.stories.at(-1)?.at ?? 0);
+    });
+}
+
+/** A story opened on this phone: its ring turns grey once all of that person's are. */
+export function withViewed<T extends Saved>(saved: T, blobId: string, at: number): T {
+  if (saved.viewed[blobId] !== undefined) return saved;
+  return { ...saved, viewed: { ...saved.viewed, [blobId]: at } };
 }

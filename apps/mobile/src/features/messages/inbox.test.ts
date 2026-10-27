@@ -19,7 +19,13 @@ import {
 } from '@bargu/schemas';
 
 import { type InboxContext, ingest, openRecord } from './inbox';
-import { circleConversation, EMPTY_MESSAGES, personConversation } from './messages';
+import {
+  type ChatItem,
+  circleConversation,
+  EMPTY_MESSAGES,
+  personConversation,
+  withItem,
+} from './messages';
 
 const NOW = 1_800_000_000_000;
 const EPOCH = 2;
@@ -243,5 +249,43 @@ describe('taking items in', () => {
     expect(opened.waitingRecords).toEqual([]);
     expect(opened.items.map((item) => item.text)).toEqual(['bekleyen', 'sonraki']);
     expect(opened.cursor).toBe(NOW - 800);
+  });
+});
+
+describe('screenshot notices', () => {
+  it('mark only this phone own photo, and drop one about anyone else', () => {
+    const { me, ali, context, toPerson } = setup();
+    const photoOf = (from: string): ChatItem => ({
+      id: randomUuid(),
+      conversation: personConversation(ali.userId),
+      from,
+      at: NOW - 5000,
+      kind: 'photo',
+      state: 'sent',
+      photo: {
+        blobId: randomUuid(),
+        key: 'k'.repeat(43),
+        size: 1000,
+        hash: 'h'.repeat(43),
+        w: 10,
+        h: 10,
+        story: false,
+      },
+    });
+    const mine = photoOf(me.userId);
+    const theirs = photoOf(randomUuid());
+    const start = withItem(withItem(EMPTY_MESSAGES, mine), theirs);
+    const shot = (target: string): ChatPayload => ({
+      kind: 'shot',
+      id: randomUuid(),
+      target,
+      ts: NOW - 100,
+    });
+    const aboutMine = toPerson(ali, me, shot(mine.id));
+    const aboutTheirs = toPerson(ali, me, shot(theirs.id));
+    const state = ingest(start, [aboutMine, aboutTheirs], context);
+    expect(state.items.find((item) => item.id === mine.id)?.shotBy).toEqual([ali.userId]);
+    expect(state.items.find((item) => item.id === theirs.id)?.shotBy).toBeUndefined();
+    expect(state.seen[aboutTheirs.id]).toBe(aboutTheirs.at);
   });
 });

@@ -44,6 +44,7 @@ jest.mock('@/features/messages/messages-session', () => ({
 }));
 jest.mock('@/features/messages/report', () => ({ report: jest.fn(() => Promise.resolve(true)) }));
 
+import MessagesScreen from '@/app/(app)/messages';
 import ConversationScreen from '@/app/(app)/messages/[conversation]';
 import { useAuth } from '@/features/auth/auth-store';
 import { type ChatItem, EMPTY_MESSAGES, useMessages, withItem } from '@/features/messages/messages';
@@ -156,5 +157,38 @@ describe('a conversation', () => {
     await render(<ConversationScreen />);
     expect(screen.queryByTestId('conversation-input')).toBeNull();
     expect(screen.getByText('Bu sohbet artık açık değil: ortak çemberiniz kalmadı.')).toBeTruthy();
+  });
+});
+
+describe('the list of messages', () => {
+  it('shows stories first: sharing one, then whoever has one, which opens them', async () => {
+    useMessages.setState((state) =>
+      withItem(state, {
+        id: '0190f7a4-3333-7333-8333-000000000009',
+        conversation: `c:${CIRCLE}`,
+        from: ALI,
+        at: NOW - 500,
+        kind: 'photo',
+        state: 'sent',
+        photo: {
+          blobId: '0190f7a4-4444-7444-8444-000000000009',
+          key: 'k'.repeat(43),
+          size: 1000,
+          hash: 'h'.repeat(43),
+          w: 10,
+          h: 10,
+          story: true,
+        },
+      }),
+    );
+    await render(<MessagesScreen />);
+    expect(screen.getByLabelText('Hikaye paylaş')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Ali: yeni hikaye'));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/story/[userId]',
+      params: { userId: ALI },
+    });
+    // The story is not an item of the circle's conversation.
+    expect(screen.getByText('Sen: Yoldayım')).toBeTruthy();
   });
 });

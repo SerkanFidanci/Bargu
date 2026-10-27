@@ -1,7 +1,7 @@
-import { CHAT_TEXT_MAX, codePointsOf, REPORT_REASONS, type ReportReason } from '@bargu/schemas';
+import { CHAT_TEXT_MAX, codePointsOf } from '@bargu/schemas';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Camera, ChevronLeft, Clock, MoreVertical, Send } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -21,18 +21,17 @@ import {
   type ChatItem,
   type Conversation,
   conversationTarget,
+  itemsOf,
   useMessages,
 } from '@/features/messages/messages';
-import { block, loadMessagesOnce, markRead } from '@/features/messages/messages-session';
+import { loadMessagesOnce, markRead } from '@/features/messages/messages-session';
 import { conversationName, isOpen, memberIn } from '@/features/messages/names';
 import { retry, sendText, takeBack } from '@/features/messages/outbox';
-import { report } from '@/features/messages/report';
+import { useSafety } from '@/features/messages/safety';
 import { radius, space, touchTarget, typography, useTheme } from '@/theme';
 import { EmptyState } from '@/ui/empty-state';
 import { IconButton } from '@/ui/icon-button';
-import { ListRow } from '@/ui/list-row';
 import { PressableScale } from '@/ui/pressable-scale';
-import { Sheet, type SheetRef } from '@/ui/sheet';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 
@@ -40,9 +39,10 @@ const CONVERSATION = /^[cp]:[0-9a-f-]{36}$/;
 
 /**
  * One conversation of messages and moments (docs/ADR/0035): a circle's or one person's items of
- * the last 24 hours, the newest at the bottom, and a field to write in. A long press on one's own
- * item takes it back from everyone; on someone else's it reports it or blocks its sender. Reports
- * say first that the item's words go to Bargu; blocking says it does not hide one's location.
+ * the last 24 hours, the newest at the bottom, and a field to write in (or a photo to take). A
+ * photo opens on a tap. A long press on one's own item takes it back from everyone; on someone
+ * else's it reports it or blocks its sender. Reports say first that the item's words go to Bargu;
+ * blocking says it does not hide one's location.
  */
 export default function ConversationScreen() {
   const { t } = useTranslation();
@@ -53,17 +53,12 @@ export default function ConversationScreen() {
   const circles = useCircles().data ?? [];
   const items = useMessages((state) => state.items);
   const [draft, setDraft] = useState('');
-  const [reporting, setReporting] = useState<ChatItem | { userId: string } | null>(null);
-  const sheet = useRef<SheetRef>(null);
 
   useEffect(() => {
     loadMessagesOnce();
   }, []);
   const shown = useMemo(
-    () =>
-      conversation === null
-        ? []
-        : items.filter((item) => item.conversation === conversation).sort((a, b) => b.at - a.at),
+    () => (conversation === null ? [] : itemsOf({ items }, conversation)),
     [items, conversation],
   );
   const newest = shown[0]?.at ?? 0;
@@ -75,6 +70,9 @@ export default function ConversationScreen() {
   const open = conversation !== null && isOpen(conversation, circles, me);
   const target = conversation === null ? null : conversationTarget(conversation);
   const person = target !== null && 'userId' in target ? target.userId : null;
+  const safety = useSafety((userId) => {
+    if (person === userId) router.back();
+  });
 
   const send = () => {
     const text = draft.trim();
@@ -85,94 +83,32 @@ export default function ConversationScreen() {
     });
   };
 
-  const askReport = (about: ChatItem | { userId: string }) => {
-    setReporting(about);
-    sheet.current?.present();
-  };
-  const sendReport = (reason: ReportReason) => {
-    const about = reporting;
-    sheet.current?.dismiss();
-    setReporting(null);
-    if (about === null) return;
-    const done =
-      'conversation' in about
-        ? report({ item: about, reason })
-        : report({ userId: about.userId, reason });
-    void done.then((ok) => {
-      if (ok) toast.success(t('messages.reported'));
-      else toast.error(t('messages.reportFailed'));
-    });
-  };
-
-  const askBlock = (userId: string) => {
-    const blockedName = memberNameOf(userId);
-    // PM: blocking hides messages, never the location; leaving the circle is right under it.
-    const shared = circles.filter(
-      (circle) =>
-        circle.myStatus === 'active' && circle.members.some((member) => member.userId === userId),
-    );
-    Alert.alert(t('messages.blockTitle', { name: blockedName }), t('messages.blockBody'), [
-      {
-        text: t('messages.block'),
-        style: 'destructive',
-        onPress: () => {
-          void block(userId).then(
-            () => {
-              toast.success(t('messages.blocked', { name: blockedName }));
-              if (person === userId) router.back();
-            },
-            () => {
-              toast.error(t('messages.reportFailed'));
-            },
-          );
-        },
-      },
-      ...(shared.length === 0
-        ? []
-        : [
-            {
-              text: t('messages.leave'),
-              onPress: () => {
-                const [first] = shared;
-                if (first !== undefined) router.push(`/circle/${first.id}`);
-              },
-            },
-          ]),
-      { text: t('common.cancel'), style: 'cancel' as const },
-    ]);
-  };
-
   const memberNameOf = (userId: string) => {
     const member = memberIn(circles, userId);
     return member === undefined ? '?' : memberName(member);
   };
 
+  /** What a reply to a story says above it (the story itself is on the pin, not here). */
+  const storyReplyOf = (item: ChatItem): string | null => {
+    if (item.replyTo === undefined) return null;
+    const story = items.find((kept) => kept.id === item.replyTo);
+    if (story?.photo?.story !== true) return null;
+    return story.from === me
+      ? t('messages.story.repliedToYours')
+      : t('messages.story.repliedTo', { name: memberNameOf(story.from) });
+  };
+
   const actions = (item: ChatItem) => {
-    if (item.from === me) {
-      Alert.alert(t('messages.takeBack'), t('messages.takeBackBody'), [
-        {
-          text: t('messages.takeBack'),
-          style: 'destructive',
-          onPress: () => {
-            void takeBack(item.id);
-          },
-        },
-        { text: t('common.cancel'), style: 'cancel' },
-      ]);
+    if (item.from !== me) {
+      safety.itemMenu(item);
       return;
     }
-    Alert.alert(t('messages.itemActions'), undefined, [
+    Alert.alert(t('messages.takeBack'), t('messages.takeBackBody'), [
       {
-        text: t('messages.report'),
-        onPress: () => {
-          askReport(item);
-        },
-      },
-      {
-        text: t('messages.block'),
+        text: t('messages.takeBack'),
         style: 'destructive',
         onPress: () => {
-          askBlock(item.from);
+          void takeBack(item.id);
         },
       },
       { text: t('common.cancel'), style: 'cancel' },
@@ -217,14 +153,14 @@ export default function ConversationScreen() {
                     {
                       text: t('messages.report'),
                       onPress: () => {
-                        askReport({ userId: person });
+                        safety.askReport({ userId: person });
                       },
                     },
                     {
                       text: t('messages.block'),
                       style: 'destructive',
                       onPress: () => {
-                        askBlock(person);
+                        safety.askBlock(person);
                       },
                     },
                     { text: t('common.cancel'), style: 'cancel' },
@@ -256,6 +192,7 @@ export default function ConversationScreen() {
                   item={item}
                   mine={item.from === me}
                   author={showAuthor ? memberNameOf(item.from) : null}
+                  replyTo={storyReplyOf(item)}
                   onLongPress={() => {
                     actions(item);
                   }}
@@ -272,6 +209,15 @@ export default function ConversationScreen() {
               { borderColor: colors.border, backgroundColor: colors.surface },
             ]}
           >
+            <IconButton
+              testID="conversation-camera"
+              icon={Camera}
+              label={t('messages.camera.take')}
+              tone="plain"
+              onPress={() => {
+                router.push({ pathname: '/camera', params: { to: conversation } });
+              }}
+            />
             <TextInput
               testID="conversation-input"
               value={draft}
@@ -299,31 +245,7 @@ export default function ConversationScreen() {
         ) : null}
       </KeyboardAvoidingView>
 
-      <Sheet
-        ref={sheet}
-        title={t('messages.reportTitle')}
-        testID="report-sheet"
-        onDismiss={() => {
-          setReporting(null);
-        }}
-      >
-        <Text variant="callout" color="textMuted">
-          {reporting !== null && 'conversation' in reporting
-            ? t('messages.reportBody')
-            : t('messages.reportPersonBody')}
-        </Text>
-        {REPORT_REASONS.map((reason) => (
-          <ListRow
-            key={reason}
-            testID={`report-${reason}`}
-            leading={null}
-            title={t(`messages.reasons.${reason}`)}
-            onPress={() => {
-              sendReport(reason);
-            }}
-          />
-        ))}
-      </Sheet>
+      {safety.sheet}
     </SafeAreaView>
   );
 }
@@ -333,11 +255,14 @@ function Bubble({
   item,
   mine,
   author,
+  replyTo,
   onLongPress,
 }: {
   item: ChatItem;
   mine: boolean;
   author: string | null;
+  /** "Hikayene yanıt": the story it answers (docs/ADR/0035 §1). */
+  replyTo: string | null;
   onLongPress: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -347,6 +272,8 @@ function Bubble({
     minute: '2-digit',
   });
   const failed = item.state === 'failed';
+  const photo = item.kind === 'photo';
+  const shot = mine && (item.shotBy?.length ?? 0) > 0;
   return (
     <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs]}>
       {author === null ? null : (
@@ -354,17 +281,28 @@ function Bubble({
           {author}
         </Text>
       )}
+      {replyTo === null ? null : (
+        <Text variant="caption" color="textMuted" style={styles.author}>
+          {replyTo}
+        </Text>
+      )}
       <PressableScale
         testID={`item-${item.id}`}
         haptic="select"
-        accessibilityRole="text"
-        accessibilityHint={failed ? t('messages.failed') : undefined}
+        accessibilityRole={photo ? 'button' : 'text'}
+        accessibilityHint={
+          failed ? t('messages.failed') : photo ? t('messages.openPhoto') : undefined
+        }
         onPress={
           failed
             ? () => {
                 void retry(item.id);
               }
-            : undefined
+            : photo && item.state === 'sent'
+              ? () => {
+                  router.push({ pathname: '/photo/[item]', params: { item: item.id } });
+                }
+              : undefined
         }
         onLongPress={onLongPress}
         style={[
@@ -375,7 +313,7 @@ function Bubble({
           },
         ]}
       >
-        {item.kind === 'photo' ? (
+        {photo ? (
           <View style={styles.photo}>
             <Camera color={mine ? colors.onPrimary : colors.text} size={18} strokeWidth={2.25} />
             <Text variant="body" color={mine ? 'onPrimary' : 'text'}>
@@ -389,7 +327,13 @@ function Bubble({
         )}
       </PressableScale>
       <Text variant="caption" color={failed ? 'danger' : 'textMuted'} style={styles.meta}>
-        {failed ? t('messages.failed') : item.state === 'sending' ? t('messages.sending') : time}
+        {failed
+          ? t('messages.failed')
+          : item.state === 'sending'
+            ? t('messages.sending')
+            : shot
+              ? `${time} · ${t('messages.shotSeen')}`
+              : time}
       </Text>
     </View>
   );
@@ -423,10 +367,9 @@ const styles = StyleSheet.create({
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: space.sm,
+    gap: space.xs,
     margin: space.md,
-    paddingLeft: space.md,
-    paddingRight: space.xs,
+    paddingHorizontal: space.xs,
     paddingVertical: space.xs,
     borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth * 2,

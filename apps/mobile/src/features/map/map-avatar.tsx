@@ -75,6 +75,8 @@ export interface MapAvatarProps {
   look?: Look | undefined;
   /** The user's own pin. */
   lookMine?: boolean | undefined;
+  /** A story to see (docs/ADR/0035 §8): a ring outside the pin. */
+  story?: 'new' | 'seen' | undefined;
 }
 
 /**
@@ -102,6 +104,7 @@ export function MapAvatar({
   news,
   look,
   lookMine,
+  story,
 }: MapAvatarProps) {
   const lift = useSharedValue(0);
   // A crowd on the map: the pin holds still, and draws no trail (theme crowdFx).
@@ -138,6 +141,7 @@ export function MapAvatar({
       look={look}
       lookMine={lookMine}
       still={calm}
+      story={story}
     />
   );
   return (

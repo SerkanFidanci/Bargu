@@ -119,3 +119,21 @@ describe('why an old location is old ("Neden eski?", docs/ADR/0028)', () => {
     }
   });
 });
+
+describe('a story on the pin (docs/ADR/0035 §8)', () => {
+  beforeAll(async () => {
+    await i18n.changeLanguage('tr');
+  });
+
+  it('wears a ring outside its own and says so, new or seen; none in a shared frame', async () => {
+    const { rerender } = await render(<AvatarMarker name="Ayşe" avatar={null} story="new" />);
+    expect(screen.getByTestId('marker-story')).toBeTruthy();
+    expect(screen.getByLabelText('Ayşe, canlı konum, yeni hikayesi var')).toBeTruthy();
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} story="seen" />);
+    expect(screen.getByLabelText('Ayşe, canlı konum, hikayesi var')).toBeTruthy();
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} story="new" framed />);
+    expect(screen.queryByTestId('marker-story')).toBeNull();
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} />);
+    expect(screen.queryByTestId('marker-story')).toBeNull();
+  });
+});

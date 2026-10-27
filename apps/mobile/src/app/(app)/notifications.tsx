@@ -87,6 +87,7 @@ export default function NotificationsScreen() {
         const what = [
           muted.places ? t('notificationPrefs.comings') : null,
           muted.pokes ? t('notificationPrefs.pokes') : null,
+          muted.messages === true ? t('notificationPrefs.messages') : null,
         ]
           .filter((part) => part !== null)
           .join(' · ');
@@ -98,7 +99,9 @@ export default function NotificationsScreen() {
             variant="secondary"
             fill={false}
             onPress={() => {
-              updateMutes((all) => withPersonMuted(all, userId, { places: false, pokes: false }));
+              updateMutes((all) =>
+                withPersonMuted(all, userId, { places: false, pokes: false, messages: false }),
+              );
             }}
           />
         );

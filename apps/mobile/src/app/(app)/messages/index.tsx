@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { MessageCircle, Users } from 'lucide-react-native';
+import { Camera, MessageCircle, Users } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/features/auth/auth-store';
 import { memberName } from '@/features/circles/names';
@@ -12,10 +12,13 @@ import {
   type Conversation,
   conversations,
   personConversation,
+  storiesOf,
   unreadIn,
   useMessages,
 } from '@/features/messages/messages';
 import { loadMessagesOnce } from '@/features/messages/messages-session';
+import { StoryAvatar } from '@/features/messages/story-avatar';
+import { storyCircles } from '@/features/messages/stories';
 import {
   conversationName,
   memberIn,
@@ -28,12 +31,15 @@ import { Badge } from '@/ui/badge';
 import { EmptyState } from '@/ui/empty-state';
 import { Hint } from '@/ui/hint';
 import { ListRow } from '@/ui/list-row';
+import { PressableScale } from '@/ui/pressable-scale';
 import { Screen, SectionTitle } from '@/ui/screen';
+import { Text } from '@/ui/text';
 
 /**
- * "Mesajlar" (docs/ADR/0035 §1): the conversations of the last 24 hours, the newest first, each
- * with what came last and how many are unread; then the circles and people to start one with. A
- * friendship is the person's own conversation, not a circle's.
+ * "Mesajlar" (docs/ADR/0035 §1): stories first (one's own to share, then whoever has one, the
+ * unseen first); the conversations of the last 24 hours, the newest first, each with what came
+ * last and how many are unread; then the circles and people to start one with. A friendship is
+ * the person's own conversation, not a circle's.
  */
 export default function MessagesScreen() {
   const { t } = useTranslation();
@@ -59,8 +65,80 @@ export default function MessagesScreen() {
   const people = writablePeople(circles, me).filter(
     (person) => !started.has(personConversation(person.userId)),
   );
+  const stories = storiesOf(state, me).flatMap((person) => {
+    const member = memberIn(circles, person.userId);
+    if (person.userId !== me && member === undefined) return [];
+    return [{ ...person, member }];
+  });
+  const canShare = storyCircles(circles, me, { events: true }).length > 0;
+  const storyRow =
+    !canShare && stories.length === 0 ? null : (
+      <View style={styles.group}>
+        <SectionTitle>{t('messages.story.title')}</SectionTitle>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.stories}
+        >
+          {canShare ? (
+            <PressableScale
+              testID="story-share"
+              haptic="select"
+              accessibilityRole="button"
+              accessibilityLabel={t('messages.story.share')}
+              onPress={() => {
+                router.push('/camera');
+              }}
+              style={styles.story}
+            >
+              <View style={[styles.shareIcon, { backgroundColor: colors.primarySoft }]}>
+                <Camera color={colors.primary} size={26} strokeWidth={2.25} />
+              </View>
+              <Text variant="caption" numberOfLines={1} align="center">
+                {t('messages.story.share')}
+              </Text>
+            </PressableScale>
+          ) : null}
+          {stories.map((person) => {
+            const name =
+              person.userId === me
+                ? t('messages.story.yours')
+                : person.member === undefined
+                  ? '?'
+                  : memberName(person.member);
+            return (
+              <PressableScale
+                key={person.userId}
+                testID={`story-${person.userId}`}
+                haptic="select"
+                accessibilityRole="button"
+                accessibilityLabel={
+                  person.unseen
+                    ? t('messages.story.openNew', { name })
+                    : t('messages.story.open', { name })
+                }
+                onPress={() => {
+                  router.push({ pathname: '/story/[userId]', params: { userId: person.userId } });
+                }}
+                style={styles.story}
+              >
+                <StoryAvatar
+                  userId={person.userId}
+                  name={name}
+                  avatar={person.member?.avatar ?? null}
+                  seen={!person.unseen}
+                />
+                <Text variant="caption" numberOfLines={1} align="center">
+                  {name}
+                </Text>
+              </PressableScale>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
 
-  if (groups.length === 0 && people.length === 0 && recent.length === 0) {
+  if (groups.length === 0 && people.length === 0 && recent.length === 0 && stories.length === 0) {
     return (
       <Screen title={t('messages.title')} subtitle={t('messages.lifetime')} testID="messages">
         <EmptyState
@@ -74,6 +152,7 @@ export default function MessagesScreen() {
 
   return (
     <Screen title={t('messages.title')} subtitle={t('messages.lifetime')} testID="messages">
+      {storyRow}
       {recent.length === 0 ? (
         <Hint>{t('messages.emptyBody')}</Hint>
       ) : (
@@ -163,6 +242,15 @@ export default function MessagesScreen() {
 
 const styles = StyleSheet.create({
   group: { gap: space.sm },
+  stories: { gap: space.md, paddingVertical: space.xs },
+  story: { width: avatarSize.lg + space.lg, alignItems: 'center', gap: space.xs },
+  shareIcon: {
+    width: avatarSize.lg + space.sm,
+    height: avatarSize.lg + space.sm,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   circleIcon: {
     width: avatarSize.md,
     height: avatarSize.md,

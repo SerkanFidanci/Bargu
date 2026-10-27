@@ -135,6 +135,20 @@ export function pushText(
       conversation: body.circleId === undefined ? `p:${sender.userId}` : `c:${body.circleId}`,
     };
   }
+  if (body.kind === 'moment' || body.kind === 'shot') {
+    // A story (its ring is on their pin; the list of messages shows it too), or a screenshot of
+    // this phone's photo (docs/ADR/0035 §11, §12).
+    return {
+      title: 'Bargu',
+      body: i18n.t(body.kind === 'moment' ? 'notifications.moment' : 'notifications.shot', {
+        name: sender.name,
+      }),
+      circleId: body.kind === 'moment' ? body.circleId : '',
+      channel: SOCIAL_CHANNEL,
+      fromUserId: sender.userId,
+      route: 'messages',
+    };
+  }
   if (body.kind === 'poke') {
     // "Ayşe seni öptü 💋", "Ayşe: Nerdesin?", "Ayşe: Yoldayım" (docs/ADR/0031).
     const words =

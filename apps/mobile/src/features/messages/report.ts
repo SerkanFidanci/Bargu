@@ -1,4 +1,4 @@
-import { revealChatItem, revealDirectItem } from '@bargu/crypto';
+import { revealChatItem, revealDirectItem, toBase64url } from '@bargu/crypto';
 import type { Circle, ReportReason, ReportRequest } from '@bargu/schemas';
 
 import { useAuth } from '../auth/auth-store';
@@ -8,6 +8,7 @@ import { keys } from '../live/live-session';
 import { queryClient } from '../query-client';
 import type { ChatItem } from './messages';
 import { messagesApi } from './messages-api';
+import { keptFileOf } from './photo';
 
 /**
  * "Bildir" (docs/ADR/0035 §9): of an item, with that one item's own key and nonce (never a
@@ -55,7 +56,14 @@ function itemReport(item: ChatItem, reason: ReportReason): ReportRequest | null 
     } else {
       key = revealDirectItem({ envelope, recipient: device, sender });
     }
-    return { userId: item.from, reason, item: { envelope, ...key } };
+    // A photo's file too when this phone has it at hand; else the server uses the one it keeps.
+    const file = item.photo === undefined ? undefined : keptFileOf(item.photo.blobId);
+    return {
+      userId: item.from,
+      reason,
+      item: { envelope, ...key },
+      ...(file === undefined ? {} : { file: toBase64url(file) }),
+    };
   } catch {
     return null;
   }

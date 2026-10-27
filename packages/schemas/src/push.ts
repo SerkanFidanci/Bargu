@@ -154,6 +154,10 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
       ts: timestamp,
     })
     .strict(),
+  // A story shared to a circle: "Ayşe bir hikaye paylaştı".
+  z.object({ kind: z.literal('moment'), circleId: z.uuid(), ts: timestamp }).strict(),
+  // Someone took a screenshot of this phone's photo (Android 14+, §12); sealed to its sender only.
+  z.object({ kind: z.literal('shot'), ts: timestamp }).strict(),
   z
     .object({
       kind: z.literal('notice'),

@@ -337,6 +337,19 @@ export const storeFx = {
   slant: 20,
 } as const;
 
+/**
+ * Stories (docs/ADR/0035 §8): how long one stays before the next (its bar fills meanwhile), and
+ * the ring around a pin that has one.
+ */
+export const storyFx = {
+  show: 5_000,
+  /** The ring's width, and its gap from the pin's own ring (the cosmetic one stays inside). */
+  ring: 2.5,
+  gap: 2,
+  /** A bar of the viewer's progress. */
+  bar: 3,
+} as const;
+
 /** Haptic feedback per interaction kind (expo-haptics), see haptics.ts. */
 export const haptic = {
   select: 'selection',

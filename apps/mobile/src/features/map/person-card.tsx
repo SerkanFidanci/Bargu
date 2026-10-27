@@ -1,4 +1,5 @@
 import {
+  Aperture,
   BatteryCharging,
   BatteryLow,
   BatteryMedium,
@@ -43,6 +44,7 @@ import { IconButton } from '@/ui/icon-button';
 import { Text } from '@/ui/text';
 
 import { useNow } from '../location/clock';
+import { useMessages } from '../messages/messages';
 import { loadMuteSettings } from '../notifications/mute-session';
 import { personMutes, useMutes } from '../notifications/mutes';
 import { statusOf, useStatuses } from '../social/status';
@@ -223,7 +225,7 @@ export function PersonCard({
   from: ScreenPoint;
   /** Place name, once the map has it (null: none nearby, undefined: still looking). */
   place: string | null | undefined;
-  onAction: (action: PersonAction | 'meet' | 'message') => void;
+  onAction: (action: PersonAction | 'meet' | 'message' | 'story') => void;
   /** The card's height, so the map keeps the person visible above it. */
   onHeight: (height: number) => void;
 }) {
@@ -234,8 +236,14 @@ export function PersonCard({
   const loc = person.location?.loc ?? null;
   loadMuteSettings();
   const silenced = personMutes(useMutes(), person.userId);
-  const quiet = silenced.places || silenced.pokes;
+  const quiet = silenced.places || silenced.pokes || silenced.messages;
   const circleLabel = circleActionLabel(person);
+  // Their stories (docs/ADR/0035 §8): the same ring as on the pin opens them here too.
+  const hasStory = useMessages((state) =>
+    state.items.some(
+      (item) => item.from === person.userId && item.photo?.story === true && item.state === 'sent',
+    ),
+  );
   const status = statusOf(useStatuses(), person.userId, now);
   const minutes = loc === null ? undefined : staleMinutes(loc.ts, now);
   const states = useStates();
@@ -273,6 +281,17 @@ export function PersonCard({
         .join(' · ')}
       buttons={
         <>
+          {hasStory ? (
+            <IconButton
+              testID="card-story"
+              icon={Aperture}
+              tone="plain"
+              label={t('messages.story.openOf', { name: person.name })}
+              onPress={() => {
+                onAction('story');
+              }}
+            />
+          ) : null}
           {/* Messages and moments (docs/ADR/0035): their own conversation. */}
           <IconButton
             testID="card-message"

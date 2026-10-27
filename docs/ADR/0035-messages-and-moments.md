@@ -330,14 +330,18 @@ değişikliği olaydır; listeyi yenileme düğmesi yoktur.
 | ---------------------------------------- | ------------------------------------------ |
 | `{ kind: "chat", circleId?, photo, ts }` | "Ayşe: yeni mesaj" ya da "fotoğraf"        |
 | `{ kind: "moment", circleId, ts }`       | "Ayşe bir hikaye paylaştı"                 |
-| `{ kind: "shot", circleId?, ts }`        | "Ayşe fotoğrafının ekran görüntüsünü aldı" |
+| `{ kind: "shot", ts }`                   | "Ayşe fotoğrafının ekran görüntüsünü aldı" |
 
 - İçerik hiçbir bildirimde yok. Kim olduğunu telefon, bildirim kutusunun imzalı gönderen cihazından
   bilir.
 - Bildirimi gönderen telefon mühürler (bugünkü üye bildirimi). Sunucu yalnız uygulaması kapalı
   olana iletir.
-- Aynı sohbetten gelenler tek bildirimde toplanır.
-- Sessize alma ayarına bir bayrak eklenir: mesajlar.
+- Aynı sohbetten gelenler tek bildirimde toplanır. Uygulamada: bildirimin kimliği sohbettir
+  (`chat:<sohbet>`), yenisi eskisinin yerine geçer.
+- Sessize alma ayarına bir bayrak eklenir: mesajlar. Uygulamada "Mesajları ve hikayeleri" adıyla
+  kişinin bildirim penceresinde; mesaj, hikaye ve ekran görüntüsü haberini susturur. Eski kayıtta
+  bayrak yoksa susturulmamış sayılır.
+- "Herkesten sil" (`del`) bildirim göndermez.
 
 **İstemci seviyesi 6:**
 
@@ -352,6 +356,9 @@ değişikliği olaydır; listeyi yenileme düğmesi yoktur.
 
 - Android 14 ve sonrasında `expo-screen-capture` (kurulu) ekran görüntüsü alındığını söyler.
   Fotoğraf ya da hikaye ekranı açıkken alınırsa telefon gönderene `shot` öğesi ve bildirimi yollar.
+- Uygulamada `shot` öğesi yalnız fotoğrafı gönderene, kişisel zarfla gider (çemberin bütün
+  üyelerine değil); bildirim gövdesinde bu yüzden çember yoktur. Alan telefon, `shot`ı yalnız kendi
+  fotoğrafı içinse uygular; başkasının fotoğrafı için geleni atar.
 - Engellenmez: başka bir telefonla çekmek her zaman mümkün; engel sahte güven verir (PM).
 - `DETECT_SCREEN_CAPTURE` izni zaten manifestte ve kalmalı. Kaldırmak uygulamayı açılışta
   çökertiyor (2026-10-22, `869a7af`); `release-config.test.ts` bunu korur.

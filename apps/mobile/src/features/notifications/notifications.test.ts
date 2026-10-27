@@ -112,6 +112,20 @@ describe('notification texts', () => {
     ).toBeNull();
   });
 
+  it('word a story and a screenshot of this phone photo by who, and open the messages', () => {
+    expect(
+      pushText({ kind: 'moment', circleId: circle.id, ts: 5 }, ada.device.deviceId, contacts),
+    ).toMatchObject({
+      body: 'Test bir hikaye paylaştı',
+      route: 'messages',
+      fromUserId: ada.userId,
+    });
+    expect(pushText({ kind: 'shot', ts: 5 }, ada.device.deviceId, contacts)).toMatchObject({
+      body: 'Test fotoğrafının ekran görüntüsünü aldı',
+      route: 'messages',
+    });
+  });
+
   it('word a meeting started in the circle: who, when and where (docs/ADR/0026 §6)', () => {
     const meetAt = new Date(2026, 9, 16, 17, 30).getTime();
     const shown = pushText(
@@ -246,6 +260,22 @@ describe('muting', () => {
     expect(isMuted(mutes, place, 'bora')).toBe(true);
     mutes = withPlaceMuted(withPersonMuted(mutes, 'ada', { pokes: false }), placeId, false);
     expect(mutes).toEqual(NO_MUTES);
+  });
+
+  it('silences a person’s messages and stories apart from the rest (docs/ADR/0035 §11)', () => {
+    const mutes = withPersonMuted(NO_MUTES, 'ada', { messages: true });
+    expect(isMuted(mutes, { kind: 'message' }, 'ada')).toBe(true);
+    expect(isMuted(mutes, { kind: 'bump' }, 'ada')).toBe(false);
+    expect(isMuted(mutes, { kind: 'message' }, 'bora')).toBe(false);
+    // What was saved before messages came is read as not muted.
+    expect(
+      isMuted(
+        { people: { ada: { places: true, pokes: true } }, places: {} },
+        { kind: 'message' },
+        'ada',
+      ),
+    ).toBe(false);
+    expect(withPersonMuted(mutes, 'ada', { messages: false })).toEqual(NO_MUTES);
   });
 });
 

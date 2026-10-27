@@ -352,13 +352,14 @@ const appConfig = ({ config }: ConfigContext): ExpoConfig => ({
         // Turkish devices get native-locales/tr.json.
         photosPermission:
           'Bargu uses a photo you pick as your profile picture. It is encrypted before it leaves your phone.',
-        // The camera stays for QR codes (expo-camera below); same text, nothing recorded.
+        // The camera stays for QR codes and photos (expo-camera below); same text.
         cameraPermission:
-          "Bargu uses the camera to read your friend's QR code. Nothing is recorded.",
+          "Bargu uses the camera to read your friend's QR code and to take the photos you share, encrypted, with your circles. It never records video or sound.",
         microphonePermission: false,
       },
     ],
-    // QR codes only (adding friends, comparing safety numbers): camera, never the microphone.
+    // QR codes (adding friends, comparing safety numbers) and photos of messages and stories
+    // (docs/ADR/0035 §4): camera, never the microphone.
     // The optional app lock (Faz 9, docs/ADR/0021): Face ID, fingerprint or the phone's passcode.
     [
       'expo-local-authentication',
@@ -372,7 +373,7 @@ const appConfig = ({ config }: ConfigContext): ExpoConfig => ({
       {
         // Turkish devices get native-locales/tr.json (see `locales` below).
         cameraPermission:
-          "Bargu uses the camera to read your friend's QR code. Nothing is recorded.",
+          "Bargu uses the camera to read your friend's QR code and to take the photos you share, encrypted, with your circles. It never records video or sound.",
         microphonePermission: false,
         recordAudioAndroid: false,
         barcodeScannerEnabled: true,

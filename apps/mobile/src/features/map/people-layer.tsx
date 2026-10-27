@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { lookAt } from '../cosmetics/look-model';
 import { useLooks, useMyLook } from '../cosmetics/look-session';
 import { memberName } from '../circles/names';
+import { storiesOf, useMessages } from '../messages/messages';
 import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
 import { bestPerPerson, type ReceivedLocation, useLocations } from '../location/receive';
@@ -83,6 +84,18 @@ export function PeopleLayer({
   // What each person wears on their pin: only what their pass holds (features/cosmetics).
   const looks = useLooks();
   const myLook = useMyLook((state) => state.look);
+  // Stories (docs/ADR/0035 §8): a ring on the pin of whoever has one, grey once all are seen.
+  const storyItems = useMessages((state) => state.items);
+  const viewed = useMessages((state) => state.viewed);
+  const rings = useMemo(
+    () =>
+      new Map(
+        storiesOf({ items: storyItems, viewed }, me.userId).map(
+          (person) => [person.userId, person.unseen ? 'new' : 'seen'] as const,
+        ),
+      ),
+    [storyItems, viewed, me.userId],
+  );
   // This phone's own pin shows a fast car, a train or a plane only while its speed is shown.
   const fastShown = useSharing((state) => speedShown(state));
   const members: PersonOnMap[] = bestPerPerson(locations).flatMap((entry) => {
@@ -137,6 +150,7 @@ export function PeopleLayer({
           heading: myFix?.hdg,
           look: lookAt(myLook, now),
           lookMine: true,
+          story: rings.get(me.userId),
         },
         // Their own pin opens their own card (the owner, 2026-10-21).
         handlers: handlersFor?.(me.userId),
@@ -163,6 +177,7 @@ export function PeopleLayer({
         charging: loc.chg,
         lowBattery: !loc.chg && loc.bat < LOW_BATTERY,
         look: lookAt(looks[entry.userId], now),
+        story: rings.get(entry.userId),
       },
       handlers: handlersFor?.(entry.userId),
       pokedAt: pokes[entry.userId],

@@ -265,7 +265,9 @@
           "stayHours": "same place, {{n}} h",
           "stayDays": "same place, days: {{n}}"
         }
-      }
+      },
+      "story": "has a story",
+      "storyNew": "has a new story"
     },
     "sheet": {
       "close": "Close"
@@ -543,7 +545,8 @@
       "title": "Notifications from {{name}}",
       "places": "Arrivals and departures",
       "pokes": "Pokes",
-      "hint": "What you turn off goes quiet on this phone only; the server never learns whom you muted."
+      "hint": "What you turn off goes quiet on this phone only; the server never learns whom you muted.",
+      "messages": "Messages and stories"
     },
     "meetingsChannel": "Meetings",
     "late": "{{name}} will be about {{minutes}} min late",
@@ -564,7 +567,9 @@
       "photo": "{{name}}: photo",
       "textAlone": "New message",
       "photoAlone": "Sent a photo"
-    }
+    },
+    "moment": "{{name}} shared a story",
+    "shot": "{{name}} took a screenshot of your photo"
   },
   "location": {
     "service": {
@@ -1380,7 +1385,8 @@
     "unmuteLabel": "Turns notifications from {{name}} back on",
     "removeFromList": "Remove from list",
     "removeFromListLabel": "Deletes this person's mute from the list",
-    "howTo": "You mute a person with the bell on their card on the map, a place on its own screen. Muting is for this phone only."
+    "howTo": "You mute a person with the bell on their card on the map, a place on its own screen. Muting is for this phone only.",
+    "messages": "Messages"
   },
   "settingsLocation": {
     "perCircle": "What one circle sees, and for how long, is changed on that circle's screen."
@@ -1446,6 +1452,54 @@
     "dock": "Messages",
     "dockUnread": "Messages, {{count}} unread",
     "chat": "Chat",
-    "write": "Write a message"
+    "write": "Write a message",
+    "camera": {
+      "take": "Take a photo",
+      "flip": "Switch camera",
+      "close": "Close",
+      "retake": "Take again",
+      "caption": "Add a caption (optional)",
+      "permissionTitle": "Camera for photos",
+      "permissionBody": "Bargu takes a photo only at that moment, with its own camera; it never looks at your gallery. The photo leaves your phone encrypted and is deleted after 24 hours.",
+      "allow": "Allow the camera",
+      "settings": "Open settings",
+      "failed": "The photo could not be prepared. Try again.",
+      "story": "Story (all my circles)",
+      "storyHint": "Event circles left out. Shown around your pin for 24 hours.",
+      "pickCircles": "Choose circles",
+      "pickPerson": "One person",
+      "share": "Share",
+      "sendTo": "Send to {{name}}",
+      "noCircles": "No circle to share with: join a circle or add a friend first.",
+      "event": "Event",
+      "sent": "Photo sent",
+      "shared": "Story shared",
+      "full": "The space for photos is full right now; try again a little later. Texts still go.",
+      "notSent": "Could not send. Tap it in the conversation to try again."
+    },
+    "openPhoto": "Opens the photo",
+    "opening": "Opening",
+    "photoFailed": "The photo could not be opened.",
+    "photoGone": "This photo's 24 hours are over.",
+    "reportPhotoBody": "This photo will be sent to Bargu unencrypted. Only this photo; nothing else.",
+    "shotBy": "Took a screenshot: {{names}}",
+    "shotSeen": "screenshot taken",
+    "story": {
+      "title": "Stories",
+      "share": "Share a story",
+      "yours": "Your story",
+      "open": "{{name}}: story",
+      "openNew": "{{name}}: new story",
+      "openOf": "See {{name}}'s story",
+      "gone": "No stories left to see.",
+      "next": "Next",
+      "previous": "Previous",
+      "photoOf": "{{name}}'s story",
+      "replied": "Reply sent",
+      "repliedTo": "Reply to {{name}}'s story",
+      "repliedToYours": "Reply to your story",
+      "reply": "Write a reply",
+      "takeBackBody": "This story is deleted from every circle you shared it with, and from the server."
+    }
   }
 }
