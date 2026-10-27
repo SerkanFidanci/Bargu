@@ -99,9 +99,30 @@ docker run --rm \
         | tr -d "\n " | grep -o "\"versionCode\":\"\{0,1\}[0-9]*" | tr -dc "0-9" || true
     }
 
+    # A corporate network can reset TLS for minutes after the burst of downloads of the install; EAS
+    # then fails at its first request (2026-10-27, three times in a row). Wait until api.expo.dev
+    # answers, and try a build that failed within two minutes (its sign-in, not Gradle) again.
+    expo_ready() {
+      for wait in 1 2 3 4 5 6 7 8 9 10; do
+        if curl -s -o /dev/null --max-time 15 https://api.expo.dev/graphql; then return 0; fi
+        echo "build-android-local: api.expo.dev not reachable yet (try $wait), waiting 30 s"
+        sleep 30
+      done
+      return 1
+    }
+    eas_build() {
+      for try in 1 2 3; do
+        expo_ready || true
+        started=$SECONDS
+        if npx --yes "$EAS_CLI" build --local --platform android --non-interactive "$@"; then return 0; fi
+        if [ $((SECONDS - started)) -gt 120 ] || [ "$try" = 3 ]; then return 1; fi
+        echo "build-android-local: EAS stopped at its start (try $try), likely the network; again in 60 s"
+        sleep 60
+      done
+    }
+
     if [ "$FORMAT" = apk ]; then
-      npx --yes "$EAS_CLI" build --local --platform android --profile preview --non-interactive \
-        --output "/out/bargu-$COMMIT.apk"
+      eas_build --profile preview --output "/out/bargu-$COMMIT.apk"
     elif [ "$SIGN" = eas ]; then
       before="$(remote_code)"
       echo "build-android-local: last versionCode on EAS: ${before:-none yet}"
