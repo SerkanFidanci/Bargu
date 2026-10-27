@@ -1475,7 +1475,8 @@
       "sent": "Fotoğraf gönderildi",
       "shared": "Hikaye paylaşıldı",
       "full": "Fotoğraf alanı şu an dolu; biraz sonra yeniden dene. Yazı gönderebilirsin.",
-      "notSent": "Gönderilemedi. Sohbette dokunup yeniden deneyebilirsin."
+      "notSent": "Gönderilemedi. Sohbette dokunup yeniden deneyebilirsin.",
+      "partly": "{{count}} yere gitmedi. O sohbetlerde dokunup yeniden dene."
     },
     "openPhoto": "Fotoğrafı açar",
     "opening": "Açılıyor",
@@ -1499,7 +1500,8 @@
       "repliedTo": "{{name}} hikayesine yanıt",
       "repliedToYours": "Hikayene yanıt",
       "reply": "Yanıt yaz",
-      "takeBackBody": "Bu hikaye paylaştığın bütün çemberlerden ve sunucudan silinir."
+      "takeBackBody": "Bu hikaye paylaştığın bütün çemberlerden ve sunucudan silinir.",
+      "one": "Hikaye"
     },
     "rules": {
       "title": "Topluluk kuralları",
@@ -1517,6 +1519,7 @@
         "violence": "şiddete kışkırtma",
         "scams": "dolandırıcılık"
       }
-    }
+    },
+    "retake": "Gönderilemedi, yeniden çek"
   }
 }

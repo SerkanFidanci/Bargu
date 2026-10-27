@@ -42,6 +42,7 @@ import { openPhoto } from '@/features/messages/photo';
 import { useRulesGate } from '@/features/messages/rules';
 import { useSafety } from '@/features/messages/safety';
 import { mediaColors, radius, space, storyFx, touchTarget, typography } from '@/theme';
+import { useEffects } from '@/theme/effects';
 import { IconButton } from '@/ui/icon-button';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
@@ -120,11 +121,19 @@ export default function StoryScreen() {
     };
   }, [photo, progress]);
 
-  // The bar fills on the UI thread; when it is full, the next story.
+  // The bar fills on the UI thread; when it is full, the next story. Sade mod "Kapalı": the bar
+  // stays still and the time still runs (QA-38).
+  const still = useEffects() === 'off';
   useEffect(() => {
     if (uri === null || paused) {
       cancelAnimation(progress);
       return;
+    }
+    if (still) {
+      const timer = setTimeout(forward, storyFx.show);
+      return () => {
+        clearTimeout(timer);
+      };
     }
     const left = (1 - progress.get()) * storyFx.show;
     progress.set(
@@ -135,7 +144,7 @@ export default function StoryScreen() {
     return () => {
       cancelAnimation(progress);
     };
-  }, [uri, paused, forward, progress]);
+  }, [uri, paused, forward, progress, still]);
 
   useScreenshotListener(() => {
     if (story === undefined || mine || photo === undefined || told.current.has(photo.blobId))

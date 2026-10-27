@@ -1,20 +1,28 @@
 import type { Avatar as AvatarData, Circle, MemberCard } from '@bargu/schemas';
 
 import { memberName, partnerOf } from '../circles/names';
-import { type Conversation, conversationTarget } from './messages';
+import {
+  type Conversation,
+  conversationTarget,
+  type MessagesState,
+  withoutConversation,
+} from './messages';
 
-/** Someone this phone shares an active circle with: who one may write to (docs/ADR/0035 §1). */
+/**
+ * Someone this phone shares a lasting circle with (not an event): who one may write to alone
+ * (docs/ADR/0035 §1). People met at an event talk in the event's own conversation.
+ */
 export interface Writable {
   userId: string;
   name: string;
   avatar: AvatarData | null;
 }
 
-/** The people this user shares an active circle with, once each, by name. */
+/** The people this user shares an active, lasting circle with, once each, by name. */
 export function writablePeople(circles: readonly Circle[], me: string | null): Writable[] {
   const people = new Map<string, Writable>();
   for (const circle of circles) {
-    if (circle.myStatus !== 'active') continue;
+    if (circle.myStatus !== 'active' || circle.kind === 'event') continue;
     for (const member of circle.members) {
       if (member.userId === me || member.status !== 'active' || people.has(member.userId)) continue;
       people.set(member.userId, {
@@ -72,4 +80,25 @@ export function isOpen(
     return writableCircles(circles).some((circle) => circle.id === target.circleId);
   }
   return writablePeople(circles, me).some((person) => person.userId === target.userId);
+}
+
+/**
+ * The conversations with one person that no lasting circle backs any more go: the last one
+ * shared was left, or only an event is (docs/ADR/0035 §8, QA-38 O2). The server deletes those
+ * items as well. A circle's own conversation is not touched here.
+ */
+export function withoutLapsed<T extends MessagesState>(
+  saved: T,
+  circles: readonly Circle[],
+  me: string | null,
+): T {
+  const writable = new Set(writablePeople(circles, me).map((person) => person.userId));
+  let kept = saved;
+  for (const conversation of new Set(saved.items.map((item) => item.conversation))) {
+    const target = conversationTarget(conversation);
+    if ('userId' in target && !writable.has(target.userId)) {
+      kept = withoutConversation(kept, conversation);
+    }
+  }
+  return kept;
 }

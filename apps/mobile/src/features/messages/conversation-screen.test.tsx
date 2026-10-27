@@ -43,6 +43,11 @@ jest.mock('@/features/messages/messages-session', () => ({
   block: (userId: string) => mockBlock(userId),
 }));
 jest.mock('@/features/messages/report', () => ({ report: jest.fn(() => Promise.resolve(true)) }));
+// Whether a failed photo's file is still at hand (photo.ts has its own tests).
+const mockCanResend = jest.fn<boolean, [string]>(() => true);
+jest.mock('@/features/messages/photo', () => ({
+  canResend: (blobId: string) => mockCanResend(blobId),
+}));
 // The community rules have their own tests (rules.test.tsx): here they are accepted.
 jest.mock('@/features/messages/rules', () => ({
   useRulesGate: () => ({
@@ -159,6 +164,39 @@ describe('a conversation', () => {
     await pressAlert('Çemberden ayrıl');
     expect(router.push).toHaveBeenCalledWith(`/circle/${CIRCLE}`);
     expect(mockBlock).not.toHaveBeenCalled();
+  });
+
+  it('asks for a new photo when a failed one can no longer be sent again (PM, M4)', async () => {
+    const failed: ChatItem = {
+      id: '0190f7a4-3333-7333-8333-000000000005',
+      conversation: `c:${CIRCLE}`,
+      from: ME,
+      at: NOW,
+      kind: 'photo',
+      state: 'failed',
+      photo: {
+        blobId: '0190f7a4-4444-7444-8444-000000000005',
+        key: 'k'.repeat(43),
+        size: 1000,
+        hash: 'h'.repeat(43),
+        w: 10,
+        h: 10,
+        story: true,
+      },
+    };
+    useMessages.setState((state) => withItem(state, failed));
+    mockCanResend.mockReturnValue(false);
+    await render(<ConversationScreen />);
+    expect(screen.getByText('Gönderilemedi, yeniden çek')).toBeTruthy();
+    // A failed story shows here, where it did not go, as a story.
+    expect(screen.getByText('Hikaye')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId(`item-${failed.id}`));
+    expect(mockTakeBack).toHaveBeenCalledWith(failed.id);
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/camera',
+      params: { to: `c:${CIRCLE}` },
+    });
+    mockCanResend.mockReturnValue(true);
   });
 
   it('can no longer be written to once the circle is gone', async () => {

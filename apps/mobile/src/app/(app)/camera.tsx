@@ -85,15 +85,21 @@ export default function CameraScreen() {
     if (taken === null) return;
     const file = sealPhoto(taken.photo);
     const words = caption.trim() === '' ? undefined : caption.trim();
-    const sending =
-      'conversation' in target
-        ? sendPhoto(target.conversation, file, words)
-        : shareStory(target.circleIds, file, words);
-    const story = 'circleIds' in target;
     setTaken(null);
     router.back();
-    void sending.then((result) => {
-      tell(result, story);
+    if ('conversation' in target) {
+      void sendPhoto(target.conversation, file, words).then((result) => {
+        tell(result, false);
+      });
+      return;
+    }
+    void shareStory(target.circleIds, file, words).then(({ result, failed, total }) => {
+      // Some of its places took it, some did not: say how many, each shows in its conversation.
+      if (failed > 0 && failed < total) {
+        toast.error(t('messages.camera.partly', { count: failed }));
+        return;
+      }
+      tell(result, true);
     });
   };
   const tell = (result: SendResult, story: boolean) => {

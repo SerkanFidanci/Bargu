@@ -63,7 +63,7 @@ const person = (circleKind: PersonView['circleKind']): PersonView => ({
   circleKind,
 });
 
-async function renderCard(circleKind: PersonView['circleKind'] = 'pair') {
+async function renderCard(circleKind: PersonView['circleKind'] = 'pair', canMessage = true) {
   const onAction = jest.fn();
   await render(
     <PersonCard
@@ -72,6 +72,7 @@ async function renderCard(circleKind: PersonView['circleKind'] = 'pair') {
       place={undefined}
       onAction={onAction}
       onHeight={jest.fn()}
+      canMessage={canMessage}
     />,
   );
   return onAction;
@@ -102,6 +103,11 @@ describe("a person's card (UX düzeni)", () => {
     const onAction = await renderCard();
     await fireEvent.press(screen.getByLabelText('Mesaj yaz'));
     expect(onAction).toHaveBeenCalledWith('message');
+  });
+
+  it('has no "Mesaj yaz" for someone met only at an event (QA-38 O2)', async () => {
+    await renderCard('group', false);
+    expect(screen.queryByLabelText('Mesaj yaz')).toBeNull();
   });
 
   it('says so when they are muted', async () => {
@@ -162,6 +168,7 @@ describe('why the location is old, on the card ("Neden eski?", docs/ADR/0028)', 
         place={undefined}
         onAction={jest.fn()}
         onHeight={jest.fn()}
+        canMessage
       />,
     );
 

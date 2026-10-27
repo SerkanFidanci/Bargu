@@ -14,6 +14,7 @@ import { useAuth } from '../auth/auth-store';
 import { useMyFix } from '../location/engine';
 import { useLocations } from '../location/receive';
 import { useMe } from '../profile/queries';
+import { writablePeople } from '../messages/names';
 import { MuteSheet } from '../notifications/mute-sheet';
 import { poke, pokeWith } from '../social/poke';
 import { type PokeChoice, PokeSheet } from '../social/poke-sheet';
@@ -259,6 +260,9 @@ export function usePeopleUi(
             act(person.userId, action);
           }}
           onHeight={onCardHeight}
+          canMessage={writablePeople(circles, myUserId).some(
+            (writable) => writable.userId === person.userId,
+          )}
         />
       )}
       {mine && me !== undefined ? (

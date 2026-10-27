@@ -1475,7 +1475,8 @@
       "sent": "Photo sent",
       "shared": "Story shared",
       "full": "The space for photos is full right now; try again a little later. Texts still go.",
-      "notSent": "Could not send. Tap it in the conversation to try again."
+      "notSent": "Could not send. Tap it in the conversation to try again.",
+      "partly": "It did not reach {{count}} of them. Tap it in those conversations to try again."
     },
     "openPhoto": "Opens the photo",
     "opening": "Opening",
@@ -1499,7 +1500,8 @@
       "repliedTo": "Reply to {{name}}'s story",
       "repliedToYours": "Reply to your story",
       "reply": "Write a reply",
-      "takeBackBody": "This story is deleted from every circle you shared it with, and from the server."
+      "takeBackBody": "This story is deleted from every circle you shared it with, and from the server.",
+      "one": "Story"
     },
     "rules": {
       "title": "Community rules",
@@ -1517,6 +1519,7 @@
         "violence": "inciting violence",
         "scams": "scams"
       }
-    }
+    },
+    "retake": "Not sent, take it again"
   }
 }

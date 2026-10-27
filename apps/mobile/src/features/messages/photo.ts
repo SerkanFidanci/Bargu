@@ -8,7 +8,7 @@ import {
   toBase64url,
 } from '@bargu/crypto';
 import { CHAT_PHOTO_MAX_SIDE, type ChatPhoto } from '@bargu/schemas';
-import { File } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 import { messagesApi } from './messages-api';
@@ -191,4 +191,30 @@ export function forgetPhotoFiles(): void {
   files.clear();
   uploaded.clear();
   uploading.clear();
+}
+
+/**
+ * Whether a photo can still be sent again: uploaded already, or its sealed file still in memory.
+ * After a restart it cannot; its bubble then asks for a new photo (PM, M4).
+ */
+export function canResend(blobId: string): boolean {
+  return uploaded.has(blobId) || files.has(blobId);
+}
+
+/** Where the camera and the image tools write their unencrypted pictures, under the cache. */
+const PICTURE_FOLDERS = ['Camera', 'ImageManipulator'] as const;
+
+/**
+ * At start: whatever the camera or the image tools left behind (the app was closed while a photo
+ * was being made small) goes, so no unencrypted picture outlives its moment (QA-38).
+ */
+export function sweepPictureFiles(): void {
+  for (const name of PICTURE_FOLDERS) {
+    try {
+      const folder = new Directory(Paths.cache, name);
+      if (folder.exists) folder.delete();
+    } catch {
+      // Nothing there, or the system cleared its cache already.
+    }
+  }
 }

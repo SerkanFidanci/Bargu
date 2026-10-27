@@ -45,6 +45,16 @@ Bu ADR bu kuralların nasıl yapılacağını yazar.
 Kişiye yazmak için ortak bir çember yeter, arkadaş (ikili çember) olmak gerekmez. Bir kişiyle ikili
 çember varsa, o çemberin sohbeti o kişiyle yapılan kişisel sohbettir; ayrı bir sohbet açılmaz.
 
+**Kalıcı çember (PM kararı, QA-38 O2):** Kişiye yazmak (ve "Bir kişi" ile fotoğraf) için iki kişinin
+etkinlik dışı bir ortak çemberi olmalı. Yalnız aynı etkinlikte olan iki kişi o etkinliğin grup
+sohbetinde yazışır. Kişi kartında "Mesaj" görünmez, sunucu da kişisel öğeyi kabul etmez
+(`app.lasting_circle_between`, migration 0043). 15–17 için de aynı.
+
+**İkili çembere hikaye (QA-38 Y1):** "Hikaye (bütün çemberlerim)" arkadaşa da gider. İkili çemberin
+sohbeti kişiseldir; hikaye de oraya `story: true` taşıyan kişisel zarfla gider. Arkadaşta pinde halka
+olarak görünür, sohbette değil. Bildirimi `moment`, çembersiz. Bir hikaye bazı yerlere gidip bazılarına
+gitmezse, gitmediği her yer kendi sohbetinde "gönderilemedi" diye görünür ve oradan yeniden denenir.
+
 Mesaj ve hikaye duraklamış çemberde de çalışır ve bedavadır (iletişim temel hizmet).
 
 **Gönderme ekranı (PM eki 3).** Fotoğraf çekildikten sonra tek ekranda üç seçenek çıkar. Sahibin
@@ -255,7 +265,9 @@ değişikliği olaydır; listeyi yenileme düğmesi yoktur.
 - **Hikayenin varsayılan kitlesi** (PM eki 2): etkinlik çemberleri hariç bütün çemberler. Etkinlik
   çemberinde bir kez görülen insanlar olabilir; etkinlik çemberi ancak "Çember seç"te elle seçilirse
   hikayeyi görür.
-- **Kişisel öğe:** yalnız gönderen ve alıcı. Ortak çember kalmazsa yeni öğe gönderilemez.
+- **Kişisel öğe:** yalnız gönderen ve alıcı. Etkinlik dışı ortak çember kalmazsa (§1) yeni öğe
+  gönderilemez. İkisinin aralarındaki kişisel öğeler de o an sunucudan ve telefonlardan silinir
+  (QA-38 O2; sunucuda tetikleyici, telefonda çember listesi değişince).
 - **Hikaye halkası:** bir kişinin bana görünen, süresi dolmamış hikayesi varsa haritadaki pininin
   çevresinde ince, renk geçişli bir dış halka çıkar. Süs halkasının (ADR 0025) dışında durur, onunla
   karışmaz; açılınca griye döner. Sade modda hareket etmez.

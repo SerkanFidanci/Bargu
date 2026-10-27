@@ -19,6 +19,7 @@ import {
   safeAge,
   safeFoldedWords,
 } from '../social/safe';
+import { loadBlocked } from '../messages/blocked';
 import { pokeFromTap } from '../social/poke';
 import { keepSpot, showSpot } from '../social/safe-spot';
 import { vault } from '../storage/vault';
@@ -210,6 +211,15 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
   // encrypted), and nowhere else. Tapping the notification, or the line in the open app, shows it.
   const spot = shown.spot;
   if (spot !== undefined) keepSpot(store, spot, now);
+  // Someone this user blocked: their messages, stories and screenshot notices never show, even if
+  // a notification got here (docs/ADR/0035 §6, QA-38 O1).
+  if (
+    shown.fromUserId !== null &&
+    (body.kind === 'chat' || body.kind === 'moment' || body.kind === 'shot') &&
+    loadBlocked(store).includes(shown.fromUserId)
+  ) {
+    return 'muted';
+  }
   if (
     shown.fromUserId !== null &&
     // Never muted: a person's "I'm safe" is not a poke, and a safety message is not to be missed.

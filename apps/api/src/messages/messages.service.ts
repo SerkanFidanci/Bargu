@@ -27,7 +27,7 @@ import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { isPgError, PG } from '../db/pg-errors.js';
 import { blocks, chatItems, circleMembers, circles, consents, mediaBlobs } from '../db/schema.js';
-import { EventsService } from '../events/events.service.js';
+import { BELOW_MESSAGES_ROOM, EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
 import { currentDevices, Notifier } from '../push/notifier.js';
@@ -129,10 +129,14 @@ export class MessagesService {
       if (refusal !== null) return { refused: refusal };
       const stored = await this.store(tx, auth, envelope, { circleId, blobId });
       if (stored === null) return { refused: 'INVALID' };
+      const others = members.filter((m) => m.userId !== auth.userId).map((m) => m.userId);
+      // Whoever blocked the sender: the item is stored for the others, and never reaches them,
+      // live or as a notification (docs/ADR/0035 §6, QA-38 O1); their list leaves it out too.
+      const blockers = await this.blockersAmong(tx, others);
       return {
         record: stored,
         audience: {
-          others: members.filter((m) => m.userId !== auth.userId).map((m) => m.userId),
+          others: others.filter((userId) => !blockers.has(userId)),
           circleId,
           device: null,
         },
@@ -226,7 +230,7 @@ export class MessagesService {
       return members.map((member) => member.userId).filter((id) => id !== auth.userId);
     });
     if (audience === null) throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
-    this.events.emitLive(audience, 'chat.gone', { id: itemId });
+    this.events.emitLive(audience, 'chat.gone', { id: itemId }, BELOW_MESSAGES_ROOM);
   }
 
   /**
@@ -236,8 +240,17 @@ export class MessagesService {
    */
   async upload(auth: AuthContext, media: Media): Promise<void> {
     const bytes = fromBase64url(media.bytes);
-    // Before the day's count: a refused photo does not use one of the 50.
-    await this.database.asUser(auth.userId, (tx) => this.requireRules(tx, auth.userId));
+    // Before the day's count: a refused photo does not use one of the 50, nor does the same
+    // upload again (no answer reached the phone the first time).
+    const again = await this.database.asUser(auth.userId, async (tx) => {
+      await this.requireRules(tx, auth.userId);
+      const [own] = await tx
+        .select({ id: mediaBlobs.id })
+        .from(mediaBlobs)
+        .where(and(eq(mediaBlobs.id, media.id), eq(mediaBlobs.ownerId, auth.userId)));
+      return own !== undefined;
+    });
+    if (again) return;
     const day = await this.limiter.hit(
       `media-day:${auth.userId}`,
       MESSAGE_LIMITS.photosPerDay,
@@ -246,6 +259,8 @@ export class MessagesService {
     if (!day.allowed)
       throw new ApiError(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMITED', day.retryAfter);
     await this.database.asUser(auth.userId, async (tx) => {
+      // One upload at a time weighs the space, so two at once cannot pass it together.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('bargu:media-space'))`);
       const [total] = (await tx.execute<{ bytes: string }>(sql`SELECT app.media_bytes() AS bytes`))
         .rows;
       if (Number(total?.bytes ?? 0) + bytes.length > this.env.MEDIA_MAX_BYTES) {
@@ -292,9 +307,20 @@ export class MessagesService {
   async block(auth: AuthContext, userId: string): Promise<void> {
     if (userId === auth.userId) throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
     await this.limit(auth, 'blocks');
-    await this.database.asUser(auth.userId, (tx) =>
-      tx.insert(blocks).values({ blockerId: auth.userId, blockedId: userId }).onConflictDoNothing(),
-    );
+    try {
+      await this.database.asUser(auth.userId, (tx) =>
+        tx
+          .insert(blocks)
+          .values({ blockerId: auth.userId, blockedId: userId })
+          .onConflictDoNothing(),
+      );
+    } catch (error) {
+      // No such account (QA-38): a 404, as for anything else that is not there.
+      if (isPgError(error, PG.foreignKeyViolation)) {
+        throw new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND');
+      }
+      throw error;
+    }
   }
 
   async unblock(auth: AuthContext, userId: string): Promise<void> {
@@ -323,6 +349,20 @@ export class MessagesService {
     if (row === undefined || row.version < COMMUNITY_RULES_VERSION) {
       throw new ApiError(HttpStatus.FORBIDDEN, 'RULES_REQUIRED');
     }
+  }
+
+  /** Which of these people blocked the caller (each learns nothing of the others' blocks). */
+  private async blockersAmong(tx: Tx, userIds: readonly string[]): Promise<Set<string>> {
+    if (userIds.length === 0) return new Set();
+    const rows = (
+      await tx.execute<{ id: string }>(
+        sql`SELECT v.id FROM (VALUES ${sql.join(
+          userIds.map((userId) => sql`(${userId}::uuid)`),
+          sql`, `,
+        )}) AS v(id) WHERE app.blocked_by(v.id)`,
+      )
+    ).rows;
+    return new Set(rows.map((row) => row.id));
   }
 
   private async allowance(auth: AuthContext, conversation: string): Promise<ChatRefusal | null> {
@@ -396,7 +436,7 @@ export class MessagesService {
     audience: Audience,
     pushes: DevicePushes,
   ): Promise<void> {
-    this.events.emitLive(audience.others, 'chat', { item: record });
+    this.events.emitLive(audience.others, 'chat', { item: record }, BELOW_MESSAGES_ROOM);
     if (pushes.length === 0) return;
     const online = await this.events.online(audience.others);
     const offline = audience.others.filter((userId) => !online.has(userId));

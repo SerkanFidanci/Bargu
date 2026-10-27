@@ -6,7 +6,6 @@ import {
   type Circle,
 } from '@bargu/schemas';
 import { AppState } from 'react-native';
-import { z } from 'zod';
 import { create } from 'zustand';
 
 import { onSignedOut, useAuth } from '../auth/auth-store';
@@ -35,8 +34,10 @@ import {
   withoutPerson,
   withViewed,
 } from './messages';
+import { loadBlocked, saveBlocked } from './blocked';
 import { messagesApi } from './messages-api';
-import { forgetPhotoFiles } from './photo';
+import { withoutLapsed } from './names';
+import { forgetPhotoFiles, sweepPictureFiles } from './photo';
 
 /**
  * Messages and moments on this phone (docs/ADR/0035): read from the vault once it is open, kept
@@ -47,8 +48,6 @@ import { forgetPhotoFiles } from './photo';
 
 /** The people this user blocked, as the server says (only theirs). */
 export const useBlocked = create<{ blocked: readonly string[] }>(() => ({ blocked: [] }));
-const BLOCKED_KEY = 'messages:blocked:v1';
-const blockedSchema = z.array(z.uuid());
 
 const cachedCircles = () => queryClient.getQueryData<Circle[]>(circlesKey) ?? [];
 
@@ -58,13 +57,7 @@ export function loadMessagesOnce(): boolean {
   if (!isVaultOpen()) return false;
   const store = vault();
   const saved = loadMessages(store, Date.now());
-  let blocked: readonly string[] = [];
-  const raw = store.get(BLOCKED_KEY);
-  if (raw !== undefined) {
-    const parsed = blockedSchema.safeParse(JSON.parse(raw));
-    if (parsed.success) blocked = parsed.data;
-  }
-  useBlocked.setState({ blocked });
+  useBlocked.setState({ blocked: loadBlocked(store) });
   useMessages.setState({ ...saved, waitingRecords: [], loaded: true });
   scheduleExpiry();
   return true;
@@ -103,7 +96,7 @@ export async function refreshBlocked(): Promise<void> {
   try {
     const blocked = await messagesApi.blocked();
     useBlocked.setState({ blocked });
-    if (isVaultOpen()) vault().set(BLOCKED_KEY, JSON.stringify(blocked));
+    if (isVaultOpen()) saveBlocked(vault(), blocked);
   } catch {
     // The list kept from before stays.
   }
@@ -114,7 +107,7 @@ export async function block(userId: string): Promise<void> {
   await messagesApi.block(userId);
   const blocked = [...new Set([...useBlocked.getState().blocked, userId])];
   useBlocked.setState({ blocked });
-  if (isVaultOpen()) vault().set(BLOCKED_KEY, JSON.stringify(blocked));
+  if (isVaultOpen()) saveBlocked(vault(), blocked);
   useMessages.setState((state) => withoutPerson(state, userId));
 }
 
@@ -122,7 +115,7 @@ export async function unblock(userId: string): Promise<void> {
   await messagesApi.unblock(userId);
   const blocked = useBlocked.getState().blocked.filter((id) => id !== userId);
   useBlocked.setState({ blocked });
-  if (isVaultOpen()) vault().set(BLOCKED_KEY, JSON.stringify(blocked));
+  if (isVaultOpen()) saveBlocked(vault(), blocked);
 }
 
 /** Up to here a conversation was read (it shows no unread count until something newer). */
@@ -210,6 +203,10 @@ onCirclesGone((isGone) => {
 const CIRCLES_HASH = JSON.stringify(circlesKey);
 queryClient.getQueryCache().subscribe((event) => {
   if (event.query.queryHash !== CIRCLES_HASH || event.type !== 'updated') return;
+  const circles = queryClient.getQueryData<Circle[]>(circlesKey);
+  if (circles !== undefined && loadMessagesOnce()) {
+    useMessages.setState((state) => withoutLapsed(state, circles, useAuth.getState().userId));
+  }
   const waiting = useMessages.getState().waitingRecords;
   if (waiting.length > 0) receive(waiting);
 });
@@ -217,6 +214,9 @@ queryClient.getQueryCache().subscribe((event) => {
 AppState.addEventListener('change', (state) => {
   if (state === 'active' && useMessages.getState().loaded) scheduleExpiry();
 });
+
+// Unencrypted pictures a closed app left in the cache go at once, at every start (QA-38).
+sweepPictureFiles();
 
 // Nothing of one account may survive into the next sign-in (the vault itself is destroyed too).
 onSignedOut(() => {

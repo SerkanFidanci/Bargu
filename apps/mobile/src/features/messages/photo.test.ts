@@ -8,7 +8,16 @@ jest.mock('./messages-api', () => ({
     download: (blobId: string) => mockDownload(blobId),
   },
 }));
-jest.mock('expo-file-system', () => ({ File: jest.fn() }));
+const mockFolders = new Map<string, { exists: boolean; delete: jest.Mock }>();
+jest.mock('expo-file-system', () => ({
+  File: jest.fn(),
+  Paths: { cache: 'cache' },
+  Directory: jest.fn((_parent: string, name: string) => {
+    const folder = mockFolders.get(name) ?? { exists: false, delete: jest.fn() };
+    mockFolders.set(name, folder);
+    return folder;
+  }),
+}));
 jest.mock('expo-image-manipulator', () => ({ ImageManipulator: {}, SaveFormat: { JPEG: 'jpeg' } }));
 
 import {
@@ -17,6 +26,7 @@ import {
   openPhoto,
   sealPhoto,
   sealedFileOf,
+  sweepPictureFiles,
   uploadPhoto,
 } from './photo';
 
@@ -70,5 +80,16 @@ describe('a photo of messages and moments', () => {
     forgetPhotoFiles();
     expect(keptFileOf(file.blobId)).toBeUndefined();
     expect(keptFileOf(randomUuid())).toBeUndefined();
+  });
+});
+
+describe('the pictures a closed app left', () => {
+  it('go at start: the camera’s and the image tools’ folders, and nothing else', () => {
+    mockFolders.set('Camera', { exists: true, delete: jest.fn() });
+    mockFolders.set('ImageManipulator', { exists: false, delete: jest.fn() });
+    sweepPictureFiles();
+    expect(mockFolders.get('Camera')?.delete).toHaveBeenCalledTimes(1);
+    expect(mockFolders.get('ImageManipulator')?.delete).not.toHaveBeenCalled();
+    expect([...mockFolders.keys()].sort()).toEqual(['Camera', 'ImageManipulator']);
   });
 });

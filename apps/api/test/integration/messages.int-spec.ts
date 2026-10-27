@@ -11,6 +11,7 @@ import {
   revealChatItem,
   sealChatPhoto,
   sealDirect,
+  sealPush,
   type SenderKey,
   toBase64url,
 } from '@bargu/crypto';
@@ -21,6 +22,7 @@ import {
   type Circle,
   COMMUNITY_RULES_VERSION,
   type DirectEnvelope,
+  type Invite,
   type Media,
   type RulesState,
 } from '@bargu/schemas';
@@ -31,6 +33,7 @@ import { REDIS, type RedisClient } from '../../src/infra/redis/redis.client.js';
 import { EmailJobs } from '../../src/jobs/email-jobs.js';
 import { MessagesSweeper } from '../../src/messages/messages-sweeper.js';
 import { REPORT_CONTENT_CONTEXT } from '../../src/messages/reports.service.js';
+import { Notifier } from '../../src/push/notifier.js';
 import { call } from './support/client.js';
 import { createTestApp, type TestApp, testEnv } from './support/app.js';
 import { as, circleWith, type Person, person } from './support/people.js';
@@ -558,5 +561,148 @@ describe('the community rules (K14, Play rule for user content)', () => {
     expect(refused.statusCode).toBe(403);
     // Alice accepted long ago: hers stays hers.
     expect((await as(test, alice, 'GET', '/v1/me/rules')).json<RulesState>().rules).not.toBeNull();
+  });
+});
+
+describe('QA-38 findings', () => {
+  const ready = async (name: string) => {
+    const who = await person(test, name);
+    await acceptRules(who);
+    return who;
+  };
+  const eventWith = async (owner: Person, ...others: Person[]): Promise<Circle> => {
+    const created = await as(test, owner, 'POST', '/v1/circles', {
+      kind: 'event',
+      name: 'Piknik',
+      endsAt: Date.now() + 3 * 3600_000,
+    });
+    const event = created.json<Circle>();
+    const qr = (
+      await as(test, owner, 'POST', '/v1/invites', { kind: 'circle', circleId: event.id })
+    ).json<Invite>();
+    for (const who of others)
+      await as(test, who, 'POST', '/v1/invites/accept', { token: qr.token });
+    return (await as(test, owner, 'GET', `/v1/circles/${event.id}`)).json<Circle>();
+  };
+  const direct = (from: Person, to: Person) =>
+    sealDirect({ sender: from.device, recipient: publicKeys(to), payload: text('Yalnız sana') });
+  const directCount = async (a: Person, b: Person) =>
+    (
+      await test.admin.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM app.chat_items
+          WHERE (sender_id = $1 AND recipient_id = $2) OR (sender_id = $2 AND recipient_id = $1)`,
+        [a.userId, b.userId],
+      )
+    ).rows[0]?.n;
+  const fileCount = async (blobId: string) =>
+    (
+      await test.admin.query<{ n: number }>(
+        'SELECT count(*)::int AS n FROM app.media_blobs WHERE id = $1',
+        [blobId],
+      )
+    ).rows[0]?.n;
+
+  it('O1: a blocker is not sent the notification of the blocked sender’s circle item', async () => {
+    const [sender, blocker, other] = await Promise.all([
+      ready('Rahatsız3'),
+      ready('Engelleyen3'),
+      ready('Üçüncü3'),
+    ]);
+    const circle = await circleWith(test, sender, blocker, other);
+    expect((await as(test, blocker, 'PUT', `/v1/blocks/${sender.userId}`)).statusCode).toBe(204);
+    const forward = vi.spyOn(test.app.get(Notifier), 'forward');
+    const pushes = [blocker, other].map((who) => ({
+      userId: who.userId,
+      deviceId: who.device.deviceId,
+      sealed: sealPush({
+        recipient: { deviceId: who.device.deviceId, dhKey: who.device.dh.publicKey },
+        sender: sender.device,
+        body: { kind: 'chat', circleId: circle.id, photo: false, ts: Date.now() },
+      }),
+    }));
+    expect(
+      await toCircle(sender, circle.id, { envelope: circleItem(sender, circle), pushes }),
+    ).toEqual({ ok: true });
+    const devices = forward.mock.calls.at(-1)?.[1];
+    expect(devices?.has(other.userId)).toBe(true);
+    expect(devices?.has(blocker.userId)).toBe(false);
+    forward.mockRestore();
+  });
+
+  it('O2: two people write alone only while they share a circle that is not an event', async () => {
+    const [host, guest] = await Promise.all([ready('Ev sahibi'), ready('Misafir')]);
+    const event = await eventWith(host, guest);
+    expect(await toPerson(host, guest.userId, { envelope: direct(host, guest) })).toEqual({
+      refused: 'NOT_MEMBER',
+    });
+    const eventItem = circleItem(host, event);
+    expect(await toCircle(host, event.id, { envelope: eventItem })).toEqual({ ok: true });
+
+    const home = await circleWith(test, host, guest);
+    const lasting = await circleWith(test, guest, host);
+    expect(await toPerson(host, guest.userId, { envelope: direct(host, guest) })).toEqual({
+      ok: true,
+    });
+    expect(await toPerson(guest, host.userId, { envelope: direct(guest, host) })).toEqual({
+      ok: true,
+    });
+    // One lasting circle still shared: what they wrote alone stays.
+    await as(test, guest, 'POST', `/v1/circles/${home.id}/leave`);
+    expect(await directCount(host, guest)).toBe(2);
+    // The last one goes: so does what they wrote alone, at once; the event's own conversation stays.
+    await as(test, host, 'POST', `/v1/circles/${lasting.id}/leave`);
+    expect(await directCount(host, guest)).toBe(0);
+    expect(ids(await list(guest))).toContain(eventItem.id);
+  });
+
+  it('blocking someone who does not exist is a 404, not a 500', async () => {
+    expect((await as(test, alice, 'PUT', `/v1/blocks/${randomUuid()}`)).statusCode).toBe(404);
+  });
+
+  it('a file goes with the last item that shares it, at once', async () => {
+    const owner = await ready('Paylaşan');
+    const second = await circleWith(test, owner, bob);
+    const first = await circleWith(test, owner, carol);
+    const key = generatePhotoKey();
+    const blobId = randomUuid();
+    const sealed = sealChatPhoto(key, blobId, new Uint8Array(500).fill(3));
+    await upload(owner, sealed, blobId);
+    const story = (circle: Circle): ChatPayload => ({
+      kind: 'photo',
+      id: randomUuid(),
+      blobId,
+      key: toBase64url(key),
+      size: sealed.length,
+      hash: photoHashOf(sealed),
+      w: 10,
+      h: 10,
+      story: true,
+      ts: Date.now() + (circle.id === first.id ? 0 : 1),
+    });
+    const one = circleItem(owner, first, story(first));
+    const two = circleItem(owner, second, story(second));
+    await toCircle(owner, first.id, { envelope: one, blobId });
+    await toCircle(owner, second.id, { envelope: two, blobId });
+    expect((await as(test, owner, 'DELETE', `/v1/chat/${one.id}`)).statusCode).toBe(204);
+    expect(await fileCount(blobId)).toBe(1);
+    expect((await as(test, owner, 'DELETE', `/v1/chat/${two.id}`)).statusCode).toBe(204);
+    expect(await fileCount(blobId)).toBe(0);
+  });
+
+  it('the same upload again does not count as another of the day’s photos', async () => {
+    const owner = await ready('Tekrar');
+    const blobId = randomUuid();
+    const sealed = sealChatPhoto(generatePhotoKey(), blobId, new Uint8Array(100));
+    expect((await upload(owner, sealed, blobId)).response.statusCode).toBe(204);
+    expect((await upload(owner, sealed, blobId)).response.statusCode).toBe(204);
+    const counted = await test.app.get<RedisClient>(REDIS).get(`rl:media-day:${owner.userId}`);
+    expect(counted).toBe('1');
+  });
+
+  it('a report of a person answers the same whether the account exists or not', async () => {
+    const reportPerson = (userId: string) =>
+      as(test, alice, 'POST', '/v1/reports', { userId, reason: 'spam' });
+    expect((await reportPerson(randomUuid())).statusCode).toBe(204);
+    expect((await reportPerson(stranger.userId)).statusCode).toBe(204);
   });
 });

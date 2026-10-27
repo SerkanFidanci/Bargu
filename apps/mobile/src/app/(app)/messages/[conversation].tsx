@@ -28,6 +28,7 @@ import { loadMessagesOnce, markRead } from '@/features/messages/messages-session
 import { conversationName, isOpen, memberIn } from '@/features/messages/names';
 import { retry, sendText, takeBack } from '@/features/messages/outbox';
 import { useRulesGate } from '@/features/messages/rules';
+import { canResend } from '@/features/messages/photo';
 import { useSafety } from '@/features/messages/safety';
 import { radius, space, touchTarget, typography, useTheme } from '@/theme';
 import { EmptyState } from '@/ui/empty-state';
@@ -203,6 +204,13 @@ export default function ConversationScreen() {
                       void retry(item.id);
                     });
                   }}
+                  onRetake={() => {
+                    // Its file is gone (the app restarted): a new photo for here, this one goes.
+                    rules.ensure(() => {
+                      void takeBack(item.id);
+                      router.push({ pathname: '/camera', params: { to: conversation } });
+                    });
+                  }}
                   onLongPress={() => {
                     actions(item);
                   }}
@@ -270,6 +278,7 @@ function Bubble({
   author,
   replyTo,
   onRetry,
+  onRetake,
   onLongPress,
 }: {
   item: ChatItem;
@@ -278,6 +287,8 @@ function Bubble({
   /** "Hikayene yanıt": the story it answers (docs/ADR/0035 §1). */
   replyTo: string | null;
   onRetry: () => void;
+  /** A photo that can no longer be sent again: take a new one. */
+  onRetake: () => void;
   onLongPress: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -288,6 +299,8 @@ function Bubble({
   });
   const failed = item.state === 'failed';
   const photo = item.kind === 'photo';
+  // Not sent, and its file is gone with a restart: it cannot be tried again, only taken again.
+  const lost = failed && item.photo !== undefined && !canResend(item.photo.blobId);
   const shot = mine && (item.shotBy?.length ?? 0) > 0;
   return (
     <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs]}>
@@ -306,16 +319,24 @@ function Bubble({
         haptic="select"
         accessibilityRole={photo ? 'button' : 'text'}
         accessibilityHint={
-          failed ? t('messages.failed') : photo ? t('messages.openPhoto') : undefined
+          lost
+            ? t('messages.retake')
+            : failed
+              ? t('messages.failed')
+              : photo
+                ? t('messages.openPhoto')
+                : undefined
         }
         onPress={
-          failed
-            ? onRetry
-            : photo && item.state === 'sent'
-              ? () => {
-                  router.push({ pathname: '/photo/[item]', params: { item: item.id } });
-                }
-              : undefined
+          lost
+            ? onRetake
+            : failed
+              ? onRetry
+              : photo && item.state === 'sent'
+                ? () => {
+                    router.push({ pathname: '/photo/[item]', params: { item: item.id } });
+                  }
+                : undefined
         }
         onLongPress={onLongPress}
         style={[
@@ -330,7 +351,8 @@ function Bubble({
           <View style={styles.photo}>
             <Camera color={mine ? colors.onPrimary : colors.text} size={18} strokeWidth={2.25} />
             <Text variant="body" color={mine ? 'onPrimary' : 'text'}>
-              {item.photo?.caption ?? t('messages.photo')}
+              {item.photo?.caption ??
+                t(item.photo?.story === true ? 'messages.story.one' : 'messages.photo')}
             </Text>
           </View>
         ) : (
@@ -341,7 +363,7 @@ function Bubble({
       </PressableScale>
       <Text variant="caption" color={failed ? 'danger' : 'textMuted'} style={styles.meta}>
         {failed
-          ? t('messages.failed')
+          ? t(lost ? 'messages.retake' : 'messages.failed')
           : item.state === 'sending'
             ? t('messages.sending')
             : shot

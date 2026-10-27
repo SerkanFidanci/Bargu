@@ -30,6 +30,7 @@ import {
 } from '../social/safe-spot';
 import { PUSH_FRESH_MS, showPush, WATCH_FRESH_MS } from './background-push';
 import { SAFE_QUIET_CHANNEL } from './channels';
+import { saveBlocked } from '../messages/blocked';
 import { saveMutes } from './mutes';
 import { safeOfResponse } from './push';
 import { EMPTY_CONTACTS, type PushContacts, saveContacts } from './push-contacts';
@@ -415,6 +416,21 @@ describe('Güvendeyim from a member (docs/ADR/0029)', () => {
     });
     expect(await showPush(fromAyse({ kind: 'bump', circleId, ts: NOW }), NOW)).toBe('muted');
     expect(await showPush(fromAyse(safe()), NOW)).toBe('shown');
+  });
+
+  it('of messages is one per conversation, and none at all from someone blocked (QA-38 O1)', async () => {
+    const chat: PushBody = { kind: 'chat', circleId, photo: false, ts: NOW };
+    expect(await showPush(fromAyse(chat), NOW)).toBe('shown');
+    expect(scheduled).toHaveBeenCalledWith(
+      expect.objectContaining({ identifier: `chat:c:${circleId}` }),
+    );
+    saveBlocked(mockStore, [ayseUserId]);
+    expect(await showPush(fromAyse(chat), NOW)).toBe('muted');
+    expect(await showPush(fromAyse({ kind: 'moment', circleId, ts: NOW }), NOW)).toBe('muted');
+    expect(await showPush(fromAyse({ kind: 'shot', ts: NOW }), NOW)).toBe('muted');
+    // Her "I'm safe" is not a message: it still shows.
+    expect(await showPush(fromAyse(safe()), NOW)).toBe('shown');
+    saveBlocked(mockStore, []);
   });
 
   it('is shown once, by its id, in whatever box: the message itself may have come first', async () => {

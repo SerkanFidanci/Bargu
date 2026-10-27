@@ -219,6 +219,7 @@ export function PersonCard({
   place,
   onAction,
   onHeight,
+  canMessage,
 }: {
   person: PersonView;
   /** Where on screen their avatar was tapped. */
@@ -228,6 +229,11 @@ export function PersonCard({
   onAction: (action: PersonAction | 'meet' | 'message' | 'story') => void;
   /** The card's height, so the map keeps the person visible above it. */
   onHeight: (height: number) => void;
+  /**
+   * A lasting circle is shared, so they can be written to alone: someone met only at an event is
+   * written to in the event's conversation (docs/ADR/0035 §1, QA-38 O2).
+   */
+  canMessage: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
@@ -293,15 +299,17 @@ export function PersonCard({
             />
           ) : null}
           {/* Messages and moments (docs/ADR/0035): their own conversation. */}
-          <IconButton
-            testID="card-message"
-            icon={MessageCircle}
-            tone="plain"
-            label={t('messages.write')}
-            onPress={() => {
-              onAction('message');
-            }}
-          />
+          {canMessage ? (
+            <IconButton
+              testID="card-message"
+              icon={MessageCircle}
+              tone="plain"
+              label={t('messages.write')}
+              onPress={() => {
+                onAction('message');
+              }}
+            />
+          ) : null}
           <IconButton
             testID="card-notifications"
             icon={quiet ? BellOff : Bell}

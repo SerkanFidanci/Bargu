@@ -37,6 +37,11 @@ export interface SocketConnection {
   resumes: number;
 }
 export const userRoom = (userId: string) => `user:${userId}`;
+/**
+ * Sockets of apps too old for messages (client level below CLIENT_LEVEL_FOR.messages): chat events
+ * leave them out (docs/ADR/0035 §11, QA-38).
+ */
+export const BELOW_MESSAGES_ROOM = 'level:below-messages';
 export const deviceRoom = (deviceId: string) => `device:${deviceId}`;
 
 /** Stream ids are "<ms>-<seq>"; compares them numerically. */
@@ -76,9 +81,11 @@ export class EventsService implements OnModuleDestroy {
    * the latest matters (locations) and that phones catch up on by asking for a snapshot. The name
    * is one of LIVE_EVENTS (packages/schemas), so the app's contract test knows every message.
    */
-  emitLive(userIds: Iterable<string>, name: LiveEvent, payload: unknown): void {
+  emitLive(userIds: Iterable<string>, name: LiveEvent, payload: unknown, except?: string): void {
     const rooms = [...new Set(userIds)].map(userRoom);
-    if (rooms.length > 0) this.server?.to(rooms).emit(name, payload);
+    if (rooms.length === 0) return;
+    const to = this.server?.to(rooms);
+    (except === undefined ? to : to?.except(except))?.emit(name, payload);
   }
 
   /** A live message to every connected phone (things that are the same for everyone). */

@@ -241,7 +241,13 @@ export function withoutPerson<T extends Saved>(saved: T, userId: string): T {
 
 /** Everything of a circle this phone is no longer in (it left, it ended). */
 export function withoutCircle<T extends Saved>(saved: T, circleId: string): T {
-  const conversation = circleConversation(circleId);
+  return withoutConversation(saved, circleConversation(circleId));
+}
+
+/** One conversation, its items and when it was read (a circle left, a person no longer shared). */
+export function withoutConversation<T extends Saved>(saved: T, conversation: Conversation): T {
+  const kept = saved.items.some((item) => item.conversation === conversation);
+  if (!kept && saved.read[conversation] === undefined) return saved;
   return {
     ...saved,
     items: saved.items.filter((item) => item.conversation !== conversation),
@@ -268,10 +274,15 @@ export function unreadTotal(saved: Saved, me: string): number {
   ).length;
 }
 
-/** The items shown in a conversation, the newest first (stories are not among them). */
+/**
+ * The items shown in a conversation, the newest first. Stories are not among them, except one's
+ * own that did not reach this conversation: there it can be tried again (QA-38 Y1).
+ */
 export function itemsOf(saved: Pick<Saved, 'items'>, conversation: Conversation): ChatItem[] {
   return saved.items
-    .filter((item) => item.conversation === conversation && !isStory(item))
+    .filter(
+      (item) => item.conversation === conversation && (!isStory(item) || item.state === 'failed'),
+    )
     .sort((a, b) => b.at - a.at);
 }
 

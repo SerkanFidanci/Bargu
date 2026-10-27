@@ -414,3 +414,13 @@ describe('story rings on the map', () => {
     expect(storyRingsOf('')).toEqual(new Map());
   });
 });
+
+describe('a story that did not go (QA-38 Y1)', () => {
+  it('shows in the conversation it did not reach, to be tried again', () => {
+    const base = photo({ from: ME, state: 'failed' });
+    if (base.photo === undefined) throw new Error('a photo');
+    const failed: ChatItem = { ...base, photo: { ...base.photo, story: true } };
+    const went: ChatItem = { ...failed, id: randomUuid(), state: 'sent' };
+    expect(itemsOf(stateWith(failed, went), group)).toEqual([failed]);
+  });
+});

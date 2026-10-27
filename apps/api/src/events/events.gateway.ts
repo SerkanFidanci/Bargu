@@ -5,7 +5,12 @@ import {
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
-import { CLIENT_LEVEL_QUERY, clientLevelOf, type ResumeReply } from '@bargu/schemas';
+import {
+  CLIENT_LEVEL_FOR,
+  CLIENT_LEVEL_QUERY,
+  clientLevelOf,
+  type ResumeReply,
+} from '@bargu/schemas';
 import type { Server, Socket } from 'socket.io';
 import { z } from 'zod';
 
@@ -14,7 +19,13 @@ import { RequestSignatures } from '../auth/request-signatures.js';
 import { ApiError } from '../common/api-error.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
-import { deviceRoom, EventsService, type SocketConnection, userRoom } from './events.service.js';
+import {
+  BELOW_MESSAGES_ROOM,
+  deviceRoom,
+  EventsService,
+  type SocketConnection,
+  userRoom,
+} from './events.service.js';
 
 /** Path of the event socket; the handshake signature covers "GET <this path>". */
 export const EVENTS_PATH = '/v1/events';
@@ -100,7 +111,13 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection {
     const { auth, token } = connection;
     // One connection per device: a newer one replaces the older (it is not in the room yet).
     this.events.disconnectDevice(auth.deviceId);
-    await socket.join([userRoom(auth.userId), deviceRoom(auth.deviceId)]);
+    const level = clientLevelOf(socket.handshake.query[CLIENT_LEVEL_QUERY]);
+    await socket.join([
+      userRoom(auth.userId),
+      deviceRoom(auth.deviceId),
+      // An app that cannot read messages is not sent them (docs/ADR/0035 §11).
+      ...(level < CLIENT_LEVEL_FOR.messages ? [BELOW_MESSAGES_ROOM] : []),
+    ]);
     // A sign-out or device change that committed while the handshake ran closed the device's
     // sockets before this one joined: check again now that it is in the rooms.
     try {

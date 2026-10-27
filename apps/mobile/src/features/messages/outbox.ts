@@ -4,6 +4,7 @@ import type { ChatPayload, ChatSendReply, Circle, PushBody } from '@bargu/schema
 import { ApiError } from '../auth/api-client';
 import { useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
+import { partnerOf } from '../circles/names';
 import { verifiedBundle } from '../keys/bundle-cache';
 import { keys } from '../live/live-session';
 import { contactsOf } from '../notifications/push-contacts';
@@ -60,8 +61,8 @@ export function pushOf(payload: ChatPayload, circleId: string | undefined): Push
   switch (payload.kind) {
     case 'text':
     case 'photo':
-      if (payload.kind === 'photo' && payload.story && circleId !== undefined) {
-        return { kind: 'moment', circleId, ts: payload.ts };
+      if (payload.kind === 'photo' && payload.story) {
+        return { kind: 'moment', ...(circleId === undefined ? {} : { circleId }), ts: payload.ts };
       }
       return {
         kind: 'chat',
@@ -210,23 +211,56 @@ export function sendPhoto(
   });
 }
 
+/** How a story went: all of it, or how many of its circles it did not reach. */
+export interface StoryResult {
+  result: SendResult;
+  /** Circles (and friends) it did not reach: their conversation shows it, to try again. */
+  failed: number;
+  total: number;
+}
+
+/**
+ * Where a story goes for each circle: a circle's own conversation, or for a friendship the friend
+ * alone (a pair talks as the two people, docs/ADR/0035 §1; the server takes no circle item there).
+ * Each place once.
+ */
+export function storyTargets(
+  circleIds: readonly string[],
+  circles: readonly Circle[],
+  me: string,
+): Conversation[] {
+  const targets = new Set<Conversation>();
+  for (const circleId of circleIds) {
+    const circle = circles.find((candidate) => candidate.id === circleId);
+    if (circle?.kind !== 'pair') {
+      targets.add(circleConversation(circleId));
+      continue;
+    }
+    const partner = partnerOf(circle, me);
+    if (partner !== undefined) targets.add(personConversation(partner.userId));
+  }
+  return [...targets];
+}
+
 /**
  * A story (docs/ADR/0035 §1, §4): one photo, uploaded once, with an item of its own for each
- * circle, its key sealed in each circle's envelope. What did not go can be tried again.
+ * circle (sealed in each circle's envelope, or to the friend alone for a friendship), all marked as
+ * a story. What did not go shows in its conversation, to be tried again.
  */
 export async function shareStory(
   circleIds: readonly string[],
   file: PhotoFile,
   caption?: string,
-): Promise<SendResult> {
+): Promise<StoryResult> {
   const me = useAuth.getState().userId;
-  if (me === null || circleIds.length === 0) return 'failed';
+  const targets = me === null ? [] : storyTargets(circleIds, cachedCircles(), me);
+  if (me === null || targets.length === 0) return { result: 'failed', failed: 0, total: 0 };
   const at = Date.now();
   const results = await Promise.all(
-    circleIds.map((circleId) =>
+    targets.map((conversation) =>
       sendItem({
         id: randomUuid(),
-        conversation: circleConversation(circleId),
+        conversation,
         from: me,
         at,
         kind: 'photo',
@@ -235,7 +269,12 @@ export async function shareStory(
       }),
     ),
   );
-  return results.find((result) => result !== 'sent') ?? 'sent';
+  const missed = results.filter((result) => result !== 'sent');
+  return {
+    result: missed[0] ?? 'sent',
+    failed: missed.length,
+    total: results.length,
+  };
 }
 
 /** Tries a failed item again, as it was (the server keeps an id once). */

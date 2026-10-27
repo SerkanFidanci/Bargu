@@ -38,7 +38,7 @@ import { useAuth } from '../auth/auth-store';
 import { circlesKey } from '../circles/circle-cache';
 import { queryClient } from '../query-client';
 import { EMPTY_MESSAGES, useMessages } from './messages';
-import { pushOf, shareStory } from './outbox';
+import { pushOf, shareStory, storyTargets } from './outbox';
 import { sealPhoto } from './photo';
 
 const ME = randomUuid();
@@ -71,12 +71,44 @@ describe('what a closed app is told of an item', () => {
 
   it('a story as a story, a screenshot as one, and nothing of an item taken back', () => {
     expect(pushOf(photo(true), circleId)).toEqual({ kind: 'moment', circleId, ts: NOW });
+    // A story to a friend alone (a friendship talks as the two people): a story all the same.
+    expect(pushOf(photo(true), undefined)).toEqual({ kind: 'moment', ts: NOW });
     expect(
       pushOf({ kind: 'shot', id: randomUuid(), target: randomUuid(), ts: NOW }, undefined),
     ).toEqual({ kind: 'shot', ts: NOW });
     expect(
       pushOf({ kind: 'del', id: randomUuid(), target: randomUuid(), ts: NOW }, circleId),
     ).toBeNull();
+  });
+});
+
+describe('where a story goes (QA-38 Y1)', () => {
+  const member = (userId: string) => ({
+    userId,
+    role: 'member' as const,
+    status: 'active' as const,
+    username: null,
+    displayName: 'Test',
+    avatar: null,
+    device: null,
+  });
+  it('to a circle as the circle, to a friendship as the friend alone, each place once', () => {
+    const FRIEND = randomUuid();
+    const pair: Circle = {
+      id: randomUuid(),
+      kind: 'pair',
+      name: null,
+      epoch: 1,
+      epochStartedAt: 0,
+      myRole: 'owner',
+      myStatus: 'active',
+      members: [member(ME), member(FRIEND)],
+    };
+    const family: Circle = { ...pair, id: randomUuid(), kind: 'family', name: 'Aile' };
+    expect(storyTargets([family.id, pair.id, pair.id], [family, pair], ME)).toEqual([
+      `c:${family.id}`,
+      `p:${FRIEND}`,
+    ]);
   });
 });
 
@@ -111,7 +143,7 @@ describe('a story', () => {
         file,
         'deniz',
       ),
-    ).resolves.toBe('sent');
+    ).resolves.toEqual({ result: 'sent', failed: 0, total: 2 });
 
     expect(mockUpload).toHaveBeenCalledTimes(1);
     expect(mockUpload.mock.calls[0]?.[0]).toBe(file.blobId);

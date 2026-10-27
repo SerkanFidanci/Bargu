@@ -143,7 +143,7 @@ export function pushText(
       body: i18n.t(body.kind === 'moment' ? 'notifications.moment' : 'notifications.shot', {
         name: sender.name,
       }),
-      circleId: body.kind === 'moment' ? body.circleId : '',
+      circleId: body.kind === 'moment' ? (body.circleId ?? '') : '',
       channel: SOCIAL_CHANNEL,
       fromUserId: sender.userId,
       route: 'messages',
