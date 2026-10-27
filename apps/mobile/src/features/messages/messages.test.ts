@@ -26,6 +26,7 @@ import {
   withState,
   withViewed,
 } from './messages';
+import { storyRingKey, storyRingsOf } from './stories';
 
 function memoryStore(): KeyValueStore & { data: Map<string, string> } {
   const data = new Map<string, string>();
@@ -395,5 +396,21 @@ describe('stories', () => {
     expect(withViewed(state, 'file', NOW + 1)).toBe(state);
     expect(expired(state, NOW + CHAT_LIFETIME_MS - 1).viewed).toEqual({ file: NOW });
     expect(expired(state, NOW + CHAT_LIFETIME_MS + 1).viewed).toEqual({});
+  });
+});
+
+describe('story rings on the map', () => {
+  it('come as a short text that changes only when a ring does, and back', () => {
+    const blob = randomUuid();
+    const base = photo({ at: NOW - 100 });
+    if (base.photo === undefined) throw new Error('a photo');
+    const shared: ChatItem = { ...base, photo: { ...base.photo, blobId: blob, story: true } };
+    const state = stateWith(shared);
+    const key = storyRingKey(state, ME);
+    expect(key).toBe(`${ALI}:n`);
+    expect(storyRingKey(withItem(state, text()), ME)).toBe(key);
+    const seen = storyRingKey(withViewed(state, blob, NOW), ME);
+    expect(storyRingsOf(seen)).toEqual(new Map([[ALI, 'seen']]));
+    expect(storyRingsOf('')).toEqual(new Map());
   });
 });

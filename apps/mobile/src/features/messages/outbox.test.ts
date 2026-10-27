@@ -12,6 +12,9 @@ jest.mock('expo-secure-store', () => ({
   setItemAsync: jest.fn(() => Promise.resolve()),
   deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
+// photo.ts reads the image tools' native modules, which a Linux run (CI) does not have.
+jest.mock('expo-file-system', () => ({ File: jest.fn() }));
+jest.mock('expo-image-manipulator', () => ({ ImageManipulator: {}, SaveFormat: { JPEG: 'jpeg' } }));
 const mockSenderKeys = new Map<string, SenderKey>();
 jest.mock('../live/live-session', () => ({
   keys: () => ({
