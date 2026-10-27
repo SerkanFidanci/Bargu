@@ -486,7 +486,7 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 - Prod: en az yetkili DB rolü, şifreli yedek (WAL-G) + restore testi, Redis ACL + TLS, firewall, Caddy (TLS 1.3, HSTS).
 - SPKI pinning (2 yedek pin) + rotasyon planı.
 - EAS Build/Submit; OTA güncellemeleri kod imzalı veya kapalı; `runtimeVersion` fingerprint policy.
-- **Play derleme ve imza (`docs/play-store/KONTROL-LISTESI.md`):** K1 AAB profili (EAS ve yerel betik), K2 upload key (depoya girmez, sahip iki yerde yedekler), K3 targetSdk 36, K4 artan versionCode, K5 `app.bargu` son onay, K6 Play App Signing sertifikası sunucudaki Play Integrity izin listesine, K8 inceleyici için demo hesap, K9 Open-Meteo ticari plan ya da kendi sunucu, K12 kalıcı alan adı (sahip kararı). 14 günlük kapalı testin saati erken başlasın diye K1–K4 hesap açılır açılmaz yapılabilir.
+- **Play derleme ve imza (`docs/play-store/KONTROL-LISTESI.md`):** K1 AAB profili (EAS ve yerel betik), K2 upload key (depoya girmez, sahip iki yerde yedekler), K3 targetSdk 36, K4 artan versionCode, K5 `app.bargu` son onay, K6 Play App Signing sertifikası sunucudaki Play Integrity izin listesine, K8 inceleyici için demo hesap, K9 Open-Meteo ticari plan ya da kendi sunucu, K12 kalıcı alan adı: **bargu.app** (proje sahibi 2026-10-23). Geliştirici markası Otenus: Play'de geliştirici adı "Otenus", geliştirici sitesi otenus.com (Bargu ürün ve gizlilik sayfasıyla), destek support@otenus.com. Bargu'nun hizmet adresleri bargu.app altında (ör. api.bargu.app); sunucu değişince yalnız DNS değişir, uygulama yeniden derlenmez. 14 günlük kapalı testin saati erken başlasın diye K1–K4 hesap açılır açılmaz yapılabilir.
 - **Önce Google Play:** 13 Kasım 2023'ten sonra açılan kişisel geliştirici hesabı, üretime çıkmadan önce en az 12 test kullanıcısıyla 14 gün kesintisiz kapalı test yapmak zorunda ([Google](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)). Hesap ve 12 kişilik test grubu Faz 10'dan önce hazırlanır (proje sahibi); bu grup ilk lansman grubunun çekirdeği olabilir. iOS yayını Apple üyeliğinden sonra.
 - **Deneme mağazaya taşınır:** gerçek ödemeye geçince 21 günlük deneme, Google Play'in kendi ücretsiz deneme teklifiyle verilir (Google hesabı başına bir kez); hesabı silip yeniden açarak yeni deneme alma riski böylece kapanır (QA 19 P5, ADR 0024).
 - **İleri uyumluluk:** telefon bütün sunucu cevaplarını yeni alanları atlayarak okusun; istekler katı kalsın. Böylece sunucuya alan eklenince kurulu APK'lar bozulmaz (32b0f2d'de çember ve üye kartı için yapıldı). Tanımadığı tür değerini (yeni istek ya da bildirim türü) de bozulmadan atlasın. Sunucu, yeni bir türü onu tanımayan eski sürüme (x-bargu-client seviyesi düşük) göndermesin (2c'de ebeveyn isteklerindeki "purchase" türüyle başladı). Şifreli profil içeriği de tanımadığı alanı atar (b85ac9d); tanımadığı içerik türünü alıcı yok sayar.
@@ -497,7 +497,7 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
   - Ayrıca eski anahtar döneminde mühürlenen kayıtlı yerler, buluşma belgeleri ve 14 günlük çember geçmişi, onları yeniden mühürleyecek başka etkin bir üye yoksa yeni telefonda açılmaz.
   - Seçenekler (ADR ile): "telefon değiştiriyorum" akışında eski telefondan yenisine QR ile kasa aktarımı; geçiş anahtarı ya da parolayla şifreli hesap yedeği (Açık Kararlar'daki "uzun yedek"); çemberdeki her etkin üyenin uygulamasının yerleri kendiliğinden yeniden mühürlemesi.
   - Küçük düzeltme: geri dönen kullanıcıya yaş sorusu sorulmasın ya da sorunun yok sayıldığı açıkça yazsın.
-- **İmzalı sunucu haberleri (QA 28 B-1, kapalı test kapısı):** bütün sunucu haberleri (ADR 0016 notice) sunucunun ayrı bir anahtarıyla imzalanır; imza alıcı cihazı, zamanı ve haber kimliğini kapsar. Telefon gömülü açık anahtarla doğrular, tazelik ve tekrar denetimi yapar. İmzasız haber atılır. Kapalı test, telefon tarafı yayında olmadan başlamaz; üretim için ayrı anahtar.
+- **İmzalı sunucu haberleri (QA 28 B-1, kapalı test kapısı; ✅ staging'de 2026-10-23, MIN_CLIENT_LEVEL=5, eski sürümler 426 alıyor):** bütün sunucu haberleri (ADR 0016 notice) sunucunun ayrı bir anahtarıyla imzalanır; imza alıcı cihazı, zamanı ve haber kimliğini kapsar. Telefon gömülü açık anahtarla doğrular, tazelik ve tekrar denetimi yapar. İmzasız haber atılır. Kapalı test, telefon tarafı yayında olmadan başlamaz; üretim için ayrı anahtar.
 - **Süs geçiş belgesi için üretim imza anahtarı:** ayrı bir anahtar ve kid üretilir, açık anahtar üretim derlemesine girer. O zamana kadar üretim derlemesi hiçbir süs belgesine güvenmez, yani süsler görünmez (ADR 0025 §2).
 - **Emülatörde duman testi** (2026-10-21'deki donmadan sonra): Jest, Reanimated worklet'lerini JS thread'de çalıştırdığı için UI thread hatalarını görmez; bc5f925'teki worklet olmayan fonksiyon çağrısı telefonu dondurdu. Her APK'dan önce bir Android emülatöründe kısa bir açılış ve harita testi (CI'da ya da yerelde). O zamana kadar `worklet-calls` testi bu hata türünü yakalar.
 - **Geliştirici araçları production paketinden derleme zamanında çıkar** (QA 25): bugün kapalı da olsa sürü denemesi, test satın alma ve kripto ölçümü kodu pakette duruyor; ölçüm katmanı gibi bayrakla tamamen dışarıda kalsın. Doğrulama `expo export --clear` ile.
@@ -558,8 +558,56 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 ## 7. Açık Kararlar
 
 - **Arkaplan konum:** Transistorsoft (önerilen, ücretli) vs `expo-location` + `expo-task-manager` (ücretsiz, daha az güvenilir).
-- **Hosting:** Hetzner (AB) + KVKK standart sözleşme (önerilen) vs Türkiye'de sunucu.
-- **Marka:** renk paleti, logo, display font.
+- **Hosting:** kapalı test bugünkü staging sunucusunda (proje sahibi 2026-10-23, seçenek A; ADR 0034). Canlıya geçerken Türkiye'de bir sunucuya taşınır; böylece yurt dışı aktarım sorunu da kalkar. A'nın riskleri bedava önlemlerle azaltılır: gece ve dağıtım öncesi şifreli yedek, sunucu dışında kopya, geriye uyumlu migration'lar. Hesap verisi AB'de tutulduğu sürece KVKK'daki yurt dışı aktarım şartı (standart sözleşme ve bildirim) avukata sorulur.
+- **Marka:** renk paleti ve display font. Logo proje sahibinden geldi (2026-10-23, ADR 0008 eki); ay yıldız marka tescilinde engel olabilir, avukata sorulacak.
+- **Mesajlaşma ve anlık hikaye (ADR 0035; 0032 ve 0033'ün yerine geçti):** 2026-10-23'te PM kararıyla kapalı test sonrasına kalmıştı. Proje sahibi 2026-10-27'de yapılmasına karar verdi: "hikaye de olsun anlık paylaşım foto sadece o şekilde paylaşılabilsin hikayeyi birine de paylaşabilirsin herkese de ... farklı modül yapmaya gerek yok ... 24 saatte de silinsin mesajlar. diğer tüm detayları belirle sen". PM'in belirlediği kurallar:
+  - **Tek modül:** Yazılı mesaj ve anlık fotoğraf aynı yerde. Fotoğraf yalnızca uygulamanın kamerasıyla o an çekilir; galeriden yükleme ve video yok.
+  - **Kime:** Bir kişiye, bir çembere ya da "hikaye" olarak bütün çemberlerine (ya da seçtiklerine). Yalnızca çember üyeleri arasında; yabancı, keşfet ya da herkese açık akış yok.
+  - **Ömür:** Her şey gönderildikten 24 saat sonra sunucudan ve telefonlardan silinir. Hikaye, haritada kişinin pininin çevresinde halka olarak görünür.
+  - **Gizlilik:** Uçtan uca şifreli; sunucu yalnızca şifreli kopyayı ve kimin kime gönderdiğini görür. Bildirimde içerik yok. Android 14+'da ekran görüntüsü alınınca gönderene haber verilir. Ekran görüntüsü engellenmez, çünkü başka bir telefonla fotoğrafı çekmek yine mümkün; engel sahte bir güven verir.
+  - **Güvenlik (Play kullanıcı içeriği ve çocuk güvenliği şartları):** her mesaj ve hikayede "Bildir" (bildiren kişinin telefonu içeriği açıp bize gönderir, kişi bunu bilerek yapar); kişiyi "Engelle"; otenus.com'da topluluk kuralları ve çocuk güvenliği standartları sayfaları; iletişim support@otenus.com. Çocuk istismarı bildiriminde içerik saklanır, hesap kapatılır ve yetkililere bildirilir. İçerik taranmaz (uçtan uca şifreleme); denetim bildirime dayanır.
+  - **15–17:** Aynı kurallar; ebeveyn mesajları göremez. Bildir ve engelle her ekranda bir dokunuş uzakta.
+  - **Sınırlar:** Kişi başına günde en çok 50 fotoğraf ve 500 mesaj; fotoğraf telefonda küçültülür (en çok ~500 KB); sunucuda fotoğraflar için toplam disk sınırı ve dolarken uyarı (staging rastamen'le ortak).
+  - **Ödeme:** Mesaj ve hikaye duraklamış çemberde de çalışır, bedava (iletişim temel hizmet).
+  - **Belgeler:** Gizlilik politikası güncellenir (şifreli mesaj ve fotoğraf, 24 saat; bildirilen içerik açık hâliyle 90 gün ya da yasal süre). Play'deki "Uygulama içeriği" beyanları (kullanıcı içeriği, çocuk güvenliği) güncellenir. Avukata sorulacaklar listesine eklenir.
+  - **Tasarım:** [ADR 0035](docs/ADR/0035-messages-and-moments.md) (`ee79eea`). PM 2026-10-27'de şu eklerle onayladı:
+    - zarflara ve dosyaya anahtar bağlılığı (bildirme kanıtı yalnız Poly1305'e dayanmasın);
+    - hikayenin varsayılan kitlesinde etkinlik çemberleri yok, yalnız elle eklenir;
+    - etkinlik çemberi silinince içindeki öğeler de silinir;
+    - çekimden sonra tek ekranda "Hikaye / Çember seç / Bir kişi";
+    - sunucu kurulumu (dosya dizini, env) apply-pending adımı olarak, sahip onayıyla;
+    - Engelle ekranı "konumunu gizlemez, çemberden ayrıl" der.
+
+    Cevaplar:
+    - okundu bilgisi yok;
+    - staging fotoğraf diski 2 GB, %80'de uyarı;
+    - bildirim e-postası support@otenus.com, içeriksiz.
+
+    İstemci seviyesi 6. `MIN_CLIENT_LEVEL` herkes yeni APK'yı kurana kadar 5'te kalır.
+  - **Zaman:** Kod onaydan hemen sonra 5 dilimde başlar: M0 kripto (Opus), M1 sunucu, M2 yazı, M3 fotoğraf ve hikaye, M4 QA ve PM belgeleri.
+  - **Durum (2026-10-27 14:50):** M0–M3 main'de, CI yeşil.
+    - Commitler: M0 `9c0b0fd`; M1 `85ddbf8` ve `e31dae5` (staging'de, 41 migration); M2 `03bb2f4`; M3 `f883385` ve `54dddc5`.
+    - QA-38 test oturumunda.
+    - Play şartı olarak eklendi: ilk gönderimden önce topluluk kurallarını kabul (K14); sunucudaki /gizlilik kopyası yenilenecek.
+    - PM belgeleri güncellendi: IZINLER, VERI-GUVENLIGI, GIZLILIK-POLITIKASI, MAGAZA-METNI, KONTROL-LISTESI (C13, C14, K14) ve yeni TOPLULUK-KURALLARI.md.
+    - otenus.com'a iki sayfa eklenecek: /bargu/kurallar ve /bargu/cocuk-guvenligi. Bu işi ayrı bir oturum yapar; sahibin başlatması gerekir.
+  - **QA-38 (2026-10-27):**
+    - Kripto, yedek, sınırlar, günlükler ve 15–17 temiz; testler yeşil.
+    - Y1: "Hikaye (bütün çemberlerim)" QR arkadaşa gitmiyordu.
+    - O1: engellenen kişinin çember mesajı yine canlı ve bildirim olarak geliyordu.
+    - O2: yalnız etkinlikte karşılaşanlar kişisel mesaj yazabiliyordu. **PM kararı:** kişisel mesaj için etkinlik dışı bir ortak çember gerekir; o çember gidince ikisi arasındaki kişisel öğeler silinir; etkinlikte yalnız grup sohbeti var.
+    - 8 düşük bulgunun hepsi bu APK'dan önce düzelir.
+    - Y1, O1 ve O2 için hedefli yeniden denetim yapılacak.
+  - **APK şartları:**
+    1. QA-38'in bütün bulguları düzelir ve hedefli yeniden denetimden geçer.
+    2. K14 yapılır.
+    3. Sahip iki sunucu adımını onaylar: `install-backup.sh --apply`, ardından `apply-pending.sh --min-level 5` (adım 3b: `MEDIA_MAX_BYTES` 2 GB, `OPS_EMAIL`).
+
+    Bilinen v1 sınırları:
+    - Android 14'ten eski telefonda ekran görüntüsü haberi yok.
+    - Gönderilemeyen fotoğraf yeniden denenmez; "Gönderilemedi, yeniden çek" yazar.
+    - Sohbette fotoğraf "Fotoğraf" balonu olarak görünür.
+  - **Sürüm kuralı (sahip, 2026-10-27):** "hepsini tamamlamadan yeni sürüm çıkmasın". Mesajlaşma ve hikayenin hepsi bitip testlerden ve QA turundan geçmeden yeni APK çıkmaz. Bekleyen düzeltmeler (52f338f, mağaza 7de32c1 ve sonrası) o APK'ya biner. İstisna yalnızca gerçek bir çökme ya da güvenlik sorunu; o zaman da önce PM karar verir.
 - **Fiyatlar (PM önerisi, 2026-10-16; piyasa denemesiyle değişebilir):** Bargu+ ₺99,99/ay ya da ₺799,99/yıl; tek süs paketi ₺29,99, sezon paketi ₺49,99; etkinlik paketi ₺199–499 (Faz 11). Öğrenci indirimi doğrulama yolu bulununca. ₺99,99'luk aboneliğin net getirisi yaklaşık ₺57. Para modelinin kendisi kararlaştırıldı (Bölüm 1, Faz 9B).
 - **Yaş sınırı ve doğrulama:** hukuki görüşe bağlı (Faz 9).
 - **Güvendeyim SMS yedeği:** şebeke çökünce işe yarar ama SMS düz metindir; konumsuz "iyiyim" SMS'i mi, hiç SMS yok mu?

@@ -6,13 +6,13 @@ Metinde bilerek **yok:** fiyat, "Bargu+" ayrıntısı (ödeme akışı henüz ya
 
 ## Genel
 
-| Alan                | Değer                                                         |
-| ------------------- | ------------------------------------------------------------- |
-| Kategori            | İletişim (alternatif: Sosyal)                                 |
-| Etiketler           | Konum paylaşımı, arkadaşlar, aile, gizlilik                   |
-| Varsayılan dil      | Türkçe (tr-TR); ikinci dil İngilizce (en-US)                  |
-| Destek e-postası    | `destek@…` (sahip belirler)                                   |
-| Gizlilik politikası | [GIZLILIK-POLITIKASI.md](GIZLILIK-POLITIKASI.md) yayın adresi |
+| Alan                | Değer                                                                                                           |
+| ------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Kategori            | İletişim (Sosyal seçilirse Play çocuk güvenliği beyanı zorunlu olur; sayfası yine hazır, TOPLULUK-KURALLARI.md) |
+| Etiketler           | Konum paylaşımı, arkadaşlar, aile, gizlilik                                                                     |
+| Varsayılan dil      | Türkçe (tr-TR); ikinci dil İngilizce (en-US)                                                                    |
+| Destek e-postası    | `destek@…` (sahip belirler)                                                                                     |
+| Gizlilik politikası | [GIZLILIK-POLITIKASI.md](GIZLILIK-POLITIKASI.md) yayın adresi                                                   |
 
 ## Türkçe
 
@@ -40,13 +40,14 @@ SENİN KONTROLÜNDE
 GÜNLÜK HAYAT İÇİN
 • Yerler: ev, okul, iş gibi yerler tanımla. "Ayşe eve vardı" bildirimi al. Yer adları da şifrelidir.
 • Dürt: arkadaşına tek dokunuşla "neredesin?" de.
+• Mesaj ve anlık fotoğraf: çemberinle yazış, o an çektiğin fotoğrafı bir kişiye, bir çembere ya da hikaye olarak herkese gönder. Hepsi uçtan uca şifreli ve 24 saatte silinir.
 • Etkinlik çemberi: konsert, düğün, gezi için süreli çember aç. QR ile katılsınlar; etkinlik bitince çember ve ona bağlı her şey silinir.
 • Etkinlik planı: buluşma saati, yer ve oylama; "geç kalacağım" bildirimi.
 • İsteğe bağlı çember geçmişi: kapalı başlar, sen açarsan son 14 günü şifreli saklar; kimin görebildiği ekranda yazar, tek dokunuşla kapatıp silebilirsin.
 • Haritada yağmur, kar, sis gibi hava efektleri. Hava bilgisi senin konumuna göre sorulmaz.
 
 GİZLİLİK ÖNCELİKLİ
-• Konum, profil fotoğrafı, yer adları ve geçmiş telefonda şifrelenir (uçtan uca şifreleme).
+• Konum, mesajlar, fotoğraflar, yer adları ve geçmiş telefonda şifrelenir (uçtan uca şifreleme).
 • Sunucuya düz koordinat gitmez. Canlı konum sunucuda yalnızca şifreli ve en çok 24 saat durur.
 • Harita kendi sunucumuzda; konumun üçüncü bir harita servisine gitmez.
 • Reklam yok. Verini satmayız.
@@ -85,13 +86,14 @@ YOU STAY IN CONTROL
 FOR EVERYDAY LIFE
 • Places: set home, school, work. Get "Ayşe arrived home" notifications. Place names are encrypted too.
 • Poke: ask "where are you?" with one tap.
+• Messages and instant photos: chat with your circle, and send a photo you take right now to one person, one circle, or everyone as a story. All end-to-end encrypted and deleted after 24 hours.
 • Event circles: make a temporary circle for a concert, wedding or trip. People join by QR, and when the event ends the circle and everything attached to it is deleted.
 • Event planning: meeting time, place and polls, plus "I'll be late" notices.
 • Optional circle history: off by default. If you turn it on, the last 14 days are stored encrypted; the screen shows who can see it, and one tap turns it off and deletes it.
 • Weather effects on the map, such as rain, snow and fog. The weather is not requested for your location.
 
 PRIVACY FIRST
-• Location, profile photo, place names and history are encrypted on your phone (end-to-end encryption).
+• Location, messages, photos, place names and history are encrypted on your phone (end-to-end encryption).
 • No plain coordinates are sent to the server. Live location sits on the server only in encrypted form, for at most 24 hours.
 • Maps are served from our own server, so no third-party map service learns where you look.
 • No ads. We do not sell your data.
@@ -106,13 +108,13 @@ Need help? support@…
 
 ## Görseller (Play ölçüleri; yüklemeden önce Console'daki güncel ölçüleri doğrula)
 
-| Görsel                  | Ölçü / biçim                                                                                                                  | Not                                                                                                                                                                                              |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Uygulama simgesi        | **512 × 512 px**, PNG (32 bit), ≤1024 KB                                                                                      | Köşeyi Play yuvarlar, köşeleri kendin yuvarlama. Marka moru `#5B34F2` üstüne beyaz pin. Kaynak: `apps/mobile/assets/images/icon.png`; `scripts/build-icons.mjs` 512'ye çıkarabilir (kod oturumu) |
-| Öne çıkan görsel        | **1024 × 500 px**, JPEG ya da 24 bit PNG (saydamlık yok)                                                                      | Önemli yazı/logo ortada. Slogan: "Bargu bile konumunu göremez."                                                                                                                                  |
-| Telefon ekran görüntüsü | En az 2, en çok 8; JPEG/PNG; her kenar 320–3840 px; uzun kenar kısa kenarın 2 katını aşmasın. Önerilen **1080 × 1920** (9:16) | Öne çıkarılma için en az 4 adet, 1080 px ve üstü önerilir                                                                                                                                        |
-| Tablet ekranları        | Şimdilik gerekmez (`supportsTablet` iOS'ta kapalı; Android'de tablet sayfası zorunlu değil)                                   |                                                                                                                                                                                                  |
-| Tanıtım videosu         | Yok (YouTube bağlantısı isteğe bağlı)                                                                                         |                                                                                                                                                                                                  |
+| Görsel                  | Ölçü / biçim                                                                                                                  | Not                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Uygulama simgesi        | **512 × 512 px**, PNG (32 bit), ≤1024 KB                                                                                      | Köşeyi Play yuvarlar, köşeleri kendin yuvarlama. Logo (2026-10-23, ADR 0008 eki): beyaz zemin üstünde harita iğnesi biçiminde lacivert-turuncu "b"; içinde dağlar, nehir, kartal, köşede ay yıldız. Kaynak: `apps/mobile/assets/brand/bargu-logo.png`; simgeyi `scripts/build-icons.mjs` üretir (kod oturumu). Not: ay yıldız marka tescilinde engel olabilir (devlet işaretleri), avukata sorulacaklar listesine |
+| Öne çıkan görsel        | **1024 × 500 px**, JPEG ya da 24 bit PNG (saydamlık yok)                                                                      | Önemli yazı/logo ortada. Slogan: "Bargu bile konumunu göremez."                                                                                                                                                                                                                                                                                                                                                   |
+| Telefon ekran görüntüsü | En az 2, en çok 8; JPEG/PNG; her kenar 320–3840 px; uzun kenar kısa kenarın 2 katını aşmasın. Önerilen **1080 × 1920** (9:16) | Öne çıkarılma için en az 4 adet, 1080 px ve üstü önerilir                                                                                                                                                                                                                                                                                                                                                         |
+| Tablet ekranları        | Şimdilik gerekmez (`supportsTablet` iOS'ta kapalı; Android'de tablet sayfası zorunlu değil)                                   |                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Tanıtım videosu         | Yok (YouTube bağlantısı isteğe bağlı)                                                                                         |                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ## Hangi ekranların görüntüsü alınacak (sıra önemli)
 
@@ -125,7 +127,7 @@ Hepsi **TR** ve **EN** dilinde ayrı çekilir. Gerçek konum yok: test botu (`@d
 5. **Yerler ve varış bildirimi:** "… eve vardı" bildirimi. Başlık: "Eve vardı mı, bir bakışta"
 6. **Etkinlik çemberi:** geri sayım halkası + "bitince her şey silinir". Başlık: "Etkinlik bitince her şey silinir"
 7. **Hava efektli harita:** yağmur ya da kar. Başlık: "Harita bulunduğun havayı yaşar"
-8. **Çember geçmişi:** "kapalı başlar, sen açarsın", kimlerin gördüğü listesi. Başlık: "Geçmiş isteğe bağlı, silmek tek dokunuş"
+8. **Mesaj ve hikaye:** pinde hikaye halkası ve bir sohbet; gerçek kişi fotoğrafı yok, bot hesabıyla. Başlık: "Paylaş, 24 saatte silinsin" (eski 8. görüntü "Çember geçmişi" yedekte kalır)
 
 Güvenlik ekranı (kripto sayıları) ve geliştirici ekranları (`_dev`) **görüntülenmez**. Koyu mod isteğe bağlı: 1. ve 7. görüntü koyu temada ikinci set olabilir.
 
