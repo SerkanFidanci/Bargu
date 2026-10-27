@@ -8,13 +8,15 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 // Control characters other than tab, line feed and carriage return (a backspace hid two letters of
-// a path in docs/DURUM.md, 2026-10-23); soft hyphen; zero-width space/joiners, LRM, RLM;
-// line/paragraph separators, bidi embeddings and overrides; word joiner, invisible operators, bidi
-// isolates; byte order mark.
+// a path in docs/DURUM.md, 2026-10-23; NUL bytes stood for "\0" in docs/PROTOCOL.md, 2026-10-27);
+// soft hyphen; zero-width space/joiners, LRM, RLM; line/paragraph separators, bidi embeddings and
+// overrides; word joiner, invisible operators, bidi isolates; byte order mark.
 const INVISIBLE =
   // eslint-disable-next-line security/detect-unsafe-regex, no-control-regex -- one character class (linear); the control characters are what it looks for
-  /[\x01-\x08\x0B\x0C\x0E-\x1F\x7F\u{AD}\u{200B}-\u{200F}\u{2028}-\u{202E}\u{2060}-\u{2069}\u{FEFF}]/gu;
+  /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u{AD}\u{200B}-\u{200F}\u{2028}-\u{202E}\u{2060}-\u{2069}\u{FEFF}]/gu;
 const BINARY = /\.(png|jpe?g|gif|webp|ico|ttf|otf|woff2?|riv|pmtiles|pbf|apk|aab|jar|keystore)$/i;
+// Written by people and editors: a NUL in one is a mistake, not a sign of binary content.
+const TEXT = /\.(md|ts|tsx|mts|cts|js|mjs|cjs|json|ya?ml|sh|sql|txt|conf|service|timer)$/i;
 
 const files =
   process.argv.length > 2
@@ -31,7 +33,7 @@ for (const file of files) {
   } catch {
     continue; // deleted or unreadable: nothing to check
   }
-  if (text.includes('\0')) continue; // binary content
+  if (text.includes('\0') && !TEXT.test(file)) continue; // binary content
   text.split('\n').forEach((line, index) => {
     for (const match of line.matchAll(INVISIBLE)) {
       const code = match[0].codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
