@@ -28,7 +28,9 @@ const server: AccountExport = {
 describe('KVKK records on the phone (docs/ADR/0022)', () => {
   it('shows the notice until this version was read, and takes history only with consent', () => {
     expect(needsNotice({ notice: null, history: null })).toBe(true);
-    expect(needsNotice({ notice: { version: 1, at: 1 }, history: null })).toBe(false);
+    // Version 2 (messages and photos, docs/ADR/0035): whoever read version 1 reads it again.
+    expect(needsNotice({ notice: { version: 1, at: 1 }, history: null })).toBe(true);
+    expect(needsNotice({ notice: { version: 2, at: 1 }, history: null })).toBe(false);
     expect(hasHistoryConsent({ notice: null, history: null })).toBe(false);
     expect(hasHistoryConsent({ notice: null, history: { version: 1, at: 1 } })).toBe(true);
   });

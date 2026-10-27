@@ -7,7 +7,8 @@ import { radius, space, useTheme } from '@/theme';
 import { Button } from '@/ui/button';
 import { Text } from '@/ui/text';
 
-const POINTS = ['what', 'why', 'encrypted', 'shared', 'rights'] as const;
+/** Messages and photos first: what changed in version 2 (docs/ADR/0035), for those reading it again. */
+const POINTS = ['news', 'what', 'why', 'encrypted', 'shared', 'rights'] as const;
 
 /**
  * The KVKK information notice in short (docs/ADR/0022): what is processed, why, who receives it

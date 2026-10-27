@@ -1017,7 +1017,9 @@
     "rightsTitle": "Your rights",
     "rights": "Download your data, delete your account in the app or on the web page, and ask for information (KVKK Art. 11).",
     "full": "Full text",
-    "read": "I have read and understood"
+    "read": "I have read and understood",
+    "newsTitle": "Messages and photos",
+    "news": "Messages and photos travel end-to-end encrypted and are deleted after 24 hours; when you tap \"Report\", only that item reaches us in readable form."
   },
   "consent": {
     "title": "Explicit consent to location history",

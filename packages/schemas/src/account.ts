@@ -8,7 +8,7 @@ import { avatarSchema } from './profile.js';
  * KVKK records (docs/ADR/0022). The information notice is read ("Okudum, anladım"); explicit
  * consent is asked only for location history. A new version of either text is shown again.
  */
-export const PRIVACY_NOTICE_VERSION = 1;
+export const PRIVACY_NOTICE_VERSION = 2;
 export const HISTORY_CONSENT_VERSION = 1;
 
 const recordSchema = z

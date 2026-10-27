@@ -1017,7 +1017,9 @@
     "rightsTitle": "Hakların",
     "rights": "Verilerini indirebilir, hesabını uygulamadan ya da web sayfasından silebilir, bilgi isteyebilirsin (KVKK m.11).",
     "full": "Metnin tamamı",
-    "read": "Okudum, anladım"
+    "read": "Okudum, anladım",
+    "newsTitle": "Mesajlar ve fotoğraflar",
+    "news": "Mesajlar ve fotoğraflar uçtan uca şifreli gider ve 24 saatte silinir; \"Bildir\"e bastığında yalnızca o içerik açık hâliyle bize gelir."
   },
   "consent": {
     "title": "Konum geçmişi için açık rıza",
