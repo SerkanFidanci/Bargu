@@ -22,6 +22,7 @@ import {
 } from './messages';
 import { messagesApi } from './messages-api';
 import { type PhotoFile, uploadPhoto } from './photo';
+import { forgetRules } from './rules-state';
 
 /** `full`: the server's space for photos is full (texts still go, docs/ADR/0035 §10). */
 export type SendResult = 'sent' | 'limited' | 'full' | 'failed';
@@ -118,7 +119,8 @@ async function deliver(conversation: Conversation, payload: ChatPayload): Promis
             );
       reply = await messagesApi.toPerson(target.userId, envelope, pushes, blobId);
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'RULES_REQUIRED') forgetRules();
     return 'failed';
   }
   if ('ok' in reply) return 'sent';
@@ -163,6 +165,7 @@ async function upload(blobId: string): Promise<SendResult> {
     return (await uploadPhoto(blobId)) ? 'sent' : 'failed';
   } catch (error) {
     if (!(error instanceof ApiError)) return 'failed';
+    if (error.code === 'RULES_REQUIRED') forgetRules();
     if (error.code === 'MEDIA_FULL') return 'full';
     return error.code === 'RATE_LIMITED' ? 'limited' : 'failed';
   }

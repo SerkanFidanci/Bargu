@@ -1500,6 +1500,23 @@
       "repliedToYours": "Hikayene yanıt",
       "reply": "Yanıt yaz",
       "takeBackBody": "Bu hikaye paylaştığın bütün çemberlerden ve sunucudan silinir."
+    },
+    "rules": {
+      "title": "Topluluk kuralları",
+      "intro": "Mesajlar ve fotoğraflar şifreli ve 24 saatte silinir. Biz göremeyiz, o yüzden kurallara uymak ve kural dışı bir şey görünce \"Bildir\"e basmak sana kalır.",
+      "forbidden": "Yasak olanlar:",
+      "closing": "Bu kurallara uymayan hesap kapatılır.",
+      "full": "Kuralların tamamı",
+      "accept": "Kabul ediyorum",
+      "failed": "Kaydedilemedi. Bağlantını kontrol et.",
+      "items": {
+        "children": "çocuklara yönelik her türlü cinsel içerik ve yaklaşım",
+        "harassment": "taciz ve tehdit",
+        "intimate": "rızası olmadan mahrem fotoğraf",
+        "sexual": "cinsel içerik",
+        "violence": "şiddete kışkırtma",
+        "scams": "dolandırıcılık"
+      }
     }
   }
 }

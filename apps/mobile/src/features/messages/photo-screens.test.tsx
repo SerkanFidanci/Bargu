@@ -88,6 +88,15 @@ jest.mock('@/features/messages/messages-session', () => ({
   block: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('@/features/messages/report', () => ({ report: jest.fn(() => Promise.resolve(true)) }));
+// The community rules have their own tests (rules.test.tsx): here they are accepted.
+jest.mock('@/features/messages/rules', () => ({
+  useRulesGate: () => ({
+    ensure: (action: () => void) => {
+      action();
+    },
+    sheet: null,
+  }),
+}));
 
 import CameraScreen from '@/app/(app)/camera';
 import PhotoScreen from '@/app/(app)/photo/[item]';

@@ -3,11 +3,13 @@ import {
   type AccountExport,
   type AgeBand,
   type AgeState,
+  COMMUNITY_RULES_VERSION,
   type FindableState,
   HISTORY_CONSENT_VERSION,
   type HistoryConsent,
   PRIVACY_NOTICE_VERSION,
   type PrivacyState,
+  type RulesState,
 } from '@bargu/schemas';
 import { and, count, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 
@@ -217,6 +219,25 @@ export class AccountService {
     });
   }
 
+  /** The community rules this account accepted, and which version (K14). */
+  rules(auth: AuthContext): Promise<RulesState> {
+    return this.database.asUser(auth.userId, (tx) => this.readRules(tx, auth.userId));
+  }
+
+  /**
+   * "Kabul ediyorum" under the community rules (K14): only the version the app shows now. Until
+   * then messages and photos are refused (messages.service).
+   */
+  async acceptRules(auth: AuthContext, version: number): Promise<RulesState> {
+    if (version !== COMMUNITY_RULES_VERSION) {
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED');
+    }
+    return this.database.asUser(auth.userId, async (tx) => {
+      await this.give(tx, auth.userId, 'rules', version);
+      return this.readRules(tx, auth.userId);
+    });
+  }
+
   /**
    * Explicit consent to location history, given for the version shown, or withdrawn. Without it
    * the server takes no history (history.service); withdrawing it, the phone turns history off
@@ -368,7 +389,12 @@ export class AccountService {
     }
   }
 
-  private async give(tx: Tx, userId: string, purpose: 'notice' | 'history', version: number) {
+  private async give(
+    tx: Tx,
+    userId: string,
+    purpose: 'notice' | 'history' | 'rules',
+    version: number,
+  ) {
     const now = new Date();
     await tx
       .insert(consents)
@@ -377,6 +403,15 @@ export class AccountService {
         target: [consents.userId, consents.purpose],
         set: { version, givenAt: now, withdrawnAt: null },
       });
+  }
+
+  private async readRules(tx: Tx, userId: string): Promise<RulesState> {
+    const [row] = await tx
+      .select()
+      .from(consents)
+      .where(and(eq(consents.userId, userId), eq(consents.purpose, 'rules')));
+    if (row?.withdrawnAt !== null) return { rules: null };
+    return { rules: { version: row.version, at: row.givenAt.getTime() } };
   }
 
   private async readPrivacy(tx: Tx, userId: string): Promise<PrivacyState> {

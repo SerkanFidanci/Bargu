@@ -12,6 +12,9 @@ import {
   type NoticeRead,
   noticeReadSchema,
   type PrivacyState,
+  type RulesAccept,
+  rulesAcceptSchema,
+  type RulesState,
   type WebRevoke,
   webRevokeSchema,
 } from '@bargu/schemas';
@@ -112,6 +115,21 @@ export class AccountController {
     @Body(new ZodPipe(findableUpdateSchema)) body: FindableUpdate,
   ): Promise<FindableState> {
     return this.account.setFindable(auth, body.findable);
+  }
+
+  /** The community rules (K14): only the person's own acceptance. */
+  @Get('me/rules')
+  rules(@CurrentAuth() auth: AuthContext): Promise<RulesState> {
+    return this.account.rules(auth);
+  }
+
+  @Put('me/rules')
+  @HttpCode(HttpStatus.OK)
+  acceptRules(
+    @CurrentAuth() auth: AuthContext,
+    @Body(new ZodPipe(rulesAcceptSchema)) body: RulesAccept,
+  ): Promise<RulesState> {
+    return this.account.acceptRules(auth, body.version);
   }
 
   @Put('me/privacy/history')

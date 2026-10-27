@@ -273,6 +273,8 @@ export {
   ageStateSchema,
   type AgeUpdate,
   ageUpdateSchema,
+  COMMUNITY_RULES_URL,
+  COMMUNITY_RULES_VERSION,
   type FindableState,
   findableStateSchema,
   type FindableUpdate,
@@ -285,6 +287,10 @@ export {
   PRIVACY_NOTICE_VERSION,
   type PrivacyState,
   privacyStateSchema,
+  type RulesAccept,
+  rulesAcceptSchema,
+  type RulesState,
+  rulesStateSchema,
 } from './account.js';
 export {
   DAILY_LIMIT_MINUTES,

@@ -22,6 +22,7 @@ import { type Conversation, personConversation } from '@/features/messages/messa
 import { conversationName, writablePeople } from '@/features/messages/names';
 import { type SendResult, sendPhoto, shareStory } from '@/features/messages/outbox';
 import { jpegUri, preparePhoto, sealPhoto, type TakenPhoto } from '@/features/messages/photo';
+import { useRulesGate } from '@/features/messages/rules';
 import { storyCircles } from '@/features/messages/stories';
 import { mediaColors, radius, space, touchTarget, typography, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
@@ -58,6 +59,7 @@ export default function CameraScreen() {
   const [caption, setCaption] = useState('');
   const [step, setStep] = useState<'choose' | 'circles' | 'person'>('choose');
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  const rules = useRulesGate();
 
   const take = async () => {
     if (camera.current === null || taking) return;
@@ -75,6 +77,11 @@ export default function CameraScreen() {
 
   /** Sends in the background: the item shows as "sending" where it went, and can be tried again. */
   const send = (target: { conversation: Conversation } | { circleIds: string[] }) => {
+    rules.ensure(() => {
+      sendNow(target);
+    });
+  };
+  const sendNow = (target: { conversation: Conversation } | { circleIds: string[] }) => {
     if (taken === null) return;
     const file = sealPhoto(taken.photo);
     const words = caption.trim() === '' ? undefined : caption.trim();
@@ -315,6 +322,7 @@ export default function CameraScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      {rules.sheet}
     </SafeAreaView>
   );
 }

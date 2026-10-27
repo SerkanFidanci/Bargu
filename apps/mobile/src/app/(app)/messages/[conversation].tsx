@@ -27,6 +27,7 @@ import {
 import { loadMessagesOnce, markRead } from '@/features/messages/messages-session';
 import { conversationName, isOpen, memberIn } from '@/features/messages/names';
 import { retry, sendText, takeBack } from '@/features/messages/outbox';
+import { useRulesGate } from '@/features/messages/rules';
 import { useSafety } from '@/features/messages/safety';
 import { radius, space, touchTarget, typography, useTheme } from '@/theme';
 import { EmptyState } from '@/ui/empty-state';
@@ -73,13 +74,17 @@ export default function ConversationScreen() {
   const safety = useSafety((userId) => {
     if (person === userId) router.back();
   });
+  // The community rules come before the first message or photo (K14).
+  const rules = useRulesGate();
 
   const send = () => {
     const text = draft.trim();
     if (conversation === null || text.length === 0) return;
-    setDraft('');
-    void sendText(conversation, text).then((result) => {
-      if (result === 'limited') toast.info(t('messages.limited'));
+    rules.ensure(() => {
+      setDraft('');
+      void sendText(conversation, text).then((result) => {
+        if (result === 'limited') toast.info(t('messages.limited'));
+      });
     });
   };
 
@@ -193,6 +198,11 @@ export default function ConversationScreen() {
                   mine={item.from === me}
                   author={showAuthor ? memberNameOf(item.from) : null}
                   replyTo={storyReplyOf(item)}
+                  onRetry={() => {
+                    rules.ensure(() => {
+                      void retry(item.id);
+                    });
+                  }}
                   onLongPress={() => {
                     actions(item);
                   }}
@@ -215,7 +225,9 @@ export default function ConversationScreen() {
               label={t('messages.camera.take')}
               tone="plain"
               onPress={() => {
-                router.push({ pathname: '/camera', params: { to: conversation } });
+                rules.ensure(() => {
+                  router.push({ pathname: '/camera', params: { to: conversation } });
+                });
               }}
             />
             <TextInput
@@ -246,6 +258,7 @@ export default function ConversationScreen() {
       </KeyboardAvoidingView>
 
       {safety.sheet}
+      {rules.sheet}
     </SafeAreaView>
   );
 }
@@ -256,6 +269,7 @@ function Bubble({
   mine,
   author,
   replyTo,
+  onRetry,
   onLongPress,
 }: {
   item: ChatItem;
@@ -263,6 +277,7 @@ function Bubble({
   author: string | null;
   /** "Hikayene yanıt": the story it answers (docs/ADR/0035 §1). */
   replyTo: string | null;
+  onRetry: () => void;
   onLongPress: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -295,9 +310,7 @@ function Bubble({
         }
         onPress={
           failed
-            ? () => {
-                void retry(item.id);
-              }
+            ? onRetry
             : photo && item.state === 'sent'
               ? () => {
                   router.push({ pathname: '/photo/[item]', params: { item: item.id } });

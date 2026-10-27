@@ -13,19 +13,20 @@ import {
   type ChatSendReply,
   chatEnvelopeSchema,
   CLIENT_LEVEL_FOR,
+  COMMUNITY_RULES_VERSION,
   type DevicePushes,
   type DirectEnvelope,
   directEnvelopeSchema,
   type Media,
 } from '@bargu/schemas';
-import { and, asc, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError, HTTP_UPGRADE_REQUIRED } from '../common/api-error.js';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 import { isPgError, PG } from '../db/pg-errors.js';
-import { blocks, chatItems, circleMembers, circles, mediaBlobs } from '../db/schema.js';
+import { blocks, chatItems, circleMembers, circles, consents, mediaBlobs } from '../db/schema.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { RateLimiter } from '../infra/redis/rate-limiter.js';
@@ -99,6 +100,7 @@ export class MessagesService {
       return { refused: 'INVALID' };
     }
     const outcome = await this.database.asUser(auth.userId, async (tx): Promise<Outcome> => {
+      await this.requireRules(tx, auth.userId);
       const members = await tx
         .select({
           userId: circleMembers.userId,
@@ -157,6 +159,7 @@ export class MessagesService {
       return { refused: 'INVALID' };
     }
     const outcome = await this.database.asUser(auth.userId, async (tx): Promise<Outcome> => {
+      await this.requireRules(tx, auth.userId);
       const [found] = (
         await tx.execute<{ device: string | null; blocked: boolean }>(
           sql`SELECT app.direct_device_of(${userId}) AS device, app.blocked_by(${userId}) AS blocked`,
@@ -233,6 +236,8 @@ export class MessagesService {
    */
   async upload(auth: AuthContext, media: Media): Promise<void> {
     const bytes = fromBase64url(media.bytes);
+    // Before the day's count: a refused photo does not use one of the 50.
+    await this.database.asUser(auth.userId, (tx) => this.requireRules(tx, auth.userId));
     const day = await this.limiter.hit(
       `media-day:${auth.userId}`,
       MESSAGE_LIMITS.photosPerDay,
@@ -300,6 +305,26 @@ export class MessagesService {
   }
 
   /** The per-minute and per-day allowance of a sender; null when the item may go. */
+  /**
+   * The community rules accepted, this version or later (K14): no message, photo or story before
+   * that. The app shows the rules first; this is for an app that did not.
+   */
+  private async requireRules(tx: Tx, userId: string): Promise<void> {
+    const [row] = await tx
+      .select({ version: consents.version })
+      .from(consents)
+      .where(
+        and(
+          eq(consents.userId, userId),
+          eq(consents.purpose, 'rules'),
+          isNull(consents.withdrawnAt),
+        ),
+      );
+    if (row === undefined || row.version < COMMUNITY_RULES_VERSION) {
+      throw new ApiError(HttpStatus.FORBIDDEN, 'RULES_REQUIRED');
+    }
+  }
+
   private async allowance(auth: AuthContext, conversation: string): Promise<ChatRefusal | null> {
     const minute = await this.limiter.hit(
       `chat:${auth.userId}:${conversation}`,

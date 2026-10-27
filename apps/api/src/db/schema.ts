@@ -213,12 +213,12 @@ export const circleDocs = app.table('circle_docs', {
   endsAt: timestamptz('ends_at'),
 });
 
-/** The notice read and explicit consent, per purpose (docs/ADR/0022). */
+/** The notice read, explicit consent, and the community rules, per purpose (docs/ADR/0022, 0035). */
 export const consents = app.table(
   'consents',
   {
     userId: uuid('user_id').notNull(),
-    purpose: text('purpose', { enum: ['notice', 'history'] }).notNull(),
+    purpose: text('purpose', { enum: ['notice', 'history', 'rules'] }).notNull(),
     version: integer('version').notNull(),
     givenAt: timestamptz('given_at').notNull().defaultNow(),
     withdrawnAt: timestamptz('withdrawn_at'),

@@ -302,6 +302,17 @@ değişikliği olaydır; listeyi yenileme düğmesi yoktur.
   ayrıntısız bir haberle öğrenir.
 - İçerik taranmaz (uçtan uca şifreleme). Denetim bildirime dayanır.
 
+**Topluluk kuralları (PM eki, 2026-10-27; Play'in kullanıcı içeriği şartı, K14):**
+
+- İlk mesajdan, fotoğraftan ya da hikayeden önce bir kez kısa kurallar penceresi çıkar. Pencerede
+  "Kuralların tamamı" bağlantısı (`https://www.otenus.com/bargu/kurallar`) ve "Kabul ediyorum" düğmesi
+  vardır. Metin `docs/play-store/TOPLULUK-KURALLARI.md`'deki "Uygulama içi kısa metin"dir.
+- Kabul, sürümüyle `app.consents`'e yeni bir amaç olarak yazılır (`rules`, migration 0042).
+  `GET` ve `PUT /v1/me/rules` yalnız kişinin kendi kaydını okur ve yazar.
+- Sunucu kabul olmadan sohbet öğesini ve fotoğraf yüklemesini `403 RULES_REQUIRED` ile reddeder.
+  Telefon bunu görünce kaydı unutur ve pencereyi yeniden gösterir. Sürüm
+  (`COMMUNITY_RULES_VERSION`) artarsa da pencere yeniden çıkar.
+
 ### 10. Sınırlar, kota ve disk alarmı
 
 - Kişi başına günde en çok **500 öğe** ve **50 fotoğraf** (Redis sayacı, gece yarısı UTC). Bir

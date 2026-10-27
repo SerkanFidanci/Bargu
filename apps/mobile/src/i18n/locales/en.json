@@ -1500,6 +1500,23 @@
       "repliedToYours": "Reply to your story",
       "reply": "Write a reply",
       "takeBackBody": "This story is deleted from every circle you shared it with, and from the server."
+    },
+    "rules": {
+      "title": "Community rules",
+      "intro": "Messages and photos are encrypted and deleted after 24 hours. We cannot see them, so following the rules, and tapping \"Report\" when something breaks them, is up to you.",
+      "forbidden": "Not allowed:",
+      "closing": "Accounts that break these rules are closed.",
+      "full": "Full rules",
+      "accept": "I agree",
+      "failed": "Could not be saved. Check your connection.",
+      "items": {
+        "children": "any sexual content involving children, or approaching children sexually",
+        "harassment": "harassment and threats",
+        "intimate": "intimate photos shared without consent",
+        "sexual": "sexual content",
+        "violence": "inciting violence",
+        "scams": "scams"
+      }
     }
   }
 }

@@ -14,13 +14,15 @@ import {
   type SenderKey,
   toBase64url,
 } from '@bargu/crypto';
-import type {
-  ChatPayload,
-  ChatRecord,
-  ChatSendReply,
-  Circle,
-  DirectEnvelope,
-  Media,
+import {
+  type ChatPayload,
+  type ChatRecord,
+  type ChatSendReply,
+  type Circle,
+  COMMUNITY_RULES_VERSION,
+  type DirectEnvelope,
+  type Media,
+  type RulesState,
 } from '@bargu/schemas';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -49,6 +51,8 @@ beforeAll(async () => {
     person(test, 'Yabancı'),
   ]);
   family = await circleWith(test, alice, bob, carol);
+  // Everyone here accepted the community rules first (K14); the rules' own tests are at the end.
+  for (const who of [alice, bob, carol, stranger]) await acceptRules(who);
 });
 afterAll(async () => {
   await test.close();
@@ -95,6 +99,9 @@ const list = async (who: Person, after = 0) =>
   (await as(test, who, 'GET', `/v1/chat?after=${String(after)}`)).json<{ items: ChatRecord[] }>()
     .items;
 const ids = (items: ChatRecord[]) => items.map((item) => item.id);
+async function acceptRules(who: Person, version = COMMUNITY_RULES_VERSION) {
+  return as(test, who, 'PUT', '/v1/me/rules', { version });
+}
 const upload = (who: Person, sealed: Uint8Array, id = randomUuid()) =>
   as(test, who, 'POST', '/v1/media', { id, bytes: toBase64url(sealed) }).then((response) => ({
     response,
@@ -160,6 +167,7 @@ describe('items for a circle (docs/ADR/0035 §2, §6)', () => {
     expect(ids(await list(bob))).toContain(kept.id);
 
     const leaving = await person(test, 'Giden');
+    await acceptRules(leaving);
     const circle = await circleWith(test, alice, leaving);
     const said = circleItem(leaving, circle);
     await toCircle(leaving, circle.id, { envelope: said });
@@ -211,6 +219,7 @@ describe('blocking (docs/ADR/0035 §6)', () => {
     const blocker = await person(test, 'Engelleyen');
     const pest = await person(test, 'Rahatsız');
     const witness = await person(test, 'Tanık');
+    for (const who of [blocker, pest, witness]) await acceptRules(who);
     const circle = await circleWith(test, witness, blocker, pest);
     expect((await as(test, blocker, 'PUT', `/v1/blocks/${pest.userId}`)).statusCode).toBe(204);
     expect(
@@ -462,6 +471,7 @@ describe('the photos’ space (docs/ADR/0035 §10)', () => {
     });
     try {
       const who = await person(small, 'Dolu');
+      await as(small, who, 'PUT', '/v1/me/rules', { version: COMMUNITY_RULES_VERSION });
       const send = (id: string) =>
         as(small, who, 'POST', '/v1/media', {
           id,
@@ -498,5 +508,55 @@ describe('older apps (docs/ADR/0035 §11)', () => {
       clientLevel: 5,
     });
     expect(response.statusCode).toBe(200);
+  });
+});
+
+describe('the community rules (K14, Play rule for user content)', () => {
+  it('come before any message, photo or story: until then each is refused', async () => {
+    const dave = await person(test, 'Dave');
+    const circle = await circleWith(test, alice, dave);
+    const rulesOf = async (who: Person) =>
+      (await as(test, who, 'GET', '/v1/me/rules')).json<RulesState>();
+    expect(await rulesOf(dave)).toEqual({ rules: null });
+
+    const toTheCircle = await as(test, dave, 'POST', `/v1/chat/circles/${circle.id}`, {
+      envelope: circleItem(dave, circle),
+    });
+    expect(toTheCircle.statusCode).toBe(403);
+    expect(toTheCircle.json<{ code: string }>().code).toBe('RULES_REQUIRED');
+    const toAlice = await as(test, dave, 'POST', `/v1/chat/people/${alice.userId}`, {
+      envelope: sealDirect({ sender: dave.device, recipient: publicKeys(alice), payload: text() }),
+    });
+    expect(toAlice.statusCode).toBe(403);
+    const key = generatePhotoKey();
+    const blobId = randomUuid();
+    const photo = await upload(dave, sealChatPhoto(key, blobId, new Uint8Array([1, 2, 3])), blobId);
+    expect(photo.response.statusCode).toBe(403);
+
+    // Only the version the app shows now, and nothing else in the body.
+    expect((await acceptRules(dave, COMMUNITY_RULES_VERSION + 1)).statusCode).toBe(400);
+    expect(
+      (await as(test, dave, 'PUT', '/v1/me/rules', { version: COMMUNITY_RULES_VERSION, all: true }))
+        .statusCode,
+    ).toBe(400);
+    const accepted = await acceptRules(dave);
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json<RulesState>().rules?.version).toBe(COMMUNITY_RULES_VERSION);
+    expect(await toCircle(dave, circle.id, { envelope: circleItem(dave, circle) })).toEqual({
+      ok: true,
+    });
+  });
+
+  it("are each person's own: another's acceptance lets nobody else send, nor read it", async () => {
+    const erin = await person(test, 'Erin');
+    const circle = await circleWith(test, alice, erin);
+    const mine = await as(test, erin, 'GET', '/v1/me/rules');
+    expect(mine.json<RulesState>()).toEqual({ rules: null });
+    const refused = await as(test, erin, 'POST', `/v1/chat/circles/${circle.id}`, {
+      envelope: circleItem(erin, circle),
+    });
+    expect(refused.statusCode).toBe(403);
+    // Alice accepted long ago: hers stays hers.
+    expect((await as(test, alice, 'GET', '/v1/me/rules')).json<RulesState>().rules).not.toBeNull();
   });
 });

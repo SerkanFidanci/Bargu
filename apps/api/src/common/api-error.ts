@@ -81,6 +81,8 @@ export type ApiErrorCode =
   | 'DOCS_FULL'
   /** The photos of messages and moments fill their space on the server (docs/ADR/0035 §10). */
   | 'MEDIA_FULL'
+  /** Messages and photos wait for the community rules to be accepted (K14). */
+  | 'RULES_REQUIRED'
   | 'INTERNAL';
 
 /** HTTP 426, which Nest's HttpStatus does not name: an app too old for what it asked for. */

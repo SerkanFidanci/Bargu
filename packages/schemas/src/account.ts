@@ -52,6 +52,20 @@ export type FindableState = z.infer<typeof findableStateSchema>;
 export const findableUpdateSchema = z.object({ findable: z.boolean() }).strict();
 export type FindableUpdate = z.infer<typeof findableUpdateSchema>;
 
+/**
+ * The community rules (Play's rule for user content, K14; docs/play-store/TOPLULUK-KURALLARI.md):
+ * accepted once, before one's first message or photo, and again when this version goes up. The
+ * server takes no message, photo or story without it.
+ */
+export const COMMUNITY_RULES_VERSION = 1;
+/** Where the full rules are read (the app links there). */
+export const COMMUNITY_RULES_URL = 'https://www.otenus.com/bargu/kurallar';
+/** The rules accepted, and which version: null when never. Its own route, not PrivacyState. */
+export const rulesStateSchema = z.object({ rules: recordSchema }).strict();
+export type RulesState = z.infer<typeof rulesStateSchema>;
+export const rulesAcceptSchema = z.object({ version: z.number().int().positive() }).strict();
+export type RulesAccept = z.infer<typeof rulesAcceptSchema>;
+
 /** Gives (`given: true`, with the version shown) or withdraws explicit consent. */
 export const historyConsentSchema = z
   .object({ given: z.boolean(), version: z.number().int().positive() })

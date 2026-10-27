@@ -17,6 +17,7 @@ import {
   useMessages,
 } from '@/features/messages/messages';
 import { loadMessagesOnce } from '@/features/messages/messages-session';
+import { useRulesGate } from '@/features/messages/rules';
 import { StoryAvatar } from '@/features/messages/story-avatar';
 import { storyCircles } from '@/features/messages/stories';
 import {
@@ -47,6 +48,8 @@ export default function MessagesScreen() {
   const me = useAuth((state) => state.userId);
   const circles = useCircles().data ?? [];
   const state = useMessages();
+  // The community rules come before the first photo (K14).
+  const rules = useRulesGate();
   useEffect(() => {
     loadMessagesOnce();
   }, []);
@@ -87,7 +90,9 @@ export default function MessagesScreen() {
               accessibilityRole="button"
               accessibilityLabel={t('messages.story.share')}
               onPress={() => {
-                router.push('/camera');
+                rules.ensure(() => {
+                  router.push('/camera');
+                });
               }}
               style={styles.story}
             >
@@ -236,6 +241,7 @@ export default function MessagesScreen() {
           ))}
         </View>
       )}
+      {rules.sheet}
     </Screen>
   );
 }

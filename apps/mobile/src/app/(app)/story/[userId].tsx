@@ -39,6 +39,7 @@ import { loadMessagesOnce, markViewed } from '@/features/messages/messages-sessi
 import { isOpen, memberIn } from '@/features/messages/names';
 import { sendText, takeBackPhoto, tellScreenshot } from '@/features/messages/outbox';
 import { openPhoto } from '@/features/messages/photo';
+import { useRulesGate } from '@/features/messages/rules';
 import { useSafety } from '@/features/messages/safety';
 import { mediaColors, radius, space, storyFx, touchTarget, typography } from '@/theme';
 import { IconButton } from '@/ui/icon-button';
@@ -83,6 +84,7 @@ export default function StoryScreen() {
   const safety = useSafety(() => {
     router.back();
   });
+  const rules = useRulesGate();
 
   useEffect(() => {
     loadMessagesOnce();
@@ -208,11 +210,13 @@ export default function StoryScreen() {
   const sendReply = () => {
     const text = reply.trim();
     if (text.length === 0) return;
-    setReply('');
-    void sendText(personConversation(userId), text, story.id).then((result) => {
-      if (result === 'sent') toast.success(t('messages.story.replied'));
-      else if (result === 'limited') toast.info(t('messages.limited'));
-      else toast.error(t('messages.camera.notSent'));
+    rules.ensure(() => {
+      setReply('');
+      void sendText(personConversation(userId), text, story.id).then((result) => {
+        if (result === 'sent') toast.success(t('messages.story.replied'));
+        else if (result === 'limited') toast.info(t('messages.limited'));
+        else toast.error(t('messages.camera.notSent'));
+      });
     });
   };
 
@@ -342,6 +346,7 @@ export default function StoryScreen() {
         </KeyboardAvoidingView>
       </SafeAreaView>
       {safety.sheet}
+      {rules.sheet}
     </View>
   );
 }
