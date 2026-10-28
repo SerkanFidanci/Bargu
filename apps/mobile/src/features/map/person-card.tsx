@@ -45,10 +45,13 @@ import type { MarkerWhy } from '@/ui/avatar-marker';
 import { Appear } from '@/ui/appear';
 import { IconButton } from '@/ui/icon-button';
 import { ListRow } from '@/ui/list-row';
+import { PressableScale } from '@/ui/pressable-scale';
 import { Text } from '@/ui/text';
 
 import { useNow } from '../location/clock';
-import { useMessages } from '../messages/messages';
+import { useAuth } from '../auth/auth-store';
+import { storiesOf, useMessages } from '../messages/messages';
+import { StoryRing } from '../messages/story-avatar';
 import { loadMuteSettings } from '../notifications/mute-session';
 import { personMutes, useMutes } from '../notifications/mutes';
 import { statusOf, useStatuses } from '../social/status';
@@ -100,6 +103,7 @@ export function CardFrame({
   title,
   subtitle,
   buttons,
+  story,
   children,
 }: {
   testID: string;
@@ -112,6 +116,8 @@ export function CardFrame({
   subtitle: string;
   /** Beside the name, before the ×. */
   buttons?: ReactNode;
+  /** Their story (docs/ADR/0035 §8): the ring around the avatar, which opens it. */
+  story?: { seen: boolean; label: string; onPress: () => void } | undefined;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -184,7 +190,30 @@ export function CardFrame({
         >
           <View style={styles.header}>
             <Animated.View style={[styles.avatar, flying, landed ? null : styles.inFlight]}>
-              <Avatar avatar={avatar.avatar} name={avatar.name} size="lg" userId={avatar.userId} />
+              {story === undefined ? (
+                <Avatar
+                  avatar={avatar.avatar}
+                  name={avatar.name}
+                  size="lg"
+                  userId={avatar.userId}
+                />
+              ) : (
+                <PressableScale
+                  testID="card-avatar-story"
+                  haptic="select"
+                  accessibilityRole="button"
+                  accessibilityLabel={story.label}
+                  onPress={story.onPress}
+                >
+                  <StoryRing inner={HEADER} seen={story.seen} />
+                  <Avatar
+                    avatar={avatar.avatar}
+                    name={avatar.name}
+                    size="lg"
+                    userId={avatar.userId}
+                  />
+                </PressableScale>
+              )}
             </Animated.View>
             <View style={styles.titles}>
               <Text variant="title2" numberOfLines={1}>
@@ -251,12 +280,13 @@ export function PersonCard({
   const silenced = personMutes(useMutes(), person.userId);
   const quiet = silenced.places || silenced.pokes || silenced.messages;
   const circleLabel = circleActionLabel(person);
-  // Their stories (docs/ADR/0035 §8): the same ring as on the pin opens them here too.
-  const hasStory = useMessages((state) =>
-    state.items.some(
-      (item) => item.from === person.userId && item.photo?.story === true && item.state === 'sent',
-    ),
-  );
+  // Their stories (docs/ADR/0035 §8): the same ring as on the pin, around their face, opens them.
+  const me = useAuth((state) => state.userId);
+  const storyState = useMessages((state) => {
+    const theirs = storiesOf(state, me).find((each) => each.userId === person.userId);
+    return theirs === undefined ? 'none' : theirs.unseen ? 'new' : 'seen';
+  });
+  const hasStory = storyState !== 'none';
   const status = statusOf(useStatuses(), person.userId, now);
   const minutes = loc === null ? undefined : staleMinutes(loc.ts, now);
   const states = useStates();
@@ -289,6 +319,17 @@ export function PersonCard({
       onHeight={onHeight}
       avatar={{ avatar: person.avatar, name: person.name, userId: person.userId }}
       title={person.name}
+      story={
+        hasStory
+          ? {
+              seen: storyState === 'seen',
+              label: t('messages.story.openOf', { name: person.name }),
+              onPress: () => {
+                onAction('story');
+              },
+            }
+          : undefined
+      }
       subtitle={[person.handle, when, quiet ? t('map.card.muted') : undefined]
         .filter((part) => part !== undefined)
         .join(' · ')}

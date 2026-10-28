@@ -1559,5 +1559,20 @@
       "minutes": "{{count}} dk",
       "hours": "{{count}} sa"
     }
+  },
+  "tips": {
+    "ok": "Tamam",
+    "plus": {
+      "title": "+ ile hızlı işler",
+      "body": "Fotoğraf çek, arkadaş ekle, buluşma öner ya da Güvendeyim de: hepsi ortadaki düğmede."
+    },
+    "hold": {
+      "title": "Kişiye uzun bas",
+      "body": "Haritada birine basılı tut: dürt, mesaj ve yol tarifi hemen açılır."
+    },
+    "ring": {
+      "title": "Halka = yeni hikaye",
+      "body": "Renkli halkası olan birine dokun, kartındaki yüzüne basınca hikayesi açılır."
+    }
   }
 }

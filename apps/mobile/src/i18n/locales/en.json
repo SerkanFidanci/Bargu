@@ -1559,5 +1559,20 @@
       "minutes": "{{count}}m",
       "hours": "{{count}}h"
     }
+  },
+  "tips": {
+    "ok": "Got it",
+    "plus": {
+      "title": "+ for quick actions",
+      "body": "Take a photo, add a friend, suggest a meetup or say you're safe: all in the middle button."
+    },
+    "hold": {
+      "title": "Press and hold a person",
+      "body": "Hold someone on the map: poke, message and directions open right away."
+    },
+    "ring": {
+      "title": "Ring = new story",
+      "body": "Tap someone with a coloured ring, then their face on the card to see their story."
+    }
   }
 }

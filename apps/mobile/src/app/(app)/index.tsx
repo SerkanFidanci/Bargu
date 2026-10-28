@@ -11,6 +11,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { MapShortcuts } from '@/features/home/map-shortcuts';
 import { MeetingChip } from '@/features/home/meeting-chip';
 import { QuickSheet } from '@/features/home/quick-sheet';
+import { TipBubble } from '@/features/home/tip-bubble';
+import { markTipSeen } from '@/features/home/tips';
 import { SafeButton } from '@/features/home/safe-button';
 import { SeersPill, sharingNow } from '@/features/home/seers-pill';
 import { isAway, nextMeeting } from '@/features/home/shortcuts-model';
@@ -197,6 +199,8 @@ export default function HomeScreen() {
     }
     quick.current?.present();
     setAddOpen(true);
+    // Found the + on their own: its tip is not needed (T6).
+    markTipSeen('plus');
   };
 
   // The root layout only shows this group once the profile is loaded and complete.
@@ -328,6 +332,8 @@ export default function HomeScreen() {
                 sharingNow({ ghost: sharing.ghost, seers: seers.length, permission }) === 'shared'
               }
             />
+            {/* First-use tips (T6), one at a time, above the dock. */}
+            <TipBubble me={myUserId} bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
             {/* "Güvendeyim", one tap away on the left (docs/ADR/0029); above the map credit. */}
             <SafeButton
               bottom={insets.bottom + DOCK_HEIGHT + space.md + space.xxl}

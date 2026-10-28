@@ -36,6 +36,11 @@ export function useCardsWaiting(): number {
   return useWanting(cardsWaiting);
 }
 
+/** Whether a card asks something on the map now (a first-use tip waits for it). */
+export function useCardShowing(): boolean {
+  return useWanting((state) => cardInFront(state) !== undefined);
+}
+
 /** The card that has the screen now: the first, in {@link MAP_CARDS} order, that wants it. */
 export function cardInFront(wanting: Readonly<Record<MapCard, boolean>>): MapCard | undefined {
   return MAP_CARDS.find((card) => wanting[card]);

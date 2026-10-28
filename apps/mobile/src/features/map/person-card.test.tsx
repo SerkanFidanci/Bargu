@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import i18n from '@/i18n';
 
 import { useStates } from '../location/why';
+import { EMPTY_MESSAGES, useMessages, withItem } from '../messages/messages';
 import { NO_MUTES, useMutes, withPersonMuted } from '../notifications/mutes';
 import { PersonCard } from './person-card';
 import type { PersonView } from './person-actions';
@@ -84,6 +85,7 @@ beforeAll(async () => {
 beforeEach(() => {
   mockClose.mockClear();
   useMutes.setState(NO_MUTES, true);
+  useMessages.setState({ ...EMPTY_MESSAGES, loaded: true }, true);
 });
 
 describe("a person's card (UX düzeni)", () => {
@@ -134,6 +136,43 @@ describe("a person's card (UX düzeni)", () => {
     expect(screen.getByText('@ada · Konumu şu an görünmüyor · Sessizde')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('card-more'));
     expect(screen.getByText('Ada: bildirimler sessizde')).toBeTruthy();
+  });
+
+  it('has no ring around their face without a story', async () => {
+    await renderCard();
+    expect(screen.queryByTestId('card-avatar-story')).toBeNull();
+  });
+
+  it('opens their story from the ring around their face (T6)', async () => {
+    useMessages.setState(
+      withItem(
+        { ...EMPTY_MESSAGES, loaded: true },
+        {
+          id: '0190a8a0-0000-7000-8000-0000000000e1',
+          conversation: 'c:0190a8a0-0000-7000-8000-0000000000d1',
+          from: ADA,
+          at: Date.now(),
+          kind: 'photo',
+          state: 'sent',
+          photo: {
+            blobId: 'file',
+            key: 'k'.repeat(43),
+            size: 1000,
+            hash: 'h'.repeat(43),
+            w: 10,
+            h: 10,
+            story: true,
+          },
+        },
+      ),
+      true,
+    );
+    const onAction = await renderCard();
+    expect(screen.getByTestId('card-avatar-story').props.accessibilityLabel).toBe(
+      'Ada: hikayesini gör',
+    );
+    await fireEvent.press(screen.getByTestId('card-avatar-story'));
+    expect(onAction).toHaveBeenCalledWith('story');
   });
 
   it('names the circle row after what it opens: a friendship', async () => {
