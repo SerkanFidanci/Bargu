@@ -25,6 +25,20 @@ jest.mock('../live/live-session', () => {
     onPeopleDeparted: listen,
   };
 });
+// The month files of one's own history need the native MMKV, which jest does not have (own-trail.test.ts
+// has them in memory).
+jest.mock('../history/own/own-files', () => ({
+  createMonthFiles: () => ({
+    months: () => [],
+    open: () => {
+      throw new Error('no month files here');
+    },
+    destroy: () => undefined,
+  }),
+  forgetTrailKey: () => undefined,
+  prepareTrailKey: () => Promise.resolve(false),
+  trailKeyReady: () => false,
+}));
 jest.mock('../storage/vault', () => ({ isVaultOpen: () => true, vault: () => mockVault }));
 jest.mock('../notifications/extension-share', () => ({
   shareMutesWithExtension: () => Promise.resolve(),

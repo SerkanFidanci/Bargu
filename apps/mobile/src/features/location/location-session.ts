@@ -83,8 +83,10 @@ import {
   statusGone,
 } from '../social/status';
 import { isVaultOpen, vault } from '../storage/vault';
+import { ownEntitled, ownTrail } from '../history/own/own-session';
 import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix } from './engine';
 import { timed } from './probe';
+import type { Fix } from './send';
 import { forgetDeparted } from './forget-person';
 import { createReceiver } from './receive';
 import { createStateReporter } from './state-report';
@@ -96,6 +98,7 @@ import {
   isSharingWith,
   loadSharing,
   saveSharing,
+  sharedCircles,
   SHARING_REVIEW_KEY,
   type SharingSettings,
   useSharing,
@@ -336,6 +339,30 @@ export const meetings = createMeetings({
 });
 
 /** Location history (docs/ADR/0019): written down here, a quarter hour per circle at a time. */
+/**
+ * One's own history (docs/ADR/0030): a position the engine took is written on this phone alone when
+ * the user turned it on, the plan carries it and the location is going to someone now. Never in
+ * the location's way.
+ */
+function recordOwnTrail(fix: Fix): void {
+  try {
+    const settings = loadSharingSettings();
+    const at = Date.now();
+    ownTrail.record(fix, {
+      entitled: ownEntitled(at),
+      ghost: settings.ghost,
+      sharing:
+        sharedCircles(
+          sendCircles().filter((circle) => circle.withOthers),
+          settings,
+          at,
+        ).length > 0,
+    });
+  } catch {
+    // The history is a convenience: a failure here never touches the location itself.
+  }
+}
+
 export const history = createHistory({
   api: historyApi,
   keys,
@@ -378,6 +405,7 @@ export const locationEngine = createLocationEngine({
     // Meetings first: they note this position at once, before the location goes out with it.
     const meeting = meetings.fix(fix).catch(() => undefined);
     const trail = history.fix(fix).catch(() => undefined);
+    recordOwnTrail(fix);
     await presence.fix(fix);
     await Promise.all([meeting, trail]);
   },
