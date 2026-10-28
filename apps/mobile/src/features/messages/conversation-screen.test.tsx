@@ -127,7 +127,8 @@ describe('a conversation', () => {
   it('shows the circle, who wrote what, and marks it read up to the newest item', async () => {
     await render(<ConversationScreen />);
     expect(screen.getByText('Aile')).toBeTruthy();
-    expect(screen.getByText('Ali')).toBeTruthy();
+    // The list draws its items a moment after the screen (FlatList): waited for, not assumed.
+    expect(await screen.findByText('Ali')).toBeTruthy();
     expect(screen.getByText('Neredesin?')).toBeTruthy();
     expect(screen.getByText('Yoldayım')).toBeTruthy();
     expect(mockMarkRead).toHaveBeenCalledWith(`c:${CIRCLE}`, NOW - 1000);
@@ -143,7 +144,7 @@ describe('a conversation', () => {
 
   it('takes one own item back from everyone after asking', async () => {
     await render(<ConversationScreen />);
-    await fireEvent(screen.getByTestId(`item-${ITEM_MINE}`), 'longPress');
+    await fireEvent(await screen.findByTestId(`item-${ITEM_MINE}`), 'longPress');
     expect(alerts.at(-1)?.title).toBe('Herkesten sil');
     await pressAlert('Herkesten sil');
     expect(mockTakeBack).toHaveBeenCalledWith(ITEM_MINE);
@@ -151,7 +152,7 @@ describe('a conversation', () => {
 
   it('blocks a sender only after saying it does not hide the location, with leaving right there', async () => {
     await render(<ConversationScreen />);
-    await fireEvent(screen.getByTestId(`item-${ITEM_ALI}`), 'longPress');
+    await fireEvent(await screen.findByTestId(`item-${ITEM_ALI}`), 'longPress');
     await pressAlert('Engelle');
     const asked = alerts.at(-1);
     expect(asked?.message).toBe(
@@ -188,7 +189,7 @@ describe('a conversation', () => {
     useMessages.setState((state) => withItem(state, failed));
     mockCanResend.mockReturnValue(false);
     await render(<ConversationScreen />);
-    expect(screen.getByText('Gönderilemedi, yeniden çek')).toBeTruthy();
+    expect(await screen.findByText('Gönderilemedi, yeniden çek')).toBeTruthy();
     // A failed story shows here, where it did not go, as a story.
     expect(screen.getByText('Hikaye')).toBeTruthy();
     await fireEvent.press(screen.getByTestId(`item-${failed.id}`));
