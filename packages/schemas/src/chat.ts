@@ -122,12 +122,32 @@ export const chatViewSchema = z
   .object({ kind: z.literal('view'), id: itemId, target: z.uuid(), ts: timestamp })
   .strict();
 
+/** The quick reactions (docs/ADR/0035 Ek 2), the first given by a double tap. */
+export const CHAT_REACTIONS = ['❤️', '😂', '😮', '😢', '🔥', '👍'] as const;
+export type ChatReaction = (typeof CHAT_REACTIONS)[number];
+
+/**
+ * Someone reacted to an item (docs/ADR/0035 Ek 2), or took their reaction back (`emoji: null`): to
+ * a conversation's item where that item went, to a story its sender alone. No notification. An older
+ * app does not know the kind and drops it whole.
+ */
+export const chatReactSchema = z
+  .object({
+    kind: z.literal('react'),
+    id: itemId,
+    target: z.uuid(),
+    emoji: z.enum(CHAT_REACTIONS).nullable(),
+    ts: timestamp,
+  })
+  .strict();
+
 export const chatPayloadSchema = z.discriminatedUnion('kind', [
   chatTextSchema,
   chatPhotoSchema,
   chatDeleteSchema,
   chatShotSchema,
   chatViewSchema,
+  chatReactSchema,
 ]);
 export type ChatPayload = z.infer<typeof chatPayloadSchema>;
 export type ChatPhoto = z.infer<typeof chatPhotoSchema>;

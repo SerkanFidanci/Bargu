@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CHAT_PHOTO_MAX_BYTES,
   CHAT_PHOTO_MAX_SIDE,
+  CHAT_REACTIONS,
   CHAT_TEXT_MAX,
   chatPayloadSchema,
   codePointsOf,
@@ -58,5 +59,22 @@ describe('items of messages and moments (docs/ADR/0035 §5)', () => {
     expect(chatPayloadSchema.safeParse({ kind: 'shot', id, target, ts }).success).toBe(true);
     expect(chatPayloadSchema.safeParse({ kind: 'del', id, ts }).success).toBe(false);
     expect(chatPayloadSchema.safeParse({ kind: 'loc', id, ts }).success).toBe(false);
+  });
+
+  it('takes one of six reactions, or none to take it back, and nothing else (Ek 2)', () => {
+    expect(CHAT_REACTIONS).toHaveLength(6);
+    for (const emoji of [...CHAT_REACTIONS, null]) {
+      expect(chatPayloadSchema.safeParse({ kind: 'react', id, target, emoji, ts }).success).toBe(
+        true,
+      );
+    }
+    for (const emoji of ['x', '', '❤️❤️', undefined]) {
+      expect(chatPayloadSchema.safeParse({ kind: 'react', id, target, emoji, ts }).success).toBe(
+        false,
+      );
+    }
+    expect(
+      chatPayloadSchema.safeParse({ kind: 'react', id, target, emoji: null, ts, extra: 1 }).success,
+    ).toBe(false);
   });
 });

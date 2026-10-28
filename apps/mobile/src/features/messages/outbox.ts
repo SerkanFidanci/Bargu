@@ -1,5 +1,5 @@
 import { type DevicePublicKeys, encryptChat, randomUuid, sealDirect } from '@bargu/crypto';
-import type { ChatPayload, ChatSendReply, Circle, PushBody } from '@bargu/schemas';
+import type { ChatPayload, ChatReaction, ChatSendReply, Circle, PushBody } from '@bargu/schemas';
 
 import { ApiError } from '../auth/api-client';
 import { useAuth } from '../auth/auth-store';
@@ -19,6 +19,7 @@ import {
   useMessages,
   withItem,
   withoutItem,
+  withReaction,
   withSentTo,
   withState,
 } from './messages';
@@ -59,7 +60,8 @@ function deviceOf(
 
 /**
  * What a closed app is told of an item (docs/ADR/0035 §11), never what it says: a text or a photo,
- * a story, a screenshot of one's photo. Taking an item back or opening a story tells nobody.
+ * a story, a screenshot of one's photo. Taking an item back, opening a story or reacting tells
+ * nobody.
  */
 export function pushOf(payload: ChatPayload, circleId: string | undefined): PushBody | null {
   switch (payload.kind) {
@@ -78,6 +80,7 @@ export function pushOf(payload: ChatPayload, circleId: string | undefined): Push
       return { kind: 'shot', ts: payload.ts };
     case 'del':
     case 'view':
+    case 'react':
       return null;
   }
 }
@@ -401,34 +404,62 @@ export async function sendHeldScreenshots(): Promise<void> {
  */
 export async function tellViewed(story: ChatItem): Promise<void> {
   if (story.photo?.story !== true || story.from === useAuth.getState().userId) return;
-  await sendView({
-    to: story.from,
+  await sendNotice({
+    conversation: personConversation(story.from),
     payload: { kind: 'view', id: randomUuid(), target: story.id, ts: Date.now() },
   });
 }
 
-interface HeldView {
-  to: string;
+/**
+ * A reaction (docs/ADR/0035 Ek 2), or none any more (`null`): shown here at once; to an item of a
+ * conversation it goes where the item went, to someone's story to them alone (no notification).
+ * Not sent now, it waits as a view does.
+ */
+export async function react(item: ChatItem, emoji: ChatReaction | null): Promise<void> {
+  const me = useAuth.getState().userId;
+  if (me === null) return;
+  useMessages.setState((state) => withReaction(state, item.id, me, emoji));
+  const conversation =
+    item.photo?.story === true && item.from !== me
+      ? personConversation(item.from)
+      : item.conversation;
+  await sendNotice({
+    conversation,
+    payload: { kind: 'react', id: randomUuid(), target: item.id, emoji, ts: Date.now() },
+  });
+}
+
+/** A view or a reaction on its way: small, no notification, kept until it goes. */
+interface HeldNotice {
+  conversation: Conversation;
   payload: ChatPayload;
 }
 
-/** Views not sent yet (this run of the app). */
-const heldViews: HeldView[] = [];
+/** Views and reactions not sent yet (this run of the app). */
+const heldNotices: HeldNotice[] = [];
 
-async function sendView(view: HeldView): Promise<void> {
-  const told = await deliver(personConversation(view.to), view.payload);
-  if (told !== 'sent' && !heldViews.some((held) => held.payload.id === view.payload.id)) {
-    heldViews.push(view);
+/** Both are reactions to the same item: the newer one is what counts. */
+function sameTarget(a: ChatPayload, b: ChatPayload): boolean {
+  return a.kind === 'react' && b.kind === 'react' && a.target === b.target;
+}
+
+async function sendNotice(notice: HeldNotice): Promise<void> {
+  // A reaction still waiting for this item is replaced, so it cannot arrive after this one.
+  const stale = heldNotices.findIndex((held) => sameTarget(held.payload, notice.payload));
+  if (stale >= 0) heldNotices.splice(stale, 1);
+  const told = await deliver(notice.conversation, notice.payload);
+  if (told !== 'sent' && !heldNotices.some((held) => held.payload.id === notice.payload.id)) {
+    heldNotices.push(notice);
   }
 }
 
-/** Back online, or the rules accepted: the views that waited go now. */
-export async function sendHeldViews(): Promise<void> {
-  const held = heldViews.splice(0);
-  for (const view of held) await sendView(view);
+/** Back online, or the rules accepted: the views and reactions that waited go now. */
+export async function sendHeldNotices(): Promise<void> {
+  const held = heldNotices.splice(0);
+  for (const notice of held) await sendNotice(notice);
 }
 
 whenRulesAccepted(() => {
   void sendHeldScreenshots();
-  void sendHeldViews();
+  void sendHeldNotices();
 });

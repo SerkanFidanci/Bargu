@@ -506,3 +506,41 @@ PM onayı (2026-10-29), iki şartla:
    denemede yeni alıcılar eklenir. `view` yalnız bu listedeki birinden gelirse sayılır. Listesi
    olmayan eski öğe (bu sürümden önce gönderilmiş) için kimse sayılmaz; hikaye zaten 24 saatte gider.
    Liste yalnız gönderenin telefonunda, şifreli kasadadır; sunucuya gitmez.
+
+## Ek 2 (2026-10-29): Emoji tepki
+
+PM'in ürün raporu Ö3; sahip "Instagram'ın DM kısmına benzesin" demişti. PM pakete aldı. Okundu
+bilgisi yine yok.
+
+- **Tepkiler:** altı tepki var: ❤️ 😂 😮 😢 🔥 👍.
+  - Mesaja çift dokunuş ❤️ bırakır; ikinci çift dokunuş geri alır.
+  - Basılı tutunca altı tepki ve mesajın işlemleri açılır. Kendi tepkin işaretli durur; ona
+    yeniden dokunursan geri alınır.
+  - Başkasının hikayesinde yanıt alanının yanında kalp var. Kalbe dokunmak ❤️ bırakır, basılı
+    tutmak altı tepkiyi açar.
+- **Öğe:** `react` (`id, target, emoji | null, ts`). `null` tepkiyi geri alır.
+  - Herkesin bir tepkisi olur; sonuncusu geçer.
+  - Bildirim gitmez.
+  - Tepkiler hedef öğeyle birlikte 24 saatte silinir.
+- **Nereye gider:**
+  - Bir sohbetin mesajına verilen tepki, mesajın gittiği yere gider. Çemberdeki mesaja verilen
+    tepkiyi çemberdeki herkes görür.
+  - Hikayeye verilen tepki yalnız hikayeyi gönderene, kişisel zarfla gider (`view` gibi).
+- **Kim sayılır:**
+  - Mesaja verilen tepki, yalnız mesajın bulunduğu sohbetten gelirse sayılır. Başka bir
+    sohbetten aynı öğeyi adlandıran tepki atılır.
+  - Hikayeye verilen tepki, yalnız hikayenin gönderildiği kişiden gelirse sayılır (`sentTo`,
+    Ek 1'in ikinci şartı gibi).
+  - Başkasının hikayesine başkasından gelen tepki atılır.
+- **Gösterim:**
+  - Mesajın alt kenarında küçük bir etiket olur: tepkiler ve sayısı. Ekran okuyucu kimin ne
+    verdiğini okur.
+  - Kendi hikayende "Görenler" listesinde her kişinin yanında tepkisi görünür.
+- **Gönderilemezse:** bağlantı yoksa ya da kurallar kayıtlı değilse tepki, uygulama açık kaldıkça
+  bekler (görüntülenme gibi). Aynı öğeye yeni bir tepki, bekleyen eskisinin yerine geçer; böylece
+  eskisi sonradan gelip yenisini ezemez.
+- **Sunucu:** değişiklik yok. İçerik şifreli; tür sunucuya görünmez. Tepki sıradan bir öğe gibi
+  dakika ve gün sınırlarına sayılır.
+- **Eski uygulama:** `react` türünü tanımaz ve öğeyi bütünüyle atar; çökme olmaz.
+- **Üst veri:** sunucu "A, çembere ya da B'ye bir öğe yolladı" bilgisini görür; ne olduğunu görmez.
+  Bu, §Sonuçlar'daki sınırın içindedir.

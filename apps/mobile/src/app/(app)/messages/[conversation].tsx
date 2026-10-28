@@ -1,7 +1,12 @@
-import { type Avatar as AvatarData, CHAT_TEXT_MAX, codePointsOf } from '@bargu/schemas';
+import {
+  type Avatar as AvatarData,
+  CHAT_TEXT_MAX,
+  type ChatReaction,
+  codePointsOf,
+} from '@bargu/schemas';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Camera, ChevronLeft, Clock, Lock, MoreVertical } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -28,16 +33,27 @@ import {
 } from '@/features/messages/messages';
 import { loadMessagesOnce, markRead } from '@/features/messages/messages-session';
 import { conversationName, isOpen, memberIn } from '@/features/messages/names';
-import { retry, sendText, takeBack } from '@/features/messages/outbox';
+import { ItemSheet } from '@/features/messages/item-sheet';
+import { react, retry, sendText, takeBack } from '@/features/messages/outbox';
 import { useRulesGate } from '@/features/messages/rules';
 import { canResend } from '@/features/messages/photo';
 import { dayOf, placeIn } from '@/features/messages/runs';
 import { useSafety } from '@/features/messages/safety';
-import { avatarSize, gradientAt, radius, space, touchTarget, typography, useTheme } from '@/theme';
+import {
+  avatarSize,
+  gradientAt,
+  radius,
+  reactFx,
+  space,
+  touchTarget,
+  typography,
+  useTheme,
+} from '@/theme';
 import { Avatar } from '@/ui/avatar';
 import { EmptyState } from '@/ui/empty-state';
 import { IconButton } from '@/ui/icon-button';
 import { PressableScale } from '@/ui/pressable-scale';
+import type { SheetRef } from '@/ui/sheet';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 
@@ -152,11 +168,19 @@ export default function ConversationScreen() {
     return count === 0 ? null : t('messages.members', { count });
   })();
 
-  const actions = (item: ChatItem) => {
-    if (item.from !== me) {
-      safety.itemMenu(item);
-      return;
-    }
+  // A held item: its reactions and what can be done with it (docs/ADR/0035 Ek 2).
+  const [held, setHeld] = useState<ChatItem | null>(null);
+  const itemSheet = useRef<SheetRef>(null);
+  const hold = (item: ChatItem) => {
+    setHeld(item);
+    itemSheet.current?.present();
+  };
+  const reactTo = (item: ChatItem, emoji: ChatReaction | null) => {
+    rules.ensure(() => {
+      void react(item, emoji);
+    });
+  };
+  const askTakeBack = (item: ChatItem) => {
     Alert.alert(t('messages.takeBack'), t('messages.takeBackBody'), [
       {
         text: t('messages.takeBack'),
@@ -303,8 +327,12 @@ export default function ConversationScreen() {
                       });
                     }}
                     onLongPress={() => {
-                      actions(item);
+                      hold(item);
                     }}
+                    onReact={(emoji) => {
+                      reactTo(item, emoji);
+                    }}
+                    nameOf={(userId) => (userId === me ? t('messages.you') : memberNameOf(userId))}
                   />
                 </View>
               );
@@ -358,6 +386,28 @@ export default function ConversationScreen() {
         ) : null}
       </KeyboardAvoidingView>
 
+      <ItemSheet
+        ref={itemSheet}
+        mine={held?.from === me}
+        reactable={held?.state === 'sent'}
+        current={held === null || me === null ? undefined : held.reactions?.[me]}
+        onReact={(emoji) => {
+          itemSheet.current?.dismiss();
+          if (held !== null) reactTo(held, emoji);
+        }}
+        onTakeBack={() => {
+          itemSheet.current?.dismiss();
+          if (held !== null) askTakeBack(held);
+        }}
+        onReport={() => {
+          itemSheet.current?.dismiss();
+          if (held !== null) safety.askReport(held);
+        }}
+        onBlock={() => {
+          itemSheet.current?.dismiss();
+          if (held !== null) safety.askBlock(held.from);
+        }}
+      />
       {safety.sheet}
       {rules.sheet}
     </SafeAreaView>
@@ -380,6 +430,8 @@ function Bubble({
   onRetry,
   onRetake,
   onLongPress,
+  onReact,
+  nameOf,
 }: {
   item: ChatItem;
   mine: boolean;
@@ -395,9 +447,21 @@ function Bubble({
   /** A photo that can no longer be sent again: take a new one. */
   onRetake: () => void;
   onLongPress: () => void;
+  /** This user's reaction, or none any more (docs/ADR/0035 Ek 2). */
+  onReact: (emoji: ChatReaction | null) => void;
+  nameOf: (userId: string) => string;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const me = useAuth((state) => state.userId);
+  const lastTap = useRef(0);
+  const single = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (single.current !== null) clearTimeout(single.current);
+    },
+    [],
+  );
   const failed = item.state === 'failed';
   const photo = item.kind === 'photo';
   // Not sent, and its file is gone with a restart: it cannot be tried again, only taken again.
@@ -411,6 +475,39 @@ function Bubble({
       : shot
         ? t('messages.shotSeen')
         : null;
+  const mineNow = me === null ? undefined : item.reactions?.[me];
+  const reactions = Object.entries(item.reactions ?? {});
+  /** What a tap does on its own: open the photo, try again, take again. */
+  const tapAlone = lost
+    ? onRetake
+    : failed
+      ? onRetry
+      : photo && item.state === 'sent'
+        ? () => {
+            router.push({ pathname: '/photo/[item]', params: { item: item.id } });
+          }
+        : undefined;
+  // Two taps close together on something that went out: a heart, or the heart taken back. A single
+  // tap's own action waits that long, so the two do not both happen.
+  const tap =
+    item.state !== 'sent'
+      ? tapAlone
+      : () => {
+          const now = Date.now();
+          if (now - lastTap.current < reactFx.doubleTapMs) {
+            lastTap.current = 0;
+            if (single.current !== null) clearTimeout(single.current);
+            single.current = null;
+            onReact(mineNow === '❤️' ? null : '❤️');
+            return;
+          }
+          lastTap.current = now;
+          if (tapAlone === undefined) return;
+          single.current = setTimeout(() => {
+            single.current = null;
+            tapAlone();
+          }, reactFx.doubleTapMs);
+        };
   // Joined corners: small on the sender's side wherever the run goes on.
   const joined = mine
     ? {
@@ -454,17 +551,7 @@ function Bubble({
                   ? t('messages.openPhoto')
                   : undefined
           }
-          onPress={
-            lost
-              ? onRetake
-              : failed
-                ? onRetry
-                : photo && item.state === 'sent'
-                  ? () => {
-                      router.push({ pathname: '/photo/[item]', params: { item: item.id } });
-                    }
-                  : undefined
-          }
+          onPress={tap}
           onLongPress={onLongPress}
           style={[
             styles.bubble,
@@ -503,6 +590,24 @@ function Bubble({
             </Text>
           )}
         </PressableScale>
+        {reactions.length === 0 ? null : (
+          <View
+            testID={`reactions-${item.id}`}
+            accessible
+            accessibilityLabel={t('messages.react.summary', {
+              list: reactions.map(([userId, emoji]) => `${emoji} ${nameOf(userId)}`).join(', '),
+            })}
+            style={[
+              styles.reactions,
+              { backgroundColor: colors.surfaceRaised, borderColor: colors.background },
+            ]}
+          >
+            <Text variant="footnote" allowFontScaling={false}>
+              {[...new Set(reactions.map(([, emoji]) => emoji))].join('')}
+              {reactions.length > 1 ? ` ${String(reactions.length)}` : ''}
+            </Text>
+          </View>
+        )}
         {meta === null ? null : (
           <Text variant="caption" color={failed ? 'danger' : 'textMuted'} style={styles.label}>
             {meta}
@@ -539,6 +644,15 @@ const styles = StyleSheet.create({
   columnMine: { alignItems: 'flex-end' },
   columnTheirs: { alignItems: 'flex-start' },
   label: { marginHorizontal: space.md },
+  // Over the bubble's lower edge, as in Instagram.
+  reactions: {
+    marginTop: -space.sm,
+    marginHorizontal: space.sm,
+    paddingHorizontal: space.xs,
+    paddingVertical: space.xxs,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
   bubble: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,

@@ -28,10 +28,12 @@ jest.mock('@/features/circles/queries', () => ({
 // Sending, taking back, reporting and the live session have their own tests.
 const mockSendText = jest.fn<Promise<string>, [string, string]>(() => Promise.resolve('sent'));
 const mockTakeBack = jest.fn<Promise<string>, [string]>(() => Promise.resolve('sent'));
+const mockReact = jest.fn<Promise<void>, [string, string | null]>(() => Promise.resolve());
 jest.mock('@/features/messages/outbox', () => ({
   sendText: (conversation: string, text: string) => mockSendText(conversation, text),
   takeBack: (id: string) => mockTakeBack(id),
   retry: jest.fn(),
+  react: (item: { id: string }, emoji: string | null) => mockReact(item.id, emoji),
 }));
 const mockMarkRead = jest.fn<undefined, [string, number]>();
 const mockBlock = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
@@ -147,6 +149,7 @@ describe('a conversation', () => {
   it('takes one own item back from everyone after asking', async () => {
     await render(<ConversationScreen />);
     await fireEvent(await screen.findByTestId(`item-${ITEM_MINE}`), 'longPress');
+    await fireEvent.press(screen.getByTestId('item-take-back'));
     expect(alerts.at(-1)?.title).toBe('Herkesten sil');
     await pressAlert('Herkesten sil');
     expect(mockTakeBack).toHaveBeenCalledWith(ITEM_MINE);
@@ -155,7 +158,7 @@ describe('a conversation', () => {
   it('blocks a sender only after saying it does not hide the location, with leaving right there', async () => {
     await render(<ConversationScreen />);
     await fireEvent(await screen.findByTestId(`item-${ITEM_ALI}`), 'longPress');
-    await pressAlert('Engelle');
+    await fireEvent.press(screen.getByTestId('item-block'));
     const asked = alerts.at(-1);
     expect(asked?.message).toBe(
       'Engellemek konumunu gizlemez. Konumunu gizlemek için çemberden ayrıl.',
@@ -168,6 +171,38 @@ describe('a conversation', () => {
     await pressAlert('Çemberden ayrıl');
     expect(router.push).toHaveBeenCalledWith(`/circle/${CIRCLE}`);
     expect(mockBlock).not.toHaveBeenCalled();
+  });
+
+  it('gives a heart with a double tap, and takes it back with another (Ek 2)', async () => {
+    await render(<ConversationScreen />);
+    const item = await screen.findByTestId(`item-${ITEM_ALI}`);
+    await fireEvent.press(item);
+    expect(mockReact).not.toHaveBeenCalled();
+    await fireEvent.press(item);
+    expect(mockReact).toHaveBeenCalledWith(ITEM_ALI, '❤️');
+  });
+
+  it('offers six reactions on a long press, and shows who reacted under the item (Ek 2)', async () => {
+    useMessages.setState((state) => ({
+      ...state,
+      items: state.items.map((each) =>
+        each.id === ITEM_ALI ? { ...each, reactions: { [ME]: '😂', [ALI]: '😂' } } : each,
+      ),
+    }));
+    await render(<ConversationScreen />);
+    expect((await screen.findByTestId(`reactions-${ITEM_ALI}`)).props.accessibilityLabel).toBe(
+      'Tepkiler: 😂 Sen, 😂 Ali',
+    );
+    await fireEvent(screen.getByTestId(`item-${ITEM_ALI}`), 'longPress');
+    // This user's own is marked; choosing it again takes it back.
+    expect(screen.getByTestId('react-😂').props.accessibilityState).toMatchObject({
+      selected: true,
+    });
+    await fireEvent.press(screen.getByTestId('react-😂'));
+    expect(mockReact).toHaveBeenLastCalledWith(ITEM_ALI, null);
+    await fireEvent(screen.getByTestId(`item-${ITEM_ALI}`), 'longPress');
+    await fireEvent.press(screen.getByTestId('react-🔥'));
+    expect(mockReact).toHaveBeenLastCalledWith(ITEM_ALI, '🔥');
   });
 
   it('asks for a new photo when a failed one can no longer be sent again (PM, M4)', async () => {

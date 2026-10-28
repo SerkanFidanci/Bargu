@@ -1,7 +1,7 @@
-import { CHAT_TEXT_MAX, codePointsOf } from '@bargu/schemas';
+import { CHAT_TEXT_MAX, type ChatReaction, codePointsOf } from '@bargu/schemas';
 import { useScreenshotListener } from 'expo-screen-capture';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Eye, MoreVertical, Send, X } from 'lucide-react-native';
+import { Eye, Heart, MoreVertical, Send, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -33,12 +33,20 @@ import {
   type ChatItem,
   personConversation,
   storiesOf,
+  storyReactions,
   useMessages,
   viewersOf,
 } from '@/features/messages/messages';
+import { ReactionBar } from '@/features/messages/item-sheet';
 import { loadMessagesOnce, markViewed } from '@/features/messages/messages-session';
 import { isOpen, memberIn } from '@/features/messages/names';
-import { sendText, takeBackPhoto, tellScreenshot, tellViewed } from '@/features/messages/outbox';
+import {
+  react,
+  sendText,
+  takeBackPhoto,
+  tellScreenshot,
+  tellViewed,
+} from '@/features/messages/outbox';
 import { openPhoto } from '@/features/messages/photo';
 import { useRulesGate } from '@/features/messages/rules';
 import { useSafety } from '@/features/messages/safety';
@@ -88,6 +96,8 @@ export default function StoryScreen() {
   const [paused, setPaused] = useState(false);
   // The first story of someone else opened on this phone: its sender sees it was (Ek 1).
   const [notice, setNotice] = useState(false);
+  // The six reactions over the reply, after holding the heart (Ek 2); the story waits meanwhile.
+  const [choosing, setChoosing] = useState(false);
   const progress = useSharedValue(0);
   const told = useRef(new Set<string>());
   const seenSheet = useRef<SheetRef>(null);
@@ -207,6 +217,15 @@ export default function StoryScreen() {
   });
   const canReply = !mine && isOpen(personConversation(userId), circles, me);
   const seenBy = mine ? viewersOf({ items }, me, photo.blobId) : [];
+  const reactedBy = mine ? storyReactions({ items }, me, photo.blobId) : {};
+  const myReaction = me === null ? undefined : story.reactions?.[me];
+  const reactWith = (emoji: ChatReaction | null) => {
+    setChoosing(false);
+    setPaused(false);
+    rules.ensure(() => {
+      void react(story, emoji);
+    });
+  };
   const seenLabel =
     seenBy.length === 0
       ? t('messages.story.seenByNone')
@@ -384,6 +403,11 @@ export default function StoryScreen() {
               </Text>
             </PressableScale>
           ) : null}
+          {canReply && choosing ? (
+            <View style={[styles.choose, styles.shade]}>
+              <ReactionBar testID="story-reactions" current={myReaction} onReact={reactWith} />
+            </View>
+          ) : null}
           {canReply ? (
             <View style={[styles.reply, { borderColor: mediaColors.track }]}>
               <TextInput
@@ -403,6 +427,39 @@ export default function StoryScreen() {
                 accessibilityLabel={t('messages.story.reply', { name: nameOf(userId) })}
                 style={[styles.replyInput, typography.body.style, styles.light]}
               />
+              {reply.trim().length === 0 ? (
+                <PressableScale
+                  testID="story-heart"
+                  haptic="select"
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    myReaction === '❤️' ? t('messages.react.heartBack') : t('messages.react.heart')
+                  }
+                  accessibilityHint={t('messages.react.choose')}
+                  accessibilityState={{ selected: myReaction !== undefined }}
+                  onPress={() => {
+                    reactWith(myReaction === '❤️' ? null : '❤️');
+                  }}
+                  onLongPress={() => {
+                    setPaused(true);
+                    setChoosing(true);
+                  }}
+                  style={styles.heart}
+                >
+                  {myReaction === undefined || myReaction === '❤️' ? (
+                    <Heart
+                      color={mediaColors.onBackdrop}
+                      fill={myReaction === '❤️' ? mediaColors.onBackdrop : 'transparent'}
+                      size={touchTarget * 0.5}
+                      strokeWidth={2.25}
+                    />
+                  ) : (
+                    <Text style={typography.title2.style} allowFontScaling={false}>
+                      {myReaction}
+                    </Text>
+                  )}
+                </PressableScale>
+              ) : null}
               <IconButton
                 testID="story-reply-send"
                 icon={Send}
@@ -441,6 +498,19 @@ export default function StoryScreen() {
                 }
                 title={nameOf(viewer.userId)}
                 subtitle={clock(viewer.at)}
+                trailing={
+                  reactedBy[viewer.userId] === undefined ? null : (
+                    <Text
+                      testID={`story-reacted-${viewer.userId}`}
+                      accessibilityLabel={t('messages.react.of', {
+                        emoji: reactedBy[viewer.userId],
+                      })}
+                      style={typography.title2.style}
+                    >
+                      {reactedBy[viewer.userId]}
+                    </Text>
+                  )
+                }
               />
             ))
           )}
@@ -501,6 +571,13 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth * 2,
   },
   replyInput: { flex: 1, minHeight: touchTarget },
+  heart: {
+    width: touchTarget,
+    height: touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  choose: { padding: space.xs, borderRadius: radius.pill },
   seen: {
     flexDirection: 'row',
     alignItems: 'center',

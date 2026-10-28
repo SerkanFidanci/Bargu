@@ -53,7 +53,8 @@ import { ApiError } from '../auth/api-client';
 import { type ChatItem } from './messages';
 import {
   pushOf,
-  sendHeldViews,
+  react,
+  sendHeldNotices,
   shareStory,
   storyTargets,
   tellScreenshot,
@@ -107,6 +108,13 @@ describe('what a closed app is told of an item', () => {
     ).toBeNull();
     expect(
       pushOf({ kind: 'del', id: randomUuid(), target: randomUuid(), ts: NOW }, circleId),
+    ).toBeNull();
+    // Nor does a reaction (Ek 2).
+    expect(
+      pushOf(
+        { kind: 'react', id: randomUuid(), target: randomUuid(), emoji: '❤️', ts: NOW },
+        circleId,
+      ),
     ).toBeNull();
   });
 });
@@ -336,9 +344,97 @@ describe('a story seen (docs/ADR/0035 Ek 1)', () => {
     expect(mockToPerson.mock.calls[0]?.[2]).toEqual([]);
 
     // Back online: sent, and then nothing waits any more.
-    await sendHeldViews();
+    await sendHeldNotices();
     expect(mockToPerson).toHaveBeenCalledTimes(2);
-    await sendHeldViews();
+    await sendHeldNotices();
     expect(mockToPerson).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('a reaction (docs/ADR/0035 Ek 2)', () => {
+  it('shows at once, goes where the item went, to a story its sender alone, the last one counting', async () => {
+    const device = generateDeviceKeys(randomUuid());
+    useAuth.setState({ userId: ME, device });
+    useMessages.setState({ ...EMPTY_MESSAGES, loaded: true }, true);
+    const sender = { userId: randomUuid(), device: generateDeviceKeys(randomUuid()) };
+    const circle: Circle = {
+      id: randomUuid(),
+      kind: 'family',
+      name: 'Aile',
+      epoch: 1,
+      epochStartedAt: 0,
+      myRole: 'member',
+      myStatus: 'active',
+      members: [
+        {
+          userId: sender.userId,
+          role: 'member',
+          status: 'active',
+          username: null,
+          displayName: 'Ali',
+          avatar: null,
+          device: { platform: 'android', bundle: exportDeviceKeyBundle(sender.device) },
+        },
+      ],
+    };
+    mockSenderKeys.set(
+      circle.id,
+      generateSenderKey({ circleId: circle.id, epoch: 1, senderDeviceId: device.deviceId }),
+    );
+    queryClient.setQueryData(circlesKey, [circle]);
+    const words: ChatItem = {
+      id: randomUuid(),
+      conversation: `c:${circle.id}`,
+      from: sender.userId,
+      at: NOW,
+      kind: 'text',
+      text: 'Geldim',
+      state: 'sent',
+    };
+    const story: ChatItem = {
+      id: randomUuid(),
+      conversation: `c:${circle.id}`,
+      from: sender.userId,
+      at: NOW,
+      kind: 'photo',
+      state: 'sent',
+      photo: {
+        blobId: randomUuid(),
+        key: 'k'.repeat(43),
+        size: 1000,
+        hash: 'h'.repeat(43),
+        w: 10,
+        h: 10,
+        story: true,
+      },
+    };
+    useMessages.setState({ ...EMPTY_MESSAGES, loaded: true, items: [words, story] }, true);
+    mockToCircle.mockClear();
+    mockToPerson.mockClear();
+    const reactionsOf = (id: string) =>
+      useMessages.getState().items.find((item) => item.id === id)?.reactions;
+
+    // To the circle, as the message went; no notification.
+    mockToCircle.mockRejectedValueOnce(new Error('offline'));
+    await react(words, '❤️');
+    expect(reactionsOf(words.id)).toEqual({ [ME]: '❤️' });
+    expect(mockToCircle).toHaveBeenCalledTimes(1);
+    expect(mockToCircle.mock.calls[0]?.[0]).toBe(circle.id);
+    expect(mockToCircle.mock.calls[0]?.[2]).toEqual([]);
+    // Changed while the heart still waits: the heart is dropped, it can never come after.
+    await react(words, '😂');
+    expect(reactionsOf(words.id)).toEqual({ [ME]: '😂' });
+    expect(mockToCircle).toHaveBeenCalledTimes(2);
+    await sendHeldNotices();
+    expect(mockToCircle).toHaveBeenCalledTimes(2);
+    // Taken back.
+    await react(words, null);
+    expect(reactionsOf(words.id)).toEqual({});
+
+    // To someone's story: to them alone.
+    await react(story, '🔥');
+    expect(mockToPerson).toHaveBeenCalledTimes(1);
+    expect(mockToPerson.mock.calls[0]?.[0]).toBe(sender.userId);
+    expect(mockToCircle).toHaveBeenCalledTimes(3);
   });
 });

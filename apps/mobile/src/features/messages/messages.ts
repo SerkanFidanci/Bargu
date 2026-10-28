@@ -1,6 +1,8 @@
 import {
   CHAT_LIFETIME_MS,
+  CHAT_REACTIONS,
   chatEnvelopeSchema,
+  type ChatReaction,
   type ChatPayload,
   type ChatRecord,
   chatPhotoSchema,
@@ -64,6 +66,8 @@ const itemSchema = z
      * it. Never for anyone else's items.
      */
     sentTo: z.array(z.uuid()).optional(),
+    /** Who reacted to it, with what (docs/ADR/0035 Ek 2): one reaction each, the last one kept. */
+    reactions: z.record(z.uuid(), z.enum(CHAT_REACTIONS)).optional(),
   })
   .strict();
 export type ChatItem = z.infer<typeof itemSchema>;
@@ -195,11 +199,43 @@ export function withSentTo<T extends Saved>(saved: T, id: string, userIds: reado
   };
 }
 
+/** One person's reaction to an item, or none any more (`null`). */
+function reacted(item: ChatItem, from: string, emoji: ChatReaction | null): ChatItem {
+  const others = Object.fromEntries(
+    Object.entries(item.reactions ?? {}).filter(([userId]) => userId !== from),
+  );
+  return { ...item, reactions: emoji === null ? others : { ...others, [from]: emoji } };
+}
+
+/** This phone's own reaction, shown at once (docs/ADR/0035 Ek 2). */
+export function withReaction<T extends Saved>(
+  saved: T,
+  id: string,
+  from: string,
+  emoji: ChatReaction | null,
+): T {
+  return {
+    ...saved,
+    items: saved.items.map((item) => (item.id === id ? reacted(item, from, emoji) : item)),
+  };
+}
+
+/**
+ * Whose reaction to an item counts (docs/ADR/0035 Ek 2): to a story, only someone this phone sent it
+ * to (as with a view, Ek 1); to anything else, someone in the conversation it is in, coming from
+ * that conversation, not from another one.
+ */
+function mayReact(item: ChatItem, from: string, conversation: Conversation): boolean {
+  if (item.photo?.story === true) return item.sentTo?.includes(from) === true;
+  return item.conversation === conversation;
+}
+
 /**
  * What an opened item does here (docs/ADR/0035 §5): a text or a photo is added; `del` takes back an
  * item only its own sender sent; `shot` marks this phone's photo as screenshot by the sender, and
  * `view` its story as opened by them (the first time is kept), only from someone it went to: no
- * one else can claim to have seen it (Ek 1, the PM's condition).
+ * one else can claim to have seen it (Ek 1, the PM's condition); `react` sets or takes back the
+ * sender's reaction (Ek 2).
  */
 export function applyPayload<T extends Saved>(
   saved: T,
@@ -230,6 +266,14 @@ export function applyPayload<T extends Saved>(
       item.sentTo?.includes(from) === true &&
       item.viewers?.[from] === undefined
         ? { ...item, viewers: { ...item.viewers, [from]: payload.ts } }
+        : item,
+    );
+    return { ...saved, items, seen };
+  }
+  if (payload.kind === 'react') {
+    const items = saved.items.map((item) =>
+      item.id === payload.target && mayReact(item, from, conversation)
+        ? reacted(item, from, payload.emoji)
         : item,
     );
     return { ...saved, items, seen };
@@ -394,6 +438,23 @@ export function viewersOf(
     }
   }
   return [...first.entries()].map(([userId, at]) => ({ userId, at })).sort((a, b) => b.at - a.at);
+}
+
+/**
+ * Who reacted to one of this phone's stories, with what (docs/ADR/0035 Ek 2): from every circle it
+ * went to, each person's own.
+ */
+export function storyReactions(
+  saved: Pick<Saved, 'items'>,
+  me: string | null,
+  blobId: string,
+): Record<string, ChatReaction> {
+  const found: Record<string, ChatReaction> = {};
+  for (const item of saved.items) {
+    if (item.from !== me || item.photo?.blobId !== blobId) continue;
+    Object.assign(found, item.reactions);
+  }
+  return found;
 }
 
 /** A story opened on this phone: its ring turns grey once all of that person's are. */

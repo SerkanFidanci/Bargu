@@ -1,5 +1,5 @@
 import { randomUuid } from '@bargu/crypto';
-import { CHAT_LIFETIME_MS } from '@bargu/schemas';
+import { CHAT_LIFETIME_MS, type ChatReaction } from '@bargu/schemas';
 
 import type { KeyValueStore } from '../storage/vault';
 import {
@@ -24,6 +24,7 @@ import {
   withoutCircle,
   withoutItem,
   withoutPerson,
+  withReaction,
   withSentTo,
   withState,
   withViewed,
@@ -360,6 +361,71 @@ describe('what an opened item does', () => {
     expect(viewers(toAli.id)).toEqual({ [ALI]: NOW });
     expect(viewers(toOthers.id)).toBeUndefined();
     expect(viewers(unknown.id)).toBeUndefined();
+  });
+
+  it('takes a reaction from the conversation the item is in, one each, and its taking back (Ek 2)', () => {
+    const AYSE = randomUuid();
+    const inGroup = text();
+    const toAli = text({ conversation: withAli, from: ME });
+    const state = stateWith(inGroup, toAli);
+    const react = (
+      current: MessagesState,
+      target: string,
+      from: string,
+      emoji: ChatReaction | null,
+      conversation = group,
+    ) =>
+      applyPayload(
+        current,
+        { kind: 'react', id: randomUuid(), target, emoji, ts: NOW },
+        from,
+        conversation,
+        undefined,
+      );
+    const reactionsAt = (current: MessagesState, id: string) =>
+      current.items.find((item) => item.id === id)?.reactions;
+
+    let next = react(state, inGroup.id, ALI, '❤️');
+    next = react(next, inGroup.id, AYSE, '😂');
+    next = react(next, inGroup.id, ALI, '🔥');
+    expect(reactionsAt(next, inGroup.id)).toEqual({ [ALI]: '🔥', [AYSE]: '😂' });
+    expect(reactionsAt(react(next, inGroup.id, AYSE, null), inGroup.id)).toEqual({ [ALI]: '🔥' });
+    // Ali in his own conversation with this phone: yes; the same item named from another one: no.
+    expect(reactionsAt(react(state, toAli.id, ALI, '👍', withAli), toAli.id)).toEqual({
+      [ALI]: '👍',
+    });
+    expect(reactionsAt(react(state, toAli.id, AYSE, '👍', group), toAli.id)).toBeUndefined();
+    // It adds nothing to the conversation.
+    expect(next.items).toHaveLength(2);
+    // This phone's own, shown at once.
+    expect(withReaction(state, inGroup.id, ME, '😮').items[0]?.reactions).toEqual({ [ME]: '😮' });
+  });
+
+  it('takes a reaction to a story only from someone it went to (Ek 2, as Ek 1)', () => {
+    const base = photo({ from: ME });
+    const mine: ChatItem = {
+      ...base,
+      photo: { ...(base.photo ?? ({} as never)), story: true },
+      sentTo: [ALI],
+    };
+    const hersBase = photo();
+    const hers: ChatItem = {
+      ...hersBase,
+      photo: { ...(hersBase.photo ?? ({} as never)), story: true },
+    };
+    const state = stateWith(mine, hers);
+    const react = (target: string, from: string) =>
+      applyPayload(
+        state,
+        { kind: 'react', id: randomUuid(), target, emoji: '❤️', ts: NOW },
+        from,
+        personConversation(from),
+        undefined,
+      ).items.find((item) => item.id === target)?.reactions;
+    expect(react(mine.id, ALI)).toEqual({ [ALI]: '❤️' });
+    expect(react(mine.id, randomUuid())).toBeUndefined();
+    // Someone else's story: nobody tells this phone about it.
+    expect(react(hers.id, randomUuid())).toBeUndefined();
   });
 
   it('keeps everyone a story went to, also across a second try', () => {

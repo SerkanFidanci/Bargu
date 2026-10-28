@@ -33,6 +33,7 @@ export {
   shortcutFx,
   storeFx,
   storyFx,
+  reactFx,
   spring,
   timing,
   typingDebounceMs,

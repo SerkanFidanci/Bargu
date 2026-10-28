@@ -1564,6 +1564,15 @@
       "now": "now",
       "minutes": "{{count}}m",
       "hours": "{{count}}h"
+    },
+    "react": {
+      "with": "React with {{emoji}}",
+      "takeBack": "Take back your {{emoji}}",
+      "summary": "Reactions: {{list}}",
+      "heart": "Leave a heart",
+      "heartBack": "Take your heart back",
+      "choose": "Hold to choose another reaction",
+      "of": "Reacted {{emoji}}"
     }
   },
   "tips": {

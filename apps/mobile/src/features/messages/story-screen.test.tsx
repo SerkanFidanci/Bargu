@@ -43,12 +43,14 @@ const mockSendText = jest.fn<Promise<string>, [string, string, string?]>(() =>
 const mockTakeBackPhoto = jest.fn<Promise<string>, [string]>(() => Promise.resolve('sent'));
 const mockTellScreenshot = jest.fn<Promise<void>, [{ id: string }]>(() => Promise.resolve());
 const mockTellViewed = jest.fn<Promise<void>, [{ id: string }]>(() => Promise.resolve());
+const mockReact = jest.fn<Promise<void>, [string, string | null]>(() => Promise.resolve());
 jest.mock('@/features/messages/outbox', () => ({
   sendText: (conversation: string, text: string, replyTo?: string) =>
     mockSendText(conversation, text, replyTo),
   takeBackPhoto: (blobId: string) => mockTakeBackPhoto(blobId),
   tellScreenshot: (item: { id: string }) => mockTellScreenshot(item),
   tellViewed: (item: { id: string }) => mockTellViewed(item),
+  react: (item: { id: string }, emoji: string | null) => mockReact(item.id, emoji),
 }));
 const mockViewed = jest.fn<undefined, [string]>();
 jest.mock('@/features/messages/messages-session', () => ({
@@ -197,6 +199,21 @@ describe("someone's stories", () => {
     expect(screen.getByTestId('story-view-notice')).toHaveTextContent('Açtığını Ali görür.');
   });
 
+  it('take a heart with a tap, or one of six reactions after holding it (Ek 2)', async () => {
+    await render(<StoryScreen />);
+    await screen.findByText('deniz');
+    expect(screen.getByTestId('story-heart').props.accessibilityLabel).toBe('Kalp bırak');
+    await fireEvent.press(screen.getByTestId('story-heart'));
+    expect(mockReact).toHaveBeenLastCalledWith(NEW.id, '❤️');
+    await fireEvent(screen.getByTestId('story-heart'), 'longPress');
+    await fireEvent.press(screen.getByTestId('react-😮'));
+    expect(mockReact).toHaveBeenLastCalledWith(NEW.id, '😮');
+    expect(screen.queryByTestId('story-reactions')).toBeNull();
+    // Writing a reply: the send button takes the heart's place.
+    await fireEvent.changeText(screen.getByTestId('story-reply'), 'güzel');
+    expect(screen.queryByTestId('story-heart')).toBeNull();
+  });
+
   it('do not tell again of one seen before', async () => {
     await render(<StoryScreen />);
     await fireEvent.press(screen.getByTestId('story-back'));
@@ -278,7 +295,11 @@ describe("one's own story", () => {
         ...state,
         items: state.items.map((item) =>
           item.id === MINE.id
-            ? { ...item, viewers: { [ALI]: NOW - 800, [AYSE]: NOW - 200 } }
+            ? {
+                ...item,
+                viewers: { [ALI]: NOW - 800, [AYSE]: NOW - 200 },
+                reactions: { [AYSE]: '🔥' },
+              }
             : item,
         ),
       }));
@@ -290,6 +311,13 @@ describe("one's own story", () => {
       expect.stringContaining('Ayşe'),
       expect.stringContaining('Ali'),
     ]);
+    // Who reacted, with what, beside them (Ek 2).
+    expect(
+      screen.getByTestId(`story-reacted-${AYSE}`, { includeHiddenElements: true }),
+    ).toHaveTextContent('🔥');
+    expect(
+      screen.queryByTestId(`story-reacted-${ALI}`, { includeHiddenElements: true }),
+    ).toBeNull();
   });
 });
 

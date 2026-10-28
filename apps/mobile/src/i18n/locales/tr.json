@@ -1564,6 +1564,15 @@
       "now": "şimdi",
       "minutes": "{{count}} dk",
       "hours": "{{count}} sa"
+    },
+    "react": {
+      "with": "{{emoji}} ile tepki ver",
+      "takeBack": "{{emoji}} tepkini geri al",
+      "summary": "Tepkiler: {{list}}",
+      "heart": "Kalp bırak",
+      "heartBack": "Kalbini geri al",
+      "choose": "Basılı tut: başka bir tepki seç",
+      "of": "{{emoji}} tepki verdi"
     }
   },
   "tips": {

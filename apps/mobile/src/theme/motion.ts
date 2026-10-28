@@ -350,6 +350,9 @@ export const storyFx = {
   bar: 3,
 } as const;
 
+/** Reactions (docs/ADR/0035 Ek 2): two taps closer than this are one double tap, a heart. */
+export const reactFx = { doubleTapMs: 260 } as const;
+
 /** Haptic feedback per interaction kind (expo-haptics), see haptics.ts. */
 export const haptic = {
   select: 'selection',
