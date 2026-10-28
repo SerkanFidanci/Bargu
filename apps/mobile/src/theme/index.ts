@@ -12,7 +12,7 @@ export {
   mediaColors,
   qrColors,
 } from './colors';
-export { avatarSize, elevation, radius, space, touchTarget } from './layout';
+export { avatarSize, dockShape, elevation, radius, space, touchTarget } from './layout';
 export {
   activityFx,
   ambient,

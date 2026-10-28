@@ -72,6 +72,7 @@ describe('the dock', () => {
       onAdd: jest.fn(),
       onMe: jest.fn(),
       onMessages: jest.fn(),
+      onStore: jest.fn(),
       unread: 0,
       addOpen: false,
       requests: 0,
@@ -89,5 +90,12 @@ describe('the dock', () => {
     expect(screen.getByTestId('dock-messages').props.accessibilityLabel).toContain('3');
     await fireEvent.press(screen.getByTestId('dock-messages'));
     expect(props.onMessages).toHaveBeenCalled();
+
+    // The owner's bar (2026-10-28): the store has its own place, the + is in the middle of five.
+    expect(screen.getByTestId('dock-store').props.accessibilityLabel).toBe('Mağaza');
+    await fireEvent.press(screen.getByTestId('dock-store'));
+    expect(props.onStore).toHaveBeenCalled();
+    await fireEvent.press(screen.getByTestId('dock-add'));
+    expect(props.onAdd).toHaveBeenCalled();
   });
 });

@@ -1,17 +1,19 @@
 import type { Me } from '@bargu/schemas';
-import { MessageCircle, Plus, Users } from 'lucide-react-native';
-import { useEffect } from 'react';
+import { MessageCircle, Plus, ShoppingBag, Users } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
-import { choreography, elevation, radius, space, spring, touchTarget, useTheme } from '@/theme';
+import { choreography, dockShape, radius, space, spring, touchTarget, useTheme } from '@/theme';
 import { useGlow } from '@/theme/effects';
 import { useMotion } from '@/theme/use-motion';
 import { Avatar } from '@/ui/avatar';
-import { IconButton } from '@/ui/icon-button';
 import { PressableScale } from '@/ui/pressable-scale';
 import { Text } from '@/ui/text';
+
+import { DOCK_RISE, dockOutline } from './dock-shape';
 
 export interface DockProps {
   me: Me;
@@ -20,6 +22,8 @@ export interface DockProps {
   onMe: () => void;
   /** Messages and moments (docs/ADR/0035): its screen, and how many items wait unread. */
   onMessages: () => void;
+  /** The store (docs/ADR/0025 Ek 2): the pin looks and Bargu+. */
+  onStore: () => void;
   unread: number;
   /** The add sheet is open: the + turns into a close cross. */
   addOpen: boolean;
@@ -30,9 +34,9 @@ export interface DockProps {
 }
 
 /**
- * The bar at the bottom of the map: Circles · Messages · Add · Me (BARGU_PLAN §4.3; Messages since
- * docs/ADR/0035). The + stands exactly in the middle (the owner, 2026-10-28): two halves of equal
- * width, Circles and Messages in the left one, Me in the right one.
+ * The bar at the bottom of the map, as the owner drew it (2026-10-28): Circles · Messages · + ·
+ * Store · Me in five equal columns, the + raised on a smooth hump above the middle one
+ * (dock-shape.ts), so it stands exactly in the middle.
  */
 export function Dock({
   me,
@@ -40,6 +44,7 @@ export function Dock({
   onAdd,
   onMe,
   onMessages,
+  onStore,
   unread,
   addOpen,
   requests,
@@ -49,22 +54,40 @@ export function Dock({
   const { colors } = useTheme();
   const glow = useGlow();
   const turn = useSharedValue(0);
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   useEffect(() => {
     turn.set(withSpring(addOpen ? choreography.addTurn : 0, spring.bouncy));
   }, [addOpen, turn]);
   const turned = useAnimatedStyle(() => ({ transform: [{ rotate: `${String(turn.get())}deg` }] }));
+  const outline = size === null ? null : dockOutline(size.width, size.height);
+  // The hump is inside this view (a strip as tall as it above the bar), so the whole + takes taps:
+  // Android gives a view no touch outside its own bounds.
   return (
-    <View
-      style={[
-        styles.dock,
-        {
-          backgroundColor: colors.surfaceRaised,
-          borderColor: colors.border,
-          boxShadow: elevation.floating,
-        },
-      ]}
-    >
-      <View style={styles.half}>
+    <View style={styles.wrap} pointerEvents="box-none">
+      {outline === null || size === null ? null : (
+        <Svg
+          pointerEvents="none"
+          style={styles.shape}
+          width={size.width}
+          height={size.height + outline.rise}
+        >
+          <Path
+            d={outline.path}
+            fill={colors.surfaceRaised}
+            stroke={colors.border}
+            strokeWidth={StyleSheet.hairlineWidth * 2}
+          />
+        </Svg>
+      )}
+      <View
+        style={styles.dock}
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setSize((current) =>
+            current?.width === width && current.height === height ? current : { width, height },
+          );
+        }}
+      >
         <DockItem
           label={t('main.dock.circles')}
           accessibilityLabel={
@@ -99,18 +122,11 @@ export function Dock({
             {unread > 0 ? <RequestBadge count={unread} /> : null}
           </View>
         </DockItem>
-      </View>
-      <Animated.View style={[turned, styles.add, glow === undefined ? null : { boxShadow: glow }]}>
-        <IconButton
-          testID="dock-add"
-          icon={Plus}
-          label={addOpen ? t('ui.sheet.close') : t('main.dock.add')}
-          tone="primary"
-          size={touchTarget + space.md}
-          onPress={onAdd}
-        />
-      </Animated.View>
-      <View style={styles.half}>
+        {/* The middle column: the + stands above it, on the hump. */}
+        <View style={styles.slot} />
+        <DockItem label={t('main.dock.store')} onPress={onStore} testID="dock-store" active={false}>
+          <ShoppingBag color={colors.text} size={24} strokeWidth={2.25} />
+        </DockItem>
         <DockItem
           label={t('main.dock.me')}
           onPress={onMe}
@@ -120,7 +136,41 @@ export function Dock({
           <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="sm" userId={me.userId} />
         </DockItem>
       </View>
+      <View style={styles.addPlace} pointerEvents="box-none">
+        <Animated.View
+          style={[turned, styles.add, glow === undefined ? null : { boxShadow: glow }]}
+        >
+          <AddButton label={addOpen ? t('ui.sheet.close') : t('main.dock.add')} onPress={onAdd} />
+        </Animated.View>
+      </View>
     </View>
+  );
+}
+
+/** The raised +: the brand's violet, lit from its upper left, as in the owner's picture. */
+function AddButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  const half = dockShape.add / 2;
+  return (
+    <PressableScale
+      testID="dock-add"
+      haptic="select"
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={[styles.addButton, { backgroundColor: colors.primary }]}
+    >
+      <Svg style={StyleSheet.absoluteFill} width={dockShape.add} height={dockShape.add}>
+        <Defs>
+          <LinearGradient id="dock-add-light" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={colors.onPrimary} stopOpacity={0.32} />
+            <Stop offset="0.6" stopColor={colors.onPrimary} stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        <Circle cx={half} cy={half} r={half} fill="url(#dock-add-light)" />
+      </Svg>
+      <Plus color={colors.onPrimary} size={touchTarget * 0.6} strokeWidth={2.5} />
+    </PressableScale>
   );
 }
 
@@ -172,6 +222,8 @@ function DockItem({
       <Text
         variant="caption"
         maxFontSizeMultiplier={1.3}
+        numberOfLines={1}
+        adjustsFontSizeToFit
         style={{ color: active ? colors.primary : colors.textMuted }}
       >
         {label}
@@ -184,19 +236,40 @@ function DockItem({
 }
 
 const styles = StyleSheet.create({
+  wrap: { paddingTop: DOCK_RISE, marginHorizontal: space.sm },
   dock: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.xl,
-    paddingHorizontal: space.lg,
+    paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    marginHorizontal: space.lg,
-    borderWidth: StyleSheet.hairlineWidth * 2,
   },
-  /** Each side of the +: as wide as the other, so the + is in the middle whatever they hold. */
-  half: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly' },
-  underline: { width: space.xl, height: space.xs - 1, borderRadius: radius.pill },
+  shape: { position: 'absolute', left: 0, top: 0 },
+  /** Five equal columns: the + is in the middle one, so exactly in the middle of the bar. */
+  item: {
+    flex: 1,
+    minHeight: touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xxs,
+  },
+  slot: { flex: 1 },
+  addPlace: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: DOCK_RISE + dockShape.drop - dockShape.add / 2,
+    alignItems: 'center',
+  },
   add: { borderRadius: radius.pill },
+  addButton: {
+    width: dockShape.add,
+    height: dockShape.add,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  underline: { width: space.xl, height: space.xs - 1, borderRadius: radius.pill },
   badge: {
     position: 'absolute',
     top: -space.xs,
@@ -208,12 +281,5 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  item: {
-    minWidth: touchTarget + space.xl,
-    minHeight: touchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.xxs,
   },
 });

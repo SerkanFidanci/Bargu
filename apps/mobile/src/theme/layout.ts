@@ -34,3 +34,16 @@ export const avatarSize = {
   lg: 64,
   xl: 96,
 } as const;
+
+/**
+ * The dock's shape (the owner's picture, 2026-10-28): five equal columns, the + raised on a smooth
+ * hump above the middle one. `add` is the button's size, `ring` the gap the hump leaves around it,
+ * `drop` how far below the bar's top edge its centre sits, `fillet` the radius that joins the hump
+ * to the bar.
+ */
+export const dockShape = {
+  add: touchTarget + space.md,
+  ring: 6,
+  drop: 10,
+  fillet: 10,
+} as const;

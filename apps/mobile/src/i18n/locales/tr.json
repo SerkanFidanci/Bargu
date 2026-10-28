@@ -131,7 +131,8 @@
       "circles": "Çemberler",
       "add": "Ekle",
       "me": "Ben",
-      "circlesWithRequests": "Çemberler, yeni istek: {{count}}"
+      "circlesWithRequests": "Çemberler, yeni istek: {{count}}",
+      "store": "Mağaza"
     },
     "connecting": "Bağlanıyor…",
     "map": "Harita",

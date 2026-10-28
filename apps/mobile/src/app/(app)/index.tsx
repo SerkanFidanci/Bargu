@@ -61,6 +61,7 @@ import { EffectsPaused } from '@/theme/effects';
 import { useMotion } from '@/theme/use-motion';
 import { Confetti, useCelebration } from '@/ui/confetti';
 import type { SheetRef } from '@/ui/sheet';
+import { ClearOfToast } from '@/ui/toast';
 
 /** Height the dock and pill cover, so the map keeps its centre and credits in the open area. */
 const DOCK_HEIGHT = touchTarget + space.md + space.lg * 2;
@@ -254,27 +255,29 @@ export default function HomeScreen() {
           style={[styles.top, { top: insets.top + space.sm }]}
           pointerEvents="box-none"
         >
-          <View style={styles.topRow} pointerEvents="box-none">
-            <View style={styles.seers} pointerEvents="box-none">
-              <SeersPill
-                seers={seers}
-                ghost={sharing.ghost}
-                permission={permission}
-                onPress={() => {
-                  router.push('/seers');
-                }}
-              />
+          <ClearOfToast style={styles.topStack}>
+            <View style={styles.topRow} pointerEvents="box-none">
+              <View style={styles.seers} pointerEvents="box-none">
+                <SeersPill
+                  seers={seers}
+                  ghost={sharing.ghost}
+                  permission={permission}
+                  onPress={() => {
+                    router.push('/seers');
+                  }}
+                />
+              </View>
+              {weather === null ? null : <WeatherChip here={weather} town={townIn(found, cell)} />}
             </View>
-            {weather === null ? null : <WeatherChip here={weather} town={townIn(found, cell)} />}
-          </View>
-          <MeetingChip circles={circleList.data ?? []} points={points} now={now} me={myUserId} />
+            <MeetingChip circles={circleList.data ?? []} points={points} now={now} me={myUserId} />
 
-          <LocationBanner />
-          <NotificationCard />
-          <NewPhoneCard onChoose={() => circles.current?.present()} />
-          <SharingReminderCard />
-          {backgroundLiveCard}
-          {swarmPanel}
+            <LocationBanner />
+            <NotificationCard />
+            <NewPhoneCard onChoose={() => circles.current?.present()} />
+            <SharingReminderCard />
+            {backgroundLiveCard}
+            {swarmPanel}
+          </ClearOfToast>
         </Animated.View>
         <Animated.View
           entering={motion.enterUpAt(1)}
@@ -293,6 +296,9 @@ export default function HomeScreen() {
             }}
             onMessages={() => {
               router.push('/messages');
+            }}
+            onStore={() => {
+              router.push('/store');
             }}
             unread={unread}
             active={meOpen ? 'me' : 'circles'}
@@ -370,9 +376,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: space.lg,
     right: space.lg,
-    alignItems: 'center',
-    gap: space.sm,
   },
+  topStack: { alignItems: 'center', gap: space.sm },
   bottom: { position: 'absolute', left: 0, right: 0 },
   // "Who sees me" and the weather always side by side (the owner, 2026-10-23: the weather had gone
   // under it); on a narrow screen or with large text "who sees me" gives way, its text shortened.

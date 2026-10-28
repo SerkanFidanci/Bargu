@@ -131,7 +131,8 @@
       "circles": "Circles",
       "add": "Add",
       "me": "Me",
-      "circlesWithRequests": "Circles, new requests: {{count}}"
+      "circlesWithRequests": "Circles, new requests: {{count}}",
+      "store": "Store"
     },
     "connecting": "Connecting…",
     "map": "Map",
