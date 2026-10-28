@@ -1508,7 +1508,8 @@
       "seenBy": "Seen by {{count}}",
       "seenByNone": "Nobody has seen it yet",
       "seenByTitle": "Seen by",
-      "seenByNote": "Only you see this list. It goes with your story after 24 hours."
+      "seenByNote": "Only you see this list. It goes with your story after 24 hours.",
+      "viewNotice": "{{name}} sees that you opened it."
     },
     "rules": {
       "title": "Community rules",

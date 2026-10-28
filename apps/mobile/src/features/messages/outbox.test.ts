@@ -159,7 +159,18 @@ describe('a story', () => {
     const device = generateDeviceKeys(randomUuid());
     useAuth.setState({ userId: ME, device });
     useMessages.setState({ ...EMPTY_MESSAGES, loaded: true }, true);
-    const circle = (name: string): Circle => ({
+    const person = (userId: string, status: 'active' | 'invited') => ({
+      userId,
+      role: 'member' as const,
+      status,
+      username: null,
+      displayName: 'Test',
+      avatar: null,
+      device: null,
+    });
+    const ALI = randomUuid();
+    const AYSE = randomUuid();
+    const circle = (name: string, members: Circle['members']): Circle => ({
       id: randomUuid(),
       kind: 'family',
       name,
@@ -167,9 +178,17 @@ describe('a story', () => {
       epochStartedAt: 0,
       myRole: 'member',
       myStatus: 'active',
-      members: [],
+      members,
     });
-    const circles = [circle('Aile'), circle('Okul')];
+    const circles = [
+      // Someone only invited is not in it yet: the story does not go to them.
+      circle('Aile', [
+        person(ME, 'active'),
+        person(ALI, 'active'),
+        person(randomUuid(), 'invited'),
+      ]),
+      circle('Okul', [person(ME, 'active'), person(AYSE, 'active')]),
+    ];
     for (const each of circles) {
       mockSenderKeys.set(
         each.id,
@@ -197,6 +216,8 @@ describe('a story', () => {
     expect(new Set(items.map((item) => item.id)).size).toBe(2);
     expect(items.every((item) => item.photo?.story === true && item.state === 'sent')).toBe(true);
     expect(items.every((item) => item.photo?.caption === 'deniz')).toBe(true);
+    // Each item keeps whom it went to: only they can say they saw it (docs/ADR/0035 Ek 1).
+    expect(items.map((item) => item.sentTo)).toEqual([[ALI], [AYSE]]);
   });
 });
 

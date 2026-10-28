@@ -284,8 +284,8 @@ dosya      = head ‖ ChaCha20-Poly1305(blobKey, nonce, aad = "bargu/v1/blob\0" 
 
 - Öğe türleri (`chatPayloadSchema`): `text` (`id, text 1–1000 karakter, replyTo?, ts`), `photo`
   (`id, blobId, key, size, hash = SHA-256(dosya), w, h, caption? ≤ 200, story, ts`), `del`, `shot` ve
-  `view` (`id, target, ts`; `view` hikayeyi açanın gönderene haberi, ADR 0035 Ek 1). İçerikteki `id`
-  başlıktaki `id` olmalıdır.
+  `view` (`id, target, ts`; `view` hikayeyi açanın gönderene haberi, ADR 0035 Ek 1; gönderen onu
+  yalnız o öğeyi gönderdiği kişilerden kabul eder). İçerikteki `id` başlıktaki `id` olmalıdır.
 - **Anahtar bağlılığı (`commit`):** ChaCha20-Poly1305 bir şifreli metni tek bir anahtara bağlamaz;
   imzanın kapsadığı bu özet bağlar. Anahtar bağlılığı içermeyen temel başlıktan türetilir (yoksa
   döngü olurdu). Alıcı çözmeden önce denetler; uymayan öğe gösterilmez. Bildirimde (`revealChatItem`,

@@ -1,6 +1,6 @@
 # 0036. Pil: uygulama kapalıyken konum, GPS'i dinlendirerek
 
-- Durum: Önerildi (kodlama oturumu, 2026-10-28). Sahibin isteği; PM'in onayını bekliyor.
+- Durum: Kabul edildi (PM, 2026-10-29). Sahibin isteği; önerildi (kodlama oturumu, 2026-10-28).
 - Tarih: 2026-10-28
 - İlgili: BARGU_PLAN §3.3 (sıklık tablosu, PM günceller), [ADR 0028](0028-location-accuracy-and-glide.md)
   (arka planda canlı konum), `apps/mobile/src/features/location/tracker.ts`
@@ -49,6 +49,11 @@ Life360'ın yaptığı gibi: konum uygulama kapalıyken de paylaşılır ama GPS
   Gerçek fark sahibin telefonunda ölçülür: aynı gün, aynı kullanım, saatte yüzde kaç.
 - Uygulama kapalıyken hareket eden birinin pini en çok yaklaşık bir dakika geriden gelir; biri
   bakınca canlıya döner.
-- Daha fazlası (v2): durunca GPS'i tamamen kapatıp hareket algılayınca açmak. Bu ya yerel (native)
-  bir modül ya da "her zaman konum" izni ister; PM kararı.
+- Daha fazlası (v2): durunca GPS'i tamamen kapatıp hareket algılayınca açmak. PM kararı
+  (2026-10-29): önce ölçüm. Sahip 4f29fe7 ile bir gün normal kullanır ve Android'in pil ekranında
+  Bargu'nun günlük payına bakar. Pay %10'u geçerse v2 açılır: Android'in hareket algılama
+  (Activity Recognition) API'siyle küçük bir yerel modül. "Her zaman konum"
+  (ACCESS_BACKGROUND_LOCATION) istenmez; Play'deki "arka plan konumu yok" durumu korunur. v2'ye
+  geçilirse yeni izin (ACTIVITY_RECOGNITION), bağımlılık gerekçesi ve Play beyanı bu ADR'ye ek olarak
+  yazılır.
 - Testler: `tracker.test.ts` bu ayarları sabitler; 5 saniyeye geri dönüş testten geçmez.

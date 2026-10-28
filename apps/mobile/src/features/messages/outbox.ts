@@ -19,6 +19,7 @@ import {
   useMessages,
   withItem,
   withoutItem,
+  withSentTo,
   withState,
 } from './messages';
 import { messagesApi } from './messages-api';
@@ -152,14 +153,33 @@ function payloadOf(item: ChatItem): ChatPayload | null {
   return null;
 }
 
-/** Sends one of this phone's own items, shown at once and marked sent or failed when it is known. */
+/** Who an item for a conversation reaches: the circle's other active members, or the one person. */
+function reachOf(conversation: Conversation, circles: readonly Circle[], me: string): string[] {
+  const target = conversationTarget(conversation);
+  if ('userId' in target) return [target.userId];
+  const circle = circles.find((candidate) => candidate.id === target.circleId);
+  return (circle?.members ?? [])
+    .filter((member) => member.userId !== me && member.status === 'active')
+    .map((member) => member.userId);
+}
+
+/**
+ * Sends one of this phone's own items, shown at once and marked sent or failed when it is known.
+ * A story keeps who it goes to: only they can say they saw it (docs/ADR/0035 Ek 1).
+ */
 async function sendItem(item: ChatItem): Promise<SendResult> {
   const payload = payloadOf(item);
   if (payload === null) return 'failed';
+  const reached =
+    item.photo?.story === true ? reachOf(item.conversation, cachedCircles(), item.from) : [];
   useMessages.setState((state) =>
-    state.items.some((kept) => kept.id === item.id)
-      ? withState(state, item.id, 'sending')
-      : withItem(state, { ...item, state: 'sending' }),
+    withSentTo(
+      state.items.some((kept) => kept.id === item.id)
+        ? withState(state, item.id, 'sending')
+        : withItem(state, { ...item, state: 'sending' }),
+      item.id,
+      reached,
+    ),
   );
   const uploaded = payload.kind === 'photo' ? await upload(payload.blobId) : 'sent';
   const result = uploaded === 'sent' ? await deliver(item.conversation, payload) : uploaded;

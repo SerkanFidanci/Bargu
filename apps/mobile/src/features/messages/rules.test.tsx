@@ -49,6 +49,8 @@ const mockOutbox = {
   sendPhoto: jest.fn(() => Promise.resolve('sent')),
   shareStory: jest.fn(() => Promise.resolve({ result: 'sent', failed: 0, total: 1 })),
 };
+// The story screen tells once that its sender sees it opened; the vault is not here.
+jest.mock('@/features/messages/view-notice', () => ({ firstViewNotice: () => false }));
 jest.mock('@/features/messages/outbox', () => ({
   sendText: (...args: unknown[]) => mockOutbox.sendText(...(args as [])),
   retry: (...args: unknown[]) => mockOutbox.retry(...(args as [])),

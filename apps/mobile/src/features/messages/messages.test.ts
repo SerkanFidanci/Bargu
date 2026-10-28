@@ -24,6 +24,7 @@ import {
   withoutCircle,
   withoutItem,
   withoutPerson,
+  withSentTo,
   withState,
   withViewed,
 } from './messages';
@@ -299,9 +300,12 @@ describe('what an opened item does', () => {
 
   it('marks who saw this phone own story, the first time each, and nothing else (Ek 1)', () => {
     const blobId = randomUuid();
+    const AYSE = randomUuid();
     const asStory = (item: ChatItem): ChatItem => {
       const file = item.photo ?? photo().photo;
-      return file === undefined ? item : { ...item, photo: { ...file, blobId, story: true } };
+      return file === undefined
+        ? item
+        : { ...item, photo: { ...file, blobId, story: true }, sentTo: [ALI, AYSE] };
     };
     // One story, gone to two circles: an item in each, the same file.
     const inGroup = asStory(photo({ from: ME }));
@@ -313,7 +317,6 @@ describe('what an opened item does', () => {
       applyPayload(current, { kind: 'view', id: randomUuid(), target, ts }, from, group, undefined);
     const viewersAt = (current: MessagesState, id: string) =>
       current.items.find((item) => item.id === id)?.viewers;
-    const AYSE = randomUuid();
 
     let next = view(inGroup.id, ALI, NOW - 500, state);
     next = view(inGroup.id, ALI, NOW - 100, next);
@@ -329,6 +332,44 @@ describe('what an opened item does', () => {
     expect(viewersAt(view(inGroup.id, ME, NOW, state), inGroup.id)).toBeUndefined();
     expect(viewersOf(state, ME, blobId)).toEqual([]);
     expect(viewersOf(next, ALI, blobId)).toEqual([]);
+  });
+
+  it('takes a view only from someone the story went to: no one else can claim it (Ek 1)', () => {
+    const story = (sentTo: string[] | undefined): ChatItem => {
+      const base = photo({ from: ME });
+      return {
+        ...base,
+        photo: { ...(base.photo ?? ({} as never)), story: true },
+        ...(sentTo === undefined ? {} : { sentTo }),
+      };
+    };
+    const toAli = story([ALI]);
+    const toOthers = story([randomUuid()]);
+    // Sent before the phone kept whom it went to: nobody can be checked, so nobody counts.
+    const unknown = story(undefined);
+    const state = stateWith(toAli, toOthers, unknown);
+    const viewers = (target: string) =>
+      applyPayload(
+        state,
+        { kind: 'view', id: randomUuid(), target, ts: NOW },
+        ALI,
+        personConversation(ALI),
+        undefined,
+      ).items.find((item) => item.id === target)?.viewers;
+
+    expect(viewers(toAli.id)).toEqual({ [ALI]: NOW });
+    expect(viewers(toOthers.id)).toBeUndefined();
+    expect(viewers(unknown.id)).toBeUndefined();
+  });
+
+  it('keeps everyone a story went to, also across a second try', () => {
+    const AYSE = randomUuid();
+    const mine = photo({ from: ME });
+    const once = withSentTo(stateWith(mine), mine.id, [ALI]);
+    const twice = withSentTo(once, mine.id, [ALI, AYSE]);
+    expect(twice.items[0]?.sentTo).toEqual([ALI, AYSE]);
+    // Nobody: nothing written (a text is never marked).
+    expect(withSentTo(once, mine.id, [])).toBe(once);
   });
 });
 

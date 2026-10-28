@@ -59,6 +59,11 @@ const itemSchema = z
     shotBy: z.array(z.uuid()).optional(),
     /** Who opened this phone's story, with when they first did (docs/ADR/0035 Ek 1). */
     viewers: z.record(z.uuid(), z.number()).optional(),
+    /**
+     * Who this phone's story went to, as it went (docs/ADR/0035 Ek 1): only they can say they saw
+     * it. Never for anyone else's items.
+     */
+    sentTo: z.array(z.uuid()).optional(),
   })
   .strict();
 export type ChatItem = z.infer<typeof itemSchema>;
@@ -177,10 +182,24 @@ export function withState<T extends Saved>(saved: T, id: string, state: ChatItem
   };
 }
 
+/** A story of this phone going out: who it reaches now, with whom it already reached. */
+export function withSentTo<T extends Saved>(saved: T, id: string, userIds: readonly string[]): T {
+  if (userIds.length === 0) return saved;
+  return {
+    ...saved,
+    items: saved.items.map((item) =>
+      item.id === id
+        ? { ...item, sentTo: [...new Set([...(item.sentTo ?? []), ...userIds])] }
+        : item,
+    ),
+  };
+}
+
 /**
  * What an opened item does here (docs/ADR/0035 §5): a text or a photo is added; `del` takes back an
  * item only its own sender sent; `shot` marks this phone's photo as screenshot by the sender, and
- * `view` its story as opened by them (the first time is kept).
+ * `view` its story as opened by them (the first time is kept), only from someone it went to: no
+ * one else can claim to have seen it (Ek 1, the PM's condition).
  */
 export function applyPayload<T extends Saved>(
   saved: T,
@@ -208,6 +227,7 @@ export function applyPayload<T extends Saved>(
       item.id === payload.target &&
       item.photo?.story === true &&
       item.from !== from &&
+      item.sentTo?.includes(from) === true &&
       item.viewers?.[from] === undefined
         ? { ...item, viewers: { ...item.viewers, [from]: payload.ts } }
         : item,

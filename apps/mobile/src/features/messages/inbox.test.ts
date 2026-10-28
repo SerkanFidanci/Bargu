@@ -298,6 +298,7 @@ describe('screenshot notices', () => {
       at: NOW - 5000,
       kind: 'photo',
       state: 'sent',
+      ...(from === me.userId ? { sentTo: [ali.userId] } : {}),
       photo: {
         blobId: randomUuid(),
         key: 'k'.repeat(43),

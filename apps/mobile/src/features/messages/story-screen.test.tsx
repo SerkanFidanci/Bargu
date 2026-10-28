@@ -1,5 +1,5 @@
 import type { Circle, MemberCard } from '@bargu/schemas';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { Alert, type AlertButton } from 'react-native';
 
@@ -59,6 +59,15 @@ jest.mock('@/features/messages/messages-session', () => ({
   block: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('@/features/messages/report', () => ({ report: jest.fn(() => Promise.resolve(true)) }));
+// Whether this phone was told yet that a story's sender sees it opened (view-notice.test.ts).
+const mockNotice = { first: false };
+jest.mock('@/features/messages/view-notice', () => ({
+  firstViewNotice: () => {
+    const first = mockNotice.first;
+    mockNotice.first = false;
+    return first;
+  },
+}));
 // Sade mod, as each test sets it.
 const mockEffects: { level: 'full' | 'reduced' | 'off' } = { level: 'full' };
 jest.mock('@/theme/effects', () => ({
@@ -137,6 +146,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   alerts = [];
   mockScreenshot = null;
+  mockNotice.first = false;
   jest.spyOn(Alert, 'alert').mockImplementation((title, _message, buttons) => {
     alerts.push({ title, buttons: buttons ?? [] });
   });
@@ -176,6 +186,15 @@ describe("someone's stories", () => {
     // Its sender is told it was seen, once (docs/ADR/0035 Ek 1).
     expect(mockTellViewed).toHaveBeenCalledTimes(1);
     expect(mockTellViewed).toHaveBeenCalledWith(expect.objectContaining({ id: NEW.id }));
+    // Told before (view-notice.test.ts): no line.
+    expect(screen.queryByTestId('story-view-notice')).toBeNull();
+  });
+
+  it('say once, at the first one opened here, that its sender sees it (the PM, 2026-10-29)', async () => {
+    mockNotice.first = true;
+    await render(<StoryScreen />);
+    await screen.findByText('deniz');
+    expect(screen.getByTestId('story-view-notice')).toHaveTextContent('Açtığını Ali görür.');
   });
 
   it('do not tell again of one seen before', async () => {
@@ -230,6 +249,17 @@ describe("one's own story", () => {
     });
     expect(mockTakeBackPhoto).toHaveBeenCalledWith('file-mine');
     expect(mockTellViewed).not.toHaveBeenCalled();
+  });
+
+  it("does not use up the line that someone else's story shows once", async () => {
+    mockParams.userId = ME;
+    mockNotice.first = true;
+    await render(<StoryScreen />);
+    await waitFor(() => {
+      expect(mockViewed).toHaveBeenCalledWith('file-mine');
+    });
+    expect(screen.queryByTestId('story-view-notice')).toBeNull();
+    expect(mockNotice.first).toBe(true);
   });
 
   it('shows who saw it, the latest first (the owner, 2026-10-28)', async () => {

@@ -1508,7 +1508,8 @@
       "seenBy": "{{count}} kişi gördü",
       "seenByNone": "Henüz kimse görmedi",
       "seenByTitle": "Görenler",
-      "seenByNote": "Bu listeyi yalnız sen görürsün. Hikayenle birlikte 24 saatte silinir."
+      "seenByNote": "Bu listeyi yalnız sen görürsün. Hikayenle birlikte 24 saatte silinir.",
+      "viewNotice": "Açtığını {{name}} görür."
     },
     "rules": {
       "title": "Topluluk kuralları",

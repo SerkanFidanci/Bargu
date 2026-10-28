@@ -478,8 +478,9 @@ denmişti; bu ek o satırı değiştirir. Okundu bilgisi (PM cevabı 1) yine yok
 - Bir hikayeyi ilk kez açan telefon, hikayeyi gönderene `view` öğesi yollar
   (`id, target = açtığı öğenin id'si, ts`). Öğe `shot` gibi yalnız gönderene, kişisel zarfla gider;
   çemberin öbür üyeleri görmez. Bildirim gitmez.
-- Alan telefon `view`'u yalnız kendi hikayesi içinse uygular ve her kişinin ilk açtığı anı saklar.
-  Başkasının öğesi için geleni ve kendi hikayesine kendi baktığını atar. Bir hikaye birkaç çembere
+- Alan telefon `view`'u yalnız kendi hikayesi içinse ve gönderen o öğenin alıcısıysa uygular; her
+  kişinin ilk açtığı anı saklar. Başkasının öğesi için geleni, kendi hikayesine kendi baktığını ve
+  alıcı olmayanınkini atar (PM şartı 2, aşağıda). Bir hikaye birkaç çembere
   ayrı öğe olarak gittiği için liste aynı dosyanın bütün öğelerinden birleştirilir.
 - Gönderen hikayesinin altında "N kişi gördü"yü görür; dokununca kişiler ve saatleri listelenir.
   Liste yalnız onun telefonundadır ve hikayeyle birlikte 24 saatte silinir.
@@ -494,3 +495,14 @@ denmişti; bu ek o satırı değiştirir. Okundu bilgisi (PM cevabı 1) yine yok
   hikaye ya da ne olduğu görünmez. Bu, §Sonuçlar'daki üst veri sınırının içindedir.
 - Gizlilik politikası (PM): hikayeyi açanın adı gönderene görünür. Instagram ve WhatsApp'taki gibi
   bilinen bir davranış; PM metne bir cümle ekler.
+
+PM onayı (2026-10-29), iki şartla:
+
+1. **Gören bilsin.** Bu telefonda başkasının bir hikayesi ilk kez açıldığında, hikaye ekranında bir
+   kez küçük bir satır çıkar: "Açtığını {ad} görür." Gösterildiği kasada (`messages:view-notice:v1`)
+   işaretlenir; bir daha çıkmaz. Kendi hikayesine bakmak bu hakkı harcamaz.
+2. **Sahte görüntülenme olmasın.** Telefon kendi hikayesini gönderirken o öğenin kime gittiğini
+   öğenin yanında saklar (`sentTo`): çemberin o anki öbür etkin üyeleri, arkadaşlıkta arkadaş. Yeniden
+   denemede yeni alıcılar eklenir. `view` yalnız bu listedeki birinden gelirse sayılır. Listesi
+   olmayan eski öğe (bu sürümden önce gönderilmiş) için kimse sayılmaz; hikaye zaten 24 saatte gider.
+   Liste yalnız gönderenin telefonunda, şifreli kasadadır; sunucuya gitmez.

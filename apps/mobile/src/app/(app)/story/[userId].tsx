@@ -42,6 +42,7 @@ import { sendText, takeBackPhoto, tellScreenshot, tellViewed } from '@/features/
 import { openPhoto } from '@/features/messages/photo';
 import { useRulesGate } from '@/features/messages/rules';
 import { useSafety } from '@/features/messages/safety';
+import { firstViewNotice } from '@/features/messages/view-notice';
 import { mediaColors, radius, space, storyFx, touchTarget, typography } from '@/theme';
 import { useEffects } from '@/theme/effects';
 import { Avatar } from '@/ui/avatar';
@@ -85,6 +86,8 @@ export default function StoryScreen() {
   const failed = failedFile !== null && failedFile === photo?.blobId;
   const [reply, setReply] = useState('');
   const [paused, setPaused] = useState(false);
+  // The first story of someone else opened on this phone: its sender sees it was (Ek 1).
+  const [notice, setNotice] = useState(false);
   const progress = useSharedValue(0);
   const told = useRef(new Set<string>());
   const seenSheet = useRef<SheetRef>(null);
@@ -127,6 +130,7 @@ export default function StoryScreen() {
         if (!mine && item !== undefined && messages.viewed[photo.blobId] === undefined) {
           void tellViewed(item);
         }
+        if (!mine && firstViewNotice()) setNotice(true);
         markViewed(photo.blobId);
       },
       () => {
@@ -343,6 +347,15 @@ export default function StoryScreen() {
           style={styles.bottom}
           pointerEvents="box-none"
         >
+          {notice ? (
+            <Text
+              testID="story-view-notice"
+              variant="footnote"
+              style={[styles.light, styles.shade, styles.caption]}
+            >
+              {t('messages.story.viewNotice', { name: nameOf(userId) })}
+            </Text>
+          ) : null}
           {photo.caption === undefined ? null : (
             <Text variant="body" style={[styles.light, styles.shade, styles.caption]}>
               {photo.caption}
