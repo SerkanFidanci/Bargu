@@ -148,7 +148,13 @@
       "safe": "Güvendeyim",
       "safeHint": "Seçtiğin çemberlere iyi olduğunu söyle"
     },
-    "cardsWaiting": "{{count}} kart daha sırada"
+    "cardsWaiting": "{{count}} kart daha sırada",
+    "invite": {
+      "title": "Haritan şimdilik boş",
+      "body": "Bir arkadaşını davet et; kabul edince burada görünür. Konumun yalnız seçtiğin kişilere gider.",
+      "share": "Davet linki gönder",
+      "qr": "QR ile ekle"
+    }
   },
   "sheets": {
     "circles": {

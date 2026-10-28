@@ -6,7 +6,7 @@ import { create } from 'zustand';
  * time, never on top of each other (the PM, 2026-10-21). The location permission comes first (the
  * map is of little use without it), then the choice after a reinstall, the notification question,
  * the weekly "who sees you" reminder, and last the one-time explanation of background live mode
- * (docs/ADR/0028 step 3). A card that has to wait shows as soon as the one in front is closed, and
+ * (docs/ADR/0028 step 3), then the empty map's invitation (T7). A card that has to wait shows as soon as the one in front is closed, and
  * how many wait shows under it as "+N" (the PM report T4, 2026-10-29).
  */
 export const MAP_CARDS = [
@@ -15,6 +15,7 @@ export const MAP_CARDS = [
   'notificationPrompt',
   'sharingReminder',
   'backgroundLive',
+  'invite',
 ] as const;
 export type MapCard = (typeof MAP_CARDS)[number];
 
@@ -24,6 +25,7 @@ const useWanting = create<Record<MapCard, boolean>>(() => ({
   notificationPrompt: false,
   sharingReminder: false,
   backgroundLive: false,
+  invite: false,
 }));
 
 /** How many cards wait behind the one in front (0 with one card or none). */
@@ -36,9 +38,15 @@ export function useCardsWaiting(): number {
   return useWanting(cardsWaiting);
 }
 
-/** Whether a card asks something on the map now (a first-use tip waits for it). */
+/**
+ * Whether a card asks something on the map now (a first-use tip waits for it). The empty map's
+ * invitation stays until someone is there, so the tips do not wait for that one.
+ */
 export function useCardShowing(): boolean {
-  return useWanting((state) => cardInFront(state) !== undefined);
+  return useWanting((state) => {
+    const front = cardInFront(state);
+    return front !== undefined && front !== 'invite';
+  });
 }
 
 /** The card that has the screen now: the first, in {@link MAP_CARDS} order, that wants it. */

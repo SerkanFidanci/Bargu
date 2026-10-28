@@ -8,18 +8,16 @@ import {
   Share2,
   Users,
 } from 'lucide-react-native';
-import { forwardRef, useState } from 'react';
+import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Share, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { radius, space, touchTarget, useTheme } from '@/theme';
 import { Appear } from '@/ui/appear';
 import { ListRow } from '@/ui/list-row';
 import { Sheet, type SheetRef } from '@/ui/sheet';
-import { toast } from '@/ui/toast';
 
-import { errorMessage } from '../errors';
-import { circlesApi } from './circles-api';
+import { useShareInvite } from './share-invite';
 
 export interface AddSheetProps {
   onDismiss: () => void;
@@ -36,21 +34,10 @@ export const AddSheet = forwardRef<SheetRef, AddSheetProps>(function AddSheet(
   ref,
 ) {
   const { t } = useTranslation();
-  const [sharing, setSharing] = useState(false);
+  const invite = useShareInvite();
   const go = (path: '/add/username' | '/add/qr' | '/add/scan' | '/circle/new' | '/meeting/new') => {
     onClose();
     router.push(path);
-  };
-  const shareLink = async () => {
-    setSharing(true);
-    try {
-      const invite = await circlesApi.createInvite({ kind: 'friend' });
-      await Share.share({ message: t('add.shareMessage', { link: invite.link }) });
-    } catch (error) {
-      toast.error(errorMessage(error, t));
-    } finally {
-      setSharing(false);
-    }
   };
   const options: { icon: LucideIcon; title: string; subtitle: string; onPress: () => void }[] = [
     {
@@ -81,7 +68,7 @@ export const AddSheet = forwardRef<SheetRef, AddSheetProps>(function AddSheet(
       icon: Share2,
       title: t('sheets.add.shareLink'),
       subtitle: t('add.shareLinkHint'),
-      onPress: () => void shareLink(),
+      onPress: () => void invite.share(),
     },
     {
       icon: Users,
@@ -107,7 +94,9 @@ export const AddSheet = forwardRef<SheetRef, AddSheetProps>(function AddSheet(
         <Appear key={option.title} index={index}>
           <ListRow
             testID={`add-${String(index)}`}
-            leading={<OptionIcon icon={option.icon} busy={option.icon === Share2 && sharing} />}
+            leading={
+              <OptionIcon icon={option.icon} busy={option.icon === Share2 && invite.sharing} />
+            }
             title={option.title}
             subtitle={option.subtitle}
             onPress={option.onPress}

@@ -148,7 +148,13 @@
       "safe": "I'm safe",
       "safeHint": "Tell the circles you choose that you're fine"
     },
-    "cardsWaiting": "{{count}} more waiting"
+    "cardsWaiting": "{{count}} more waiting",
+    "invite": {
+      "title": "Your map is empty for now",
+      "body": "Invite a friend; once they say yes they show up here. Your location only goes to people you choose.",
+      "share": "Send an invite link",
+      "qr": "Add with a QR code"
+    }
   },
   "sheets": {
     "circles": {

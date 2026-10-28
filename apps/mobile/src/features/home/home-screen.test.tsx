@@ -77,6 +77,7 @@ jest.mock('@/features/circles/add-sheet', () => ({ AddSheet: () => null }));
 // The + quick things and the rules before a photo have their own tests (quick-sheet, rules).
 jest.mock('@/features/home/quick-sheet', () => ({ QuickSheet: () => null }));
 jest.mock('@/features/home/tip-bubble', () => ({ TipBubble: () => null }));
+jest.mock('@/features/home/invite-card', () => ({ InviteCard: () => null }));
 jest.mock('@/features/home/tips', () => ({ markTipSeen: jest.fn() }));
 jest.mock('@/features/messages/rules', () => ({
   useRulesGate: () => ({

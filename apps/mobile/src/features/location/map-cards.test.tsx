@@ -95,6 +95,7 @@ describe('the cards on the map come one at a time (the PM, 2026-10-21)', () => {
       'notificationPrompt',
       'sharingReminder',
       'backgroundLive',
+      'invite',
     ]);
     const none = Object.fromEntries(MAP_CARDS.map((card) => [card, false])) as Record<
       MapCard,

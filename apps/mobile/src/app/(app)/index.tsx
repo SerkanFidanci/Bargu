@@ -10,6 +10,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { MapShortcuts } from '@/features/home/map-shortcuts';
 import { MeetingChip } from '@/features/home/meeting-chip';
+import { InviteCard } from '@/features/home/invite-card';
 import { QuickSheet } from '@/features/home/quick-sheet';
 import { TipBubble } from '@/features/home/tip-bubble';
 import { markTipSeen } from '@/features/home/tips';
@@ -286,6 +287,7 @@ export default function HomeScreen() {
             <NewPhoneCard onChoose={() => circles.current?.present()} />
             <SharingReminderCard />
             {backgroundLiveCard}
+            <InviteCard />
             <CardsWaiting />
             {swarmPanel}
           </ClearOfToast>

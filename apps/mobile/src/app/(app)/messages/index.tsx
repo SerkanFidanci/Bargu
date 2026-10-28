@@ -22,6 +22,7 @@ import {
 } from '@/features/messages/messages';
 import { loadMessagesOnce } from '@/features/messages/messages-session';
 import { useRulesGate } from '@/features/messages/rules';
+import { useShareInvite } from '@/features/circles/share-invite';
 import { ago } from '@/features/messages/runs';
 import { StoryAvatar } from '@/features/messages/story-avatar';
 import { storyCircles } from '@/features/messages/stories';
@@ -59,6 +60,8 @@ export default function MessagesScreen() {
   const [query, setQuery] = useState('');
   // The community rules come as the Messages section opens (K14); nothing of it shows before.
   const rules = useRulesGate({ atOpen: true });
+  // Nobody to write to yet: one link away (T7).
+  const invite = useShareInvite();
   useEffect(() => {
     loadMessagesOnce();
   }, []);
@@ -179,6 +182,7 @@ export default function MessagesScreen() {
           icon={MessageCircle}
           title={t('messages.empty')}
           body={t('messages.noCircles')}
+          action={{ label: t('main.invite.share'), onPress: () => void invite.share() }}
         />
       </Screen>
     );
