@@ -93,34 +93,58 @@ describe("a person's card (UX düzeni)", () => {
     expect(mockClose).toHaveBeenCalledTimes(1);
   });
 
-  it('opens their notifications from the bell, not only from a long press', async () => {
+  it('keeps three things up front and the rest under "Daha fazla" (PM report T3)', async () => {
     const onAction = await renderCard();
+    expect(
+      ['card-message', 'card-poke', 'card-directions', 'card-more'].map(
+        (id) => screen.getByTestId(id).props.accessibilityLabel as string,
+      ),
+    ).toEqual(['Mesaj', 'Dürt', 'Yol tarifi', 'Daha fazla']);
+    expect(screen.queryByTestId('card-history')).toBeNull();
+    await fireEvent.press(screen.getByTestId('card-more'));
+    expect(screen.getByTestId('card-more').props.accessibilityLabel).toBe('Daha az');
+    expect(screen.getByText('Buluşma öner')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('card-history'));
+    expect(onAction).toHaveBeenCalledWith('history');
+    await fireEvent.press(screen.getByTestId('card-more'));
+    expect(screen.queryByTestId('card-more-list')).toBeNull();
+  });
+
+  it('opens their notifications from "Daha fazla", not only from a long press', async () => {
+    const onAction = await renderCard();
+    await fireEvent.press(screen.getByTestId('card-more'));
     await fireEvent.press(screen.getByTestId('card-notifications'));
     expect(onAction).toHaveBeenCalledWith('notifications');
   });
 
-  it('opens their conversation from "Mesaj yaz" (docs/ADR/0035)', async () => {
+  it('opens their conversation from "Mesaj" (docs/ADR/0035)', async () => {
     const onAction = await renderCard();
-    await fireEvent.press(screen.getByLabelText('Mesaj yaz'));
+    await fireEvent.press(screen.getByLabelText('Mesaj'));
     expect(onAction).toHaveBeenCalledWith('message');
   });
 
-  it('has no "Mesaj yaz" for someone met only at an event (QA-38 O2)', async () => {
+  it('has no "Mesaj" for someone met only at an event (QA-38 O2)', async () => {
     await renderCard('group', false);
-    expect(screen.queryByLabelText('Mesaj yaz')).toBeNull();
+    expect(screen.queryByTestId('card-message')).toBeNull();
   });
 
   it('says so when they are muted', async () => {
     useMutes.setState(withPersonMuted(NO_MUTES, ADA, { pokes: true }), true);
     await renderCard();
     expect(screen.getByText('@ada · Konumu şu an görünmüyor · Sessizde')).toBeTruthy();
-    expect(screen.getByLabelText('Ada: bildirimler sessizde')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('card-more'));
+    expect(screen.getByText('Ada: bildirimler sessizde')).toBeTruthy();
   });
 
-  it('names the circle button after what it opens', async () => {
+  it('names the circle row after what it opens: a friendship', async () => {
     await renderCard('pair');
+    await fireEvent.press(screen.getByTestId('card-more'));
     expect(screen.getByText('Arkadaşlık')).toBeTruthy();
+  });
+
+  it('names the circle row after what it opens: a circle', async () => {
     await renderCard('group');
+    await fireEvent.press(screen.getByTestId('card-more'));
     expect(screen.getByText('Çember')).toBeTruthy();
   });
 });

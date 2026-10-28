@@ -689,7 +689,11 @@
       "history": "History",
       "meet": "Meet",
       "friendship": "Friendship",
-      "circle": "Circle"
+      "circle": "Circle",
+      "message": "Message",
+      "more": "More",
+      "less": "Less",
+      "meetLong": "Suggest a meetup"
     },
     "card": {
       "noLocation": "Location not visible right now",

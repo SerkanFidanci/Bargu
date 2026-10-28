@@ -689,7 +689,11 @@
       "history": "Geçmiş",
       "meet": "Buluş",
       "friendship": "Arkadaşlık",
-      "circle": "Çember"
+      "circle": "Çember",
+      "message": "Mesaj",
+      "more": "Daha fazla",
+      "less": "Daha az",
+      "meetLong": "Buluşma öner"
     },
     "card": {
       "noLocation": "Konumu şu an görünmüyor",

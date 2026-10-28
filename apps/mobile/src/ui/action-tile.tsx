@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 
 import { radius, space, touchTarget, useTheme } from '@/theme';
 
+import { BrandFill } from './brand-fill';
 import { PressableScale } from './pressable-scale';
 import { Text } from './text';
 
@@ -35,7 +36,8 @@ export function ActionTile({
   testID,
 }: ActionTileProps) {
   const { colors } = useTheme();
-  const foreground = primary ? colors.onPrimary : colors.text;
+  // The primary one wears the brand's sweep, as the main buttons do (docs/ADR/0008 Ek 2026-10-29).
+  const foreground = primary ? colors.onBrand : colors.text;
   return (
     <PressableScale
       testID={testID}
@@ -51,6 +53,7 @@ export function ActionTile({
         disabled ? styles.inactive : null,
       ]}
     >
+      {primary ? <BrandFill /> : null}
       <Icon color={foreground} size={22} strokeWidth={2.25} />
       <Text
         variant="footnote"
@@ -76,6 +79,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xs,
     paddingVertical: space.sm,
     borderRadius: radius.lg,
+    overflow: 'hidden',
   },
   label: { alignSelf: 'stretch' },
   inactive: { opacity: 0.5 },

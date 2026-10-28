@@ -6,6 +6,8 @@ import {
   BatteryWarning,
   Bell,
   BellOff,
+  ChevronUp,
+  Ellipsis,
   Flag,
   Hand,
   History,
@@ -40,7 +42,9 @@ import { useMotion } from '@/theme/use-motion';
 import { Avatar } from '@/ui/avatar';
 import { ActionTile } from '@/ui/action-tile';
 import type { MarkerWhy } from '@/ui/avatar-marker';
+import { Appear } from '@/ui/appear';
 import { IconButton } from '@/ui/icon-button';
+import { ListRow } from '@/ui/list-row';
 import { Text } from '@/ui/text';
 
 import { useNow } from '../location/clock';
@@ -208,10 +212,12 @@ export function CardFrame({
 
 /**
  * A person's card (BARGU_PLAN §4.3 "Kişi Sheet'i"): how long ago, where (place name read from the
- * map on the phone), how far, battery, and the same actions as the radial menu: their notifications
- * too, by the bell, which shows when they are silenced (UX düzeni 1). Opening it, their avatar flies
- * from the map into the card (a shared-element transition on the UI thread); the ×, a drag down, a
- * tap on the map or back closes it.
+ * map on the phone), how far, battery. Three things up front, "Mesaj", "Dürt" and "Yol tarifi"; the
+ * rest under "Daha fazla" (the PM report T3, 2026-10-29: eight actions crowded a narrow card): their
+ * story, a meeting, their history, their notifications (also saying when they are silenced, UX
+ * düzeni 1) and the circle. Opening it, their avatar flies from the map into the card (a
+ * shared-element transition on the UI thread); the ×, a drag down, a tap on the map or back closes
+ * it.
  */
 export function PersonCard({
   person,
@@ -238,6 +244,7 @@ export function PersonCard({
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const now = useNow();
+  const [more, setMore] = useState(false);
   const myFix = useMyFix((state) => state.fix);
   const loc = person.location?.loc ?? null;
   loadMuteSettings();
@@ -285,46 +292,6 @@ export function PersonCard({
       subtitle={[person.handle, when, quiet ? t('map.card.muted') : undefined]
         .filter((part) => part !== undefined)
         .join(' · ')}
-      buttons={
-        <>
-          {hasStory ? (
-            <IconButton
-              testID="card-story"
-              icon={Aperture}
-              tone="plain"
-              label={t('messages.story.openOf', { name: person.name })}
-              onPress={() => {
-                onAction('story');
-              }}
-            />
-          ) : null}
-          {/* Messages and moments (docs/ADR/0035): their own conversation. */}
-          {canMessage ? (
-            <IconButton
-              testID="card-message"
-              icon={MessageCircle}
-              tone="plain"
-              label={t('messages.write')}
-              onPress={() => {
-                onAction('message');
-              }}
-            />
-          ) : null}
-          <IconButton
-            testID="card-notifications"
-            icon={quiet ? BellOff : Bell}
-            tone="plain"
-            label={
-              quiet
-                ? t('map.card.notificationsMuted', { name: person.name })
-                : t('map.card.notifications', { name: person.name })
-            }
-            onPress={() => {
-              onAction('notifications');
-            }}
-          />
-        </>
-      }
     >
       {status === null ? null : (
         <View style={[styles.status, { backgroundColor: colors.surface }]}>
@@ -365,6 +332,17 @@ export function PersonCard({
         </View>
       )}
       <View style={styles.actions}>
+        {/* Messages and moments (docs/ADR/0035): their own conversation. */}
+        {canMessage ? (
+          <ActionTile
+            testID="card-message"
+            label={t('map.actions.message')}
+            icon={MessageCircle}
+            onPress={() => {
+              onAction('message');
+            }}
+          />
+        ) : null}
         <ActionTile
           testID="card-poke"
           label={t('map.actions.poke')}
@@ -372,15 +350,6 @@ export function PersonCard({
           primary
           onPress={() => {
             onAction('poke');
-          }}
-        />
-        <ActionTile
-          testID="card-meet"
-          label={t('map.actions.meet')}
-          icon={Flag}
-          disabled={person.username === null}
-          onPress={() => {
-            onAction('meet');
           }}
         />
         <ActionTile
@@ -393,23 +362,80 @@ export function PersonCard({
           }}
         />
         <ActionTile
-          testID="card-history"
-          label={t('map.actions.history')}
-          icon={History}
+          testID="card-more"
+          label={more ? t('map.actions.less') : t('map.actions.more')}
+          icon={more ? ChevronUp : Ellipsis}
           onPress={() => {
-            onAction('history');
-          }}
-        />
-        <ActionTile
-          testID="card-profile"
-          label={t(`map.actions.${circleLabel}`)}
-          icon={circleLabel === 'friendship' ? UserRound : Users}
-          onPress={() => {
-            onAction('profile');
+            setMore(!more);
           }}
         />
       </View>
+      {more ? (
+        <View testID="card-more-list">
+          {[
+            hasStory
+              ? {
+                  key: 'story',
+                  icon: Aperture,
+                  title: t('messages.story.openOf', { name: person.name }),
+                  action: 'story' as const,
+                }
+              : null,
+            person.username === null
+              ? null
+              : {
+                  key: 'meet',
+                  icon: Flag,
+                  title: t('map.actions.meetLong'),
+                  action: 'meet' as const,
+                },
+            {
+              key: 'history',
+              icon: History,
+              title: t('map.actions.history'),
+              action: 'history' as const,
+            },
+            {
+              key: 'notifications',
+              icon: quiet ? BellOff : Bell,
+              title: quiet
+                ? t('map.card.notificationsMuted', { name: person.name })
+                : t('map.card.notifications', { name: person.name }),
+              action: 'notifications' as const,
+            },
+            {
+              key: 'profile',
+              icon: circleLabel === 'friendship' ? UserRound : Users,
+              title: t(`map.actions.${circleLabel}`),
+              action: 'profile' as const,
+            },
+          ]
+            .filter((row) => row !== null)
+            .map((row, index) => (
+              <Appear key={row.key} index={index}>
+                <ListRow
+                  testID={`card-${row.key}`}
+                  leading={<RowIcon icon={row.icon} />}
+                  title={row.title}
+                  onPress={() => {
+                    onAction(row.action);
+                  }}
+                />
+              </Appear>
+            ))}
+        </View>
+      ) : null}
     </CardFrame>
+  );
+}
+
+/** The icon of a row under "Daha fazla". */
+function RowIcon({ icon: Icon }: { icon: LucideIcon }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.rowIcon, { backgroundColor: colors.primarySoft }]}>
+      <Icon color={colors.primary} size={20} strokeWidth={2.25} />
+    </View>
   );
 }
 
@@ -460,4 +486,11 @@ const styles = StyleSheet.create({
   fact: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   factText: { flex: 1 },
   actions: { flexDirection: 'row', gap: space.sm },
+  rowIcon: {
+    width: avatarSize.md,
+    height: avatarSize.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
