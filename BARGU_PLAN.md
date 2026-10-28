@@ -138,9 +138,15 @@ security_events(user_id, type, ip_hash, created_at)
 
     | Durum | Gönderim |
     |---|---|
-    | Biri seni haritada izliyor (canlı mod) | 1 sn |
-    | Arkaplanda hareket halinde | 5 sn veya 10 m |
+    | Biri seni haritada izliyor (canlı mod) | 1 sn (2 dk, saatte en çok 15 dk; ADR 0028) |
+    | Kendi haritan açık | 1 sn |
+    | Uygulama kapalı, hareket hâlinde | GPS 30 sn'de bir (kaba konum 60 sn); sistem biriktirir, uygulama dakikada en çok bir kez uyanır ve gönderir (ADR 0036) |
     | Durağan | Konum değişmediği için gönderim yok; 5 dk'da bir heartbeat (pil, aktiflik) |
+
+  - **Pil (ADR 0036, PM onayı 2026-10-29):**
+    - Uygulama kapalıyken pin en çok ~1 dk geriden gelir; biri bakınca canlıya döner.
+    - v2 (durunca GPS'i kapat, hareketle aç) yalnız ölçüm isterse yapılır. Ölçüt: sahibin bir günlük normal kullanımında Android pil ekranında Bargu'nun payı %10'u geçerse.
+    - v2'de yol: Activity Recognition ile küçük yerel modül. "Her zaman konum" izni istenmez.
 
   - **Canlı mod:** izleyen kişi haritayı açınca client `watch` olayı yollar → sunucu hedef cihaza WS ile (bağlı değilse silent push ile) iletir → hedef 1 sn frekansa geçer. İzleyen ekranda kaldıkça her 60 sn yenilenir, ayrılınca 2 dk sonra normale döner. Kimse bakmıyorsa pil harcanmaz. (iOS'ta silent push best-effort; hareket halindeyken arkaplan takibi zaten aktif olduğu için WS yolu çalışır.)
   - Akış: konum → çember başına bulanıklaştır → şifrele → WS publish. Offline'da sadece en son konum kuyrukta.
@@ -478,6 +484,74 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
   - Davet önizlemesinde kişisel veri yok (test).
   - Bedava ve ücretli sınırlar ekranda yazılı, iptal tek dokunuş (3 kişiyle kullanılabilirlik testi).
 
+### Faz 9C — Kullanışlılık ve Zenly hissi (2026-10-29)
+
+Sahip, 2026-10-29: "Devam et hepsini yap planla herşeyi". Kaynak: [ürün geliştirme raporu](docs/arastirma/urun-gelistirme-2026-10-29.md). Kodlar (T1–T8, Ö1–Ö13) rapordakilerle aynı.
+
+Raporun "önermediklerim" listesi bu fazda yok:
+- seri tutma ve sıralama;
+- sesli mesaj;
+- galeriden fotoğraf ya da video;
+- sürüş raporu;
+- müzik paylaşımı.
+
+Kurallar:
+- Her paket tek APK, her APK'da tek QA turu (test oturumu). Paketin ADR'si koddan önce yazılır, PM onaylar.
+- Paketin gizlilik politikası ve Play belgesi etkisini kod oturumu listeler; belgeleri PM günceller.
+- Kripto, protokol ve tasarım kararları Opus'ta; geri kalan iş Sonnet'te.
+- Kapalı test paketleri beklemez. Play hesabı ve 12 test kullanıcısı hazır olunca o anki en son APK ile başlar; sonraki paketler test sırasında güncelleme olarak çıkar.
+- Her pakette Bargu'nun ilkeleri geçerli: sunucuya düz konum gitmez, yeni izin istemeden önce gerekçe, "her zaman konum" izni yok, 15–17 kuralları (ADR 0023) aynen.
+
+**Paket A: görünüm ve küçük kolaylıklar** (şimdi; QA-39 düzeltmelerinden sonra)
+- T1 renk: lacivert ve turuncu, geçişli (sahibin kararı; ADR 0008 eki).
+- T2: + düğmesi hızlı eylem menüsü açar.
+- T3: kişi kartında 3 ana eylem.
+- T4: harita üstünde tek bilgi kartı.
+- T5: hayalet modu her yerde aynı üç seçenek ve aynı adlar.
+- T6: ilk kullanım ipuçları.
+- T7: boş ekranlarda davet düğmesi.
+- T8: yeni ekranlarda koyu tema ve büyük yazı kontrolü.
+- Ö1: "Sorun bildir".
+- Ö3: mesaja ve hikayeye emoji tepki (ADR 0035 eki).
+
+**Paket B: kontrol**
+- Ö2 pil modu: Canlı / Dengeli / Pil dostu, "bugün GPS şu kadar çalıştı" bilgisiyle (ADR 0036 eki). Sahibin pil ölçümünden sonra.
+- Ö6 kişiye süreli paylaşım ve tek kişiye sessiz dondurma: "21:30'a kadar" (Faz 11'den öne alındı).
+- Ö8 "Yakındayım, gelir misin?": tek dokunuş, seçilen çembere. Mesafeyi alan telefon hesaplar; yeni şifreli tür.
+
+**Paket C: güvenlik**
+- Ö5 eve vardım kontrolü (Faz 11'den öne alındı). Yeni ADR gerekir, tasarım Opus'ta.
+- Önerilen yol "mühürlü emanet":
+  - Telefon, seçilen kişilere uyarıyı baştan şifreler ve sunucuya bir açılma saatiyle bırakır.
+  - Yol boyunca son konumla yeniler.
+  - Kişi varınca ya da "iyiyim" deyince uyarı silinir.
+  - Varmaz ve cevap vermezse sunucu, açamadığı uyarıyı saatinde iletir. Böylece telefon kapansa bile uyarı gider.
+- Sunucu yalnız "bir emanet var" ve saatini görür. Ekranda KADES ve 112 kısayolu olur. Bargu acil servis değildir; bu ekranda yazar.
+- THREAT_MODEL ve gizlilik politikası güncellenir.
+
+**Paket D: kendi dünyan**
+- Ö7 kendi konum geçmişin ve kazıma haritası (ADR 0030, onaylı): gün gün iz, duraklar, gezilen yerlerin açılması. Hepsi telefonda.
+- Ö12 varış tahmini: "eve 12 dk", "4 dk'ya orada". Telefonda, mesafe ve hızdan hesaplanır ve "yaklaşık" yazar. Yol tarifi motoru eklenmez.
+
+**Paket E: dışarıya açılan**
+- Ö9 uygulamasız şifreli konum linki (Faz 11'den). Yeni ADR ve THREAT_MODEL gerekir.
+  - Anahtar linkin # kısmında durur. Link süreli, tek dokunuşla iptal edilir.
+  - Sayfa kendi haritamızla bargu.app'te açılır, bu yüzden alan adı gerekir.
+- Ö11 "Bir aradasınız" anı: iki arkadaş buluşunca iki telefonda küçük bir kutlama. Telefonda hesaplanır, sade moda uyar. Seri ya da sayaç yok.
+
+**Paket F: ana ekran ve yüz yüze**
+- Ö10 Android widget'ı: arkadaşların yüzü ve uzaklığı.
+  - Yerel modül gerekir; bağımlılık gerekçesi ve ADR yazılır.
+  - Kilit ekranında görünüp görünmeyeceği ayardan seçilir.
+- Ö13 sallayarak ekleme. Ancak sunucuya konum vermeyen bir yol bulunursa yapılır (örneğin Bluetooth ile yakındaki telefonu bulmak). Önce kısa bir tasarım denemesi (spike) ve ADR. Yol yoksa QR kalır, PM kapatır.
+
+**Bitiş şartı:** Her paket için:
+- QA'nın yüksek ve orta bulgusu yok;
+- testler ve Linux CI yeşil;
+- sahip telefonda denemiş;
+- DURUM.md'de satırı yazılı;
+- gerekiyorsa gizlilik ve Play belgeleri güncel.
+
 ### Faz 10 — Sertleştirme & Yayın
 - OWASP MASVS L2 + ASVS L2 checklist; mümkünse bağımsız pentest.
 - Maestro ile kritik akış E2E testleri (onboarding, davet, paylaşımı durdur).
@@ -509,11 +583,11 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 - **DoD:** kritik/yüksek bulgu yok, restore testi başarılı.
 
 ### Faz 11 — Yayın Sonrası: Büyüme (ilk 3 ay)
-- **Eve vardım kontrolü:** hedef ya da süre seçilir; varılmaz ve cevap verilmezse seçilen kişilere konum ve pil gider. KADES ve 112'ye kısayol (yalnızca bağlantı; Bargu acil servis değildir).
-- **Uygulamasız şifreli konum linki:** süreli web linki; anahtar linkin `#` kısmında, sunucuya hiç gitmez; sayfa self-host haritayla çizer. Süre bitince ya da tek dokunuşla iptal. ADR + THREAT_MODEL güncellemesi (link sızarsa ne olur).
-- **Widget ve Live Activity:** Android ana ekran widget'ı; iOS kilit ekranında "Yoldayım, 4 dk" (varış tahmini). İçerik şifreli kalır (Bölüm 8'den taşındı).
-- **Yüz yüze ekleme:** QR'a ek olarak telefonları sallayarak ekleme.
-- **Özel bitiş saati ve kişiye dondurma:** "21:30'a kadar" gibi süre; tek kişiye sessizce dondurma.
+- **Eve vardım kontrolü (Faz 9C paket C'ye alındı, 2026-10-29):** hedef ya da süre seçilir; varılmaz ve cevap verilmezse seçilen kişilere konum ve pil gider. KADES ve 112'ye kısayol (yalnızca bağlantı; Bargu acil servis değildir).
+- **Uygulamasız şifreli konum linki (Faz 9C paket E'ye alındı):** süreli web linki; anahtar linkin `#` kısmında, sunucuya hiç gitmez; sayfa self-host haritayla çizer. Süre bitince ya da tek dokunuşla iptal. ADR + THREAT_MODEL güncellemesi (link sızarsa ne olur).
+- **Widget ve Live Activity (Android widget'ı Faz 9C paket F'ye alındı; iOS sonra):** Android ana ekran widget'ı; iOS kilit ekranında "Yoldayım, 4 dk" (varış tahmini). İçerik şifreli kalır (Bölüm 8'den taşındı).
+- **Yüz yüze ekleme (Faz 9C paket F, şartlı):** QR'a ek olarak telefonları sallayarak ekleme.
+- **Özel bitiş saati ve kişiye dondurma (Faz 9C paket B'ye alındı):** "21:30'a kadar" gibi süre; tek kişiye sessizce dondurma.
 - **Davet ödülü:** davet eden ve gelen birer ay Bargu+. Nakit ödül ve zorla davet yok.
 - **Etkinlik paketi:** Faz 8 etkinlik çemberinin, düzenleyenin ödediği süreli paketi (gezi, tur, kamp); katılımcı bedava. Fiyat denemesi.
 - **Kendi geçmişin (Bargu+, isteğe bağlı):**
@@ -560,6 +634,10 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
 - **Arkaplan konum:** Transistorsoft (önerilen, ücretli) vs `expo-location` + `expo-task-manager` (ücretsiz, daha az güvenilir).
 - **Hosting:** kapalı test bugünkü staging sunucusunda (proje sahibi 2026-10-23, seçenek A; ADR 0034). Canlıya geçerken Türkiye'de bir sunucuya taşınır; böylece yurt dışı aktarım sorunu da kalkar. A'nın riskleri bedava önlemlerle azaltılır: gece ve dağıtım öncesi şifreli yedek, sunucu dışında kopya, geriye uyumlu migration'lar. Hesap verisi AB'de tutulduğu sürece KVKK'daki yurt dışı aktarım şartı (standart sözleşme ve bildirim) avukata sorulur.
 - **Marka:** renk paleti ve display font. Logo proje sahibinden geldi (2026-10-23, ADR 0008 eki); ay yıldız marka tescilinde engel olabilir, avukata sorulacak.
+  - **Renk kararı (sahip, 2026-10-29):** "Lacivert turuncu renk geçişleri". Lacivert ana renk, turuncu vurgu; ikisi logodan örneklenir. Mor çıkar.
+  - Lacivertten turuncuya geçiş şu yerlerde kullanılır: + düğmesi, hikaye halkası, kendi mesaj baloncukların, Mağaza ve Bargu+ şeridi, ana düğmeler. Yazı yoğun yüzeylerde kullanılmaz.
+  - Kontrast AA olmalı ve testle denetlenir. Kişilerin seçtiği pin renkleri ve süsler değişmez. Ayrıntı ADR 0008'in yeni ekine yazılacak.
+- **Kullanışlılık paketleri:** sahip 2026-10-29'da raporun tamamını istedi. Plan: Faz 9C, paket A–F (Bölüm 5).
 - **Mesajlaşma ve anlık hikaye (ADR 0035; 0032 ve 0033'ün yerine geçti):** 2026-10-23'te PM kararıyla kapalı test sonrasına kalmıştı. Proje sahibi 2026-10-27'de yapılmasına karar verdi: "hikaye de olsun anlık paylaşım foto sadece o şekilde paylaşılabilsin hikayeyi birine de paylaşabilirsin herkese de ... farklı modül yapmaya gerek yok ... 24 saatte de silinsin mesajlar. diğer tüm detayları belirle sen". PM'in belirlediği kurallar:
   - **Tek modül:** Yazılı mesaj ve anlık fotoğraf aynı yerde. Fotoğraf yalnızca uygulamanın kamerasıyla o an çekilir; galeriden yükleme ve video yok.
   - **Kime:** Bir kişiye, bir çembere ya da "hikaye" olarak bütün çemberlerine (ya da seçtiklerine). Yalnızca çember üyeleri arasında; yabancı, keşfet ya da herkese açık akış yok.
@@ -598,6 +676,28 @@ Faz 10'dan önce gelir; numaralar kaymasın diye 9B. Kaynak: pazar araştırmas�
     - O2: yalnız etkinlikte karşılaşanlar kişisel mesaj yazabiliyordu. **PM kararı:** kişisel mesaj için etkinlik dışı bir ortak çember gerekir; o çember gidince ikisi arasındaki kişisel öğeler silinir; etkinlikte yalnız grup sohbeti var.
     - 8 düşük bulgunun hepsi bu APK'dan önce düzelir.
     - Y1, O1 ve O2 için hedefli yeniden denetim yapılacak.
+    - Düzeltmeler: `b0a61fb`; K14 kural kabulü: `0399316`. İkisi de staging'de, CI yeşil.
+    - Hedefli yeniden denetim (QA-38b, 16:15): yüksek ya da orta bulgu yok; Y1, O1, O2 ve K14 doğrulandı.
+      - 4 düşük bulgu APK'dan önce düzelecek.
+      - PM kararı: kurallar penceresi göndermeden önce değil, Mesajlar'a ilk girişte, ilk fotoğraf ya da hikaye açılışında ve ilk gönderimde çıkar. Kabul etmeyen içerik açamaz. Böylece ekran görüntüsü haberi kabul etmemiş kişiden de gider.
+  - **APK çıktı (2026-10-27):** `8dbccf9`, CI yeşil; staging bu sürümde.
+    - İçinde: QA-38 ve 38b düzeltmeleri, K14, /gizlilik (`d2a5d8d`), aydınlatma sürüm 2.
+    - Sunucu adımları sahibin onayıyla bitti:
+      - yedek sohbet tablolarını almıyor;
+      - `MEDIA_MAX_BYTES` 2 GB;
+      - `OPS_EMAIL` support@otenus.com;
+      - `MIN_CLIENT_LEVEL` 5.
+    - Bekleyen: sahibin iki telefonla denemesi (8 madde). `MIN_CLIENT_LEVEL` 6'ya çıkarma kararı, bütün telefonlar bu APK'yı kurunca.
+    - otenus.com/bargu/kurallar sayfası henüz yok; bağlantı 404 veriyor.
+  - **Sahibin telefon denemesinden sonra (2026-10-28):** kod oturumu sahibin isteklerini APK'larda verdi.
+    - APK'lar: `7d25fd8` pil; `e53ff09` alt çubuk; `2c87984` geçmişte yer adları, hikayeyi görenler, mesaj ekranları; `4f29fe7` Instagram DM düzeni.
+    - **Hikayeyi görenler (ADR 0035 Ek 1):** PM 2026-10-29'da iki şartla onayladı:
+      - görüntüleyen ilk açılışta bir kez "Açtığını {ad} görür." satırını görür;
+      - telefon, hikayenin alıcısı olmayan birinden gelen görüntülenmeyi atar.
+
+      Okundu bilgisi yine yok. Gizlilik politikasına cümle eklendi. Aydınlatma sürümü değişmez, çünkü bu bilinen bir davranış.
+    - QA-39 (pil, görenler, yer adları, DM düzeni, K14) test oturumunda.
+    - PM kararı: aydınlatma metni sürümü 2. Yeni APK'da herkes güncel gizlilik metnini bir kez yeniden onaylar.
   - **APK şartları:**
     1. QA-38'in bütün bulguları düzelir ve hedefli yeniden denetimden geçer.
     2. K14 yapılır.
