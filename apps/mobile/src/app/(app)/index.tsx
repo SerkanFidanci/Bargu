@@ -10,6 +10,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { MapShortcuts } from '@/features/home/map-shortcuts';
 import { MeetingChip } from '@/features/home/meeting-chip';
+import { QuickSheet } from '@/features/home/quick-sheet';
 import { SafeButton } from '@/features/home/safe-button';
 import { SeersPill, sharingNow } from '@/features/home/seers-pill';
 import { isAway, nextMeeting } from '@/features/home/shortcuts-model';
@@ -56,6 +57,7 @@ import { WeatherLayer } from '@/features/weather/weather-layer';
 import { MapCredit } from '@/features/map/map-credit';
 import { useMe } from '@/features/profile/queries';
 import { unreadTotal, useMessages } from '@/features/messages/messages';
+import { useRulesGate } from '@/features/messages/rules';
 import { space, touchTarget } from '@/theme';
 import { EffectsPaused } from '@/theme/effects';
 import { useMotion } from '@/theme/use-motion';
@@ -75,6 +77,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const circles = useRef<SheetRef>(null);
   const add = useRef<SheetRef>(null);
+  const quick = useRef<SheetRef>(null);
   const meSheet = useRef<SheetRef>(null);
   const statusSheet = useRef<SheetRef>(null);
   const safeSheet = useRef<SheetRef>(null);
@@ -184,12 +187,14 @@ export default function HomeScreen() {
     name: memberName(member),
     avatar: member.avatar,
   }));
+  // The + opens the quick things (T2); a photo first needs the community rules (K14).
+  const rules = useRulesGate();
   const toggleAdd = () => {
     if (addOpen) {
-      add.current?.dismiss();
+      quick.current?.dismiss();
       return;
     }
-    add.current?.present();
+    quick.current?.present();
     setAddOpen(true);
   };
 
@@ -335,17 +340,34 @@ export default function HomeScreen() {
           onAdd={() => {
             circles.current?.dismiss();
             add.current?.present();
-            setAddOpen(true);
           }}
           onClose={() => circles.current?.dismiss()}
         />
-        <AddSheet
-          ref={add}
+        <QuickSheet
+          ref={quick}
           onDismiss={() => {
             setAddOpen(false);
           }}
-          onClose={() => add.current?.dismiss()}
+          onPhoto={() => {
+            quick.current?.dismiss();
+            rules.ensure(() => {
+              router.push('/camera');
+            });
+          }}
+          onAddFriend={() => {
+            quick.current?.dismiss();
+            add.current?.present();
+          }}
+          onMeeting={() => {
+            quick.current?.dismiss();
+            router.push('/meeting/new');
+          }}
+          onSafe={() => {
+            quick.current?.dismiss();
+            safeSheet.current?.present();
+          }}
         />
+        <AddSheet ref={add} onDismiss={() => undefined} onClose={() => add.current?.dismiss()} />
         <MeSheet
           ref={meSheet}
           me={me.data}
@@ -364,6 +386,7 @@ export default function HomeScreen() {
         />
         <StatusSheet ref={statusSheet} onClose={() => statusSheet.current?.dismiss()} />
         <SafeSheet ref={safeSheet} onClose={() => safeSheet.current?.dismiss()} />
+        {rules.sheet}
         {celebrating ? <Confetti onDone={celebrated} /> : null}
       </View>
     </EffectsPaused.Provider>

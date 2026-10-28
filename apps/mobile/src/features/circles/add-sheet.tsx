@@ -27,9 +27,9 @@ export interface AddSheetProps {
 }
 
 /**
- * The "+" in the middle of the dock (UX düzeni 5): a friend by username, by showing or scanning a
- * QR code in person, or by sharing a one-time link; a new circle; a meeting. Whoever is added still
- * has to say yes (except for a code they scanned: showing it is the yes).
+ * Adding (UX düzeni 5; the + quick things open it since T2, 2026-10-29): a friend by username, by
+ * showing or scanning a QR code in person, or by sharing a one-time link; a new circle; a meeting.
+ * Whoever is added still has to say yes (except for a code they scanned: showing it is the yes).
  */
 export const AddSheet = forwardRef<SheetRef, AddSheetProps>(function AddSheet(
   { onDismiss, onClose },

@@ -74,6 +74,17 @@ jest.mock('@/features/home/seers-pill', () => ({
 }));
 jest.mock('@/features/home/sheets', () => ({ MeSheet: () => null }));
 jest.mock('@/features/circles/add-sheet', () => ({ AddSheet: () => null }));
+// The + quick things and the rules before a photo have their own tests (quick-sheet, rules).
+jest.mock('@/features/home/quick-sheet', () => ({ QuickSheet: () => null }));
+jest.mock('@/features/messages/rules', () => ({
+  useRulesGate: () => ({
+    ensure: (action: () => void) => {
+      action();
+    },
+    open: true,
+    sheet: null,
+  }),
+}));
 jest.mock('@/features/circles/circles-sheet', () => ({ CirclesSheet: () => null }));
 jest.mock('@/features/social/status-sheet', () => ({ StatusSheet: () => null }));
 jest.mock('@/features/social/safe-sheet', () => ({ SafeSheet: () => null }));

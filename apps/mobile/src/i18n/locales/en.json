@@ -136,7 +136,18 @@
     },
     "connecting": "Connecting…",
     "map": "Map",
-    "mapCredit": "© OpenStreetMap contributors"
+    "mapCredit": "© OpenStreetMap contributors",
+    "quick": {
+      "title": "Quick actions",
+      "photo": "Take a photo",
+      "photoHint": "Take it now, send it to a circle or a person",
+      "friend": "Add a friend",
+      "friendHint": "By username, QR code or invite link",
+      "meeting": "Meet up",
+      "meetingHint": "Suggest a place and time in a circle",
+      "safe": "I'm safe",
+      "safeHint": "Tell the circles you choose that you're fine"
+    }
   },
   "sheets": {
     "circles": {

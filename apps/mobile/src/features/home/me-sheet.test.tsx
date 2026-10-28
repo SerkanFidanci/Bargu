@@ -151,7 +151,7 @@ describe('the Me sheet, one row per part (the owner, 2026-10-21)', () => {
   });
 });
 
-describe('the "+" sheet (UX düzeni 5)', () => {
+describe('adding a friend (UX düzeni 5; from the + quick things since T2)', () => {
   it('is called "Ekle" and creates a circle too', async () => {
     await render(withQueries(<AddSheet onDismiss={jest.fn()} onClose={jest.fn()} />));
     expect(screen.getByText('Ekle')).toBeTruthy();

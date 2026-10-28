@@ -136,7 +136,18 @@
     },
     "connecting": "Bağlanıyor…",
     "map": "Harita",
-    "mapCredit": "© OpenStreetMap katkıcıları"
+    "mapCredit": "© OpenStreetMap katkıcıları",
+    "quick": {
+      "title": "Hızlı işler",
+      "photo": "Fotoğraf çek",
+      "photoHint": "Şimdi çek, bir çembere ya da kişiye gönder",
+      "friend": "Arkadaş ekle",
+      "friendHint": "Kullanıcı adı, QR kod ya da davet linkiyle",
+      "meeting": "Buluşma",
+      "meetingHint": "Bir çemberde buluşma yeri ve saati öner",
+      "safe": "Güvendeyim",
+      "safeHint": "Seçtiğin çemberlere iyi olduğunu söyle"
+    }
   },
   "sheets": {
     "circles": {
