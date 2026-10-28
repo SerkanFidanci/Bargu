@@ -173,6 +173,24 @@ describe('a conversation', () => {
     expect(mockBlock).not.toHaveBeenCalled();
   });
 
+  it('reports or blocks a member of a circle from its ⋮ too (QA-39)', async () => {
+    await render(<ConversationScreen />);
+    await fireEvent.press(screen.getByTestId('conversation-more'));
+    expect(alerts.at(-1)?.buttons.map((button) => button.text)).toEqual([
+      'Bir üyeyi bildir ya da engelle',
+      'Çemberi aç',
+      'Vazgeç',
+    ]);
+    await pressAlert('Bir üyeyi bildir ya da engelle');
+    await fireEvent.press(screen.getByTestId(`member-${ALI}`));
+    expect(alerts.at(-1)?.buttons.map((button) => button.text)).toEqual([
+      'Bildir',
+      'Engelle',
+      'Vazgeç',
+    ]);
+    expect(screen.queryByTestId(`member-${ME}`)).toBeNull();
+  });
+
   it('gives a heart with a double tap, and takes it back with another (Ek 2)', async () => {
     await render(<ConversationScreen />);
     const item = await screen.findByTestId(`item-${ITEM_ALI}`);

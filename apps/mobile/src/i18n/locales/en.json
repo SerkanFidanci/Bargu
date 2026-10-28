@@ -1573,7 +1573,10 @@
       "heartBack": "Take your heart back",
       "choose": "Hold to choose another reaction",
       "of": "Reacted {{emoji}}"
-    }
+    },
+    "circleMenuNote": "To report a message, press and hold it.",
+    "circleMembers": "Report or block a member",
+    "circleOpen": "Open the circle"
   },
   "tips": {
     "ok": "Got it",

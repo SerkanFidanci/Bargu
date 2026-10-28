@@ -156,9 +156,12 @@ export function ClearOfToast({
 }) {
   const room = useToasts((state) => state.room);
   const shift = useSharedValue(0);
+  // Sade mod "Kapalı": out of the way at once, no glide (QA-39).
+  const still = useMotion().reduced;
   useEffect(() => {
-    shift.set(withTiming(room === 0 ? 0 : room + space.sm, timing.base));
-  }, [room, shift]);
+    const to = room === 0 ? 0 : room + space.sm;
+    shift.set(still ? to : withTiming(to, timing.base));
+  }, [room, shift, still]);
   const moved = useAnimatedStyle(() => ({ transform: [{ translateY: shift.get() }] }));
   return (
     <Animated.View testID="clear-of-toast" style={[style, moved]} pointerEvents="box-none">

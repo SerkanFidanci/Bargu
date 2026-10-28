@@ -307,12 +307,34 @@ export function applyPayload<T extends Saved>(
   return { ...withItem(saved, item), seen };
 }
 
-/** Everything of a person (docs/ADR/0035 §8, PROTOCOL §8): their conversation and their items. */
+/** An item without what it keeps of one person: their view, reaction, screenshot, recipiency. */
+function withoutTraceOf(item: ChatItem, userId: string): ChatItem {
+  const not = <V>(record: Record<string, V> | undefined) =>
+    record === undefined
+      ? undefined
+      : Object.fromEntries(Object.entries(record).filter(([key]) => key !== userId));
+  const viewers = not(item.viewers);
+  const reactions = not(item.reactions);
+  return {
+    ...item,
+    ...(viewers === undefined ? {} : { viewers }),
+    ...(reactions === undefined ? {} : { reactions }),
+    ...(item.shotBy === undefined ? {} : { shotBy: item.shotBy.filter((id) => id !== userId) }),
+    ...(item.sentTo === undefined ? {} : { sentTo: item.sentTo.filter((id) => id !== userId) }),
+  };
+}
+
+/**
+ * Everything of a person (docs/ADR/0035 §8, PROTOCOL §8): their conversation and their items, and
+ * on this phone's own items that they saw, reacted or took a screenshot (QA-39).
+ */
 export function withoutPerson<T extends Saved>(saved: T, userId: string): T {
   const conversation = personConversation(userId);
   return {
     ...saved,
-    items: saved.items.filter((item) => item.from !== userId && item.conversation !== conversation),
+    items: saved.items
+      .filter((item) => item.from !== userId && item.conversation !== conversation)
+      .map((item) => withoutTraceOf(item, userId)),
     read: Object.fromEntries(Object.entries(saved.read).filter(([key]) => key !== conversation)),
   };
 }

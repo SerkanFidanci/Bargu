@@ -24,6 +24,7 @@ import {
   withState,
 } from './messages';
 import { messagesApi } from './messages-api';
+import { isOpen } from './names';
 import { type PhotoFile, uploadPhoto } from './photo';
 import { forgetRules, whenRulesAccepted } from './rules-state';
 
@@ -444,6 +445,9 @@ function sameTarget(a: ChatPayload, b: ChatPayload): boolean {
 }
 
 async function sendNotice(notice: HeldNotice): Promise<void> {
+  // Only to someone a lasting circle is shared with: met only at an event, it is not sent and not
+  // kept to try again (QA-39, the PM's decision).
+  if (!isOpen(notice.conversation, cachedCircles(), useAuth.getState().userId)) return;
   // A reaction still waiting for this item is replaced, so it cannot arrive after this one.
   const stale = heldNotices.findIndex((held) => sameTarget(held.payload, notice.payload));
   if (stale >= 0) heldNotices.splice(stale, 1);

@@ -22,6 +22,7 @@ import {
   watchEventSchema,
 } from '@bargu/schemas';
 import * as Battery from 'expo-battery';
+import { AppState } from 'react-native';
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -381,6 +382,7 @@ export const locationEngine = createLocationEngine({
     await Promise.all([meeting, trail]);
   },
   eta: (circleId, fix, now) => meetings.eta(circleId, fix, now),
+  background: () => AppState.currentState !== 'active',
   // The reason for an old location (docs/ADR/0028 "Neden eski?") follows what the engine sees.
   sampled: (at) => {
     stateReporter.sampled(at);

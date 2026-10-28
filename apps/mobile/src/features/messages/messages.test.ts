@@ -428,6 +428,26 @@ describe('what an opened item does', () => {
     expect(react(hers.id, randomUuid())).toBeUndefined();
   });
 
+  it('forgets what a person left on this phone own items when they go (QA-39)', () => {
+    const AYSE = randomUuid();
+    const base = photo({ from: ME });
+    const mine: ChatItem = {
+      ...base,
+      photo: { ...(base.photo ?? ({} as never)), story: true },
+      sentTo: [ALI, AYSE],
+      viewers: { [ALI]: NOW - 10, [AYSE]: NOW - 5 },
+      reactions: { [ALI]: '❤️', [AYSE]: '🔥' },
+      shotBy: [ALI],
+    };
+    const left = withoutPerson(stateWith(mine), ALI).items[0];
+    expect(left?.viewers).toEqual({ [AYSE]: NOW - 5 });
+    expect(left?.reactions).toEqual({ [AYSE]: '🔥' });
+    expect(left?.shotBy).toEqual([]);
+    expect(left?.sentTo).toEqual([AYSE]);
+    // An item that never had any of it gains nothing.
+    expect(withoutPerson(stateWith(text()), ALI).items[0]?.viewers).toBeUndefined();
+  });
+
   it('keeps everyone a story went to, also across a second try', () => {
     const AYSE = randomUuid();
     const mine = photo({ from: ME });

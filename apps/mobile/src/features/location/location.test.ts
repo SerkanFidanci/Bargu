@@ -191,6 +191,20 @@ describe('when a location is sent', () => {
     expect(shouldSend(last, GALATA, second - 1, true)).toBe(false);
   });
 
+  it('sends at most once a minute while moving with the app closed, live still live (ADR 0036)', () => {
+    const last = { fix: GALATA, sentAt: NOW };
+    const soon = NOW + SEND_RULES.movingIntervalMs;
+    expect(shouldSend(last, moved(GALATA, 15, soon), soon, false, true)).toBe(false);
+    const minute = NOW + SEND_RULES.backgroundIntervalMs;
+    expect(shouldSend(last, moved(GALATA, 15, minute - 1), minute - 1, false, true)).toBe(false);
+    expect(shouldSend(last, moved(GALATA, 15, minute), minute, false, true)).toBe(true);
+    // Someone looking: every second, closed app or not.
+    expect(shouldSend(last, GALATA, NOW + SEND_RULES.liveIntervalMs, true, true)).toBe(true);
+    // The numbers of the ADR.
+    expect(SEND_RULES.backgroundIntervalMs).toBe(60_000);
+    expect(SEND_RULES.heartbeatMs).toBe(5 * 60_000);
+  });
+
   it('says since when it has stayed, never later than the fix itself', () => {
     expect(locPayload(GALATA, BATTERY, GALATA.ts - 5_000).since).toBe(GALATA.ts - 5_000);
     expect(locPayload(GALATA, BATTERY, GALATA.ts + 1).since).toBeUndefined();

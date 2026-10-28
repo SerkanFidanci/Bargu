@@ -17,13 +17,39 @@ export const LOCATION_TASK = 'bargu.location';
  * friend looking (background live mode). No distance filter: a still phone still reports, so the
  * 5-minute heartbeat goes out (send.ts).
  */
-const TRACKING = {
+export const TRACKING = {
   gpsIntervalMs: 30_000,
   coarseIntervalMs: 60_000,
   liveIntervalMs: 1_000,
   /** In the background: positions wait and come together, at most this often (Android, iOS). */
   backgroundBatchMs: 60_000,
 } as const;
+
+/**
+ * The position to use from a batch the system gathered in the background (docs/ADR/0036): the most
+ * accurate of the last GPS interval before the newest, the newest of equals (QA-39). An older,
+ * sharper one from further back would put the pin where the phone no longer is.
+ */
+export function bestOfBatch<T extends { timestamp: number; coords: { accuracy: number | null } }>(
+  locations: readonly T[],
+): T | null {
+  const newest = locations.reduce<T | null>(
+    (best, location) => (best === null || location.timestamp > best.timestamp ? location : best),
+    null,
+  );
+  if (newest === null) return null;
+  const sharpness = (location: T) => location.coords.accuracy ?? Number.POSITIVE_INFINITY;
+  return locations
+    .filter((location) => newest.timestamp - location.timestamp <= TRACKING.gpsIntervalMs)
+    .reduce(
+      (best, location) =>
+        sharpness(location) < sharpness(best) ||
+        (sharpness(location) === sharpness(best) && location.timestamp > best.timestamp)
+          ? location
+          : best,
+      newest,
+    );
+}
 
 /** Notification color of the "sharing location" service (brand navy, app.config.ts). */
 const NOTIFICATION_COLOR = '#1E3F8A';

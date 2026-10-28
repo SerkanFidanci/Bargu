@@ -23,12 +23,20 @@ export interface Battery {
   charging: boolean;
 }
 
-/** BARGU_PLAN §3.3 frequency table. */
+/**
+ * BARGU_PLAN §3.3 frequency table, docs/ADR/0036. How often positions come is the location service's
+ * (tracker.ts: GPS every 30 s, the open map every second); this says which of them go out.
+ */
 export const SEND_RULES = {
   /** Someone watches on their map: about once a second. */
   liveIntervalMs: 900,
-  /** Otherwise: at most every 5 s, and only after moving 10 m… */
+  /** The app open: at most every 5 s, and only after moving 10 m… */
   movingIntervalMs: 5_000,
+  /**
+   * …the app closed: at most once a minute while moving (ADR 0036), also when the system hands
+   * over positions more often than it was asked to (QA-39)…
+   */
+  backgroundIntervalMs: 60_000,
   movingDistanceM: 10,
   /** …or a heartbeat every 5 minutes while still (battery, "still here"). */
   heartbeatMs: 5 * 60_000,
@@ -52,15 +60,23 @@ export interface LastSent {
   sentAt: number;
 }
 
-/** Whether a new fix is worth sending (battery and the relay's rate limit both care). */
-export function shouldSend(last: LastSent | null, fix: Fix, now: number, live: boolean): boolean {
+/**
+ * Whether a new fix is worth sending (battery and the relay's rate limit both care). Someone
+ * watching makes it live, closed app or not (ADR 0028).
+ */
+export function shouldSend(
+  last: LastSent | null,
+  fix: Fix,
+  now: number,
+  live: boolean,
+  background = false,
+): boolean {
   if (last === null) return true;
   const elapsed = now - last.sentAt;
   if (live) return elapsed >= SEND_RULES.liveIntervalMs;
   if (elapsed >= SEND_RULES.heartbeatMs) return true;
-  return (
-    elapsed >= SEND_RULES.movingIntervalMs && distanceM(last.fix, fix) >= SEND_RULES.movingDistanceM
-  );
+  const every = background ? SEND_RULES.backgroundIntervalMs : SEND_RULES.movingIntervalMs;
+  return elapsed >= every && distanceM(last.fix, fix) >= SEND_RULES.movingDistanceM;
 }
 
 /** The location message before precision is applied; odd platform values are left out. */

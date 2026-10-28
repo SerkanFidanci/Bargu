@@ -438,3 +438,52 @@ describe('a reaction (docs/ADR/0035 Ek 2)', () => {
     expect(mockToCircle).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('a view to someone met only at an event (QA-39, the PM)', () => {
+  it('is not sent, and not kept to try again', async () => {
+    const device = generateDeviceKeys(randomUuid());
+    useAuth.setState({ userId: ME, device });
+    const sender = { userId: randomUuid(), device: generateDeviceKeys(randomUuid()) };
+    const event: Circle = {
+      id: randomUuid(),
+      kind: 'event',
+      name: 'Konser',
+      epoch: 1,
+      epochStartedAt: 0,
+      myRole: 'member',
+      myStatus: 'active',
+      members: [
+        {
+          userId: sender.userId,
+          role: 'member',
+          status: 'active',
+          username: null,
+          displayName: 'Ali',
+          avatar: null,
+          device: { platform: 'android', bundle: exportDeviceKeyBundle(sender.device) },
+        },
+      ],
+    };
+    queryClient.setQueryData(circlesKey, [event]);
+    mockToPerson.mockClear();
+    await tellViewed({
+      id: randomUuid(),
+      conversation: `c:${event.id}`,
+      from: sender.userId,
+      at: NOW,
+      kind: 'photo',
+      state: 'sent',
+      photo: {
+        blobId: randomUuid(),
+        key: 'k'.repeat(43),
+        size: 1000,
+        hash: 'h'.repeat(43),
+        w: 10,
+        h: 10,
+        story: true,
+      },
+    });
+    await sendHeldNotices();
+    expect(mockToPerson).not.toHaveBeenCalled();
+  });
+});

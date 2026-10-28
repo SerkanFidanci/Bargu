@@ -7,7 +7,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { choreography, dockShape, radius, space, spring, touchTarget, useTheme } from '@/theme';
-import { useGlow } from '@/theme/effects';
+import { useEffects, useGlow } from '@/theme/effects';
 import { useMotion } from '@/theme/use-motion';
 import { Avatar } from '@/ui/avatar';
 import { brandStops } from '@/ui/brand-fill';
@@ -55,10 +55,13 @@ export function Dock({
   const { colors } = useTheme();
   const glow = useGlow();
   const turn = useSharedValue(0);
+  // Sade mod "Kapalı": the + is turned at once, no spring (QA-39).
+  const still = useEffects() === 'off';
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   useEffect(() => {
-    turn.set(withSpring(addOpen ? choreography.addTurn : 0, spring.bouncy));
-  }, [addOpen, turn]);
+    const to = addOpen ? choreography.addTurn : 0;
+    turn.set(still ? to : withSpring(to, spring.bouncy));
+  }, [addOpen, turn, still]);
   const turned = useAnimatedStyle(() => ({ transform: [{ rotate: `${String(turn.get())}deg` }] }));
   const outline = size === null ? null : dockOutline(size.width, size.height);
   // The hump is inside this view (a strip as tall as it above the bar), so the whole + takes taps:

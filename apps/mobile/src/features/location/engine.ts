@@ -72,6 +72,8 @@ export interface EngineDeps {
   eta?: (circleId: string, fix: Fix, now: number) => LocPayload['eta'];
   /** A raw position came in, whatever became of it (the silence that "Neden eski?" listens for). */
   sampled?: (at: number) => void;
+  /** The app is not on screen: moving, at most once a minute goes out (docs/ADR/0036). */
+  background?: () => boolean;
   /**
    * What the circles hold of this phone changed: sharing or circles (`changed`), or the first
    * location went to a circle / the last was taken back. The reason for an old location follows it.
@@ -220,7 +222,7 @@ export function createLocationEngine(deps: EngineDeps) {
     stay = nextStay(stay, next, next.ts);
     useMyFix.setState({ fix: next, since: stay.since });
     void deps.onFix?.(next).catch(() => undefined);
-    if (shouldSend(last, next, now(), live())) {
+    if (shouldSend(last, next, now(), live(), deps.background?.() === true)) {
       pending = next;
       return pump();
     }

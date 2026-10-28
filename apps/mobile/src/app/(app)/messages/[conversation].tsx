@@ -53,7 +53,8 @@ import { Avatar } from '@/ui/avatar';
 import { EmptyState } from '@/ui/empty-state';
 import { IconButton } from '@/ui/icon-button';
 import { PressableScale } from '@/ui/pressable-scale';
-import type { SheetRef } from '@/ui/sheet';
+import { ListRow } from '@/ui/list-row';
+import { Sheet, type SheetRef } from '@/ui/sheet';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 
@@ -168,6 +169,34 @@ export default function ConversationScreen() {
     return count === 0 ? null : t('messages.members', { count });
   })();
 
+  /** "Bildir" or "Engelle" for one person (their conversation's ⋮, a member of a circle). */
+  const aboutPerson = (userId: string, title: string) => {
+    Alert.alert(title, undefined, [
+      {
+        text: t('messages.report'),
+        onPress: () => {
+          safety.askReport({ userId });
+        },
+      },
+      {
+        text: t('messages.block'),
+        style: 'destructive',
+        onPress: () => {
+          safety.askBlock(userId);
+        },
+      },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
+  const membersSheet = useRef<SheetRef>(null);
+  // Drawn only while open: names of the circle are not on the screen behind it.
+  const [membersOpen, setMembersOpen] = useState(false);
+  const circleId = target !== null && 'circleId' in target ? target.circleId : null;
+  const others =
+    circles
+      .find((circle) => circle.id === circleId)
+      ?.members.filter((member) => member.userId !== me && member.status === 'active') ?? [];
+
   // A held item: its reactions and what can be done with it (docs/ADR/0035 Ek 2).
   const [held, setHeld] = useState<ChatItem | null>(null);
   const itemSheet = useRef<SheetRef>(null);
@@ -231,25 +260,31 @@ export default function ConversationScreen() {
             )}
           </View>
           <View style={styles.barAction}>
-            {person === null ? null : (
+            {person === null && circleId === null ? null : (
               <IconButton
                 testID="conversation-more"
                 icon={MoreVertical}
                 label={t('messages.more')}
                 tone="plain"
                 onPress={() => {
-                  Alert.alert(name ?? '', undefined, [
+                  if (person !== null) {
+                    aboutPerson(person, name ?? '');
+                    return;
+                  }
+                  // A circle (QA-39): "Bildir" and "Engelle" for one of its members, a tap away
+                  // here too, and the circle itself (to leave it).
+                  Alert.alert(name ?? '', t('messages.circleMenuNote'), [
                     {
-                      text: t('messages.report'),
+                      text: t('messages.circleMembers'),
                       onPress: () => {
-                        safety.askReport({ userId: person });
+                        setMembersOpen(true);
+                        membersSheet.current?.present();
                       },
                     },
                     {
-                      text: t('messages.block'),
-                      style: 'destructive',
+                      text: t('messages.circleOpen'),
                       onPress: () => {
-                        safety.askBlock(person);
+                        if (circleId !== null) router.push(`/circle/${circleId}`);
                       },
                     },
                     { text: t('common.cancel'), style: 'cancel' },
@@ -386,6 +421,29 @@ export default function ConversationScreen() {
         ) : null}
       </KeyboardAvoidingView>
 
+      <Sheet
+        ref={membersSheet}
+        title={t('messages.circleMembers')}
+        testID="members-sheet"
+        onDismiss={() => {
+          setMembersOpen(false);
+        }}
+      >
+        {(membersOpen ? others : []).map((member) => (
+          <ListRow
+            key={member.userId}
+            testID={`member-${member.userId}`}
+            leading={
+              <Avatar avatar={member.avatar} name={memberName(member)} userId={member.userId} />
+            }
+            title={memberName(member)}
+            onPress={() => {
+              membersSheet.current?.dismiss();
+              aboutPerson(member.userId, memberName(member));
+            }}
+          />
+        ))}
+      </Sheet>
       <ItemSheet
         ref={itemSheet}
         mine={held?.from === me}

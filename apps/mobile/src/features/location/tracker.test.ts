@@ -1,4 +1,4 @@
-import { startTracking, stopTracking } from './tracker';
+import { bestOfBatch, startTracking, stopTracking, TRACKING } from './tracker';
 
 // The restart notice has its own tests (restart-notice.test.ts).
 jest.mock('./restart-notice', () => ({
@@ -46,5 +46,26 @@ describe('the location service and the battery (docs/ADR/0036)', () => {
   it('keeps going with the app swiped away: friends keep seeing it (the owner)', async () => {
     await startTracking({ gps: true, title: 'Konum', body: 'Paylaşılıyor', restart });
     expect(asked()).toMatchObject({ foregroundService: { killServiceOnDestroy: false } });
+  });
+});
+
+describe('a batch gathered in the background (docs/ADR/0036, QA-39)', () => {
+  const at = (timestamp: number, accuracy: number | null) => ({ timestamp, coords: { accuracy } });
+
+  it('gives the sharpest of the last GPS interval, the newest of equals', () => {
+    const newest = at(100_000, 40);
+    const sharp = at(100_000 - TRACKING.gpsIntervalMs, 8);
+    const sharperButOld = at(100_000 - TRACKING.gpsIntervalMs - 1, 3);
+    expect(bestOfBatch([sharperButOld, sharp, newest])).toBe(sharp);
+    const twin = at(95_000, 8);
+    expect(bestOfBatch([sharp, twin, newest])).toBe(twin);
+    // No accuracy given: never preferred over one that has it.
+    expect(bestOfBatch([at(99_000, null), newest])).toBe(newest);
+    expect(bestOfBatch([])).toBeNull();
+    expect(TRACKING).toMatchObject({
+      gpsIntervalMs: 30_000,
+      coarseIntervalMs: 60_000,
+      backgroundBatchMs: 60_000,
+    });
   });
 });

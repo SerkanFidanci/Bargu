@@ -38,7 +38,16 @@ Plan: BARGU_PLAN "Faz 9C", PM'in ürün raporu §2 ve §4. Sahip: "Lacivert turu
 | Ö3 emoji tepki  | Çift dokunuş ❤️, basılı tutunca 6 emoji; hikayede kalp. Şifreli `react` öğesi, bildirim yok, 24 saat. Sunucu değişmedi. ADR 0035 Ek 2                                                                                                                                      | `1199641` |
 | T8 koyu tema    | Koyu temada alt çubuğun seçili yazısı 2,96:1'di; ana renk açık maviye çekildi (6,2:1), testler küçük yazı kontrastını istiyor                                                                                                                                              | `bf8aec6` |
 
-Testler: mobil 1393 test, şema ve kripto testleri yeşil.
+QA-39 (`4f29fe7`) düşük bulguları da bu APK'da:
+
+- Yalnız etkinlikte tanışılan kişiye "gördü" ve hikaye tepkisi gitmez, yeniden de denenmez.
+- Kişi unutulunca senin öğelerindeki görme, tepki, ekran görüntüsü ve alıcı kayıtları silinir.
+- Arka planda gelen toplu konumdan son 30 sn'nin en doğrusu seçilir.
+- Uygulama kapalıyken hareket hâlinde gönderim motorda da dakikada en çok bir kez (ADR 0036); sabitler testli.
+- Sade mod "Kapalı"da + düğmesi yaysız döner, bildirim haritayı kaydırmadan iter.
+- Grup sohbetinin ⋮ menüsü: bir üyeyi bildir ya da engelle, çemberi aç.
+
+Testler: mobil 1393+ test, şema ve kripto testleri yeşil.
 
 Açık işler:
 

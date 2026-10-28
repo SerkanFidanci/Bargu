@@ -1573,7 +1573,10 @@
       "heartBack": "Kalbini geri al",
       "choose": "Basılı tut: başka bir tepki seç",
       "of": "{{emoji}} tepki verdi"
-    }
+    },
+    "circleMenuNote": "Bir mesajı bildirmek için ona basılı tut.",
+    "circleMembers": "Bir üyeyi bildir ya da engelle",
+    "circleOpen": "Çemberi aç"
   },
   "tips": {
     "ok": "Tamam",
