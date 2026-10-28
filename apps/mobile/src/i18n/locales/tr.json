@@ -1531,7 +1531,7 @@
       "seenBy": "{{count}} kişi gördü",
       "seenByNone": "Henüz kimse görmedi",
       "seenByTitle": "Görenler",
-      "seenByNote": "Bu listeyi yalnız sen görürsün. Hikayenle birlikte 24 saatte silinir.",
+      "seenByNote": "Bu listeyi yalnız sen görürsün. Hikayenle birlikte 24 saatte silinir. Yalnız etkinlik çemberinde tanıştıkların bu listede görünmez.",
       "viewNotice": "Açtığını {{name}} görür."
     },
     "rules": {
@@ -1574,9 +1574,11 @@
       "choose": "Basılı tut: başka bir tepki seç",
       "of": "{{emoji}} tepki verdi"
     },
-    "circleMenuNote": "Bir mesajı bildirmek için ona basılı tut.",
-    "circleMembers": "Bir üyeyi bildir ya da engelle",
-    "circleOpen": "Çemberi aç"
+    "circleMembers": "Üyeler: bildir ya da engelle",
+    "circleOpen": "Çemberi aç",
+    "circleMute": "Sessize al",
+    "circleUnmute": "Sesini aç",
+    "circleMuteNote": "Bu çemberin mesaj ve hikaye bildirimleri susar. Mesajlar yine gelir."
   },
   "tips": {
     "ok": "Tamam",

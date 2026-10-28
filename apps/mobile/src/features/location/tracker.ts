@@ -26,10 +26,14 @@ export const TRACKING = {
 } as const;
 
 /**
- * The position to use from a batch the system gathered in the background (docs/ADR/0036): the most
- * accurate of the last GPS interval before the newest, the newest of equals (QA-39). An older,
- * sharper one from further back would put the pin where the phone no longer is.
+ * The position to use from a batch the system gathered in the background (docs/ADR/0036, QA-39):
+ * the sharpest of the last minute, the batch's own length. Accuracies within 10 m of the sharpest
+ * count as equal, and of those the newest is taken: a pin at the very latest place, not a few
+ * metres sharper from half a minute ago.
  */
+export const BATCH_WINDOW_MS = TRACKING.backgroundBatchMs;
+export const SAME_ACCURACY_M = 10;
+
 export function bestOfBatch<T extends { timestamp: number; coords: { accuracy: number | null } }>(
   locations: readonly T[],
 ): T | null {
@@ -39,16 +43,15 @@ export function bestOfBatch<T extends { timestamp: number; coords: { accuracy: n
   );
   if (newest === null) return null;
   const sharpness = (location: T) => location.coords.accuracy ?? Number.POSITIVE_INFINITY;
-  return locations
-    .filter((location) => newest.timestamp - location.timestamp <= TRACKING.gpsIntervalMs)
-    .reduce(
-      (best, location) =>
-        sharpness(location) < sharpness(best) ||
-        (sharpness(location) === sharpness(best) && location.timestamp > best.timestamp)
-          ? location
-          : best,
-      newest,
-    );
+  const recent = locations.filter(
+    (location) => newest.timestamp - location.timestamp <= BATCH_WINDOW_MS,
+  );
+  const sharpest = Math.min(...recent.map(sharpness));
+  // None of them says how accurate it is: the newest.
+  if (!Number.isFinite(sharpest)) return newest;
+  return recent
+    .filter((location) => sharpness(location) <= sharpest + SAME_ACCURACY_M)
+    .reduce((best, location) => (location.timestamp > best.timestamp ? location : best));
 }
 
 /** Notification color of the "sharing location" service (brand navy, app.config.ts). */

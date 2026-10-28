@@ -1531,7 +1531,7 @@
       "seenBy": "Seen by {{count}}",
       "seenByNone": "Nobody has seen it yet",
       "seenByTitle": "Seen by",
-      "seenByNote": "Only you see this list. It goes with your story after 24 hours.",
+      "seenByNote": "Only you see this list. It is deleted with your story after 24 hours. People you met only in an event circle do not appear in it.",
       "viewNotice": "{{name}} sees that you opened it."
     },
     "rules": {
@@ -1574,9 +1574,11 @@
       "choose": "Hold to choose another reaction",
       "of": "Reacted {{emoji}}"
     },
-    "circleMenuNote": "To report a message, press and hold it.",
-    "circleMembers": "Report or block a member",
-    "circleOpen": "Open the circle"
+    "circleMembers": "Members: report or block",
+    "circleOpen": "Open the circle",
+    "circleMute": "Mute",
+    "circleUnmute": "Unmute",
+    "circleMuteNote": "This circle's message and story notifications go quiet. Messages still arrive."
   },
   "tips": {
     "ok": "Got it",

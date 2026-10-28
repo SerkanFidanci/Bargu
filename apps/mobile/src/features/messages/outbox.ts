@@ -31,8 +31,9 @@ import { forgetRules, whenRulesAccepted } from './rules-state';
 /**
  * `full`: the server's space for photos is full (texts still go, docs/ADR/0035 §10). `rules`: the
  * server has no record of the community rules being accepted (K14); they are asked again.
+ * `notMember`: the server says no circle is shared with them (any more): trying again cannot help.
  */
-export type SendResult = 'sent' | 'limited' | 'full' | 'rules' | 'failed';
+export type SendResult = 'sent' | 'limited' | 'full' | 'rules' | 'notMember' | 'failed';
 
 const cachedCircles = () => queryClient.getQueryData<Circle[]>(circlesKey) ?? [];
 
@@ -137,6 +138,7 @@ async function deliver(conversation: Conversation, payload: ChatPayload): Promis
     return 'failed';
   }
   if ('ok' in reply) return 'sent';
+  if (reply.refused === 'NOT_MEMBER') return 'notMember';
   return reply.refused === 'RATE_LIMITED' || reply.refused === 'DAILY_LIMIT' ? 'limited' : 'failed';
 }
 
@@ -452,6 +454,9 @@ async function sendNotice(notice: HeldNotice): Promise<void> {
   const stale = heldNotices.findIndex((held) => sameTarget(held.payload, notice.payload));
   if (stale >= 0) heldNotices.splice(stale, 1);
   const told = await deliver(notice.conversation, notice.payload);
+  // "Not a member": no lasting circle is shared with them (any more), so it is dropped, not kept
+  // for ever (QA-39, the PM).
+  if (told === 'notMember') return;
   if (told !== 'sent' && !heldNotices.some((held) => held.payload.id === notice.payload.id)) {
     heldNotices.push(notice);
   }

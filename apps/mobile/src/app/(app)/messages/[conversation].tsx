@@ -5,7 +5,19 @@ import {
   codePointsOf,
 } from '@bargu/schemas';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Camera, ChevronLeft, Clock, Lock, MoreVertical } from 'lucide-react-native';
+import {
+  Bell,
+  BellOff,
+  Camera,
+  ChevronLeft,
+  Clock,
+  Info,
+  type LucideIcon,
+  Lock,
+  LogOut,
+  MoreVertical,
+  Users,
+} from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -21,7 +33,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/auth-store';
 import { memberName } from '@/features/circles/names';
-import { useCircles } from '@/features/circles/queries';
+import { useCircleActions, useCircles } from '@/features/circles/queries';
 import { useNow } from '@/features/location/clock';
 import { ChatAvatar } from '@/features/messages/chat-avatar';
 import {
@@ -32,6 +44,8 @@ import {
   useMessages,
 } from '@/features/messages/messages';
 import { loadMessagesOnce, markRead } from '@/features/messages/messages-session';
+import { loadMuteSettings, updateMutes } from '@/features/notifications/mute-session';
+import { circleMuted, useMutes, withCircleMuted } from '@/features/notifications/mutes';
 import { conversationName, isOpen, memberIn } from '@/features/messages/names';
 import { ItemSheet } from '@/features/messages/item-sheet';
 import { react, retry, sendText, takeBack } from '@/features/messages/outbox';
@@ -188,10 +202,31 @@ export default function ConversationScreen() {
       { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
+  const circleId = target !== null && 'circleId' in target ? target.circleId : null;
+  loadMuteSettings();
+  const groupSheet = useRef<SheetRef>(null);
   const membersSheet = useRef<SheetRef>(null);
+  const { leave } = useCircleActions();
+  const muted = useMutes((state) => circleId !== null && circleMuted(state, circleId));
+  const leaveGroup = () => {
+    if (circleId === null) return;
+    Alert.alert(t('circles.detail.leaveTitle'), t('circles.detail.leaveBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('circles.detail.leave'),
+        style: 'destructive',
+        onPress: () => {
+          leave.mutate(circleId, {
+            onSuccess: () => {
+              router.back();
+            },
+          });
+        },
+      },
+    ]);
+  };
   // Drawn only while open: names of the circle are not on the screen behind it.
   const [membersOpen, setMembersOpen] = useState(false);
-  const circleId = target !== null && 'circleId' in target ? target.circleId : null;
   const others =
     circles
       .find((circle) => circle.id === circleId)
@@ -271,24 +306,9 @@ export default function ConversationScreen() {
                     aboutPerson(person, name ?? '');
                     return;
                   }
-                  // A circle (QA-39): "Bildir" and "Engelle" for one of its members, a tap away
-                  // here too, and the circle itself (to leave it).
-                  Alert.alert(name ?? '', t('messages.circleMenuNote'), [
-                    {
-                      text: t('messages.circleMembers'),
-                      onPress: () => {
-                        setMembersOpen(true);
-                        membersSheet.current?.present();
-                      },
-                    },
-                    {
-                      text: t('messages.circleOpen'),
-                      onPress: () => {
-                        if (circleId !== null) router.push(`/circle/${circleId}`);
-                      },
-                    },
-                    { text: t('common.cancel'), style: 'cancel' },
-                  ]);
+                  // A circle (QA-39): its members (to report or block one), silencing it, the
+                  // circle itself and leaving it, a tap away here too.
+                  groupSheet.current?.present();
                 }}
               />
             )}
@@ -421,6 +441,48 @@ export default function ConversationScreen() {
         ) : null}
       </KeyboardAvoidingView>
 
+      <Sheet ref={groupSheet} title={t('messages.more')} testID="group-sheet">
+        <ListRow
+          testID="group-members"
+          leading={<GroupIcon icon={Users} />}
+          title={t('messages.circleMembers')}
+          onPress={() => {
+            groupSheet.current?.dismiss();
+            setMembersOpen(true);
+            membersSheet.current?.present();
+          }}
+        />
+        <ListRow
+          testID="group-mute"
+          leading={<GroupIcon icon={muted ? Bell : BellOff} />}
+          title={muted ? t('messages.circleUnmute') : t('messages.circleMute')}
+          subtitle={t('messages.circleMuteNote')}
+          onPress={() => {
+            groupSheet.current?.dismiss();
+            if (circleId !== null) {
+              updateMutes((all) => withCircleMuted(all, circleId, !muted));
+            }
+          }}
+        />
+        <ListRow
+          testID="group-open"
+          leading={<GroupIcon icon={Info} />}
+          title={t('messages.circleOpen')}
+          onPress={() => {
+            groupSheet.current?.dismiss();
+            if (circleId !== null) router.push(`/circle/${circleId}`);
+          }}
+        />
+        <ListRow
+          testID="group-leave"
+          leading={<GroupIcon icon={LogOut} />}
+          title={t('circles.detail.leave')}
+          onPress={() => {
+            groupSheet.current?.dismiss();
+            leaveGroup();
+          }}
+        />
+      </Sheet>
       <Sheet
         ref={membersSheet}
         title={t('messages.circleMembers')}
@@ -477,6 +539,16 @@ export default function ConversationScreen() {
  * the last of a run and, in a circle, their name over the first. The items of a run are joined:
  * round outside, a small corner on the sender's side between them.
  */
+/** The icon of a row of the group menu. */
+function GroupIcon({ icon: Icon }: { icon: LucideIcon }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.groupIcon, { backgroundColor: colors.primarySoft }]}>
+      <Icon color={colors.primary} size={20} strokeWidth={2.25} />
+    </View>
+  );
+}
+
 function Bubble({
   item,
   mine,
@@ -706,6 +778,13 @@ const styles = StyleSheet.create({
   columnMine: { alignItems: 'flex-end' },
   columnTheirs: { alignItems: 'flex-start' },
   label: { marginHorizontal: space.md },
+  groupIcon: {
+    width: avatarSize.md,
+    height: avatarSize.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   // Over the bubble's lower edge, as in Instagram.
   reactions: {
     marginTop: -space.sm,

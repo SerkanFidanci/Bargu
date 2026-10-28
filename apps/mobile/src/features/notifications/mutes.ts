@@ -6,7 +6,8 @@ import type { KeyValueStore } from '../storage/vault';
 /**
  * Notifications the user silenced (BARGU_PLAN Faz 7 "kişi/yer bazlı sessize alma"): per person,
  * their arrivals and departures, their pokes and their messages and stories (docs/ADR/0035 §11);
- * per place, everyone's comings and goings there.
+ * per place, everyone's comings and goings there; per circle, its messages and stories (QA-39: the
+ * circle conversation's ⋮ menu, "Sessize al").
  * Only on this phone: the server never learns who mutes whom.
  */
 const mutesSchema = z
@@ -19,6 +20,8 @@ const mutesSchema = z
         .strict(),
     ),
     places: z.record(z.string(), z.literal(true)),
+    // Absent in what was saved before: no circle is muted.
+    circles: z.record(z.string(), z.literal(true)).optional(),
   })
   .strict();
 export type Mutes = z.infer<typeof mutesSchema>;
@@ -41,13 +44,22 @@ export function saveMutes(store: KeyValueStore, mutes: Mutes): void {
 
 /** What someone's notification is about, as far as muting goes (lateness: like their comings). */
 export type Mutable =
-  { kind: 'place'; placeId: string } | { kind: 'bump' } | { kind: 'late' } | { kind: 'message' };
+  | { kind: 'place'; placeId: string }
+  | { kind: 'bump' }
+  | { kind: 'late' }
+  /** A message or story; of a circle's conversation, with the circle. */
+  | { kind: 'message'; circleId?: string };
 
 /** Whether this news from that person stays quiet (no banner, no in-app line). */
 export function isMuted(mutes: Mutes, about: Mutable, fromUserId: string): boolean {
   const person = mutes.people[fromUserId];
   if (about.kind === 'bump') return person?.pokes === true;
-  if (about.kind === 'message') return person?.messages === true;
+  if (about.kind === 'message') {
+    return (
+      person?.messages === true ||
+      (about.circleId !== undefined && mutes.circles?.[about.circleId] === true)
+    );
+  }
   if (about.kind === 'late') return person?.places === true;
   return person?.places === true || mutes.places[about.placeId] === true;
 }
@@ -66,6 +78,19 @@ export function personMutes(mutes: Mutes, userId: string): PersonMutes {
     pokes: person?.pokes ?? false,
     messages: person?.messages ?? false,
   };
+}
+
+/** Whether a circle's messages and stories are muted. */
+export function circleMuted(mutes: Mutes, circleId: string): boolean {
+  return mutes.circles?.[circleId] === true;
+}
+
+/** A circle's messages and stories muted, or not any more. */
+export function withCircleMuted(mutes: Mutes, circleId: string, on: boolean): Mutes {
+  const others = Object.fromEntries(
+    Object.entries(mutes.circles ?? {}).filter(([id]) => id !== circleId),
+  );
+  return { ...mutes, circles: on ? { ...others, [circleId]: true } : others };
 }
 
 /**

@@ -38,6 +38,7 @@ jest.mock('expo-router', () => ({
 const mockCircles: { current: Circle[] } = { current: [] };
 jest.mock('@/features/circles/queries', () => ({
   useCircles: () => ({ data: mockCircles.current }),
+  useCircleActions: () => ({ leave: { mutate: jest.fn() } }),
 }));
 const mockOutbox = {
   sendText: jest.fn(() => Promise.resolve('sent')),
@@ -49,6 +50,11 @@ const mockOutbox = {
   sendPhoto: jest.fn(() => Promise.resolve('sent')),
   shareStory: jest.fn(() => Promise.resolve({ result: 'sent', failed: 0, total: 1 })),
 };
+// The conversation reads the mutes from the vault, which is not here (it has its own test).
+jest.mock('@/features/notifications/mute-session', () => ({
+  loadMuteSettings: () => ({ people: {}, places: {} }),
+  updateMutes: jest.fn(),
+}));
 // The story screen tells once that its sender sees it opened; the vault is not here.
 jest.mock('@/features/messages/view-notice', () => ({ firstViewNotice: () => false }));
 jest.mock('@/features/messages/outbox', () => ({

@@ -311,6 +311,10 @@ describe("one's own story", () => {
       expect.stringContaining('Ayşe'),
       expect.stringContaining('Ali'),
     ]);
+    // Those met only in an event circle are not on it, and it says so (QA-39).
+    expect(
+      screen.getByText(/Yalnız etkinlik çemberinde tanıştıkların bu listede görünmez/),
+    ).toBeTruthy();
     // Who reacted, with what, beside them (Ek 2).
     expect(
       screen.getByTestId(`story-reacted-${AYSE}`, { includeHiddenElements: true }),

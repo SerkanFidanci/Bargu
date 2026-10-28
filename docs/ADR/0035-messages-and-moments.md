@@ -496,6 +496,18 @@ denmişti; bu ek o satırı değiştirir. Okundu bilgisi (PM cevabı 1) yine yok
 - Gizlilik politikası (PM): hikayeyi açanın adı gönderene görünür. Instagram ve WhatsApp'taki gibi
   bilinen bir davranış; PM metne bir cümle ekler.
 
+QA-39 (2026-10-29), PM kararı: **kalıcı ortak çemberi olmayan kişiye `view` gitmez.**
+
+- Yalnız etkinlikte tanışılan kişiye (ortak kalıcı çember yok) telefon `view`'u hiç yollamaz ve
+  bekletip yeniden denemez. Sunucu "NOT_MEMBER" derse bekleyen `view` atılır, sonsuza kadar
+  denenmez. Aynısı tepki için de geçerli (Ek 2).
+- `view` çemberin herkese giden zarfıyla yollanmaz. Yollansa gören, hikayeyi kimlerin gördüğünü
+  herkese göstermiş olurdu; kişisel zarf bunu gönderene sınırlar.
+- Gönderenin "Görenler" listesi bunu söyler: "Yalnız etkinlik çemberinde tanıştıkların bu listede
+  görünmez."
+- Kişi unutulunca (hiçbir ortak çember kalmayınca) gönderenin telefonunda o kişinin görme, tepki,
+  ekran görüntüsü ve alıcı kayıtları da silinir.
+
 PM onayı (2026-10-29), iki şartla:
 
 1. **Gören bilsin.** Bu telefonda başkasının bir hikayesi ilk kez açıldığında, hikaye ekranında bir

@@ -433,6 +433,17 @@ describe('Güvendeyim from a member (docs/ADR/0029)', () => {
     saveBlocked(mockStore, []);
   });
 
+  it('of a muted circle are silent, while her other conversations are not (QA-39)', async () => {
+    saveMutes(mockStore, { people: {}, places: {}, circles: { [circleId]: true } });
+    const chat: PushBody = { kind: 'chat', circleId, photo: false, ts: NOW };
+    expect(await showPush(fromAyse(chat), NOW)).toBe('muted');
+    expect(await showPush(fromAyse({ kind: 'moment', circleId, ts: NOW }), NOW)).toBe('muted');
+    // Written to alone, not in the circle: still heard. So is her "I'm safe".
+    expect(await showPush(fromAyse({ kind: 'chat', photo: false, ts: NOW }), NOW)).toBe('shown');
+    expect(await showPush(fromAyse(safe()), NOW)).toBe('shown');
+    saveMutes(mockStore, { people: {}, places: {} });
+  });
+
   it('is shown once, by its id, in whatever box: the message itself may have come first', async () => {
     expect(await showPush(fromAyse(safe()), NOW)).toBe('shown');
     // A second box of the same message (another ephemeral key, so not the same box).

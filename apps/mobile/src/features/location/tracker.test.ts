@@ -1,4 +1,5 @@
-import { bestOfBatch, startTracking, stopTracking, TRACKING } from './tracker';
+import { SEND_RULES } from './send';
+import { BATCH_WINDOW_MS, bestOfBatch, startTracking, stopTracking, TRACKING } from './tracker';
 
 // The restart notice has its own tests (restart-notice.test.ts).
 jest.mock('./restart-notice', () => ({
@@ -51,21 +52,47 @@ describe('the location service and the battery (docs/ADR/0036)', () => {
 
 describe('a batch gathered in the background (docs/ADR/0036, QA-39)', () => {
   const at = (timestamp: number, accuracy: number | null) => ({ timestamp, coords: { accuracy } });
+  const MIN = 60_000;
 
-  it('gives the sharpest of the last GPS interval, the newest of equals', () => {
-    const newest = at(100_000, 40);
-    const sharp = at(100_000 - TRACKING.gpsIntervalMs, 8);
-    const sharperButOld = at(100_000 - TRACKING.gpsIntervalMs - 1, 3);
+  it('gives the sharpest of the last minute', () => {
+    const newest = at(5 * MIN, 60);
+    const sharp = at(5 * MIN - 50_000, 8);
+    const sharperButOld = at(5 * MIN - MIN - 1, 3);
     expect(bestOfBatch([sharperButOld, sharp, newest])).toBe(sharp);
-    const twin = at(95_000, 8);
-    expect(bestOfBatch([sharp, twin, newest])).toBe(twin);
-    // No accuracy given: never preferred over one that has it.
-    expect(bestOfBatch([at(99_000, null), newest])).toBe(newest);
+  });
+
+  it('takes the newest when the accuracies are close', () => {
+    const newest = at(5 * MIN, 12);
+    const sharper = at(5 * MIN - 30_000, 5);
+    // 12 m is within 10 m of 5 m: as good, and newer.
+    expect(bestOfBatch([sharper, newest])).toBe(newest);
+    const far = at(5 * MIN, 30);
+    expect(bestOfBatch([sharper, far])).toBe(sharper);
+  });
+
+  it('takes the newest when none says its accuracy, and nothing from an empty batch', () => {
+    const newest = at(5 * MIN, null);
+    expect(bestOfBatch([at(5 * MIN - 1_000, null), newest])).toBe(newest);
     expect(bestOfBatch([])).toBeNull();
+  });
+
+  it('keeps the numbers of the ADR', () => {
     expect(TRACKING).toMatchObject({
       gpsIntervalMs: 30_000,
       coarseIntervalMs: 60_000,
+      liveIntervalMs: 1_000,
       backgroundBatchMs: 60_000,
     });
+    expect(BATCH_WINDOW_MS).toBe(60_000);
+  });
+
+  it('sends live at the pace the service reports: one second, never a second slower (ADR 0028)', () => {
+    // The open map and a friend looking get a position every second; the send rule lets exactly
+    // each of them through (a little under the second, so clock jitter drops none).
+    expect(TRACKING.liveIntervalMs).toBe(1_000);
+    expect(SEND_RULES.liveIntervalMs).toBe(900);
+    expect(SEND_RULES.liveIntervalMs).toBeLessThan(TRACKING.liveIntervalMs);
+    // Closed and moving: at the rate the service hands positions over (ADR 0036).
+    expect(SEND_RULES.backgroundIntervalMs).toBe(TRACKING.backgroundBatchMs);
   });
 });

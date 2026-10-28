@@ -42,10 +42,11 @@ QA-39 (`4f29fe7`) düşük bulguları da bu APK'da:
 
 - Yalnız etkinlikte tanışılan kişiye "gördü" ve hikaye tepkisi gitmez, yeniden de denenmez.
 - Kişi unutulunca senin öğelerindeki görme, tepki, ekran görüntüsü ve alıcı kayıtları silinir.
-- Arka planda gelen toplu konumdan son 30 sn'nin en doğrusu seçilir.
 - Uygulama kapalıyken hareket hâlinde gönderim motorda da dakikada en çok bir kez (ADR 0036); sabitler testli.
 - Sade mod "Kapalı"da + düğmesi yaysız döner, bildirim haritayı kaydırmadan iter.
-- Grup sohbetinin ⋮ menüsü: bir üyeyi bildir ya da engelle, çemberi aç.
+- Grup sohbetinin ⋮ menüsü: üyeler (bildir ya da engelle), sessize al (yalnız o çemberin mesaj ve hikaye bildirimleri; Android'de çalışır, iPhone eklentisi iOS yayınında), çemberi aç, çemberden ayrıl.
+- Sunucu "NOT_MEMBER" derse bekleyen "gördü" ve tepki atılır, sonsuza dek denenmez; görenler listesi "Yalnız etkinlik çemberinde tanıştıkların bu listede görünmez" der (ADR 0035 Ek 1).
+- Toplu konumda son 60 sn'nin en doğrusu; doğrulukları 10 m içindeyse en yenisi. Canlı aralık 900 ms testle 1 sn'lik servise bağlı.
 
 Testler: mobil 1393+ test, şema ve kripto testleri yeşil.
 

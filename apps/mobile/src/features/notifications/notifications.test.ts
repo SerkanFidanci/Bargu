@@ -4,7 +4,14 @@ import i18n from '@/i18n';
 
 import { circleOf, exchangeKeys, nth, somebody } from '../location/test-support';
 import { sealedOf } from './push-payload';
-import { isMuted, NO_MUTES, withPersonMuted, withPlaceMuted } from './mutes';
+import {
+  circleMuted,
+  isMuted,
+  NO_MUTES,
+  withCircleMuted,
+  withPersonMuted,
+  withPlaceMuted,
+} from './mutes';
 import { contactsOf, identityOf } from './push-contacts';
 import { pushText } from './push-text';
 
@@ -260,6 +267,17 @@ describe('muting', () => {
     expect(isMuted(mutes, place, 'bora')).toBe(true);
     mutes = withPlaceMuted(withPersonMuted(mutes, 'ada', { pokes: false }), placeId, false);
     expect(mutes).toEqual(NO_MUTES);
+  });
+
+  it('silences the messages of a circle as a whole, and only that one (QA-39)', () => {
+    const mutes = withCircleMuted(NO_MUTES, 'aile', true);
+    expect(circleMuted(mutes, 'aile')).toBe(true);
+    expect(isMuted(mutes, { kind: 'message', circleId: 'aile' }, 'ada')).toBe(true);
+    expect(isMuted(mutes, { kind: 'message', circleId: 'okul' }, 'ada')).toBe(false);
+    // Her messages written to alone have no circle: not silenced by it.
+    expect(isMuted(mutes, { kind: 'message' }, 'ada')).toBe(false);
+    expect(isMuted(mutes, { kind: 'bump' }, 'ada')).toBe(false);
+    expect(circleMuted(withCircleMuted(mutes, 'aile', false), 'aile')).toBe(false);
   });
 
   it('silences a person’s messages and stories apart from the rest (docs/ADR/0035 §11)', () => {

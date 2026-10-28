@@ -22,9 +22,29 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
 }));
 const mockCircles: { current: Circle[] } = { current: [] };
+const mockLeave = jest.fn<undefined, [string, { onSuccess?: () => void }]>();
 jest.mock('@/features/circles/queries', () => ({
   useCircles: () => ({ data: mockCircles.current }),
+  useCircleActions: () => ({
+    leave: {
+      mutate: (circleId: string, options: { onSuccess?: () => void }) => {
+        mockLeave(circleId, options);
+      },
+    },
+  }),
 }));
+// The vault is not open here: the mutes live in memory.
+jest.mock('@/features/notifications/mute-session', () => {
+  const { useMutes: mutes } = jest.requireActual<typeof import('@/features/notifications/mutes')>(
+    '@/features/notifications/mutes',
+  );
+  return {
+    loadMuteSettings: () => mutes.getState(),
+    updateMutes: (change: (current: ReturnType<typeof mutes.getState>) => never) => {
+      mutes.setState(change(mutes.getState()), true);
+    },
+  };
+});
 // Sending, taking back, reporting and the live session have their own tests.
 const mockSendText = jest.fn<Promise<string>, [string, string]>(() => Promise.resolve('sent'));
 const mockTakeBack = jest.fn<Promise<string>, [string]>(() => Promise.resolve('sent'));
@@ -64,6 +84,7 @@ jest.mock('@/features/messages/rules', () => ({
 import MessagesScreen from '@/app/(app)/messages';
 import ConversationScreen from '@/app/(app)/messages/[conversation]';
 import { useAuth } from '@/features/auth/auth-store';
+import { useMutes } from '@/features/notifications/mutes';
 import { type ChatItem, EMPTY_MESSAGES, useMessages, withItem } from '@/features/messages/messages';
 
 const ME = '0190f7a4-1111-7111-8111-000000000001';
@@ -173,15 +194,20 @@ describe('a conversation', () => {
     expect(mockBlock).not.toHaveBeenCalled();
   });
 
-  it('reports or blocks a member of a circle from its ⋮ too (QA-39)', async () => {
+  it('has a ⋮ menu for a circle: members, mute, the circle, leave (QA-39)', async () => {
     await render(<ConversationScreen />);
     await fireEvent.press(screen.getByTestId('conversation-more'));
-    expect(alerts.at(-1)?.buttons.map((button) => button.text)).toEqual([
-      'Bir üyeyi bildir ya da engelle',
-      'Çemberi aç',
-      'Vazgeç',
-    ]);
-    await pressAlert('Bir üyeyi bildir ya da engelle');
+    expect(
+      ['members', 'mute', 'open', 'leave'].map(
+        (key) => String(screen.getByTestId(`group-${key}`).props.accessibilityLabel).split(',')[0],
+      ),
+    ).toEqual(['Üyeler: bildir ya da engelle', 'Sessize al', 'Çemberi aç', 'Çemberden ayrıl']);
+  });
+
+  it('reports or blocks a member of a circle from there (QA-39)', async () => {
+    await render(<ConversationScreen />);
+    await fireEvent.press(screen.getByTestId('conversation-more'));
+    await fireEvent.press(screen.getByTestId('group-members'));
     await fireEvent.press(screen.getByTestId(`member-${ALI}`));
     expect(alerts.at(-1)?.buttons.map((button) => button.text)).toEqual([
       'Bildir',
@@ -189,6 +215,32 @@ describe('a conversation', () => {
       'Vazgeç',
     ]);
     expect(screen.queryByTestId(`member-${ME}`)).toBeNull();
+  });
+
+  it('mutes the circle as a whole, and takes the mute off (QA-39)', async () => {
+    useMutes.setState({ people: {}, places: {} }, true);
+    await render(<ConversationScreen />);
+    await fireEvent.press(screen.getByTestId('conversation-more'));
+    await fireEvent.press(screen.getByTestId('group-mute'));
+    expect(useMutes.getState().circles).toEqual({ [CIRCLE]: true });
+    await fireEvent.press(screen.getByTestId('conversation-more'));
+    expect(String(screen.getByTestId('group-mute').props.accessibilityLabel)).toContain(
+      'Sesini aç',
+    );
+    await fireEvent.press(screen.getByTestId('group-mute'));
+    expect(useMutes.getState().circles).toEqual({});
+  });
+
+  it('leaves the circle after asking, and the conversation closes (QA-39)', async () => {
+    await render(<ConversationScreen />);
+    await fireEvent.press(screen.getByTestId('conversation-more'));
+    await fireEvent.press(screen.getByTestId('group-leave'));
+    expect(alerts.at(-1)?.title).toBe('Çemberden ayrılmak istiyor musun?');
+    expect(mockLeave).not.toHaveBeenCalled();
+    await pressAlert('Çemberden ayrıl');
+    expect(mockLeave).toHaveBeenCalledWith(CIRCLE, expect.any(Object));
+    mockLeave.mock.calls[0]?.[1].onSuccess?.();
+    expect(router.back).toHaveBeenCalled();
   });
 
   it('gives a heart with a double tap, and takes it back with another (Ek 2)', async () => {
