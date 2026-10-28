@@ -2,7 +2,7 @@
  * The privacy policy and KVKK information notice (docs/ADR/0022, docs/play-store/
  * GIZLILIK-POLITIKASI.md), served at /gizlilik in Turkish and English. Plain HTML with the account
  * page's stylesheet; nothing from elsewhere. Follows the PM's text of 27.10.2026 (messages and
- * stories, ADR 0035); it also keeps what this page said before of the age band, findability,
+ * stories, ADR 0035) and of 29.10.2026 (who opened a story, Ek 1; the notice version stays); it also keeps what this page said before of the age band, findability,
  * parent links and the notice records, which that text does not list yet.
  */
 
@@ -16,7 +16,7 @@ export const PRIVACY_PAGE_CSP = [
 ].join('; ');
 
 /** When the text last changed; the in-app notice version follows it (PRIVACY_NOTICE_VERSION). */
-const UPDATED = '27.10.2026';
+const UPDATED = '29.10.2026';
 
 export const PRIVACY_PAGE_HTML = `<!doctype html>
 <html lang="tr">
@@ -45,7 +45,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li><strong>Konumun:</strong> seçtiğin çemberlerle canlı konum paylaşımı için. Telefonunda uçtan uca şifrelenir, sunucu okuyamaz; şifreli hâli en çok 24 saat durur.</li>
 <li><strong>Çember geçmişi (isteğe bağlı, kapalı başlar, açık rızaya dayanır):</strong> açtığın çemberde son 14 günün izi. Şifreli; 14 gün sonra ya da kapatınca silinir.</li>
 <li><strong>Profil fotoğrafı (isteğe bağlı):</strong> arkadaşlarında görünmesi için. Şifreli yüklenir; yalnızca güvendiğin arkadaşların açar.</li>
-<li><strong>Mesajlar, anlık fotoğraflar ve hikayeler (isteğe bağlı):</strong> çember üyeleriyle yazışmak ve o an çekilen fotoğrafı paylaşmak için. Uçtan uca şifreli, sunucu okuyamaz; 24 saat sonra sunucudan ve telefonlardan silinir. Fotoğraf yalnızca uygulamanın kamerasıyla çekilir; içindeki konum bilgisi (EXIF) silinir.</li>
+<li><strong>Mesajlar, anlık fotoğraflar ve hikayeler (isteğe bağlı):</strong> çember üyeleriyle yazışmak ve o an çekilen fotoğrafı paylaşmak için. Uçtan uca şifreli, sunucu okuyamaz; 24 saat sonra sunucudan ve telefonlardan silinir. Fotoğraf yalnızca uygulamanın kamerasıyla çekilir; içindeki konum bilgisi (EXIF) silinir. Bir hikayeyi açtığında adın ve açtığın saat, uçtan uca şifreli olarak yalnızca hikayeyi paylaşana gider; liste 24 saatte silinir. Mesajlar için okundu bilgisi yoktur.</li>
 <li><strong>Bildirdiğin içerik:</strong> kötüye kullanımı önlemek ve güvenlik için. "Bildir"e bastığında yalnızca o mesaj ya da fotoğraf açık hâliyle bize gelir; şifreli saklanır, 90 gün sonra silinir.</li>
 <li><strong>Engelleme listen:</strong> engellediğin kişinin sana yazamaması için. Engeli kaldırana ya da hesabını silene kadar tutulur.</li>
 <li><strong>Yerlerin (ev, okul vb.) ve etkinlik bilgileri:</strong> varış bildirimleri ve planlama için. Şifreli; etkinlik bitince silinir.</li>
@@ -124,7 +124,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li><strong>Your location:</strong> live location sharing with the circles you pick. End-to-end encrypted on your phone; the server cannot read it; the encrypted form stays at most 24 hours.</li>
 <li><strong>Circle history (optional, off by default, based on explicit consent):</strong> the last 14 days of your trail in circles you turn it on for. Encrypted; deleted after 14 days or when you turn it off.</li>
 <li><strong>Profile photo (optional):</strong> to show you to friends. Uploaded encrypted; only trusted friends can open it.</li>
-<li><strong>Messages, instant photos and stories (optional):</strong> chatting and sharing a photo taken right now with your circle members. End-to-end encrypted; the server cannot read them; deleted from the server and phones after 24 hours. Photos are taken only with the app's camera; their location data (EXIF) is removed.</li>
+<li><strong>Messages, instant photos and stories (optional):</strong> chatting and sharing a photo taken right now with your circle members. End-to-end encrypted; the server cannot read them; deleted from the server and phones after 24 hours. Photos are taken only with the app's camera; their location data (EXIF) is removed. When you open a story, your name and the time go, end-to-end encrypted, only to the person who shared it; the list is deleted after 24 hours. Messages have no read receipts.</li>
 <li><strong>Content you report:</strong> preventing abuse and keeping people safe. When you tap "Report", only that message or photo reaches us in readable form; stored encrypted, deleted after 90 days.</li>
 <li><strong>Your block list:</strong> so people you block cannot write to you. Kept until you unblock or delete your account.</li>
 <li><strong>Places (home, school…) and event data:</strong> arrival notices and planning. Encrypted; events are deleted when they end.</li>
