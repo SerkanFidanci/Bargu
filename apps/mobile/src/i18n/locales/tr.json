@@ -147,7 +147,8 @@
       "meetingHint": "Bir çemberde buluşma yeri ve saati öner",
       "safe": "Güvendeyim",
       "safeHint": "Seçtiğin çemberlere iyi olduğunu söyle"
-    }
+    },
+    "cardsWaiting": "{{count}} kart daha sırada"
   },
   "sheets": {
     "circles": {

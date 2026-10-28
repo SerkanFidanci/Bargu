@@ -8,7 +8,8 @@ import { usePushState } from '../notifications/push';
 import { BackgroundLiveCard } from './background-live/card';
 import { useCardSeen } from './background-live/notice-card';
 import { LocationBanner } from './location-banner';
-import { cardInFront, MAP_CARDS, type MapCard, useMapCardTurn } from './map-cards';
+import { CardsWaiting } from './cards-waiting';
+import { cardInFront, cardsWaiting, MAP_CARDS, type MapCard, useMapCardTurn } from './map-cards';
 import { NewPhoneCard } from './new-phone-card';
 import { DEFAULT_SHARING, useSharing, useSharingReview, withAdultDefaults } from './sharing';
 import { SharingReminderCard } from './sharing-reminder-card';
@@ -105,6 +106,12 @@ describe('the cards on the map come one at a time (the PM, 2026-10-21)', () => {
     expect(cardInFront({ ...none, sharingReminder: true, locationPermission: true })).toBe(
       'locationPermission',
     );
+    // "+N": how many wait behind the one in front (the PM report T4).
+    expect(cardsWaiting(none)).toBe(0);
+    expect(cardsWaiting({ ...none, newPhone: true })).toBe(0);
+    expect(
+      cardsWaiting({ ...none, newPhone: true, backgroundLive: true, sharingReminder: true }),
+    ).toBe(2);
   });
 
   it('shows one of several that want it, and the next as soon as it is gone', async () => {
@@ -151,6 +158,7 @@ describe('the real cards of the map never overlap', () => {
       <NewPhoneCard onChoose={jest.fn()} />
       <SharingReminderCard />
       <BackgroundLiveCard />
+      <CardsWaiting />
     </>
   );
   /** The test ids of the cards: the one question or explanation each puts on the screen. */
@@ -182,6 +190,9 @@ describe('the real cards of the map never overlap', () => {
     await render(cards);
     // 1. The permission question comes first; allowing it answers the location question.
     expect(visible()).toEqual(['location-permission']);
+    // The rest wait, and say so under it (T4); notifications are asked only after this one.
+    expect(screen.getByTestId('cards-waiting').props.accessibilityLabel).toBe('3 kart daha sırada');
+    expect(screen.getByText('+3')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('location-continue'));
     // 2. The choice after a reinstall.
     expect(visible()).toEqual(['new-phone']);
@@ -196,6 +207,7 @@ describe('the real cards of the map never overlap', () => {
     expect(visible()).toEqual(['background-live-card']);
     await fireEvent.press(screen.getByTestId('background-live-card-ok'));
     expect(visible()).toEqual([]);
+    expect(screen.queryByTestId('cards-waiting')).toBeNull();
   });
 
   it('goes on down the queue when the permission question is put off ("Şimdi değil")', async () => {

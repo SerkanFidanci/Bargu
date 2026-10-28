@@ -147,7 +147,8 @@
       "meetingHint": "Suggest a place and time in a circle",
       "safe": "I'm safe",
       "safeHint": "Tell the circles you choose that you're fine"
-    }
+    },
+    "cardsWaiting": "{{count}} more waiting"
   },
   "sheets": {
     "circles": {

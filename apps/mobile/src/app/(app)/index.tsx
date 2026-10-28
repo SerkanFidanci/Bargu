@@ -21,6 +21,7 @@ import { useCircles } from '@/features/circles/queries';
 import { useAuth } from '@/features/auth/auth-store';
 import { useNow } from '@/features/location/clock';
 import { useMyFix } from '@/features/location/engine';
+import { CardsWaiting } from '@/features/location/cards-waiting';
 import { LocationBanner } from '@/features/location/location-banner';
 import { useMapOpen } from '@/features/location/map-open';
 import { useFirstPosition, useMyCell } from '@/features/location/my-position';
@@ -281,6 +282,7 @@ export default function HomeScreen() {
             <NewPhoneCard onChoose={() => circles.current?.present()} />
             <SharingReminderCard />
             {backgroundLiveCard}
+            <CardsWaiting />
             {swarmPanel}
           </ClearOfToast>
         </Animated.View>

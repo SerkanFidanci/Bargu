@@ -6,7 +6,8 @@ import { create } from 'zustand';
  * time, never on top of each other (the PM, 2026-10-21). The location permission comes first (the
  * map is of little use without it), then the choice after a reinstall, the notification question,
  * the weekly "who sees you" reminder, and last the one-time explanation of background live mode
- * (docs/ADR/0028 step 3). A card that has to wait shows as soon as the one in front is closed.
+ * (docs/ADR/0028 step 3). A card that has to wait shows as soon as the one in front is closed, and
+ * how many wait shows under it as "+N" (the PM report T4, 2026-10-29).
  */
 export const MAP_CARDS = [
   'locationPermission',
@@ -24,6 +25,16 @@ const useWanting = create<Record<MapCard, boolean>>(() => ({
   sharingReminder: false,
   backgroundLive: false,
 }));
+
+/** How many cards wait behind the one in front (0 with one card or none). */
+export function cardsWaiting(wanting: Readonly<Record<MapCard, boolean>>): number {
+  return Math.max(0, MAP_CARDS.filter((card) => wanting[card]).length - 1);
+}
+
+/** The cards waiting behind the one on screen, for its "+N". */
+export function useCardsWaiting(): number {
+  return useWanting(cardsWaiting);
+}
 
 /** The card that has the screen now: the first, in {@link MAP_CARDS} order, that wants it. */
 export function cardInFront(wanting: Readonly<Record<MapCard, boolean>>): MapCard | undefined {
