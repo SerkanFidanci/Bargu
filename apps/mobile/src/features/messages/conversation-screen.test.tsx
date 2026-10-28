@@ -126,7 +126,9 @@ beforeEach(() => {
 describe('a conversation', () => {
   it('shows the circle, who wrote what, and marks it read up to the newest item', async () => {
     await render(<ConversationScreen />);
-    expect(screen.getByText('Aile')).toBeTruthy();
+    // The circle's name on top, and again above its first item (the owner, 2026-10-28).
+    expect(screen.getAllByText('Aile')).toHaveLength(2);
+    expect(screen.getByText('2 kişi')).toBeTruthy();
     // The list draws its items a moment after the screen (FlatList): waited for, not assumed.
     expect(await screen.findByText('Ali')).toBeTruthy();
     expect(screen.getByText('Neredesin?')).toBeTruthy();
@@ -239,5 +241,24 @@ describe('the list of messages', () => {
     });
     // The story is not an item of the circle's conversation.
     expect(screen.getByText('Sen: Yoldayım')).toBeTruthy();
+  });
+
+  it('reads like a message box: who, what came last and when, a search, a camera on each', async () => {
+    await render(<MessagesScreen />);
+    const row = screen.getByTestId(`conversation-c:${CIRCLE}`);
+    expect(row.props.accessibilityLabel).toBe('Aile, 1 okunmamış, Sen: Yoldayım');
+    expect(screen.getByText(' · şimdi')).toBeTruthy();
+
+    await fireEvent.press(screen.getByTestId(`camera-c:${CIRCLE}`));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/camera',
+      params: { to: `c:${CIRCLE}` },
+    });
+
+    await fireEvent.changeText(screen.getByTestId('messages-search'), 'zzz');
+    expect(screen.queryByTestId(`conversation-c:${CIRCLE}`)).toBeNull();
+    expect(screen.getByText('Bu adla bir sohbet yok')).toBeTruthy();
+    await fireEvent.changeText(screen.getByTestId('messages-search'), 'aİl');
+    expect(screen.getByTestId(`conversation-c:${CIRCLE}`)).toBeTruthy();
   });
 });

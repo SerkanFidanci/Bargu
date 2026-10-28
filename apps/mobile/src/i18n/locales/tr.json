@@ -1530,6 +1530,16 @@
     "retake": "Gönderilemedi, yeniden çek",
     "today": "Bugün",
     "yesterday": "Dün",
-    "tapToOpen": "Açmak için dokun"
+    "tapToOpen": "Açmak için dokun",
+    "search": "Ara",
+    "noResults": "Bu adla bir sohbet yok",
+    "members": "{{count}} kişi",
+    "newChat": "Yeni sohbet",
+    "photoTo": "{{name}}: fotoğraf çek",
+    "ago": {
+      "now": "şimdi",
+      "minutes": "{{count}} dk",
+      "hours": "{{count}} sa"
+    }
   }
 }

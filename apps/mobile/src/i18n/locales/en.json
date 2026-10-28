@@ -1530,6 +1530,16 @@
     "retake": "Not sent, take it again",
     "today": "Today",
     "yesterday": "Yesterday",
-    "tapToOpen": "Tap to open"
+    "tapToOpen": "Tap to open",
+    "search": "Search",
+    "noResults": "No conversation by that name",
+    "members": "{{count}} people",
+    "newChat": "New chat",
+    "photoTo": "{{name}}: take a photo",
+    "ago": {
+      "now": "now",
+      "minutes": "{{count}}m",
+      "hours": "{{count}}h"
+    }
   }
 }

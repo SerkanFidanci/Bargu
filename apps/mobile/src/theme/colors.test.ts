@@ -1,4 +1,11 @@
-import { avatarPalette, avatarText, type ColorTokens, darkColors, lightColors } from './colors';
+import {
+  avatarPalette,
+  avatarText,
+  type ColorTokens,
+  darkColors,
+  lightColors,
+  mixColor,
+} from './colors';
 import { contrastRatio } from './contrast';
 
 const BODY = 4.5;
@@ -30,6 +37,11 @@ const pairs: readonly (readonly [keyof ColorTokens, keyof ColorTokens, number])[
   // The store button's words lie on a band from primary to promo: both ends (ADR 0025 Ek 2).
   ['onPromo', 'promo', BODY],
   ['onPromo', 'primary', BODY],
+  // Messages: one's own words on either end of their colours, others' on their grey.
+  ['onPrimary', 'bubbleFrom', BODY],
+  ['onPrimary', 'bubbleTo', BODY],
+  ['text', 'bubble', BODY],
+  ['textMuted', 'bubble', BODY],
 ];
 
 describe.each([
@@ -48,6 +60,20 @@ describe('avatar palette', () => {
 
   it('has distinct colours', () => {
     expect(new Set(avatarPalette).size).toBe(avatarPalette.length);
+  });
+});
+
+describe('one own message colours (the owner, 2026-10-28)', () => {
+  it('mixes from one end to the other, and every step between still reads', () => {
+    const { bubbleFrom, bubbleTo, onPrimary } = lightColors;
+    expect(mixColor(bubbleTo, bubbleFrom, 0)).toBe(bubbleTo);
+    expect(mixColor(bubbleTo, bubbleFrom, 1)).toBe(bubbleFrom);
+    expect(mixColor(bubbleTo, bubbleFrom, 2)).toBe(bubbleFrom);
+    expect(mixColor('#000000', '#FFFFFF', 0.5)).toBe('#808080');
+    for (let step = 0; step <= 10; step += 1) {
+      const color = mixColor(bubbleTo, bubbleFrom, step / 10);
+      expect(contrastRatio(onPrimary, color)).toBeGreaterThanOrEqual(BODY);
+    }
   });
 });
 

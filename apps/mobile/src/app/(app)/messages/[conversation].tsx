@@ -1,6 +1,6 @@
 import { type Avatar as AvatarData, CHAT_TEXT_MAX, codePointsOf } from '@bargu/schemas';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Camera, ChevronLeft, Clock, MoreVertical, Send, Users } from 'lucide-react-native';
+import { Camera, ChevronLeft, Clock, Lock, MoreVertical } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,6 +18,7 @@ import { useAuth } from '@/features/auth/auth-store';
 import { memberName } from '@/features/circles/names';
 import { useCircles } from '@/features/circles/queries';
 import { useNow } from '@/features/location/clock';
+import { ChatAvatar } from '@/features/messages/chat-avatar';
 import {
   type ChatItem,
   type Conversation,
@@ -32,7 +33,7 @@ import { useRulesGate } from '@/features/messages/rules';
 import { canResend } from '@/features/messages/photo';
 import { dayOf, placeIn } from '@/features/messages/runs';
 import { useSafety } from '@/features/messages/safety';
-import { avatarSize, radius, space, touchTarget, typography, useTheme } from '@/theme';
+import { avatarSize, mixColor, radius, space, touchTarget, typography, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
 import { EmptyState } from '@/ui/empty-state';
 import { IconButton } from '@/ui/icon-button';
@@ -42,16 +43,18 @@ import { toast } from '@/ui/toast';
 
 const CONVERSATION = /^[cp]:[0-9a-f-]{36}$/;
 const DAY_MS = 24 * 60 * 60_000;
+/** One's own items go from the newest colour to the older one over this many of them. */
+const OWN_SHADES = 12;
 
 /**
  * One conversation of messages and moments (docs/ADR/0035): a circle's or one person's items of
  * the last 24 hours, the newest at the bottom, and a field to write in (or a photo to take). A
  * photo opens on a tap. A long press on one's own item takes it back from everyone; on someone
  * else's it reports it or blocks its sender. Reports say first that the item's words go to Bargu;
- * blocking says it does not hide one's location. Drawn so each part stands apart (the owner,
- * 2026-10-28): the bar, the items on their own ground (one's own in the brand colour on the right,
- * others' raised on the left, each run with one name and one time, a line for each day) and the
- * field to write in.
+ * blocking says it does not hide one's location. Laid out as people know it from Instagram's
+ * messages (the owner, 2026-10-28): who it is with on top and again above the first item, runs of
+ * joined bubbles (one's own in colour, others' grey beside their avatar), the time centred after a
+ * pause, and a rounded field with the camera in it.
  */
 export default function ConversationScreen() {
   const { t, i18n } = useTranslation();
@@ -73,6 +76,14 @@ export default function ConversationScreen() {
     () => (conversation === null || !rules.open ? [] : itemsOf({ items }, conversation)),
     [items, conversation, rules.open],
   );
+  // One's own items by how new they are: the newest in one colour, older ones toward the other.
+  const ownShade = useMemo(() => {
+    const shades = new Map<string, number>();
+    for (const item of shown) {
+      if (item.from === me) shades.set(item.id, Math.min(shades.size / OWN_SHADES, 1));
+    }
+    return shades;
+  }, [shown, me]);
   const newest = shown[0]?.at ?? 0;
   useEffect(() => {
     if (conversation !== null && newest > 0) markRead(conversation, newest);
@@ -113,12 +124,33 @@ export default function ConversationScreen() {
       : t('messages.story.repliedTo', { name: memberNameOf(story.from) });
   };
 
-  const dayLabel = (at: number) => {
+  /** "Bugün 14:32", "Dün 21:05", or the weekday: centred above an item after a pause. */
+  const stampOf = (at: number) => {
     const day = dayOf(at);
-    if (day === dayOf(now)) return t('messages.today');
-    if (day === dayOf(now - DAY_MS)) return t('messages.yesterday');
-    return new Date(at).toLocaleDateString(i18n.language, { weekday: 'long', day: 'numeric' });
+    const clock = new Date(at).toLocaleTimeString(i18n.language, {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const date =
+      day === dayOf(now)
+        ? t('messages.today')
+        : day === dayOf(now - DAY_MS)
+          ? t('messages.yesterday')
+          : new Date(at).toLocaleDateString(i18n.language, { weekday: 'long' });
+    return `${date} ${clock}`;
   };
+
+  /** Who a person is (their username), or how many a circle has: under the name on top. */
+  const subtitle = (() => {
+    if (target === null) return null;
+    if ('userId' in target) {
+      const username = memberIn(circles, target.userId)?.username;
+      return username === null || username === undefined ? null : `@${username}`;
+    }
+    const circle = circles.find((candidate) => candidate.id === target.circleId);
+    const count = circle?.members.filter((member) => member.status === 'active').length ?? 0;
+    return count === 0 ? null : t('messages.members', { count });
+  })();
 
   const actions = (item: ChatItem) => {
     if (item.from !== me) {
@@ -137,11 +169,15 @@ export default function ConversationScreen() {
     ]);
   };
 
-  const personCard = person === null ? undefined : memberIn(circles, person);
+  const camera = () => {
+    rules.ensure(() => {
+      router.push({ pathname: '/camera', params: { to: conversation } });
+    });
+  };
 
   return (
     <SafeAreaView
-      style={[styles.screen, { backgroundColor: colors.surface }]}
+      style={[styles.screen, { backgroundColor: colors.background }]}
       testID="conversation"
     >
       <KeyboardAvoidingView
@@ -157,20 +193,18 @@ export default function ConversationScreen() {
               router.back();
             }}
           />
-          {name === null ? null : person === null ? (
-            <View style={[styles.circleIcon, { backgroundColor: colors.primarySoft }]}>
-              <Users color={colors.primary} size={20} strokeWidth={2.25} />
-            </View>
-          ) : (
-            <Avatar avatar={personCard?.avatar ?? null} name={name} userId={person} />
+          {conversation === null || name === null ? null : (
+            <ChatAvatar conversation={conversation} circles={circles} me={me} size="header" />
           )}
           <View style={styles.barTitle}>
             <Text variant="headline" numberOfLines={1} accessibilityRole="header">
               {name ?? t('messages.title')}
             </Text>
-            <Text variant="caption" color="textMuted" numberOfLines={1}>
-              {t('messages.lifetime')}
-            </Text>
+            {subtitle === null ? null : (
+              <Text variant="caption" color="textMuted" numberOfLines={1}>
+                {subtitle}
+              </Text>
+            )}
           </View>
           <View style={styles.barAction}>
             {person === null ? null : (
@@ -202,105 +236,120 @@ export default function ConversationScreen() {
           </View>
         </View>
 
-        <View style={[styles.screen, { backgroundColor: colors.background }]}>
-          {conversation === null || name === null ? (
-            <View style={styles.gone}>
-              <EmptyState icon={Clock} title={t('messages.gone')} />
-            </View>
-          ) : (
-            <FlatList
-              testID="conversation-items"
-              inverted
-              data={shown}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.list}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item, index }) => {
-                const mine = item.from === me;
-                const place = placeIn(item, shown[index + 1], shown[index - 1]);
-                const author = memberIn(circles, item.from);
-                return (
-                  <View style={place.first ? styles.runStart : null}>
-                    {place.newDay ? (
-                      <View style={[styles.day, { backgroundColor: colors.surfaceRaised }]}>
-                        <Text variant="caption" color="textMuted">
-                          {dayLabel(item.at)}
-                        </Text>
-                      </View>
-                    ) : null}
-                    <Bubble
-                      item={item}
-                      mine={mine}
-                      first={place.first}
-                      last={place.last}
-                      author={
-                        group && !mine
-                          ? { name: memberNameOf(item.from), avatar: author?.avatar ?? null }
-                          : null
-                      }
-                      replyTo={storyReplyOf(item)}
-                      onRetry={() => {
-                        rules.ensure(() => {
-                          void retry(item.id);
-                        });
-                      }}
-                      onRetake={() => {
-                        // Its file is gone (the app restarted): a new photo for here, this one goes.
-                        rules.ensure(() => {
-                          void takeBack(item.id);
-                          router.push({ pathname: '/camera', params: { to: conversation } });
-                        });
-                      }}
-                      onLongPress={() => {
-                        actions(item);
-                      }}
-                    />
-                  </View>
-                );
-              }}
-            />
-          )}
-        </View>
+        {conversation === null || name === null ? (
+          <View style={styles.gone}>
+            <EmptyState icon={Clock} title={t('messages.gone')} />
+          </View>
+        ) : (
+          <FlatList
+            testID="conversation-items"
+            inverted
+            data={shown}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            keyboardShouldPersistTaps="handled"
+            // Inverted: the footer is the top, above the oldest item.
+            ListFooterComponent={
+              <View style={styles.intro}>
+                <ChatAvatar conversation={conversation} circles={circles} me={me} size="intro" />
+                <Text variant="title2" align="center">
+                  {name}
+                </Text>
+                <View style={styles.lock}>
+                  <Lock color={colors.textMuted} size={14} strokeWidth={2.25} />
+                  <Text variant="caption" color="textMuted" align="center">
+                    {t('messages.lifetime')}
+                  </Text>
+                </View>
+              </View>
+            }
+            renderItem={({ item, index }) => {
+              const mine = item.from === me;
+              const place = placeIn(item, shown[index + 1], shown[index - 1]);
+              const author = memberIn(circles, item.from);
+              return (
+                <View style={place.first ? styles.runStart : null}>
+                  {place.stamp ? (
+                    <Text variant="caption" color="textMuted" align="center" style={styles.stamp}>
+                      {stampOf(item.at)}
+                    </Text>
+                  ) : null}
+                  <Bubble
+                    item={item}
+                    mine={mine}
+                    first={place.first}
+                    last={place.last}
+                    shade={ownShade.get(item.id) ?? 0}
+                    author={
+                      mine
+                        ? null
+                        : {
+                            name: memberNameOf(item.from),
+                            avatar: author?.avatar ?? null,
+                            named: group,
+                          }
+                    }
+                    replyTo={storyReplyOf(item)}
+                    onRetry={() => {
+                      rules.ensure(() => {
+                        void retry(item.id);
+                      });
+                    }}
+                    onRetake={() => {
+                      // Its file is gone (the app restarted): a new photo for here, this one goes.
+                      rules.ensure(() => {
+                        void takeBack(item.id);
+                        router.push({ pathname: '/camera', params: { to: conversation } });
+                      });
+                    }}
+                    onLongPress={() => {
+                      actions(item);
+                    }}
+                  />
+                </View>
+              );
+            }}
+          />
+        )}
 
         {open ? (
-          <View style={[styles.composer, { borderColor: colors.border }]}>
-            <IconButton
+          <View style={[styles.composer, { backgroundColor: colors.bubble }]}>
+            <PressableScale
               testID="conversation-camera"
-              icon={Camera}
-              label={t('messages.camera.take')}
-              tone="plain"
-              onPress={() => {
-                rules.ensure(() => {
-                  router.push({ pathname: '/camera', params: { to: conversation } });
-                });
-              }}
-            />
-            <View
-              style={[
-                styles.field,
-                { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
-              ]}
+              haptic="select"
+              accessibilityRole="button"
+              accessibilityLabel={t('messages.camera.take')}
+              onPress={camera}
+              style={[styles.camera, { backgroundColor: colors.primary }]}
             >
-              <TextInput
-                testID="conversation-input"
-                value={draft}
-                onChangeText={(next) => {
-                  if (codePointsOf(next) <= CHAT_TEXT_MAX) setDraft(next);
-                }}
-                placeholder={t('messages.placeholder')}
-                placeholderTextColor={colors.textMuted}
-                multiline
-                accessibilityLabel={t('messages.placeholder')}
-                style={[styles.input, typography.body.style, { color: colors.text }]}
-              />
-            </View>
-            <IconButton
-              testID="conversation-send"
-              icon={Send}
-              label={t('messages.send')}
-              tone={draft.trim().length === 0 ? 'plain' : 'primary'}
-              onPress={send}
+              <Camera color={colors.onPrimary} size={20} strokeWidth={2.25} />
+            </PressableScale>
+            <TextInput
+              testID="conversation-input"
+              value={draft}
+              onChangeText={(next) => {
+                if (codePointsOf(next) <= CHAT_TEXT_MAX) setDraft(next);
+              }}
+              placeholder={t('messages.placeholder')}
+              placeholderTextColor={colors.textMuted}
+              multiline
+              accessibilityLabel={t('messages.placeholder')}
+              style={[styles.input, typography.body.style, { color: colors.text }]}
             />
+            {draft.trim().length === 0 ? null : (
+              <PressableScale
+                testID="conversation-send"
+                haptic="select"
+                accessibilityRole="button"
+                accessibilityLabel={t('messages.send')}
+                onPress={send}
+                style={styles.send}
+              >
+                <Text variant="bodyStrong" color="primary">
+                  {t('messages.send')}
+                </Text>
+              </PressableScale>
+            )}
           </View>
         ) : conversation !== null && name !== null ? (
           <Text variant="footnote" color="textMuted" align="center" style={styles.closed}>
@@ -316,15 +365,16 @@ export default function ConversationScreen() {
 }
 
 /**
- * One item: one's own on the right in the brand colour, others' on the left on a raised card with
- * its edge. The last of a run has the tail corner and the time; in a circle, others' runs have
- * the name over the first and the avatar beside the last.
+ * One item. One's own on the right in its colour; others' grey on the left, their avatar beside
+ * the last of a run and, in a circle, their name over the first. The items of a run are joined:
+ * round outside, a small corner on the sender's side between them.
  */
 function Bubble({
   item,
   mine,
   first,
   last,
+  shade,
   author,
   replyTo,
   onRetry,
@@ -335,8 +385,10 @@ function Bubble({
   mine: boolean;
   first: boolean;
   last: boolean;
-  /** Someone else's item in a circle: who wrote it. */
-  author: { name: string; avatar: AvatarData | null } | null;
+  /** One's own: 0 for the newest, toward 1 for older ones (its colour). */
+  shade: number;
+  /** Someone else's item: who wrote it, and whether to name them (in a circle). */
+  author: { name: string; avatar: AvatarData | null; named: boolean } | null;
   /** "Hikayene yanıt": the story it answers (docs/ADR/0035 §1). */
   replyTo: string | null;
   onRetry: () => void;
@@ -344,12 +396,8 @@ function Bubble({
   onRetake: () => void;
   onLongPress: () => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { colors } = useTheme();
-  const time = new Date(item.at).toLocaleTimeString(i18n.language, {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
   const failed = item.state === 'failed';
   const photo = item.kind === 'photo';
   // Not sent, and its file is gone with a restart: it cannot be tried again, only taken again.
@@ -360,11 +408,19 @@ function Bubble({
     ? t(lost ? 'messages.retake' : 'messages.failed')
     : item.state === 'sending'
       ? t('messages.sending')
-      : !last
-        ? null
-        : shot
-          ? `${time} · ${t('messages.shotSeen')}`
-          : time;
+      : shot
+        ? t('messages.shotSeen')
+        : null;
+  // Joined corners: small on the sender's side wherever the run goes on.
+  const joined = mine
+    ? {
+        borderTopRightRadius: first ? radius.lg : space.xs,
+        borderBottomRightRadius: last ? radius.lg : space.xs,
+      }
+    : {
+        borderTopLeftRadius: first ? radius.lg : space.xs,
+        borderBottomLeftRadius: last ? radius.lg : space.xs,
+      };
   return (
     <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs]}>
       {author === null ? null : (
@@ -375,11 +431,16 @@ function Bubble({
         </View>
       )}
       <View style={[styles.column, mine ? styles.columnMine : styles.columnTheirs]}>
-        {author !== null && first ? (
-          <Text variant="caption" color="textMuted" style={styles.author}>
+        {author?.named === true && first ? (
+          <Text variant="caption" color="textMuted" style={styles.label}>
             {author.name}
           </Text>
         ) : null}
+        {replyTo === null ? null : (
+          <Text variant="caption" color="textMuted" style={styles.label}>
+            {replyTo}
+          </Text>
+        )}
         <PressableScale
           testID={`item-${item.id}`}
           haptic="select"
@@ -407,23 +468,23 @@ function Bubble({
           onLongPress={onLongPress}
           style={[
             styles.bubble,
-            mine
-              ? { backgroundColor: colors.primary, borderColor: colors.primary }
-              : { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
-            failed ? { borderColor: colors.danger } : null,
-            last ? (mine ? styles.tailMine : styles.tailTheirs) : null,
+            {
+              backgroundColor: mine
+                ? mixColor(colors.bubbleTo, colors.bubbleFrom, shade)
+                : colors.bubble,
+              borderColor: failed ? colors.danger : 'transparent',
+            },
+            joined,
           ]}
         >
-          {replyTo === null ? null : (
-            <View style={[styles.quote, { borderColor: mine ? colors.onPrimary : colors.primary }]}>
-              <Text variant="caption" color={mine ? 'onPrimary' : 'textMuted'}>
-                {replyTo}
-              </Text>
-            </View>
-          )}
           {photo ? (
             <View style={styles.photo}>
-              <View style={[styles.photoIcon, { backgroundColor: colors.primarySoft }]}>
+              <View
+                style={[
+                  styles.photoIcon,
+                  { backgroundColor: mine ? colors.onPrimary : colors.primarySoft },
+                ]}
+              >
                 <Camera color={colors.primary} size={18} strokeWidth={2.25} />
               </View>
               <View style={styles.photoText}>
@@ -445,7 +506,7 @@ function Bubble({
           )}
         </PressableScale>
         {meta === null ? null : (
-          <Text variant="caption" color={failed ? 'danger' : 'textMuted'} style={styles.meta}>
+          <Text variant="caption" color={failed ? 'danger' : 'textMuted'} style={styles.label}>
             {meta}
           </Text>
         )}
@@ -462,45 +523,30 @@ const styles = StyleSheet.create({
     gap: space.sm,
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth * 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   barTitle: { flex: 1 },
   barAction: { minWidth: touchTarget, alignItems: 'flex-end' },
-  circleIcon: {
-    width: avatarSize.md,
-    height: avatarSize.md,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   gone: { flex: 1, padding: space.xl, justifyContent: 'center' },
   list: { paddingHorizontal: space.md, paddingVertical: space.md, gap: space.xxs },
-  runStart: { paddingTop: space.md },
-  day: {
-    alignSelf: 'center',
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs,
-    borderRadius: radius.pill,
-    marginBottom: space.md,
-  },
-  row: { flexDirection: 'row', alignItems: 'flex-end', gap: space.xs },
+  intro: { alignItems: 'center', gap: space.sm, paddingVertical: space.xl },
+  lock: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  runStart: { paddingTop: space.sm },
+  stamp: { paddingVertical: space.sm },
+  row: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm },
   rowMine: { justifyContent: 'flex-end' },
   rowTheirs: { justifyContent: 'flex-start' },
   side: { width: avatarSize.sm },
-  column: { maxWidth: '80%', gap: space.xxs },
+  column: { maxWidth: '75%', gap: space.xxs },
   columnMine: { alignItems: 'flex-end' },
   columnTheirs: { alignItems: 'flex-start' },
-  author: { marginHorizontal: space.sm },
+  label: { marginHorizontal: space.md },
   bubble: {
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth * 2,
-    gap: space.xs,
   },
-  tailMine: { borderBottomRightRadius: space.xs },
-  tailTheirs: { borderBottomLeftRadius: space.xs },
-  quote: { borderLeftWidth: space.xxs, paddingLeft: space.sm },
   photo: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   photoIcon: {
     width: avatarSize.sm + space.xs,
@@ -510,21 +556,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photoText: { flexShrink: 1 },
-  meta: { marginHorizontal: space.sm },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: space.xs,
-    paddingHorizontal: space.sm,
-    paddingVertical: space.sm,
-    borderTopWidth: StyleSheet.hairlineWidth * 2,
-  },
-  field: {
-    flex: 1,
+    gap: space.sm,
+    margin: space.sm,
+    padding: space.xs,
     borderRadius: radius.xl,
-    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  camera: {
+    width: touchTarget,
+    height: touchTarget,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  input: {
+    flex: 1,
+    minHeight: touchTarget,
+    maxHeight: touchTarget * 3,
+    paddingVertical: space.sm,
+  },
+  send: {
+    minHeight: touchTarget,
+    justifyContent: 'center',
     paddingHorizontal: space.md,
   },
-  input: { minHeight: touchTarget, maxHeight: touchTarget * 3, paddingVertical: space.sm },
   closed: { padding: space.md },
 });

@@ -42,6 +42,13 @@ export interface ColorTokens {
   promo: string;
   onPromo: string;
   promoShine: string;
+  /**
+   * Messages (the owner, 2026-10-28: "like Instagram's DMs"): others' items on this grey, one's own
+   * from `bubbleTo` (the newest) to `bubbleFrom` (older ones), `onPrimary` on both.
+   */
+  bubble: string;
+  bubbleFrom: string;
+  bubbleTo: string;
 }
 
 export const lightColors: ColorTokens = {
@@ -66,6 +73,9 @@ export const lightColors: ColorTokens = {
   promo: '#C92E68',
   onPromo: '#FFFFFF',
   promoShine: 'rgba(255, 255, 255, 0.35)',
+  bubble: '#EFEDF6',
+  bubbleFrom: '#9333EA',
+  bubbleTo: '#4361EE',
 };
 
 /**
@@ -94,7 +104,25 @@ export const darkColors: ColorTokens = {
   promo: '#C92E68',
   onPromo: '#FFFFFF',
   promoShine: 'rgba(255, 255, 255, 0.3)',
+  bubble: '#2D2950',
+  bubbleFrom: '#9333EA',
+  bubbleTo: '#4361EE',
 };
+
+/** A colour `t` of the way from `from` to `to` (both #RRGGBB), as #RRGGBB. */
+export function mixColor(from: string, to: string, t: number): string {
+  const at = Math.min(1, Math.max(0, t));
+  const channel = (hex: string, index: number) =>
+    parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16);
+  return `#${[0, 1, 2]
+    .map((index) =>
+      Math.round(channel(from, index) + (channel(to, index) - channel(from, index)) * at)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')
+    .toUpperCase()}`;
+}
 
 /**
  * The activity drawings' own colours (ui/activity-glyph.tsx, the owner's approved preview of

@@ -10,6 +10,7 @@ export {
   drawingColors,
   drawingParts,
   mediaColors,
+  mixColor,
   qrColors,
 } from './colors';
 export { avatarSize, dockShape, elevation, radius, space, touchTarget } from './layout';
