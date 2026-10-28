@@ -324,22 +324,28 @@ describe('the rules before any content and any sending (K14, QA-38b)', () => {
     expect(mockOutbox.sendText).toHaveBeenCalledWith(`p:${ALI}`, 'güzel', STORY.id);
   });
 
-  it('come before trying a failed item again, or taking a lost photo again', async () => {
-    // The server could not be asked (offline): what the phone holds shows, sending waits.
+  // The server could not be asked (offline): what the phone holds shows, sending waits. Each
+  // starts there: forgetting the rules in the middle also hides the conversation, and whether its
+  // item was still drawn for the tap then depended on timing (CI, 2026-10-28).
+  const offline = async () => {
     mockGet.mockRejectedValue(new ApiError(500, 'INTERNAL'));
     mockParams.conversation = `c:${CIRCLE}`;
     mockCanResend.mockReturnValue(false);
     await shown(<ConversationScreen />);
     await settle();
+  };
+
+  it('come before trying a failed item again', async () => {
+    await offline();
     // The list draws its items a moment after the screen (FlatList).
     await fireEvent.press(await screen.findByTestId(`item-${FAILED.id}`));
     expect(mockOutbox.retry).not.toHaveBeenCalled();
     await accept();
     expect(mockOutbox.retry).toHaveBeenCalledWith(FAILED.id);
+  });
 
-    await act(() => {
-      forgetRules();
-    });
+  it('come before taking a lost photo again', async () => {
+    await offline();
     await fireEvent.press(await screen.findByTestId(`item-${LOST.id}`));
     expect(mockOutbox.takeBack).not.toHaveBeenCalled();
     await accept();
