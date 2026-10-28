@@ -7,6 +7,8 @@ jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '1.2.3' },
   DEV_TOOLS_ENABLED: false,
 }));
+// expo-router's native stack needs a native view jest does not have on Linux (CI).
+jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
 const mockToast = jest.fn<undefined, [string]>();
 jest.mock('@/ui/toast', () => ({
   toast: {
