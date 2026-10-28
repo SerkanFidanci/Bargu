@@ -502,7 +502,21 @@ Kurallar:
 - Kapalı test paketleri beklemez. Play hesabı ve 12 test kullanıcısı hazır olunca o anki en son APK ile başlar; sonraki paketler test sırasında güncelleme olarak çıkar.
 - Her pakette Bargu'nun ilkeleri geçerli: sunucuya düz konum gitmez, yeni izin istemeden önce gerekçe, "her zaman konum" izni yok, 15–17 kuralları (ADR 0023) aynen.
 
-**Paket A: görünüm ve küçük kolaylıklar** (şimdi; QA-39 düzeltmelerinden sonra)
+**QA-39 (2026-10-29, `4f29fe7`):** Yüksek bulgu yok.
+- Doğrulananlar: pil ayarları, yer adlarının yalnız telefonda bulunması, DM kontrastı, K14 ve QA-38 düzeltmeleri.
+- Ek 1 şartları için açılan orta bulgu ve 1 düşük bulgu `f43919f` ile kapandı.
+- Kalan 6 düşük bulgu A APK'sına girer:
+  - etkinlik-yalnız kişiye view gitmez ve yeniden denenmez (PM kararı);
+  - kişiyi unutunca görenler kaydı silinir;
+  - toplu konumda en doğru konum seçilir;
+  - sıklık sabitleri ADR 0036 ile uyumlu olur;
+  - + yayı ve toast kayması sade moda uyar;
+  - grup sohbetine ⋮ menüsü gelir (Bildir ve Engelle kolay bulunsun).
+
+**Paket A: görünüm ve küçük kolaylıklar** (QA-39 düzeltmeleriyle birlikte)
+- **Durum (2026-10-29):** kodlandı (`2c5f9f8`..`3821598`), CI yeşil, APK derleniyor. QA-40 test oturumunda.
+- Ö1 "Sorun bildir" kullanıcının kendi e-posta uygulamasıyla gider, sunucudan geçmez. Gizlilik politikasına "destek yazışmaları" satırı eklendi (en geç 12 ay saklanır). Play formunda ayrı veri türü değil.
+- Grup sohbetindeki ⋮ menüsünün iPhone bildirim eklentisi tarafı iOS dilimine kaldı.
 - T1 renk: lacivert ve turuncu, geçişli (sahibin kararı; ADR 0008 eki).
 - T2: + düğmesi hızlı eylem menüsü açar.
 - T3: kişi kartında 3 ana eylem.

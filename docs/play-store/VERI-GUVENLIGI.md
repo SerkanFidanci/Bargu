@@ -80,6 +80,8 @@ Hepsinde **paylaşılıyor: HAYIR**; hesap silinince hepsi kalkar.
 
 Not: uçtan uca şifreli veri formda beyan edilmek zorunda değildir, ama bildirilen içerik bize açık geldiği için Mesajlar ve Fotoğraflar satırları **"toplanıyor"** işaretlenir.
 
+**"Sorun bildir" (Faz 9C, Ö1):** uygulama yalnız kullanıcının kendi e-posta uygulamasını hazır bir taslakla açar: alıcı support@otenus.com, metin, uygulama sürümü, telefon modeli ve isteğe bağlı ekran görüntüsü. Gönderimi kullanıcı kendi e-postasından yapar, uygulama ve sunucu hiçbir şey iletmez. Bu yüzden formda ayrı bir veri türü olarak **beyan edilmez**. Politikada "destek yazışmaları" satırı olarak yazılıdır, en geç 12 ay saklanır. Bu akış uygulama içinden gönderime çevrilirse satır eklenir.
+
 Play kategori adları Console'da değişebilir; emin olunmayan satırlarda en yakın "Diğer bilgiler / Diğer eylemler" seçeneğini seç. Amaç olarak yalnızca **Uygulama işlevi, Hesap yönetimi, Dolandırıcılığı önleme/güvenlik/uyumluluk** işaretle. Hiçbiri reklam, analitik ya da kişiselleştirme için kullanılmaz (15–17 için davranışa dayalı profilleme yasak, ADR 0023).
 
 IP adresi: sunucu isteklerde görür ve hız sınırı için kullanır, **log'lanmaz** (CLAUDE.md kuralı). Play'de ayrı kategori değil; "kimlikler"e dahil beyan gerekmez. Bunu gizlilik politikasında yaz.
