@@ -8,14 +8,21 @@ import type { Fix } from './send';
 export const LOCATION_TASK = 'bargu.location';
 
 /**
- * How often the location service reports (BARGU_PLAN §3.3): every 5 s with GPS when a circle gets
- * the exact location, every 30 s from Wi-Fi and cell towers when only coarse cells are shared. No
- * distance filter: a still phone still reports, so the 5-minute heartbeat goes out (send.ts).
+ * How often the location service reports (BARGU_PLAN §3.3, docs/ADR/0036): every 30 s with GPS when
+ * a circle gets the exact location, every 60 s from Wi-Fi and cell towers when only coarse cells
+ * are shared, so the GPS rests between positions instead of staying on (it was every 5 s, and
+ * drained the battery even with the app closed: the owner, 2026-10-28). With the app in the
+ * background the system gathers positions and wakes the app once a minute with them, so it sends
+ * at most once a minute while moving. The 1-second live updates stay for the open map and for a
+ * friend looking (background live mode). No distance filter: a still phone still reports, so the
+ * 5-minute heartbeat goes out (send.ts).
  */
 const TRACKING = {
-  gpsIntervalMs: 5_000,
-  coarseIntervalMs: 30_000,
+  gpsIntervalMs: 30_000,
+  coarseIntervalMs: 60_000,
   liveIntervalMs: 1_000,
+  /** In the background: positions wait and come together, at most this often (Android, iOS). */
+  backgroundBatchMs: 60_000,
 } as const;
 
 /** Notification color of the "sharing location" service (brand violet, app.config.ts). */
@@ -112,6 +119,8 @@ export async function startTracking(options: TrackingOptions): Promise<void> {
     accuracy: options.gps ? Location.Accuracy.High : Location.Accuracy.Balanced,
     timeInterval: options.gps ? TRACKING.gpsIntervalMs : TRACKING.coarseIntervalMs,
     distanceInterval: 0,
+    // Only while the app is not on screen (expo-location defers nothing in the foreground).
+    deferredUpdatesInterval: TRACKING.backgroundBatchMs,
     pausesUpdatesAutomatically: false,
     activityType: Location.ActivityType.Other,
     showsBackgroundLocationIndicator: true,
