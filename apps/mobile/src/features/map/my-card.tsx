@@ -63,7 +63,7 @@ export function MyCard({
   const going = sharingNow({ ghost: sharing.ghost, seers, permission });
   const seersText =
     going === 'hidden' || going === 'frozen'
-      ? t('map.myCard.ghost')
+      ? t(going === 'frozen' ? 'location.ghost.statusFreeze' : 'location.ghost.statusHide')
       : going === 'nobody'
         ? t('map.myCard.nobody')
         : going === 'shared'

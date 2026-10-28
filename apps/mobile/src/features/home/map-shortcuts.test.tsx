@@ -85,25 +85,44 @@ beforeEach(() => {
   useMyFix.setState({ fix: null });
 });
 
+/** The tag beside the ghost: hidden from screen readers, the button says it all. */
+const tag = () => screen.getByTestId('ghost-tag', { includeHiddenElements: true });
+
 describe('the map shortcuts (docs/ADR/0026 §8)', () => {
-  it('turn ghost mode on in one tap, and off only after saying what gets shared again', async () => {
+  it('offer the three ghost choices of Me, by the same names, and a tag (PM report T5)', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
     await render(shortcuts());
     const ghost = screen.getByTestId('shortcut-ghost');
-    expect(ghost.props.accessibilityLabel).toBe(i18n.t('map.shortcuts.ghostOff'));
+    expect(ghost.props.accessibilityLabel).toBe('Hayalet modu: Kapalı. Değiştirmek için dokun.');
+    expect(tag()).toHaveTextContent('Hayalet');
     await fireEvent.press(ghost);
+    expect(
+      ['off', 'freeze', 'hide'].map(
+        (mode) =>
+          String(screen.getByTestId(`ghost-${mode}`).props.accessibilityLabel).split('.')[0],
+      ),
+    ).toEqual(['Kapalı', 'Dondur', 'Gizle']);
+    expect(String(screen.getByTestId('ghost-off').props.accessibilityLabel)).toContain('Seçili');
+
+    // "Gizle": off everyone's map, nothing asked.
+    await fireEvent.press(screen.getByTestId('ghost-hide'));
     expect(useSharing.getState().ghost).toBe('hide');
     expect(alert).not.toHaveBeenCalled();
     expect(screen.getByTestId('shortcut-ghost').props.accessibilityLabel).toBe(
-      i18n.t('map.shortcuts.ghostOn'),
+      'Hayalet modu: Gizle. Değiştirmek için dokun.',
     );
+    expect(tag()).toHaveTextContent('Gizle');
     expect(screen.getByTestId('shortcut-ghost').props.accessibilityState).toEqual({
       selected: true,
     });
+    // "Dondur": the last location stays.
+    await fireEvent.press(screen.getByTestId('ghost-freeze'));
+    expect(useSharing.getState().ghost).toBe('freeze');
+    expect(tag()).toHaveTextContent('Dondur');
 
-    // Off: asked first, with how many circles get the location again; nothing until "Share".
-    await fireEvent.press(screen.getByTestId('shortcut-ghost'));
-    expect(useSharing.getState().ghost).toBe('hide');
+    // "Kapalı": asked first, with how many circles get the location again; nothing until "Share".
+    await fireEvent.press(screen.getByTestId('ghost-off'));
+    expect(useSharing.getState().ghost).toBe('freeze');
     expect(alert).toHaveBeenCalledWith(
       i18n.t('map.shortcuts.ghostOffTitle'),
       'Konumun yeniden paylaşılacak: 1 çember.',
@@ -135,7 +154,7 @@ describe('the map shortcuts (docs/ADR/0026 §8)', () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
     useSharing.setState({ ghost: 'freeze', circles: {} }, true);
     await render(shortcuts({ circles: [] }));
-    await fireEvent.press(screen.getByTestId('shortcut-ghost'));
+    await fireEvent.press(screen.getByTestId('ghost-off'));
     expect(alert).not.toHaveBeenCalled();
     expect(useSharing.getState().ghost).toBe('off');
     alert.mockRestore();

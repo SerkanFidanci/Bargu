@@ -62,7 +62,11 @@ export function useSharingSummary(circleId: string): string {
   const settings = useSharing();
   const sharing = circleSharing(settings, circleId);
   const now = useNow();
-  if (settings.ghost !== 'off') return t('location.sharing.ghostOn');
+  if (settings.ghost !== 'off') {
+    return t(
+      settings.ghost === 'freeze' ? 'location.ghost.statusFreeze' : 'location.ghost.statusHide',
+    );
+  }
   if (!sharing.sharing || (sharing.until !== null && sharing.until <= now)) {
     return t('location.sharing.off');
   }
@@ -92,7 +96,7 @@ export function SharingCard({ circleId, name }: { circleId: string; name: string
   };
 
   const status = ghost
-    ? t('location.sharing.ghostOn')
+    ? t(settings.ghost === 'freeze' ? 'location.ghost.statusFreeze' : 'location.ghost.statusHide')
     : !on
       ? t('location.sharing.off')
       : sharing.until === null

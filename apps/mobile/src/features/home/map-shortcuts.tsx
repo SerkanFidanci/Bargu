@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { CircleCheck, Flag, Ghost, LocateFixed, type LucideIcon } from 'lucide-react-native';
 import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -29,14 +29,16 @@ import {
 import { type EffectLevel, repeatFinite, timesAt, useEffects } from '@/theme/effects';
 import { useMotion } from '@/theme/use-motion';
 import { PressableScale } from '@/ui/pressable-scale';
+import type { SheetRef } from '@/ui/sheet';
+import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 
 import { useMyFix } from '../location/engine';
-import { turnGhostOn } from '../location/ghost-now';
-import { sayArrived, updateSharing } from '../location/location-session';
-import { sharedCircles, useSharing } from '../location/sharing';
+import { sayArrived } from '../location/location-session';
+import { useSharing } from '../location/sharing';
 import type { Place } from '../places/place-model';
 import { useArrived } from '../plan/meeting';
+import { GhostSheet } from './ghost-sheet';
 import { hereDue } from './shortcuts-model';
 import { StoreButton } from './store-button';
 
@@ -65,8 +67,8 @@ let sprang = false;
  * Round shortcuts at the right edge of the map, above the dock (the project owner's request,
  * docs/ADR/0026 §8), three at most: back to me (once the map moved away), ghost mode, and start a
  * meeting, which gives way to the meeting's chip at the top while one is on; "Geldim" shows only
- * near its time or place. On top of them the store's button (docs/ADR/0025 Ek 2). Their effects are short and one-off, scaled by sade mod; nothing moves
- * on its own once they are done.
+ * near its time or place. On top of them the store's button (docs/ADR/0025 Ek 2). Their effects
+ * are short and one-off, scaled by sade mod; nothing moves on its own once they are done.
  */
 export function MapShortcuts({
   circles,
@@ -192,10 +194,10 @@ function RecenterButton({
 }
 
 /**
- * Ghost mode in one tap (hide: off everyone's map, nothing sent): the ghost floats a few times,
- * then rests. Turning it off asks first, with how many circles get the location again (a stray tap
- * must not start sharing), and ends with a little "pof". Its state shows in colour, in the
- * button's state and in what a screen reader says.
+ * Ghost mode from the map: a tap offers the three choices of Me, "Kapalı / Dondur / Gizle" (the PM
+ * report T5, 2026-10-29; GhostSheet), and a short tag beside the button names the one on. Turned
+ * on, the ghost floats a few times, then rests; off, a little "pof". Its state shows in colour, in
+ * the tag, in the button's state and in what a screen reader says.
  */
 function GhostButton({
   circles,
@@ -210,7 +212,9 @@ function GhostButton({
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const on = useSharing((state) => state.ghost !== 'off');
+  const mode = useSharing((state) => state.ghost);
+  const on = mode !== 'off';
+  const sheet = useRef<SheetRef>(null);
   const lift = useSharedValue(0);
   const size = useSharedValue(1);
   const was = useRef(on);
@@ -241,56 +245,56 @@ function GhostButton({
   }, [on, level, lift, size]);
   const floating = useAnimatedStyle(() => ({ transform: [{ translateY: lift.get() }] }));
   const popping = useAnimatedStyle(() => ({ transform: [{ scale: size.get() }] }));
-  const turnOff = () => {
-    const off = () => {
-      updateSharing((current) => ({ ...current, ghost: 'off' }));
-    };
-    const count = sharedCircles(circles, { ...useSharing.getState(), ghost: 'off' }, now).length;
-    // Nothing would be shared again: nothing to warn about.
-    if (count === 0) {
-      off();
-      return;
-    }
-    Alert.alert(t('map.shortcuts.ghostOffTitle'), t('map.shortcuts.ghostOffBody', { count }), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('map.shortcuts.ghostOffConfirm'), onPress: off },
-    ]);
-  };
+  const name = t(`location.ghost.${mode}`);
   return (
-    <Animated.View style={popping}>
-      <RoundButton
-        testID="shortcut-ghost"
-        icon={Ghost}
-        tone={on ? 'primary' : 'raised'}
-        selected={on}
-        label={[
-          on ? t('map.shortcuts.ghostOn') : t('map.shortcuts.ghostOff'),
-          shared ? t('map.shortcuts.shared') : null,
-        ]
-          .filter((part) => part !== null)
-          .join(' ')}
-        iconStyle={floating}
-        badge={
-          shared ? (
-            <View
-              testID="ghost-shared-dot"
-              pointerEvents="none"
-              style={[
-                styles.dot,
-                { backgroundColor: colors.primary, borderColor: colors.surfaceRaised },
-              ]}
-            />
-          ) : null
-        }
-        onPress={() => {
-          if (on) {
-            turnOff();
-            return;
+    <View style={styles.labelled} pointerEvents="box-none">
+      <View
+        testID="ghost-tag"
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+        style={[styles.tag, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+      >
+        <Text variant="caption" color={on ? 'text' : 'textMuted'}>
+          {on ? name : t('map.shortcuts.ghostTag')}
+        </Text>
+      </View>
+      <Animated.View style={popping}>
+        <RoundButton
+          testID="shortcut-ghost"
+          icon={Ghost}
+          tone={on ? 'primary' : 'raised'}
+          selected={on}
+          label={[
+            t('map.shortcuts.ghostState', { mode: name }),
+            shared ? t('map.shortcuts.shared') : null,
+          ]
+            .filter((part) => part !== null)
+            .join(' ')}
+          iconStyle={floating}
+          badge={
+            shared ? (
+              <View
+                testID="ghost-shared-dot"
+                pointerEvents="none"
+                style={[
+                  styles.dot,
+                  { backgroundColor: colors.primary, borderColor: colors.surfaceRaised },
+                ]}
+              />
+            ) : null
           }
-          turnGhostOn();
-        }}
+          onPress={() => {
+            sheet.current?.present();
+          }}
+        />
+      </Animated.View>
+      <GhostSheet
+        ref={sheet}
+        circles={circles}
+        now={now}
+        onClose={() => sheet.current?.dismiss()}
       />
-    </Animated.View>
+    </View>
   );
 }
 
@@ -423,6 +427,13 @@ const styles = StyleSheet.create({
   // Right-aligned: the round buttons are all one width, the store's wider band ends with them.
   column: { position: 'absolute', right: space.lg, alignItems: 'flex-end', gap: space.sm },
   slot: { width: touchTarget, height: touchTarget },
+  labelled: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  tag: {
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xxs,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
   button: {
     width: touchTarget,
     height: touchTarget,

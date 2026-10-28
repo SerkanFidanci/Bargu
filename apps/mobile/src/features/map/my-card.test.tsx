@@ -135,7 +135,8 @@ describe('the user’s own card (the owner, 2026-10-21)', () => {
     await render(
       <MyCard me={me} from={{ x: 0, y: 0 }} onHeight={jest.fn()} onStatus={jest.fn()} />,
     );
-    expect(screen.getByText('Hayalet açık: konumun kimseye gitmiyor')).toBeTruthy();
+    // The same names as everywhere (T5): which of the two, and what it means.
+    expect(screen.getByText('Hayalet: Gizle · kimse görmüyor')).toBeTruthy();
   });
 });
 
@@ -272,6 +273,6 @@ describe('who the card says sees the location (QA 27 B-1)', () => {
     setPermission('blocked');
     useSharing.setState({ ...DEFAULT_SHARING, ghost: 'freeze' }, true);
     await renderCard();
-    expect(screen.getByText('Hayalet açık: konumun kimseye gitmiyor')).toBeTruthy();
+    expect(screen.getByText('Hayalet: Dondur · son konumun duruyor')).toBeTruthy();
   });
 });

@@ -147,7 +147,11 @@ export const MeSheet = forwardRef<
           label={t('sheets.me.sectionLocation')}
           detail={
             sharing.ghost !== 'off'
-              ? t('sheets.me.seersGhost')
+              ? t(
+                  sharing.ghost === 'freeze'
+                    ? 'location.ghost.statusFreeze'
+                    : 'location.ghost.statusHide',
+                )
               : seers === 0
                 ? t('sheets.me.seersNone')
                 : t('sheets.me.seersCount', { count: seers })

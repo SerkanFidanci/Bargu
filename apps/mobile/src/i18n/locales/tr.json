@@ -37,7 +37,7 @@
     },
     "ghost": {
       "title": "İstediğin an kaybol",
-      "body": "Hayalet moduna geç, kimse nerede olduğunu görmesin. Tek dokunuş."
+      "body": "Hayalet moduna geç: konumunu dondur ya da tamamen gizle."
     }
   },
   "auth": {
@@ -230,7 +230,6 @@
       "sectionAccount": "Bargu+ ve hesap",
       "sectionApp": "Uygulama",
       "seers": "Kimler konumumu görüyor",
-      "seersGhost": "Hayalet açık: kimse görmüyor",
       "seersNone": "Şu an kimse görmüyor",
       "seersCount": "Görenler: {{count}}",
       "lookDetail": "Harita: {{map}} · Efektler: {{effects}}",
@@ -612,7 +611,6 @@
       "off": "Kapalı: konumun bu çembere gitmiyor.",
       "always": "Sen kapatana kadar açık.",
       "until": "{{time}} saatine kadar açık.",
-      "ghostOn": "Hayalet modundasın: şu an kimse konumunu görmüyor.",
       "precision": "Ne kadar ayrıntılı",
       "duration": "Ne kadar süre",
       "history": "Konum geçmişi (14 gün)",
@@ -648,7 +646,9 @@
       "hide": "Gizle",
       "offDetail": "Çemberlerin seni seçtiğin ayrıntıda görüyor.",
       "freezeDetail": "Son konumun haritada kalır, yenisi gönderilmez.",
-      "hideDetail": "Herkesin haritasından kaybolursun, konum gönderilmez."
+      "hideDetail": "Herkesin haritasından kaybolursun, konum gönderilmez.",
+      "statusFreeze": "Hayalet: Dondur · son konumun duruyor",
+      "statusHide": "Hayalet: Gizle · kimse görmüyor"
     },
     "backgroundLive": {
       "title": "Arka planda canlı konum",
@@ -769,8 +769,6 @@
     },
     "shortcuts": {
       "recenter": "Konumuma dön",
-      "ghostOff": "Hayalet modu kapalı. Açmak için dokun: kimse konumunu görmez.",
-      "ghostOn": "Hayalet modu açık: kimse konumunu görmüyor. Kapatmak için dokun.",
       "ghostOnToast": "Hayalet modundasın: haritalardan kayboldun, konumun gönderilmiyor.",
       "ghostOffTitle": "Hayalet modu kapansın mı?",
       "ghostOffBody": "Konumun yeniden paylaşılacak: {{count}} çember.",
@@ -778,12 +776,15 @@
       "meet": "Buluşma başlat",
       "here": "Geldim ({{place}})",
       "shared": "Konumun paylaşılıyor.",
-      "safe": "Güvendeyim: seçtiğin çemberlere iyi olduğunu söyle"
+      "safe": "Güvendeyim: seçtiğin çemberlere iyi olduğunu söyle",
+      "ghostTag": "Hayalet",
+      "ghostState": "Hayalet modu: {{mode}}. Değiştirmek için dokun.",
+      "ghostFreezeToast": "Konumun donduruldu: son konumun haritada kalır, yenisi gitmez.",
+      "ghostChosen": "Seçili"
     },
     "myCard": {
       "you": "Sen",
       "noLocation": "Konumun henüz yok",
-      "ghost": "Hayalet açık: konumun kimseye gitmiyor",
       "nobody": "Konumun şu an kimseye gitmiyor",
       "seers": "Konumunu görenler: {{count}}",
       "seenAs": "Arkadaşların seni şöyle görüyor: {{what}}",

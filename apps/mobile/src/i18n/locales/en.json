@@ -37,7 +37,7 @@
     },
     "ghost": {
       "title": "Disappear any time",
-      "body": "Turn on ghost mode and nobody sees where you are. One tap."
+      "body": "Turn on ghost mode: freeze your location or hide it completely."
     }
   },
   "auth": {
@@ -230,7 +230,6 @@
       "sectionAccount": "Bargu+ and account",
       "sectionApp": "App",
       "seers": "Who sees my location",
-      "seersGhost": "Ghost on: nobody sees it",
       "seersNone": "Nobody sees it right now",
       "seersCount": "Seen by: {{count}}",
       "lookDetail": "Map: {{map}} · Effects: {{effects}}",
@@ -612,7 +611,6 @@
       "off": "Off: your location does not go to this circle.",
       "always": "On until you turn it off.",
       "until": "On until {{time}}.",
-      "ghostOn": "You are a ghost: nobody sees your location right now.",
       "precision": "How detailed",
       "duration": "For how long",
       "history": "Location history (14 days)",
@@ -648,7 +646,9 @@
       "hide": "Hide",
       "offDetail": "Your circles see you at the detail you chose.",
       "freezeDetail": "Your last location stays on the map; no new one is sent.",
-      "hideDetail": "You disappear from everyone’s map; no location is sent."
+      "hideDetail": "You disappear from everyone’s map; no location is sent.",
+      "statusFreeze": "Ghost: Freeze · your last location stays",
+      "statusHide": "Ghost: Hide · nobody sees you"
     },
     "backgroundLive": {
       "title": "Live location in the background",
@@ -769,8 +769,6 @@
     },
     "shortcuts": {
       "recenter": "Back to my location",
-      "ghostOff": "Ghost mode is off. Tap to turn it on: nobody sees your location.",
-      "ghostOn": "Ghost mode is on: nobody sees your location. Tap to turn it off.",
       "ghostOnToast": "You're a ghost: gone from everyone's map, your location isn't sent.",
       "ghostOffTitle": "Turn ghost mode off?",
       "ghostOffBody": "Your location will be shared again with your circles ({{count}}).",
@@ -778,12 +776,15 @@
       "meet": "Start a meeting",
       "here": "I'm here ({{place}})",
       "shared": "Your location is being shared.",
-      "safe": "I'm safe: tell the circles you pick that you are okay"
+      "safe": "I'm safe: tell the circles you pick that you are okay",
+      "ghostTag": "Ghost",
+      "ghostState": "Ghost mode: {{mode}}. Tap to change.",
+      "ghostFreezeToast": "Your location is frozen: your last location stays on the map, no new one goes out.",
+      "ghostChosen": "Selected"
     },
     "myCard": {
       "you": "You",
       "noLocation": "No location yet",
-      "ghost": "Ghost on: your location goes to nobody",
       "nobody": "Your location goes to nobody right now",
       "seers": "Seeing your location: {{count}}",
       "seenAs": "Your friends see you like this: {{what}}",
