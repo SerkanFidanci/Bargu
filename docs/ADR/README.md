@@ -42,6 +42,8 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0034](0034-domain-and-closed-test-server.md)        | Kalıcı alan adı bargu.app (davet ve RP ID kökte, API alt alanda); kapalı test bugünkü sunucuda, şifreli yedekle; sonra Türkiye | Kabul edildi                                                             |
 | [0035](0035-messages-and-moments.md)                 | Mesajlar ve anlık fotoğraf: tek modül, 24 saat, uçtan uca şifreli; Bildir ve Engelle                                           | Kabul edildi (PM, 2026-10-27); Ek 1 kabul (PM, 2026-10-29); Ek 2 (tepki) |
 | [0036](0036-battery-background-location.md)          | Pil: uygulama kapalıyken konum; GPS 30 sn, kapalıyken dakikada bir toplu teslim, bakılınca canlı                               | Kabul edildi (PM, 2026-10-29)                                            |
+| [0037](0037-nearby-invite.md)                        | "Yakındayım, gelir misin?": tek dokunuşluk davet, koordinatsız, mesafeyi alıcı hesaplar                                        | Önerildi (2026-10-29)                                                    |
+| [0038](0038-per-person-sharing.md)                   | Kişiye süreli paylaşım ve tek kişiye sessiz dondurma (arkadaşlıklar; gruplar için kapsam PM kararı)                            | Önerildi (2026-10-29)                                                    |
 
 ## Şablon
 
