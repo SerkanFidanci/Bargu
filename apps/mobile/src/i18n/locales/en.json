@@ -1580,5 +1580,20 @@
       "title": "Ring = new story",
       "body": "Tap someone with a coloured ring, then their face on the card to see their story."
     }
+  },
+  "help": {
+    "title": "Help",
+    "report": {
+      "title": "Report a problem",
+      "label": "What happened?",
+      "placeholder": "What were you doing? What did you expect?",
+      "includes": "The app's version and your phone's model are added to the e-mail. Your location, messages and people's names are not.",
+      "screenshot": "To add a screenshot, attach it in your e-mail app. You send the e-mail yourself.",
+      "send": "Send by e-mail",
+      "subject": "Bargu problem report",
+      "version": "Version",
+      "phone": "Phone",
+      "noMail": "No e-mail app could be opened. You can write to {{address}}."
+    }
   }
 }

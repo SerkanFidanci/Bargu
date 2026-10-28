@@ -101,6 +101,8 @@ describe('the Me sheet, one row per part (the owner, 2026-10-21)', () => {
       'Güvenlik',
       'Mağaza',
       'Hesap ve veri',
+      // "Sorun bildir" lives here (the PM report Ö1).
+      'Yardım',
       'Uygulama',
     ];
     const at = parts.map((part) => labels.indexOf(part));

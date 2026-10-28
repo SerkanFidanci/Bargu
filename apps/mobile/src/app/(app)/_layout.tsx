@@ -70,6 +70,7 @@ export default function AppLayout() {
         <Stack.Screen name="settings/location" />
         <Stack.Screen name="settings/look" />
         <Stack.Screen name="settings/about" />
+        <Stack.Screen name="settings/help" />
         <Stack.Screen name="privacy" />
         <Stack.Screen name="plus" />
         <Stack.Screen name="consent" options={{ presentation: 'modal' }} />

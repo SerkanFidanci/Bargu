@@ -4,6 +4,7 @@ import {
   Bell,
   HandHeart,
   Info,
+  LifeBuoy,
   LogOut,
   Palette,
   Pencil,
@@ -46,7 +47,8 @@ type MeScreen =
   | '/security'
   | '/store'
   | '/privacy'
-  | '/settings/about';
+  | '/settings/about'
+  | '/settings/help';
 
 /**
  * "Ben" (the owner, 2026-10-21: "tıklanınca kendi ekranları açılacak, açık şekilde durmasın"): the
@@ -212,6 +214,15 @@ export const MeSheet = forwardRef<
           detail={t('sheets.me.privacyDetail')}
           onPress={() => {
             go('/privacy');
+          }}
+        />
+        <SettingsRow
+          testID="me-help"
+          icon={LifeBuoy}
+          label={t('help.title')}
+          detail={t('help.report.title')}
+          onPress={() => {
+            go('/settings/help');
           }}
         />
         <SettingsRow

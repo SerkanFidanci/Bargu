@@ -1580,5 +1580,20 @@
       "title": "Halka = yeni hikaye",
       "body": "Renkli halkası olan birine dokun, kartındaki yüzüne basınca hikayesi açılır."
     }
+  },
+  "help": {
+    "title": "Yardım",
+    "report": {
+      "title": "Sorun bildir",
+      "label": "Ne oldu?",
+      "placeholder": "Ne yaparken oldu? Ne bekliyordun?",
+      "includes": "E-postaya uygulamanın sürümü ve telefonunun modeli eklenir. Konumun, mesajların ya da kişilerin adları eklenmez.",
+      "screenshot": "Ekran görüntüsü eklemek istersen e-posta uygulamanda ekleyebilirsin. E-postayı sen gönderirsin.",
+      "send": "E-postayla gönder",
+      "subject": "Bargu sorun bildirimi",
+      "version": "Sürüm",
+      "phone": "Telefon",
+      "noMail": "E-posta uygulaması açılamadı. {{address}} adresine yazabilirsin."
+    }
   }
 }
