@@ -85,7 +85,10 @@ export function StoreButton({ level }: { level: EffectLevel }) {
         width.value = w;
         setSize((current) => (current?.w === w && current.h === h ? current : { w, h }));
       }}
-      style={[styles.pill, { backgroundColor: colors.primary, boxShadow: elevation.raised }]}
+      style={[
+        styles.pill,
+        { backgroundColor: colors.brandGradient[0], boxShadow: elevation.raised },
+      ]}
     >
       {size === null ? null : (
         <Svg testID="store-band" style={StyleSheet.absoluteFill} width={size.w} height={size.h}>

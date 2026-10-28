@@ -25,8 +25,10 @@ const pairs: readonly (readonly [ColorName, ColorName, number])[] = [
   ['onSuccess', 'success', BODY],
   ['onDanger', 'danger', BODY],
   ['text', 'primarySoft', BODY],
-  ['primary', 'background', LARGE],
-  ['primary', 'surface', LARGE],
+  // Navy (light) and light blue (dark) are small text too: the dock's labels, ghost buttons (T8).
+  ['primary', 'background', BODY],
+  ['primary', 'surface', BODY],
+  ['primary', 'surfaceRaised', BODY],
   // Error and success messages under form fields are small text.
   ['danger', 'background', BODY],
   ['success', 'background', BODY],
@@ -35,8 +37,6 @@ const pairs: readonly (readonly [ColorName, ColorName, number])[] = [
   ['primary', 'primarySoft', LARGE],
   // An error message on a card is small text (QA 24 B-4).
   ['danger', 'surface', BODY],
-  // The main button is navy until its sweep draws (the sweep itself: below).
-  ['onBrand', 'primary', BODY],
   // Messages: others' words on their grey (one's own are on the sweep).
   ['text', 'bubble', BODY],
   ['textMuted', 'bubble', BODY],

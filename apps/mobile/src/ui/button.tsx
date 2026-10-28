@@ -24,8 +24,8 @@ const PALETTE: Record<
   ButtonVariant,
   { background: ColorName | null; text: ColorName; shine: boolean; sweep: boolean }
 > = {
-  // The main button wears the brand's sweep (docs/ADR/0008 Ek 2026-10-29), navy under it while it draws.
-  primary: { background: 'primary', text: 'onBrand', shine: true, sweep: true },
+  // The main button wears the brand's sweep (docs/ADR/0008 Ek 2026-10-29), its first colour under.
+  primary: { background: null, text: 'onBrand', shine: true, sweep: true },
   secondary: { background: 'surface', text: 'text', shine: false, sweep: false },
   ghost: { background: null, text: 'primary', shine: false, sweep: false },
   danger: { background: 'danger', text: 'onDanger', shine: true, sweep: false },
@@ -99,7 +99,11 @@ export function Button({
       style={[
         styles.base,
         fill ? styles.fill : styles.hug,
-        palette.background === null ? null : { backgroundColor: colors[palette.background] },
+        palette.sweep
+          ? { backgroundColor: colors.brandGradient[0] }
+          : palette.background === null
+            ? null
+            : { backgroundColor: colors[palette.background] },
         inactive ? styles.inactive : null,
       ]}
     >

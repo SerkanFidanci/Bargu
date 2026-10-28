@@ -570,7 +570,11 @@ function Bubble({
                   { backgroundColor: mine ? colors.onBrand : colors.primarySoft },
                 ]}
               >
-                <Camera color={colors.primary} size={18} strokeWidth={2.25} />
+                <Camera
+                  color={mine ? colors.brandGradient[0] : colors.primary}
+                  size={18}
+                  strokeWidth={2.25}
+                />
               </View>
               <View style={styles.photoText}>
                 <Text variant="bodyStrong" color={ink}>

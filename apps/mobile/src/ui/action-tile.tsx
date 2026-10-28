@@ -49,7 +49,7 @@ export function ActionTile({
       accessibilityState={{ disabled }}
       style={[
         styles.tile,
-        { backgroundColor: primary ? colors.primary : colors.surface },
+        { backgroundColor: primary ? colors.brandGradient[0] : colors.surface },
         disabled ? styles.inactive : null,
       ]}
     >

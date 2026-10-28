@@ -88,8 +88,8 @@ export const lightColors: ColorTokens = {
 };
 
 /**
- * Night: navy surfaces, the logo's (the owner, 2026-10-29), with a brighter blue for what is
- * primary so it stands out on them; white on it.
+ * Night: navy surfaces, the logo's (the owner, 2026-10-29), with a light blue for what is primary
+ * so it reads on them as small text too (the dock's labels, T8); dark navy on it.
  */
 export const darkColors: ColorTokens = {
   background: '#0A1630',
@@ -98,8 +98,8 @@ export const darkColors: ColorTokens = {
   text: '#F1F5FF',
   textMuted: '#A7B3D0',
   border: '#2A3F6B',
-  primary: '#3E6BE0',
-  onPrimary: '#FFFFFF',
+  primary: '#6E95F2',
+  onPrimary: '#0A1630',
   primarySoft: '#16274B',
   accent: '#FF7A3D',
   onAccent: '#0A1630',
@@ -109,7 +109,7 @@ export const darkColors: ColorTokens = {
   onDanger: '#0A1630',
   ghost: '#6B7592',
   scrim: 'rgba(3, 8, 20, 0.6)',
-  glow: 'rgba(62, 107, 224, 0.5)',
+  glow: 'rgba(110, 149, 242, 0.5)',
   brandGradient: ['#2A55B8', sweepRed, sweepOrange],
   onBrand: '#FFFFFF',
   brandShine: 'rgba(255, 255, 255, 0.3)',

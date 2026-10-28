@@ -162,7 +162,7 @@ function AddButton({ label, onPress }: { label: string; onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={[styles.addButton, { backgroundColor: colors.primary }]}
+      style={[styles.addButton, { backgroundColor: colors.brandGradient[0] }]}
     >
       <Svg style={StyleSheet.absoluteFill} width={dockShape.add} height={dockShape.add}>
         <Defs>

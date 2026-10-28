@@ -10,7 +10,16 @@ import { useTranslation } from 'react-i18next';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-import { avatarPalette, choreography, radius, space, spring, touchTarget, useTheme } from '@/theme';
+import {
+  avatarPalette,
+  avatarText,
+  choreography,
+  radius,
+  space,
+  spring,
+  touchTarget,
+  useTheme,
+} from '@/theme';
 import { useMotion } from '@/theme/use-motion';
 import { AvatarMarker } from '@/ui/avatar-marker';
 import { PressableScale } from '@/ui/pressable-scale';
@@ -101,7 +110,7 @@ export function ProfileForm({ draft, onChange, nameError, userId }: ProfileFormP
             >
               {selected ? (
                 <Animated.View entering={motion.pop}>
-                  <Check color={colors.onPrimary} size={20} strokeWidth={3} />
+                  <Check color={avatarText} size={20} strokeWidth={3} />
                 </Animated.View>
               ) : null}
             </Choice>

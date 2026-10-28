@@ -318,8 +318,9 @@ gösterdi. Karar PM'den; renkler kodlama oturumunda seçildi.
   turuncu `#E87631`–`#FC621E`.
 - **Ana renk (`primary`) lacivert:**
   - açık temada `#1E3F8A` (beyazla 9,8:1);
-  - koyu temada zemin lacivert (`#0A1630`), ana renk onun üstünde seçilsin diye daha açık bir mavi
-    (`#3E6BE0`, beyazla 4,8:1).
+  - koyu temada zemin lacivert (`#0A1630`). Ana renk onun üstünde küçük yazı olarak da okunsun diye
+    açık mavi (`#6E95F2`, zeminde 6,2:1); üstündeki yazı koyu lacivert. Önceki mavi (`#3E6BE0`)
+    alt çubuğun seçili yazısında 2,96:1 kalıyordu (T8 denetimi).
 - **Vurgu (`accent`) logonun turuncusu:** `#F26A21` açık, `#FF7A3D` koyu. Üstünde koyu yazı.
 - **Geçiş jetonu `brandGradient`:** lacivert → kırmızı `#D2303A` → koyu turuncu `#C84B0E`.
   - Ara durak logodaki sırayı izler (laciverdin yanında kırmızı, sonra turuncu).
