@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { StyleSheet } from 'react-native';
 
-import { type ColorTokens, elevation, radius, touchTarget, useTheme } from '@/theme';
+import { type ColorName, elevation, radius, touchTarget, useTheme } from '@/theme';
 import type { HapticKind } from '@/theme/motion';
 
 import { PressableScale } from './pressable-scale';
@@ -20,7 +20,7 @@ export interface IconButtonProps {
 
 const TONES: Record<
   NonNullable<IconButtonProps['tone']>,
-  { background: keyof ColorTokens | null; icon: keyof ColorTokens; shadow: boolean }
+  { background: ColorName | null; icon: ColorName; shadow: boolean }
 > = {
   raised: { background: 'surfaceRaised', icon: 'text', shadow: true },
   primary: { background: 'primary', icon: 'onPrimary', shadow: true },

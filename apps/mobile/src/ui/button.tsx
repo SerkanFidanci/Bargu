@@ -9,11 +9,12 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { ambient, type ColorTokens, radius, space, touchTarget, useTheme } from '@/theme';
+import { ambient, type ColorName, radius, space, touchTarget, useTheme } from '@/theme';
 import { useEffects } from '@/theme/effects';
 import type { HapticKind } from '@/theme/motion';
 import { useMotion } from '@/theme/use-motion';
 
+import { BrandFill } from './brand-fill';
 import { PressableScale } from './pressable-scale';
 import { Text } from './text';
 
@@ -21,12 +22,13 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 const PALETTE: Record<
   ButtonVariant,
-  { background: keyof ColorTokens | null; text: keyof ColorTokens; shine: boolean }
+  { background: ColorName | null; text: ColorName; shine: boolean; sweep: boolean }
 > = {
-  primary: { background: 'primary', text: 'onPrimary', shine: true },
-  secondary: { background: 'surface', text: 'text', shine: false },
-  ghost: { background: null, text: 'primary', shine: false },
-  danger: { background: 'danger', text: 'onDanger', shine: true },
+  // The main button wears the brand's sweep (docs/ADR/0008 Ek 2026-10-29), navy under it while it draws.
+  primary: { background: 'primary', text: 'onBrand', shine: true, sweep: true },
+  secondary: { background: 'surface', text: 'text', shine: false, sweep: false },
+  ghost: { background: null, text: 'primary', shine: false, sweep: false },
+  danger: { background: 'danger', text: 'onDanger', shine: true, sweep: false },
 };
 
 /** Width of the light band sweeping across a pressed button, relative to the button. */
@@ -101,6 +103,7 @@ export function Button({
         inactive ? styles.inactive : null,
       ]}
     >
+      {palette.sweep ? <BrandFill /> : null}
       {palette.shine ? (
         <Animated.View
           pointerEvents="none"

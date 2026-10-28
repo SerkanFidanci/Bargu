@@ -12,7 +12,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 
-import { type ColorTokens, elevation, radius, space, timing, useTheme } from '@/theme';
+import { type ColorName, elevation, radius, space, timing, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
 import { useMotion } from '@/theme/use-motion';
 
@@ -75,7 +75,7 @@ export const toast = {
   },
 };
 
-const TONES: Record<ToastTone, { icon: LucideIcon; color: keyof ColorTokens }> = {
+const TONES: Record<ToastTone, { icon: LucideIcon; color: ColorName }> = {
   info: { icon: Info, color: 'primary' },
   success: { icon: CircleCheck, color: 'success' },
   error: { icon: CircleAlert, color: 'danger' },

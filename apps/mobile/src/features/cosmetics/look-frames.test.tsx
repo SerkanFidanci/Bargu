@@ -31,7 +31,7 @@ const worn = (look: Omit<Look, 'until'>, stale = false, id = 'me') => (
   <PinLook
     look={{ ...look, until: Infinity }}
     size={46}
-    ringColor="#5B34F2"
+    ringColor="#1E3F8A"
     stale={stale}
     id={id}
     mine

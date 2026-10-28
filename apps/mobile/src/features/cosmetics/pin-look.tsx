@@ -34,7 +34,7 @@ export interface PinLookProps {
   look: Look;
   /** The pin's circle with its ring (px): the drawing is laid around it. */
   size: number;
-  /** The pin's ring colour: the theme's violet, or grey for an old location. */
+  /** The pin's ring colour: the theme's navy, or grey for an old location. */
   ringColor: string;
   /** The location is old: the look is faint and still. */
   stale: boolean;

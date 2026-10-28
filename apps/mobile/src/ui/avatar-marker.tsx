@@ -4,7 +4,7 @@ import { Zap } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient } from 'react-native-svg';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -20,7 +20,6 @@ import {
   avatarPalette,
   avatarSize,
   elevation,
-  mediaColors,
   pinFx,
   radius,
   space,
@@ -32,6 +31,7 @@ import { PinLook } from '@/features/cosmetics/pin-look';
 import type { Look } from '@/features/cosmetics/look-styles';
 
 import { Avatar } from './avatar';
+import { brandStops } from './brand-fill';
 import { ActivityGlyph, BADGE_ROUND, BADGE_WIDE, wideGlyph } from './activity-glyph';
 import { gaitPose, leanSideOf } from './gait';
 import { Text } from './text';
@@ -186,7 +186,7 @@ function useLoop(active: boolean, duration: number, level: EffectLevel, news: nu
 }
 
 /**
- * A person on the map as a pin (the project owner, 2026-10-18): their avatar in a violet ring (grey
+ * A person on the map as a pin (the project owner, 2026-10-18): their avatar in a navy ring (grey
  * when the location is old), a short tail down to a dot on the exact position, and a green dot on
  * the circle while the location is fresh. While live and still the pin floats gently above its
  * dot; moving, it moves the way they move, with a small drawing of what they are doing
@@ -531,8 +531,7 @@ function StoryRing({ seen, id }: { seen: boolean; id: string }) {
       <Svg width={size} height={size}>
         <Defs>
           <LinearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={mediaColors.storyFrom} />
-            <Stop offset="1" stopColor={mediaColors.storyTo} />
+            {brandStops(colors.brandGradient)}
           </LinearGradient>
         </Defs>
         <Circle

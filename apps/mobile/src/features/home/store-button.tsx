@@ -12,10 +12,11 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Rect } from 'react-native-svg';
 
 import { duration, elevation, radius, space, storeFx, touchTarget, useTheme } from '@/theme';
 import { type EffectLevel, repeatFinite, timesAt } from '@/theme/effects';
+import { brandStops } from '@/ui/brand-fill';
 import { PressableScale } from '@/ui/pressable-scale';
 import { Text } from '@/ui/text';
 
@@ -25,9 +26,10 @@ import { useNow } from '../location/clock';
 
 /**
  * The store's own advert at the top of the map's right edge (the owner, 2026-10-27: "sağ tarafta
- * yine mağaza butonu olsun ama belirgin kendi reklamımızmış gibi"; docs/ADR/0025 Ek 2): a violet to
- * magenta band, a bag, "Mağaza" and a line that fits the account (Bargu+ for those without it, the
- * pin looks for those with it). A light crosses it a few times when the map shows, then it rests.
+ * yine mağaza butonu olsun ama belirgin kendi reklamımızmış gibi"; docs/ADR/0025 Ek 2): the brand's
+ * sweep as its band (ADR 0008 Ek 2026-10-29), a bag, "Mağaza" and a line that fits the account
+ * (Bargu+ for those without it, the pin looks for those with it). A light crosses it a few times
+ * when the map shows, then it rests.
  */
 export function StoreButton({ level }: { level: EffectLevel }) {
   const { t } = useTranslation();
@@ -83,14 +85,13 @@ export function StoreButton({ level }: { level: EffectLevel }) {
         width.value = w;
         setSize((current) => (current?.w === w && current.h === h ? current : { w, h }));
       }}
-      style={[styles.pill, { backgroundColor: colors.promo, boxShadow: elevation.raised }]}
+      style={[styles.pill, { backgroundColor: colors.primary, boxShadow: elevation.raised }]}
     >
       {size === null ? null : (
         <Svg testID="store-band" style={StyleSheet.absoluteFill} width={size.w} height={size.h}>
           <Defs>
             <LinearGradient id="store-band" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor={colors.primary} />
-              <Stop offset="1" stopColor={colors.promo} />
+              {brandStops(colors.brandGradient)}
             </LinearGradient>
           </Defs>
           <Rect width={size.w} height={size.h} fill="url(#store-band)" />
@@ -98,14 +99,14 @@ export function StoreButton({ level }: { level: EffectLevel }) {
       )}
       <Animated.View
         pointerEvents="none"
-        style={[styles.light, { backgroundColor: colors.promoShine }, light]}
+        style={[styles.light, { backgroundColor: colors.brandShine }, light]}
       />
-      <ShoppingBag color={colors.onPromo} size={touchTarget * 0.42} strokeWidth={2.25} />
+      <ShoppingBag color={colors.onBrand} size={touchTarget * 0.42} strokeWidth={2.25} />
       <View style={styles.words}>
-        <Text variant="headline" color="onPromo" numberOfLines={1}>
+        <Text variant="headline" color="onBrand" numberOfLines={1}>
           {t('store.button.label')}
         </Text>
-        <Text variant="caption" color="onPromo" numberOfLines={1}>
+        <Text variant="caption" color="onBrand" numberOfLines={1}>
           {tagline}
         </Text>
       </View>

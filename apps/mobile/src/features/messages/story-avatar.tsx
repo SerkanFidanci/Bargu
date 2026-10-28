@@ -1,9 +1,10 @@
 import type { Avatar as AvatarData } from '@bargu/schemas';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient } from 'react-native-svg';
 
-import { avatarSize, mediaColors, storyFx, useTheme } from '@/theme';
+import { avatarSize, storyFx, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
+import { brandStops } from '@/ui/brand-fill';
 
 const OFFSET = storyFx.gap + storyFx.ring;
 
@@ -30,8 +31,7 @@ export function StoryAvatar({
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         <Defs>
           <LinearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={mediaColors.storyFrom} />
-            <Stop offset="1" stopColor={mediaColors.storyTo} />
+            {brandStops(colors.brandGradient)}
           </LinearGradient>
         </Defs>
         <Circle

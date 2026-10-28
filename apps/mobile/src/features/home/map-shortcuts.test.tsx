@@ -117,7 +117,7 @@ describe('the map shortcuts (docs/ADR/0026 §8)', () => {
     alert.mockRestore();
   });
 
-  it('wear a violet dot only while the location really goes to someone, and say so', async () => {
+  it('wear a navy dot only while the location really goes to someone, and say so', async () => {
     const view = await render(shortcuts({ shared: true }));
     expect(screen.getByTestId('ghost-shared-dot')).toBeTruthy();
     expect(screen.getByTestId('shortcut-ghost').props.accessibilityLabel).toContain(

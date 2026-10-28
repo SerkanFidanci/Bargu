@@ -25,8 +25,8 @@ const TRACKING = {
   backgroundBatchMs: 60_000,
 } as const;
 
-/** Notification color of the "sharing location" service (brand violet, app.config.ts). */
-const NOTIFICATION_COLOR = '#5B34F2';
+/** Notification color of the "sharing location" service (brand navy, app.config.ts). */
+const NOTIFICATION_COLOR = '#1E3F8A';
 
 /**
  * granted: can track (the "while using" permission is enough: on Android the location service

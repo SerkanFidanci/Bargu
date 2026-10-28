@@ -10,6 +10,7 @@ import { choreography, dockShape, radius, space, spring, touchTarget, useTheme }
 import { useGlow } from '@/theme/effects';
 import { useMotion } from '@/theme/use-motion';
 import { Avatar } from '@/ui/avatar';
+import { brandStops } from '@/ui/brand-fill';
 import { PressableScale } from '@/ui/pressable-scale';
 import { Text } from '@/ui/text';
 
@@ -147,7 +148,10 @@ export function Dock({
   );
 }
 
-/** The raised +: the brand's violet, lit from its upper left, as in the owner's picture. */
+/**
+ * The raised +: the brand's sweep (the owner, 2026-10-29: "Lacivert turuncu renk geçişleri"), lit
+ * from its upper left, as in the owner's picture.
+ */
 function AddButton({ label, onPress }: { label: string; onPress: () => void }) {
   const { colors } = useTheme();
   const half = dockShape.add / 2;
@@ -162,14 +166,18 @@ function AddButton({ label, onPress }: { label: string; onPress: () => void }) {
     >
       <Svg style={StyleSheet.absoluteFill} width={dockShape.add} height={dockShape.add}>
         <Defs>
+          <LinearGradient id="dock-add-brand" x1="0" y1="0" x2="1" y2="1">
+            {brandStops(colors.brandGradient)}
+          </LinearGradient>
           <LinearGradient id="dock-add-light" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={colors.onPrimary} stopOpacity={0.32} />
-            <Stop offset="0.6" stopColor={colors.onPrimary} stopOpacity={0} />
+            <Stop offset="0" stopColor={colors.onBrand} stopOpacity={0.32} />
+            <Stop offset="0.6" stopColor={colors.onBrand} stopOpacity={0} />
           </LinearGradient>
         </Defs>
+        <Circle cx={half} cy={half} r={half} fill="url(#dock-add-brand)" />
         <Circle cx={half} cy={half} r={half} fill="url(#dock-add-light)" />
       </Svg>
-      <Plus color={colors.onPrimary} size={touchTarget * 0.6} strokeWidth={2.5} />
+      <Plus color={colors.onBrand} size={touchTarget * 0.6} strokeWidth={2.5} />
     </PressableScale>
   );
 }

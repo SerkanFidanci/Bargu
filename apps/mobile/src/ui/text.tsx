@@ -1,10 +1,10 @@
 import { Text as NativeText, type TextProps as NativeTextProps } from 'react-native';
 
-import { type ColorTokens, typography, type TypographyVariant, useTheme } from '@/theme';
+import { type ColorName, typography, type TypographyVariant, useTheme } from '@/theme';
 
 export interface TextProps extends NativeTextProps {
   variant?: TypographyVariant;
-  color?: keyof ColorTokens;
+  color?: ColorName;
   align?: 'auto' | 'left' | 'center' | 'right';
 }
 

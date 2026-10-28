@@ -35,8 +35,8 @@ const APPLE_TEAM_ID = process.env.APPLE_TEAM_ID;
  */
 const PUSH_KEYCHAIN_GROUP = 'app.bargu.push';
 
-/** Brand violet (src/theme/colors.ts lightColors.primary), for the notification accent. */
-const BRAND_VIOLET = '#5B34F2';
+/** Brand navy (src/theme/colors.ts lightColors.primary, the logo's), for the notification accent. */
+const BRAND_NAVY = '#1E3F8A';
 /** The logo's own paper (assets/brand/bargu-logo.png): behind the app icon and on the splash. */
 const LOGO_PAPER = '#FFFFFF';
 
@@ -320,12 +320,12 @@ const appConfig = ({ config }: ConfigContext): ExpoConfig => ({
     // MapLibre Native; Android keeps its own location engine (no Google Play services).
     '@maplibre/maplibre-react-native',
     // System notifications for friend and circle news (docs/ADR/0010): the logo's shape in white,
-    // the brand violet as the accent.
+    // the brand navy as the accent.
     [
       'expo-notifications',
       {
         icon: './assets/images/notification-icon.png',
-        color: BRAND_VIOLET,
+        color: BRAND_NAVY,
         defaultChannel: 'social',
       },
     ],

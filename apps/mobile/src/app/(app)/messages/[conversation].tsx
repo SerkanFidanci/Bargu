@@ -33,7 +33,7 @@ import { useRulesGate } from '@/features/messages/rules';
 import { canResend } from '@/features/messages/photo';
 import { dayOf, placeIn } from '@/features/messages/runs';
 import { useSafety } from '@/features/messages/safety';
-import { avatarSize, mixColor, radius, space, touchTarget, typography, useTheme } from '@/theme';
+import { avatarSize, gradientAt, radius, space, touchTarget, typography, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
 import { EmptyState } from '@/ui/empty-state';
 import { IconButton } from '@/ui/icon-button';
@@ -403,7 +403,7 @@ function Bubble({
   // Not sent, and its file is gone with a restart: it cannot be tried again, only taken again.
   const lost = failed && item.photo !== undefined && !canResend(item.photo.blobId);
   const shot = mine && (item.shotBy?.length ?? 0) > 0;
-  const ink = mine ? 'onPrimary' : 'text';
+  const ink = mine ? 'onBrand' : 'text';
   const meta = failed
     ? t(lost ? 'messages.retake' : 'messages.failed')
     : item.state === 'sending'
@@ -469,9 +469,7 @@ function Bubble({
           style={[
             styles.bubble,
             {
-              backgroundColor: mine
-                ? mixColor(colors.bubbleTo, colors.bubbleFrom, shade)
-                : colors.bubble,
+              backgroundColor: mine ? gradientAt(colors.brandGradient, shade) : colors.bubble,
               borderColor: failed ? colors.danger : 'transparent',
             },
             joined,
@@ -482,7 +480,7 @@ function Bubble({
               <View
                 style={[
                   styles.photoIcon,
-                  { backgroundColor: mine ? colors.onPrimary : colors.primarySoft },
+                  { backgroundColor: mine ? colors.onBrand : colors.primarySoft },
                 ]}
               >
                 <Camera color={colors.primary} size={18} strokeWidth={2.25} />
@@ -493,7 +491,7 @@ function Bubble({
                     t(item.photo?.story === true ? 'messages.story.one' : 'messages.photo')}
                 </Text>
                 {item.state === 'sent' ? (
-                  <Text variant="caption" color={mine ? 'onPrimary' : 'textMuted'}>
+                  <Text variant="caption" color={mine ? 'onBrand' : 'textMuted'}>
                     {t('messages.tapToOpen')}
                   </Text>
                 ) : null}

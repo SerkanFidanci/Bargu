@@ -2,14 +2,14 @@ import type { LucideIcon } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { type ColorTokens, radius, space, useTheme } from '@/theme';
+import { type ColorName, radius, space, useTheme } from '@/theme';
 import { useMotion } from '@/theme/use-motion';
 
 import { Text } from './text';
 
 type BadgeTone = 'muted' | 'primary' | 'success' | 'danger';
 
-const TONES: Record<BadgeTone, { background: keyof ColorTokens; text: keyof ColorTokens }> = {
+const TONES: Record<BadgeTone, { background: ColorName; text: ColorName }> = {
   muted: { background: 'surface', text: 'textMuted' },
   primary: { background: 'primarySoft', text: 'primary' },
   success: { background: 'surface', text: 'success' },

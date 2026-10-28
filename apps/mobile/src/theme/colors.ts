@@ -14,12 +14,12 @@ export interface ColorTokens {
   text: string;
   textMuted: string;
   border: string;
-  /** Brand violet: primary actions and focus. */
+  /** Brand navy, the logo's (docs/ADR/0008 Ek 2026-10-29): primary actions and focus. */
   primary: string;
   onPrimary: string;
   /** Tinted background for selected / primary-adjacent elements. */
   primarySoft: string;
-  /** Coral: playful highlights (poke, meet-up), never for text on light backgrounds. */
+  /** The logo's orange: playful highlights (poke, meet-up), never for text on light backgrounds. */
   accent: string;
   onAccent: string;
   success: string;
@@ -36,78 +36,98 @@ export interface ColorTokens {
    */
   glow: string;
   /**
-   * The store's own advert on the map (docs/ADR/0025 Ek 2): a band from `primary` to this
-   * magenta, `onPromo` on both ends, and a light that crosses it a few times.
+   * The brand's sweep (the owner, 2026-10-29: "Lacivert turuncu renk geçişleri"; docs/ADR/0008
+   * Ek 2026-10-29): navy, through the logo's red, to a deep orange, evenly spaced. On the +
+   * button, the story ring, one's own messages, the store's band and the main buttons; never under
+   * much text. `onBrand` reads at every point of it (colors.test.ts).
    */
-  promo: string;
-  onPromo: string;
-  promoShine: string;
-  /**
-   * Messages (the owner, 2026-10-28: "like Instagram's DMs"): others' items on this grey, one's own
-   * from `bubbleTo` (the newest) to `bubbleFrom` (older ones), `onPrimary` on both.
-   */
+  brandGradient: readonly [string, string, string];
+  onBrand: string;
+  /** The light that crosses the store's band a few times (docs/ADR/0025 Ek 2). */
+  brandShine: string;
+  /** Messages (the owner, 2026-10-28: "like Instagram's DMs"): others' items on this grey. */
   bubble: string;
-  bubbleFrom: string;
-  bubbleTo: string;
 }
+
+/** The tokens that are one colour (not the sweep): for text, icons and fills. */
+export type ColorName = {
+  [K in keyof ColorTokens]: ColorTokens[K] extends string ? K : never;
+}[keyof ColorTokens];
+
+/**
+ * The logo's colours (apps/mobile/assets/brand/bargu-logo.png, sampled 2026-10-29): navy #0F2346
+ * to #184B93, red #DD2025, orange #E87631 to #FC621E. The sweep's orange is deeper than the logo's
+ * so white reads on it (4.5:1); the bright one is `accent`, with dark text.
+ */
+const sweepRed = '#D2303A';
+const sweepOrange = '#C84B0E';
 
 export const lightColors: ColorTokens = {
   background: '#FFFFFF',
-  surface: '#F5F3FF',
+  surface: '#F3F6FB',
   surfaceRaised: '#FFFFFF',
-  text: '#16142B',
-  textMuted: '#5C5876',
-  border: '#E2DDF5',
-  primary: '#5B34F2',
+  text: '#0E1A33',
+  textMuted: '#55607A',
+  border: '#DCE3EF',
+  primary: '#1E3F8A',
   onPrimary: '#FFFFFF',
-  primarySoft: '#EEE9FF',
-  accent: '#FF6A3D',
-  onAccent: '#16151C',
+  primarySoft: '#E6ECF8',
+  accent: '#F26A21',
+  onAccent: '#0E1A33',
   success: '#047857',
   onSuccess: '#FFFFFF',
   danger: '#CC2A1E',
   onDanger: '#FFFFFF',
-  ghost: '#8A8896',
-  scrim: 'rgba(10, 10, 15, 0.4)',
-  glow: 'rgba(91, 52, 242, 0.32)',
-  promo: '#C92E68',
-  onPromo: '#FFFFFF',
-  promoShine: 'rgba(255, 255, 255, 0.35)',
-  bubble: '#EFEDF6',
-  bubbleFrom: '#9333EA',
-  bubbleTo: '#4361EE',
+  ghost: '#878FA3',
+  scrim: 'rgba(6, 14, 32, 0.4)',
+  glow: 'rgba(30, 63, 138, 0.32)',
+  brandGradient: ['#1E3F8A', sweepRed, sweepOrange],
+  onBrand: '#FFFFFF',
+  brandShine: 'rgba(255, 255, 255, 0.35)',
+  bubble: '#EEF1F7',
 };
 
 /**
- * Night: deep navy-violet surfaces with violet-tinted hairlines, white on the violet (the project
- * owner's theme, 2026-10-18).
+ * Night: navy surfaces, the logo's (the owner, 2026-10-29), with a brighter blue for what is
+ * primary so it stands out on them; white on it.
  */
 export const darkColors: ColorTokens = {
-  background: '#0F0E22',
-  surface: '#17152D',
-  surfaceRaised: '#1F1C3A',
-  text: '#F4F2FF',
-  textMuted: '#ABA7C8',
-  border: '#36305E',
-  primary: '#7A55F6',
+  background: '#0A1630',
+  surface: '#0F1F3E',
+  surfaceRaised: '#172A4F',
+  text: '#F1F5FF',
+  textMuted: '#A7B3D0',
+  border: '#2A3F6B',
+  primary: '#3E6BE0',
   onPrimary: '#FFFFFF',
-  primarySoft: '#28214F',
-  accent: '#FF7A52',
-  onAccent: '#0F0E22',
+  primarySoft: '#16274B',
+  accent: '#FF7A3D',
+  onAccent: '#0A1630',
   success: '#34D399',
-  onSuccess: '#0F0E22',
+  onSuccess: '#0A1630',
   danger: '#F97066',
-  onDanger: '#0F0E22',
-  ghost: '#6E6A8A',
-  scrim: 'rgba(5, 4, 20, 0.6)',
-  glow: 'rgba(122, 85, 246, 0.55)',
-  promo: '#C92E68',
-  onPromo: '#FFFFFF',
-  promoShine: 'rgba(255, 255, 255, 0.3)',
-  bubble: '#2D2950',
-  bubbleFrom: '#9333EA',
-  bubbleTo: '#4361EE',
+  onDanger: '#0A1630',
+  ghost: '#6B7592',
+  scrim: 'rgba(3, 8, 20, 0.6)',
+  glow: 'rgba(62, 107, 224, 0.5)',
+  brandGradient: ['#2A55B8', sweepRed, sweepOrange],
+  onBrand: '#FFFFFF',
+  brandShine: 'rgba(255, 255, 255, 0.3)',
+  bubble: '#1F3360',
 };
+
+/**
+ * A colour `t` of the way along evenly spaced stops (the brand's sweep), as #RRGGBB: what a
+ * gradient drawn with those stops shows there.
+ */
+export function gradientAt(stops: readonly string[], t: number): string {
+  const first = stops[0];
+  if (first === undefined) throw new Error('a gradient needs a colour');
+  const at = Math.min(1, Math.max(0, t)) * (stops.length - 1);
+  const index = Math.min(Math.floor(at), stops.length - 2);
+  if (index < 0) return first;
+  return mixColor(stops[index] ?? first, stops[index + 1] ?? first, at - index);
+}
 
 /** A colour `t` of the way from `from` to `to` (both #RRGGBB), as #RRGGBB. */
 export function mixColor(from: string, to: string, t: number): string {
@@ -197,13 +217,12 @@ export const qrColors = { dark: '#16151C', light: '#FFFFFF' } as const;
 
 /**
  * Photos (docs/ADR/0035): the camera and the viewer are dark in both themes, so a picture is seen as
- * it is; text and controls on it are white over a shade; the story ring is the brand's sweep.
+ * it is; text and controls on it are white over a shade. The story ring is the theme's
+ * `brandGradient`.
  */
 export const mediaColors = {
   backdrop: '#000000',
   onBackdrop: '#FFFFFF',
   shade: 'rgba(0, 0, 0, 0.45)',
   track: 'rgba(255, 255, 255, 0.35)',
-  storyFrom: '#F5A524',
-  storyTo: '#C92E68',
 } as const;

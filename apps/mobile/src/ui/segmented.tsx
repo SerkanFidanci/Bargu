@@ -18,7 +18,7 @@ export interface SegmentedProps<T extends string> {
 
 /**
  * A small set of mutually exclusive choices side by side, read as a radio group: the chosen one
- * filled violet, with a still glow (none at sade mod "off").
+ * filled navy, with a still glow (none at sade mod "off").
  */
 export function Segmented<T extends string>({
   label,

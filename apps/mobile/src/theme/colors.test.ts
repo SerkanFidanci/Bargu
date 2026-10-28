@@ -1,8 +1,9 @@
 import {
   avatarPalette,
   avatarText,
-  type ColorTokens,
+  type ColorName,
   darkColors,
+  gradientAt,
   lightColors,
   mixColor,
 } from './colors';
@@ -12,7 +13,7 @@ const BODY = 4.5;
 const LARGE = 3;
 
 /** Text/background pairs that components actually use, with the AA level each needs. */
-const pairs: readonly (readonly [keyof ColorTokens, keyof ColorTokens, number])[] = [
+const pairs: readonly (readonly [ColorName, ColorName, number])[] = [
   ['text', 'background', BODY],
   ['text', 'surface', BODY],
   ['text', 'surfaceRaised', BODY],
@@ -30,16 +31,13 @@ const pairs: readonly (readonly [keyof ColorTokens, keyof ColorTokens, number])[
   ['danger', 'background', BODY],
   ['success', 'background', BODY],
   ['danger', 'surface', LARGE],
-  // Violet icons on their soft violet tiles (Me, guardians, circles) are graphics: 3:1 (QA 24 B-4).
+  // Navy icons on their soft navy tiles (Me, guardians, circles) are graphics: 3:1 (QA 24 B-4).
   ['primary', 'primarySoft', LARGE],
   // An error message on a card is small text (QA 24 B-4).
   ['danger', 'surface', BODY],
-  // The store button's words lie on a band from primary to promo: both ends (ADR 0025 Ek 2).
-  ['onPromo', 'promo', BODY],
-  ['onPromo', 'primary', BODY],
-  // Messages: one's own words on either end of their colours, others' on their grey.
-  ['onPrimary', 'bubbleFrom', BODY],
-  ['onPrimary', 'bubbleTo', BODY],
+  // The main button is navy until its sweep draws (the sweep itself: below).
+  ['onBrand', 'primary', BODY],
+  // Messages: others' words on their grey (one's own are on the sweep).
   ['text', 'bubble', BODY],
   ['textMuted', 'bubble', BODY],
 ];
@@ -63,17 +61,60 @@ describe('avatar palette', () => {
   });
 });
 
-describe('one own message colours (the owner, 2026-10-28)', () => {
-  it('mixes from one end to the other, and every step between still reads', () => {
-    const { bubbleFrom, bubbleTo, onPrimary } = lightColors;
-    expect(mixColor(bubbleTo, bubbleFrom, 0)).toBe(bubbleTo);
-    expect(mixColor(bubbleTo, bubbleFrom, 1)).toBe(bubbleFrom);
-    expect(mixColor(bubbleTo, bubbleFrom, 2)).toBe(bubbleFrom);
-    expect(mixColor('#000000', '#FFFFFF', 0.5)).toBe('#808080');
-    for (let step = 0; step <= 10; step += 1) {
-      const color = mixColor(bubbleTo, bubbleFrom, step / 10);
-      expect(contrastRatio(onPrimary, color)).toBeGreaterThanOrEqual(BODY);
+/** HSL saturation of a #RRGGBB colour, 0 (grey) to 1. */
+function saturation(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16) / 255);
+  const max = Math.max(r ?? 0, g ?? 0, b ?? 0);
+  const min = Math.min(r ?? 0, g ?? 0, b ?? 0);
+  if (max === min) return 0;
+  return (max - min) / (max + min > 1 ? 2 - max - min : max + min);
+}
+
+describe.each([
+  ['light', lightColors],
+  ['dark', darkColors],
+])("the brand's sweep, %s (the owner, 2026-10-29; ADR 0008 Ek 2026-10-29)", (_, colors) => {
+  const steps = Array.from({ length: 41 }, (__, step) =>
+    gradientAt(colors.brandGradient, step / 40),
+  );
+
+  it('goes from navy through red to orange, the logo order', () => {
+    const [from, via, to] = colors.brandGradient;
+    expect(gradientAt(colors.brandGradient, 0)).toBe(from);
+    expect(gradientAt(colors.brandGradient, 0.5)).toBe(via);
+    expect(gradientAt(colors.brandGradient, 1)).toBe(to);
+    expect(gradientAt(colors.brandGradient, 2)).toBe(to);
+  });
+
+  it('keeps white words readable at every point of it (AA, body text)', () => {
+    for (const color of steps) {
+      expect(contrastRatio(colors.onBrand, color)).toBeGreaterThanOrEqual(BODY);
     }
+  });
+
+  it('does not turn muddy in the middle: the red keeps it in colour', () => {
+    // Straight from navy to orange, part of the way is a grey brown (saturation 0.16).
+    const [from, , to] = colors.brandGradient;
+    const straight = Array.from({ length: 41 }, (__, step) =>
+      saturation(mixColor(from, to, step / 40)),
+    );
+    expect(Math.min(...straight)).toBeLessThan(0.2);
+    for (const color of steps) expect(saturation(color)).toBeGreaterThanOrEqual(0.28);
+  });
+
+  it('has no violet left (#5B34F2 and its kin are gone)', () => {
+    const values = Object.values(colors).flat();
+    for (const gone of ['#5B34F2', '#7A55F6', '#9333EA', '#4361EE', '#C92E68']) {
+      expect(values).not.toContain(gone);
+    }
+  });
+});
+
+describe('mixing colours', () => {
+  it('goes from one end to the other, and stops at the ends', () => {
+    expect(mixColor('#000000', '#FFFFFF', 0.5)).toBe('#808080');
+    expect(mixColor('#000000', '#FFFFFF', 2)).toBe('#FFFFFF');
+    expect(mixColor('#000000', '#FFFFFF', -1)).toBe('#000000');
   });
 });
 

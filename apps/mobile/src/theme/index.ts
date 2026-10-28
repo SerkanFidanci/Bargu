@@ -5,10 +5,12 @@ import { type ColorTokens, darkColors, lightColors } from './colors';
 export {
   avatarPalette,
   avatarText,
+  type ColorName,
   type ColorTokens,
   type DrawingColors,
   drawingColors,
   drawingParts,
+  gradientAt,
   mediaColors,
   mixColor,
   qrColors,

@@ -53,7 +53,7 @@ export interface MapShortcutsProps {
   bottom: number;
   /**
    * This phone's location is really going to someone now (sharingNow, the same truth as "who sees
-   * me"): the ghost button wears a violet dot (a safety sign, the owner's choice).
+   * me"): the ghost button wears a navy dot (a safety sign, the owner's choice).
    */
   shared: boolean;
 }

@@ -307,3 +307,42 @@ Sahip logoyu verdi. Kaynak dosya `apps/mobile/assets/brand/bargu-logo.png`. Logo
 
 Simge ve açılış ekranının zemini beyaz. Uygulamanın içindeki renkler (menekşe, mercan) değişmedi.
 Bildirimin vurgu rengi de menekşe kaldı.
+
+## Ek (2026-10-29): lacivert ve turuncu, mor çıktı
+
+Sahip, 2026-10-29: "Lacivert turuncu renk geçişleri". PM'in ürün raporu (T1,
+`docs/arastirma/urun-gelistirme-2026-10-29.md`) uygulamanın menekşesinin logoyla uyuşmadığını
+gösterdi. Karar PM'den; renkler kodlama oturumunda seçildi.
+
+- **Logodan örnek** (`assets/brand/bargu-logo.png`): lacivert `#0F2346`–`#184B93`, kırmızı `#DD2025`,
+  turuncu `#E87631`–`#FC621E`.
+- **Ana renk (`primary`) lacivert:**
+  - açık temada `#1E3F8A` (beyazla 9,8:1);
+  - koyu temada zemin lacivert (`#0A1630`), ana renk onun üstünde seçilsin diye daha açık bir mavi
+    (`#3E6BE0`, beyazla 4,8:1).
+- **Vurgu (`accent`) logonun turuncusu:** `#F26A21` açık, `#FF7A3D` koyu. Üstünde koyu yazı.
+- **Geçiş jetonu `brandGradient`:** lacivert → kırmızı `#D2303A` → koyu turuncu `#C84B0E`.
+  - Ara durak logodaki sırayı izler (laciverdin yanında kırmızı, sonra turuncu).
+  - Lacivertten turuncuya düz geçişin bir kısmı gri kahveye düşüyor (doygunluk 0,16). Kırmızı
+    durakla en düşük doygunluk 0,30.
+  - Turuncu uç logodakinden koyu, çünkü beyaz yazı geçişin her noktasında AA (4,5:1) geçmeli.
+    Parlak turuncu `accent`'te kalır.
+  - Koyu temada başlangıç `#2A55B8`, lacivert zeminde kaybolmasın diye.
+- **Geçişin olduğu yerler:**
+  - ortadaki + düğmesi;
+  - hikaye halkası (haritada ve listede);
+  - kendi mesaj baloncukların (en yenisi lacivert, eskiler turuncuya doğru);
+  - haritadaki Mağaza şeridi;
+  - ana düğmeler (`Button` primary).
+  - Yazı yoğun yüzeylerde geçiş yok.
+- **Değişmeyenler:** kişilerin seçtiği pin renkleri (`avatarPalette`) ve süs halkaları.
+- **Uygulama:**
+  - Değişiklik yalnız tema jetonlarında (`theme/colors.ts`) ve `ui/brand-fill.tsx`'teki tek çizimde.
+    Ekranlara sabit renk girmedi.
+  - Bildirim vurgusu da lacivert (`app.config.ts`, `tracker.ts`).
+  - `promo`/`onPromo`, `bubbleFrom`/`bubbleTo` ve hikaye halkasının sabit renkleri kalktı.
+- **Testler (`colors.test.ts`):**
+  - her yazı/zemin çifti AA;
+  - beyaz yazı geçişin 41 noktasında AA;
+  - geçiş her noktada doygun (≥ 0,28);
+  - eski menekşe değerleri hiçbir jetonda yok.
