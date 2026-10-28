@@ -45,6 +45,7 @@ const mockOutbox = {
   takeBack: jest.fn(() => Promise.resolve('sent')),
   takeBackPhoto: jest.fn(() => Promise.resolve('sent')),
   tellScreenshot: jest.fn(() => Promise.resolve()),
+  tellViewed: jest.fn(() => Promise.resolve()),
   sendPhoto: jest.fn(() => Promise.resolve('sent')),
   shareStory: jest.fn(() => Promise.resolve({ result: 'sent', failed: 0, total: 1 })),
 };
@@ -54,6 +55,7 @@ jest.mock('@/features/messages/outbox', () => ({
   takeBack: (...args: unknown[]) => mockOutbox.takeBack(...(args as [])),
   takeBackPhoto: (...args: unknown[]) => mockOutbox.takeBackPhoto(...(args as [])),
   tellScreenshot: (...args: unknown[]) => mockOutbox.tellScreenshot(...(args as [])),
+  tellViewed: (...args: unknown[]) => mockOutbox.tellViewed(...(args as [])),
   sendPhoto: (...args: unknown[]) => mockOutbox.sendPhoto(...(args as [])),
   shareStory: (...args: unknown[]) => mockOutbox.shareStory(...(args as [])),
 }));
@@ -329,7 +331,8 @@ describe('the rules before any content and any sending (K14, QA-38b)', () => {
     mockCanResend.mockReturnValue(false);
     await shown(<ConversationScreen />);
     await settle();
-    await fireEvent.press(screen.getByTestId(`item-${FAILED.id}`));
+    // The list draws its items a moment after the screen (FlatList).
+    await fireEvent.press(await screen.findByTestId(`item-${FAILED.id}`));
     expect(mockOutbox.retry).not.toHaveBeenCalled();
     await accept();
     expect(mockOutbox.retry).toHaveBeenCalledWith(FAILED.id);
@@ -337,7 +340,7 @@ describe('the rules before any content and any sending (K14, QA-38b)', () => {
     await act(() => {
       forgetRules();
     });
-    await fireEvent.press(screen.getByTestId(`item-${LOST.id}`));
+    await fireEvent.press(await screen.findByTestId(`item-${LOST.id}`));
     expect(mockOutbox.takeBack).not.toHaveBeenCalled();
     await accept();
     expect(mockOutbox.takeBack).toHaveBeenCalledWith(LOST.id);

@@ -42,11 +42,13 @@ const mockSendText = jest.fn<Promise<string>, [string, string, string?]>(() =>
 );
 const mockTakeBackPhoto = jest.fn<Promise<string>, [string]>(() => Promise.resolve('sent'));
 const mockTellScreenshot = jest.fn<Promise<void>, [{ id: string }]>(() => Promise.resolve());
+const mockTellViewed = jest.fn<Promise<void>, [{ id: string }]>(() => Promise.resolve());
 jest.mock('@/features/messages/outbox', () => ({
   sendText: (conversation: string, text: string, replyTo?: string) =>
     mockSendText(conversation, text, replyTo),
   takeBackPhoto: (blobId: string) => mockTakeBackPhoto(blobId),
   tellScreenshot: (item: { id: string }) => mockTellScreenshot(item),
+  tellViewed: (item: { id: string }) => mockTellViewed(item),
 }));
 const mockViewed = jest.fn<undefined, [string]>();
 jest.mock('@/features/messages/messages-session', () => ({
@@ -171,6 +173,16 @@ describe("someone's stories", () => {
     expect(await screen.findByText('deniz')).toBeTruthy();
     expect(mockOpen).toHaveBeenCalledWith(expect.objectContaining({ blobId: 'file-new' }));
     expect(mockViewed).toHaveBeenCalledWith('file-new');
+    // Its sender is told it was seen, once (docs/ADR/0035 Ek 1).
+    expect(mockTellViewed).toHaveBeenCalledTimes(1);
+    expect(mockTellViewed).toHaveBeenCalledWith(expect.objectContaining({ id: NEW.id }));
+  });
+
+  it('do not tell again of one seen before', async () => {
+    await render(<StoryScreen />);
+    await fireEvent.press(screen.getByTestId('story-back'));
+    expect(await screen.findByText('sabah')).toBeTruthy();
+    expect(mockTellViewed).not.toHaveBeenCalledWith(expect.objectContaining({ id: SEEN.id }));
   });
 
   it('go back with a tap on the left, and close after the last one', async () => {
@@ -217,6 +229,37 @@ describe("one's own story", () => {
       button?.onPress?.();
     });
     expect(mockTakeBackPhoto).toHaveBeenCalledWith('file-mine');
+    expect(mockTellViewed).not.toHaveBeenCalled();
+  });
+
+  it('shows who saw it, the latest first (the owner, 2026-10-28)', async () => {
+    mockParams.userId = ME;
+    const AYSE = '0190f7a4-1111-7111-8111-000000000003';
+    const [circle] = mockCircles.current;
+    if (circle !== undefined) {
+      mockCircles.current = [
+        { ...circle, members: [member(ME, 'Ben'), member(ALI, 'Ali'), member(AYSE, 'Ayşe')] },
+      ];
+    }
+    await render(<StoryScreen />);
+    expect(screen.getByTestId('story-seen').props.accessibilityLabel).toBe('Henüz kimse görmedi');
+    await act(() => {
+      useMessages.setState((state) => ({
+        ...state,
+        items: state.items.map((item) =>
+          item.id === MINE.id
+            ? { ...item, viewers: { [ALI]: NOW - 800, [AYSE]: NOW - 200 } }
+            : item,
+        ),
+      }));
+    });
+    expect(screen.getByTestId('story-seen').props.accessibilityLabel).toBe('2 kişi gördü');
+    await fireEvent.press(screen.getByTestId('story-seen'));
+    const rows = screen.getAllByTestId(/^story-seen-0190/);
+    expect(rows.map((row) => String(row.props.accessibilityLabel))).toEqual([
+      expect.stringContaining('Ayşe'),
+      expect.stringContaining('Ali'),
+    ]);
   });
 });
 

@@ -1,7 +1,7 @@
 import { CHAT_TEXT_MAX, codePointsOf } from '@bargu/schemas';
 import { useScreenshotListener } from 'expo-screen-capture';
 import { router, useLocalSearchParams } from 'expo-router';
-import { MoreVertical, Send, X } from 'lucide-react-native';
+import { Eye, MoreVertical, Send, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -34,16 +34,21 @@ import {
   personConversation,
   storiesOf,
   useMessages,
+  viewersOf,
 } from '@/features/messages/messages';
 import { loadMessagesOnce, markViewed } from '@/features/messages/messages-session';
 import { isOpen, memberIn } from '@/features/messages/names';
-import { sendText, takeBackPhoto, tellScreenshot } from '@/features/messages/outbox';
+import { sendText, takeBackPhoto, tellScreenshot, tellViewed } from '@/features/messages/outbox';
 import { openPhoto } from '@/features/messages/photo';
 import { useRulesGate } from '@/features/messages/rules';
 import { useSafety } from '@/features/messages/safety';
 import { mediaColors, radius, space, storyFx, touchTarget, typography } from '@/theme';
 import { useEffects } from '@/theme/effects';
+import { Avatar } from '@/ui/avatar';
 import { IconButton } from '@/ui/icon-button';
+import { ListRow } from '@/ui/list-row';
+import { PressableScale } from '@/ui/pressable-scale';
+import { Sheet, type SheetRef } from '@/ui/sheet';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 
@@ -51,8 +56,8 @@ import { toast } from '@/ui/toast';
  * One person's stories (docs/ADR/0035 §1, §8, §12): each photo for five seconds, a tap on the left
  * goes back, on the right forward; the first not yet seen comes first. Seen ones turn the ring on
  * their pin grey. Someone else's: a reply goes to them alone as a personal item, "Bildir" and
- * "Engelle" are a tap away, a screenshot tells them. One's own: who took a screenshot, and
- * "Herkesten sil" for every circle it went to.
+ * "Engelle" are a tap away, a screenshot tells them, and opening it tells them it was seen (Ek 1).
+ * One's own: who saw it and who took a screenshot, and "Herkesten sil" for every circle it went to.
  */
 export default function StoryScreen() {
   const { t, i18n } = useTranslation();
@@ -82,6 +87,7 @@ export default function StoryScreen() {
   const [paused, setPaused] = useState(false);
   const progress = useSharedValue(0);
   const told = useRef(new Set<string>());
+  const seenSheet = useRef<SheetRef>(null);
   const safety = useSafety(() => {
     router.back();
   });
@@ -113,6 +119,14 @@ export default function StoryScreen() {
       (image) => {
         if (!shown) return;
         setOpened({ blobId: photo.blobId, uri: image });
+        // The first time here: its sender is told it was seen (docs/ADR/0035 Ek 1).
+        const messages = useMessages.getState();
+        const item = messages.items.find(
+          (each) => each.from === userId && each.photo?.blobId === photo.blobId,
+        );
+        if (!mine && item !== undefined && messages.viewed[photo.blobId] === undefined) {
+          void tellViewed(item);
+        }
         markViewed(photo.blobId);
       },
       () => {
@@ -122,7 +136,7 @@ export default function StoryScreen() {
     return () => {
       shown = false;
     };
-  }, [photo, progress, open]);
+  }, [photo, progress, open, mine, userId]);
 
   // The bar fills on the UI thread; when it is full, the next story. Sade mod "Kapalı": the bar
   // stays still and the time still runs (QA-38).
@@ -188,6 +202,13 @@ export default function StoryScreen() {
     minute: '2-digit',
   });
   const canReply = !mine && isOpen(personConversation(userId), circles, me);
+  const seenBy = mine ? viewersOf({ items }, me, photo.blobId) : [];
+  const seenLabel =
+    seenBy.length === 0
+      ? t('messages.story.seenByNone')
+      : t('messages.story.seenBy', { count: seenBy.length });
+  const clock = (at: number) =>
+    new Date(at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
   const shotBy = mine
     ? [
         ...new Set(
@@ -332,6 +353,24 @@ export default function StoryScreen() {
               {t('messages.shotBy', { names: shotBy.map(nameOf).join(', ') })}
             </Text>
           )}
+          {mine ? (
+            <PressableScale
+              testID="story-seen"
+              haptic="select"
+              accessibilityRole="button"
+              accessibilityLabel={seenLabel}
+              onPress={() => {
+                setPaused(true);
+                seenSheet.current?.present();
+              }}
+              style={[styles.seen, styles.shade]}
+            >
+              <Eye color={mediaColors.onBackdrop} size={18} strokeWidth={2.25} />
+              <Text variant="subhead" style={styles.light}>
+                {seenLabel}
+              </Text>
+            </PressableScale>
+          ) : null}
           {canReply ? (
             <View style={[styles.reply, { borderColor: mediaColors.track }]}>
               <TextInput
@@ -362,6 +401,41 @@ export default function StoryScreen() {
           ) : null}
         </KeyboardAvoidingView>
       </SafeAreaView>
+      {mine ? (
+        <Sheet
+          ref={seenSheet}
+          title={t('messages.story.seenByTitle')}
+          testID="story-seen-sheet"
+          onDismiss={() => {
+            setPaused(false);
+          }}
+        >
+          {seenBy.length === 0 ? (
+            <Text variant="body" color="textMuted">
+              {t('messages.story.seenByNone')}
+            </Text>
+          ) : (
+            seenBy.map((viewer) => (
+              <ListRow
+                key={viewer.userId}
+                testID={`story-seen-${viewer.userId}`}
+                leading={
+                  <Avatar
+                    avatar={memberIn(circles, viewer.userId)?.avatar ?? null}
+                    name={nameOf(viewer.userId)}
+                    userId={viewer.userId}
+                  />
+                }
+                title={nameOf(viewer.userId)}
+                subtitle={clock(viewer.at)}
+              />
+            ))
+          )}
+          <Text variant="footnote" color="textMuted">
+            {t('messages.story.seenByNote')}
+          </Text>
+        </Sheet>
+      ) : null}
       {safety.sheet}
       {rules.sheet}
     </View>
@@ -414,4 +488,13 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth * 2,
   },
   replyInput: { flex: 1, minHeight: touchTarget },
+  seen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: space.xs,
+    minHeight: touchTarget,
+    paddingHorizontal: space.md,
+    borderRadius: radius.pill,
+  },
 });

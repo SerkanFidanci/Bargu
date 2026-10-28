@@ -21,6 +21,7 @@ import { memberName } from '@/features/circles/names';
 import { useCircle } from '@/features/circles/queries';
 import { useHistoryPings } from '@/features/history/history-api';
 import { HistoryLayer } from '@/features/history/history-layer';
+import { nameStays } from '@/features/history/stay-names';
 import {
   dayStart,
   historyDays,
@@ -121,6 +122,26 @@ export default function HistoryScreen() {
   const points = useMemo(() => result?.points ?? [], [result]);
   const loading = result?.key !== key;
   const timeline = useMemo(() => segments(points), [points]);
+  // Stays outside the circle's places, named from the map's own labels once it settles there
+  // (stay-names.ts): "Caferağa, Kadıköy" rather than "Bir yerde" (the owner, 2026-10-28).
+  const [named, setNamed] = useState<{ key: string; names: Record<number, string> }>({
+    key: '',
+    names: {},
+  });
+  const names = named.key === key ? named.names : {};
+  const nameUnplaced = () => {
+    const handle = map.current;
+    const stays = timeline.flatMap((segment) =>
+      segment.kind === 'stay' && placeOf(segment, places) === undefined ? [segment] : [],
+    );
+    if (handle === null || loading || stays.length === 0) return;
+    const asked = key;
+    void nameStays(stays, names, (stay) =>
+      handle.placeName([stay.lng, stay.lat], i18n.language),
+    ).then((next) => {
+      setNamed({ key: asked, names: next });
+    });
+  };
 
   useEffect(() => {
     const bounds = boundsOf(points);
@@ -151,7 +172,10 @@ export default function HistoryScreen() {
     if (segment.kind === 'stay') {
       const place = placeOf(segment, places);
       icon = MapPin;
-      title = place === undefined ? t('history.stay') : `${place.emoji} ${place.name}`;
+      title =
+        place === undefined
+          ? (names[segment.from] ?? t('history.stay'))
+          : `${place.emoji} ${place.name}`;
     } else if (segment.kind === 'move') {
       icon = segment.mode === 'vehicle' ? Car : segment.mode === 'bike' ? Bike : Footprints;
       title = t(`history.${segment.mode}`, {
@@ -177,7 +201,7 @@ export default function HistoryScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="history-screen">
       <View style={styles.map}>
-        <BarguMap ref={map} overlay insets={{ top: insets.top }}>
+        <BarguMap ref={map} overlay insets={{ top: insets.top }} onSettle={nameUnplaced}>
           <HistoryLayer points={points} timeline={timeline} />
         </BarguMap>
         <View style={[styles.close, { top: insets.top + space.sm }]}>

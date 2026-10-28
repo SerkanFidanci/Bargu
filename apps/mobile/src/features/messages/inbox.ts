@@ -116,9 +116,16 @@ export function ingest(
       continue;
     }
     waiting.delete(record.id);
-    // A screenshot is news only about this phone's own photo (§12); anyone else's is dropped.
-    const shot = opened === 'drop' || opened.payload.kind !== 'shot' ? null : opened.payload;
-    if (shot !== null && next.items.find((item) => item.id === shot.target)?.from !== context.me) {
+    // A screenshot or a view is news only about this phone's own photo (§12, Ek 1); anyone
+    // else's is dropped.
+    const notice =
+      opened === 'drop' || (opened.payload.kind !== 'shot' && opened.payload.kind !== 'view')
+        ? null
+        : opened.payload;
+    if (
+      notice !== null &&
+      next.items.find((item) => item.id === notice.target)?.from !== context.me
+    ) {
       next = { ...next, seen: { ...next.seen, [record.id]: record.at } };
       continue;
     }

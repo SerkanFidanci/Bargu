@@ -19,6 +19,7 @@ import {
   storiesOf,
   unreadIn,
   unreadTotal,
+  viewersOf,
   withItem,
   withoutCircle,
   withoutItem,
@@ -294,6 +295,40 @@ describe('what an opened item does', () => {
     expect(
       shot(words.id, ALI, state).items.find((item) => item.id === words.id)?.shotBy,
     ).toBeUndefined();
+  });
+
+  it('marks who saw this phone own story, the first time each, and nothing else (Ek 1)', () => {
+    const blobId = randomUuid();
+    const asStory = (item: ChatItem): ChatItem => {
+      const file = item.photo ?? photo().photo;
+      return file === undefined ? item : { ...item, photo: { ...file, blobId, story: true } };
+    };
+    // One story, gone to two circles: an item in each, the same file.
+    const inGroup = asStory(photo({ from: ME }));
+    const inOther = asStory(photo({ from: ME, conversation: circleConversation(randomUuid()) }));
+    const hers = asStory(photo());
+    const notStory = photo({ from: ME });
+    const state = stateWith(inGroup, inOther, hers, notStory);
+    const view = (target: string, from: string, ts: number, current: MessagesState) =>
+      applyPayload(current, { kind: 'view', id: randomUuid(), target, ts }, from, group, undefined);
+    const viewersAt = (current: MessagesState, id: string) =>
+      current.items.find((item) => item.id === id)?.viewers;
+    const AYSE = randomUuid();
+
+    let next = view(inGroup.id, ALI, NOW - 500, state);
+    next = view(inGroup.id, ALI, NOW - 100, next);
+    next = view(inOther.id, AYSE, NOW - 300, next);
+    expect(viewersAt(next, inGroup.id)).toEqual({ [ALI]: NOW - 500 });
+    expect(viewersOf(next, ME, blobId)).toEqual([
+      { userId: AYSE, at: NOW - 300 },
+      { userId: ALI, at: NOW - 500 },
+    ]);
+    // Someone else's story, a photo that is no story, or one's own view: nothing.
+    expect(viewersAt(view(hers.id, ALI, NOW, state), hers.id)).toBeUndefined();
+    expect(viewersAt(view(notStory.id, ALI, NOW, state), notStory.id)).toBeUndefined();
+    expect(viewersAt(view(inGroup.id, ME, NOW, state), inGroup.id)).toBeUndefined();
+    expect(viewersOf(state, ME, blobId)).toEqual([]);
+    expect(viewersOf(next, ALI, blobId)).toEqual([]);
   });
 });
 

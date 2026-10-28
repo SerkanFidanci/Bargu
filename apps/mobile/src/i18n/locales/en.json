@@ -1504,7 +1504,11 @@
       "repliedToYours": "Reply to your story",
       "reply": "Write a reply",
       "takeBackBody": "This story is deleted from every circle you shared it with, and from the server.",
-      "one": "Story"
+      "one": "Story",
+      "seenBy": "Seen by {{count}}",
+      "seenByNone": "Nobody has seen it yet",
+      "seenByTitle": "Seen by",
+      "seenByNote": "Only you see this list. It goes with your story after 24 hours."
     },
     "rules": {
       "title": "Community rules",
@@ -1523,6 +1527,9 @@
         "scams": "scams"
       }
     },
-    "retake": "Not sent, take it again"
+    "retake": "Not sent, take it again",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "tapToOpen": "Tap to open"
   }
 }

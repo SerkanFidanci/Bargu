@@ -51,7 +51,14 @@ import { queryClient } from '../query-client';
 import { EMPTY_MESSAGES, useMessages } from './messages';
 import { ApiError } from '../auth/api-client';
 import { type ChatItem } from './messages';
-import { pushOf, shareStory, storyTargets, tellScreenshot } from './outbox';
+import {
+  pushOf,
+  sendHeldViews,
+  shareStory,
+  storyTargets,
+  tellScreenshot,
+  tellViewed,
+} from './outbox';
 import { rulesWereAccepted } from './rules-state';
 import { sealPhoto } from './photo';
 
@@ -94,6 +101,10 @@ describe('what a closed app is told of an item', () => {
     expect(
       pushOf({ kind: 'shot', id: randomUuid(), target: randomUuid(), ts: NOW }, undefined),
     ).toEqual({ kind: 'shot', ts: NOW });
+    // A story seen tells its sender nothing they would be woken for (Ek 1).
+    expect(
+      pushOf({ kind: 'view', id: randomUuid(), target: randomUuid(), ts: NOW }, undefined),
+    ).toBeNull();
     expect(
       pushOf({ kind: 'del', id: randomUuid(), target: randomUuid(), ts: NOW }, circleId),
     ).toBeNull();
@@ -243,6 +254,70 @@ describe('a screenshot notice (QA-38b)', () => {
     // Sent: nothing is kept any more.
     rulesWereAccepted({ rules: { version: 1, at: NOW } });
     await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockToPerson).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('a story seen (docs/ADR/0035 Ek 1)', () => {
+  it('tells its sender alone, never for one own story or a photo, and tries again if not sent', async () => {
+    const device = generateDeviceKeys(randomUuid());
+    useAuth.setState({ userId: ME, device });
+    const sender = { userId: randomUuid(), device: generateDeviceKeys(randomUuid()) };
+    const circle: Circle = {
+      id: randomUuid(),
+      kind: 'family',
+      name: 'Aile',
+      epoch: 1,
+      epochStartedAt: 0,
+      myRole: 'member',
+      myStatus: 'active',
+      members: [
+        {
+          userId: sender.userId,
+          role: 'member',
+          status: 'active',
+          username: null,
+          displayName: 'Ali',
+          avatar: null,
+          device: { platform: 'android', bundle: exportDeviceKeyBundle(sender.device) },
+        },
+      ],
+    };
+    queryClient.setQueryData(circlesKey, [circle]);
+    const storyFrom = (from: string, story: boolean): ChatItem => ({
+      id: randomUuid(),
+      conversation: `c:${circle.id}`,
+      from,
+      at: NOW,
+      kind: 'photo',
+      state: 'sent',
+      photo: {
+        blobId: randomUuid(),
+        key: 'k'.repeat(43),
+        size: 1000,
+        hash: 'h'.repeat(43),
+        w: 10,
+        h: 10,
+        story,
+      },
+    });
+    mockToPerson.mockClear();
+
+    await tellViewed(storyFrom(ME, true));
+    await tellViewed(storyFrom(sender.userId, false));
+    expect(mockToPerson).not.toHaveBeenCalled();
+
+    mockToPerson.mockRejectedValueOnce(new Error('offline'));
+    await tellViewed(storyFrom(sender.userId, true));
+    expect(mockToPerson).toHaveBeenCalledTimes(1);
+    expect(mockToPerson.mock.calls[0]?.[0]).toBe(sender.userId);
+    // No notification goes with it.
+    expect(mockToPerson.mock.calls[0]?.[2]).toEqual([]);
+
+    // Back online: sent, and then nothing waits any more.
+    await sendHeldViews();
+    expect(mockToPerson).toHaveBeenCalledTimes(2);
+    await sendHeldViews();
     expect(mockToPerson).toHaveBeenCalledTimes(2);
   });
 });

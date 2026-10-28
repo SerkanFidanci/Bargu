@@ -35,6 +35,7 @@ import {
   withViewed,
 } from './messages';
 import { loadBlocked, saveBlocked } from './blocked';
+import { sendHeldViews } from './outbox';
 import { messagesApi } from './messages-api';
 import { withoutLapsed } from './names';
 import { forgetPhotoFiles, sweepPictureFiles } from './photo';
@@ -174,6 +175,7 @@ onLiveMessage((name, payload) => {
 // After every (re)connection: what came meanwhile, and the list of blocked people.
 onOnline(() => {
   void refreshBlocked().then(() => catchUp());
+  void sendHeldViews();
 });
 
 // A person this phone shares no circle with any more: their items and conversation go

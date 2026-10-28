@@ -57,6 +57,8 @@ const itemSchema = z
     envelope: z.union([chatEnvelopeSchema, directEnvelopeSchema]).optional(),
     /** People who took a screenshot of this phone's photo (docs/ADR/0035 §12). */
     shotBy: z.array(z.uuid()).optional(),
+    /** Who opened this phone's story, with when they first did (docs/ADR/0035 Ek 1). */
+    viewers: z.record(z.uuid(), z.number()).optional(),
   })
   .strict();
 export type ChatItem = z.infer<typeof itemSchema>;
@@ -177,7 +179,8 @@ export function withState<T extends Saved>(saved: T, id: string, state: ChatItem
 
 /**
  * What an opened item does here (docs/ADR/0035 §5): a text or a photo is added; `del` takes back an
- * item only its own sender sent; `shot` marks this phone's photo as screenshot by the sender.
+ * item only its own sender sent; `shot` marks this phone's photo as screenshot by the sender, and
+ * `view` its story as opened by them (the first time is kept).
  */
 export function applyPayload<T extends Saved>(
   saved: T,
@@ -196,6 +199,17 @@ export function applyPayload<T extends Saved>(
     const items = saved.items.map((item) =>
       item.id === payload.target && item.kind === 'photo' && item.from !== from
         ? { ...item, shotBy: [...new Set([...(item.shotBy ?? []), from])] }
+        : item,
+    );
+    return { ...saved, items, seen };
+  }
+  if (payload.kind === 'view') {
+    const items = saved.items.map((item) =>
+      item.id === payload.target &&
+      item.photo?.story === true &&
+      item.from !== from &&
+      item.viewers?.[from] === undefined
+        ? { ...item, viewers: { ...item.viewers, [from]: payload.ts } }
         : item,
     );
     return { ...saved, items, seen };
@@ -341,6 +355,25 @@ export function storiesOf(
       if (a.unseen !== b.unseen) return a.unseen ? -1 : 1;
       return (b.stories.at(-1)?.at ?? 0) - (a.stories.at(-1)?.at ?? 0);
     });
+}
+
+/**
+ * Who saw one of this phone's stories (docs/ADR/0035 Ek 1): from every circle it went to (one item
+ * each, the same file), each person once with when they first opened it, the latest first.
+ */
+export function viewersOf(
+  saved: Pick<Saved, 'items'>,
+  me: string | null,
+  blobId: string,
+): { userId: string; at: number }[] {
+  const first = new Map<string, number>();
+  for (const item of saved.items) {
+    if (item.from !== me || item.photo?.blobId !== blobId) continue;
+    for (const [userId, at] of Object.entries(item.viewers ?? {})) {
+      first.set(userId, Math.min(at, first.get(userId) ?? at));
+    }
+  }
+  return [...first.entries()].map(([userId, at]) => ({ userId, at })).sort((a, b) => b.at - a.at);
 }
 
 /** A story opened on this phone: its ring turns grey once all of that person's are. */

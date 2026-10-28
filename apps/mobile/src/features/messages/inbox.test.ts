@@ -288,4 +288,44 @@ describe('screenshot notices', () => {
     expect(state.items.find((item) => item.id === theirs.id)?.shotBy).toBeUndefined();
     expect(state.seen[aboutTheirs.id]).toBe(aboutTheirs.at);
   });
+
+  it('a story seen: marks only this phone own one, drops one about anyone else (Ek 1)', () => {
+    const { me, ali, context, toPerson } = setup();
+    const storyOf = (from: string): ChatItem => ({
+      id: randomUuid(),
+      conversation: personConversation(ali.userId),
+      from,
+      at: NOW - 5000,
+      kind: 'photo',
+      state: 'sent',
+      photo: {
+        blobId: randomUuid(),
+        key: 'k'.repeat(43),
+        size: 1000,
+        hash: 'h'.repeat(43),
+        w: 10,
+        h: 10,
+        story: true,
+      },
+    });
+    const mine = storyOf(me.userId);
+    const theirs = storyOf(randomUuid());
+    const start = withItem(withItem(EMPTY_MESSAGES, mine), theirs);
+    const view = (target: string): ChatPayload => ({
+      kind: 'view',
+      id: randomUuid(),
+      target,
+      ts: NOW - 100,
+    });
+    const aboutMine = toPerson(ali, me, view(mine.id));
+    const aboutTheirs = toPerson(ali, me, view(theirs.id));
+    const state = ingest(start, [aboutMine, aboutTheirs], context);
+    expect(state.items.find((item) => item.id === mine.id)?.viewers).toEqual({
+      [ali.userId]: NOW - 100,
+    });
+    expect(state.items.find((item) => item.id === theirs.id)?.viewers).toBeUndefined();
+    expect(state.seen[aboutTheirs.id]).toBe(aboutTheirs.at);
+    // Nothing of it shows as an item of the conversation.
+    expect(state.items).toHaveLength(2);
+  });
 });

@@ -58,7 +58,7 @@ function deviceOf(
 
 /**
  * What a closed app is told of an item (docs/ADR/0035 §11), never what it says: a text or a photo,
- * a story, a screenshot of one's photo. Taking an item back tells nobody.
+ * a story, a screenshot of one's photo. Taking an item back or opening a story tells nobody.
  */
 export function pushOf(payload: ChatPayload, circleId: string | undefined): PushBody | null {
   switch (payload.kind) {
@@ -76,6 +76,7 @@ export function pushOf(payload: ChatPayload, circleId: string | undefined): Push
     case 'shot':
       return { kind: 'shot', ts: payload.ts };
     case 'del':
+    case 'view':
       return null;
   }
 }
@@ -372,6 +373,42 @@ export async function sendHeldScreenshots(): Promise<void> {
   for (const item of held) await tellScreenshot(item);
 }
 
+/**
+ * "Gördü" (docs/ADR/0035 Ek 1): this phone opened someone's story for the first time; its sender
+ * alone is told, with a `view` item sealed to them (no notification), so they see who saw it.
+ * Not sent (no connection, the rules not on record, the day's allowance used up): kept for this
+ * run of the app and sent with its first time when the phone is back online.
+ */
+export async function tellViewed(story: ChatItem): Promise<void> {
+  if (story.photo?.story !== true || story.from === useAuth.getState().userId) return;
+  await sendView({
+    to: story.from,
+    payload: { kind: 'view', id: randomUuid(), target: story.id, ts: Date.now() },
+  });
+}
+
+interface HeldView {
+  to: string;
+  payload: ChatPayload;
+}
+
+/** Views not sent yet (this run of the app). */
+const heldViews: HeldView[] = [];
+
+async function sendView(view: HeldView): Promise<void> {
+  const told = await deliver(personConversation(view.to), view.payload);
+  if (told !== 'sent' && !heldViews.some((held) => held.payload.id === view.payload.id)) {
+    heldViews.push(view);
+  }
+}
+
+/** Back online, or the rules accepted: the views that waited go now. */
+export async function sendHeldViews(): Promise<void> {
+  const held = heldViews.splice(0);
+  for (const view of held) await sendView(view);
+}
+
 whenRulesAccepted(() => {
   void sendHeldScreenshots();
+  void sendHeldViews();
 });

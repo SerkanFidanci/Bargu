@@ -469,3 +469,28 @@ Her dilim kendi testleriyle, "başka kullanıcı erişemez" testleri dahil, ayr�
 1. Okundu bilgisi yok (24 saatlik sohbette baskı yaratır).
 2. Staging diski 2 GB (§10).
 3. `OPS_EMAIL` support@otenus.com; e-postada içerik, kişi adı ya da e-posta adresi yok (§9).
+
+## Ek 1 (2026-10-28): Hikayeyi kimin gördüğü
+
+Sahip telefonda denedikten sonra istedi: "Hikayeyi görüntüleyenleri göster." §1'de v1 için "yok"
+denmişti; bu ek o satırı değiştirir. Okundu bilgisi (PM cevabı 1) yine yok; bu yalnız hikaye için.
+
+- Bir hikayeyi ilk kez açan telefon, hikayeyi gönderene `view` öğesi yollar
+  (`id, target = açtığı öğenin id'si, ts`). Öğe `shot` gibi yalnız gönderene, kişisel zarfla gider;
+  çemberin öbür üyeleri görmez. Bildirim gitmez.
+- Alan telefon `view`'u yalnız kendi hikayesi içinse uygular ve her kişinin ilk açtığı anı saklar.
+  Başkasının öğesi için geleni ve kendi hikayesine kendi baktığını atar. Bir hikaye birkaç çembere
+  ayrı öğe olarak gittiği için liste aynı dosyanın bütün öğelerinden birleştirilir.
+- Gönderen hikayesinin altında "N kişi gördü"yü görür; dokununca kişiler ve saatleri listelenir.
+  Liste yalnız onun telefonundadır ve hikayeyle birlikte 24 saatte silinir.
+- Gönderilemeyen `view` (bağlantı yok, kurallar kayıtlı değil, günlük sınır) uygulama açık kaldıkça
+  saklanır, bağlantı gelince ya da kurallar kabul edilince ilk açılış saatiyle gider.
+- Sunucuda değişiklik yok: içerik şifreli, tür sunucuya görünmez. `view` sıradan bir kişisel öğe
+  gibi dakikada 30, günde 500 sınırına sayılır.
+- Hikaye yalnız etkinlik dışı çemberlere gider (§1), bu yüzden gören ile gönderen arasında kişisel
+  öğenin istediği kalıcı çember her zaman vardır.
+- Eski uygulama `view`'u tanımaz ve öğeyi bütünüyle atar; çökme ya da yanlış gösterim olmaz.
+- Üst veri: sunucu 24 saat boyunca "A, B'ye kişisel bir öğe yolladı" bilgisini görür. Hangi
+  hikaye ya da ne olduğu görünmez. Bu, §Sonuçlar'daki üst veri sınırının içindedir.
+- Gizlilik politikası (PM): hikayeyi açanın adı gönderene görünür. Instagram ve WhatsApp'taki gibi
+  bilinen bir davranış; PM metne bir cümle ekler.

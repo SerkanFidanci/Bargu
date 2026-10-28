@@ -114,11 +114,20 @@ export const chatShotSchema = z
   .object({ kind: z.literal('shot'), id: itemId, target: z.uuid(), ts: timestamp })
   .strict();
 
+/**
+ * Someone opened a story (docs/ADR/0035 Ek 1): its sender alone is told, so they see who saw it.
+ * An older app does not know the kind and drops it whole.
+ */
+export const chatViewSchema = z
+  .object({ kind: z.literal('view'), id: itemId, target: z.uuid(), ts: timestamp })
+  .strict();
+
 export const chatPayloadSchema = z.discriminatedUnion('kind', [
   chatTextSchema,
   chatPhotoSchema,
   chatDeleteSchema,
   chatShotSchema,
+  chatViewSchema,
 ]);
 export type ChatPayload = z.infer<typeof chatPayloadSchema>;
 export type ChatPhoto = z.infer<typeof chatPhotoSchema>;

@@ -1504,7 +1504,11 @@
       "repliedToYours": "Hikayene yanıt",
       "reply": "Yanıt yaz",
       "takeBackBody": "Bu hikaye paylaştığın bütün çemberlerden ve sunucudan silinir.",
-      "one": "Hikaye"
+      "one": "Hikaye",
+      "seenBy": "{{count}} kişi gördü",
+      "seenByNone": "Henüz kimse görmedi",
+      "seenByTitle": "Görenler",
+      "seenByNote": "Bu listeyi yalnız sen görürsün. Hikayenle birlikte 24 saatte silinir."
     },
     "rules": {
       "title": "Topluluk kuralları",
@@ -1523,6 +1527,9 @@
         "scams": "dolandırıcılık"
       }
     },
-    "retake": "Gönderilemedi, yeniden çek"
+    "retake": "Gönderilemedi, yeniden çek",
+    "today": "Bugün",
+    "yesterday": "Dün",
+    "tapToOpen": "Açmak için dokun"
   }
 }

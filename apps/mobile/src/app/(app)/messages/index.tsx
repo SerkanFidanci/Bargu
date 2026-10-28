@@ -31,6 +31,7 @@ import { Avatar } from '@/ui/avatar';
 import { Badge } from '@/ui/badge';
 import { EmptyState } from '@/ui/empty-state';
 import { Hint } from '@/ui/hint';
+import { ListGroup } from '@/ui/list-group';
 import { ListRow } from '@/ui/list-row';
 import { PressableScale } from '@/ui/pressable-scale';
 import { Screen, SectionTitle } from '@/ui/screen';
@@ -39,11 +40,12 @@ import { Text } from '@/ui/text';
 /**
  * "Mesajlar" (docs/ADR/0035 §1): stories first (one's own to share, then whoever has one, the
  * unseen first); the conversations of the last 24 hours, the newest first, each with what came
- * last and how many are unread; then the circles and people to start one with. A friendship is
- * the person's own conversation, not a circle's.
+ * last, when, and how many are unread; then the circles and people to start one with. A friendship
+ * is the person's own conversation, not a circle's. Each group on its own card, a line between its
+ * rows (the owner, 2026-10-28).
  */
 export default function MessagesScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const me = useAuth((state) => state.userId);
   const circles = useCircles().data ?? [];
@@ -171,82 +173,103 @@ export default function MessagesScreen() {
       ) : (
         <View style={styles.group}>
           <SectionTitle>{t('messages.conversations')}</SectionTitle>
-          {recent.map(({ conversation, last, name }) => {
-            const unread = me === null ? 0 : unreadIn(state, conversation, me);
-            const author = memberIn(circles, last.from);
-            const sender =
-              last.from === me
-                ? t('messages.you')
-                : author === undefined
-                  ? '?'
-                  : memberName(author);
-            const words = last.kind === 'photo' ? t('messages.photo') : (last.text ?? '');
-            const person = conversation.startsWith('p:') ? memberIn(circles, last.from) : undefined;
-            return (
-              <ListRow
-                key={conversation}
-                testID={`conversation-${conversation}`}
-                leading={
-                  conversation.startsWith('c:') ? (
-                    <View style={[styles.circleIcon, { backgroundColor: colors.primarySoft }]}>
-                      <Users color={colors.primary} size={20} strokeWidth={2.25} />
+          <ListGroup testID="conversations">
+            {recent.map(({ conversation, last, name }) => {
+              const unread = me === null ? 0 : unreadIn(state, conversation, me);
+              const author = memberIn(circles, last.from);
+              const sender =
+                last.from === me
+                  ? t('messages.you')
+                  : author === undefined
+                    ? '?'
+                    : memberName(author);
+              const words = last.kind === 'photo' ? t('messages.photo') : (last.text ?? '');
+              const person = conversation.startsWith('p:')
+                ? memberIn(circles, last.from)
+                : undefined;
+              const time = new Date(last.at).toLocaleTimeString(i18n.language, {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+              return (
+                <ListRow
+                  key={conversation}
+                  testID={`conversation-${conversation}`}
+                  leading={
+                    conversation.startsWith('c:') ? (
+                      <View style={[styles.circleIcon, { backgroundColor: colors.primarySoft }]}>
+                        <Users color={colors.primary} size={20} strokeWidth={2.25} />
+                      </View>
+                    ) : (
+                      <Avatar
+                        avatar={person?.avatar ?? null}
+                        name={name}
+                        userId={conversation.slice(2)}
+                      />
+                    )
+                  }
+                  title={name}
+                  subtitle={conversation.startsWith('c:') ? `${sender}: ${words}` : words}
+                  trailing={
+                    <View style={styles.trailing}>
+                      <Text variant="caption" color={unread > 0 ? 'primary' : 'textMuted'}>
+                        {time}
+                      </Text>
+                      {unread > 0 ? <Badge label={String(unread)} tone="primary" /> : null}
                     </View>
-                  ) : (
-                    <Avatar
-                      avatar={person?.avatar ?? null}
-                      name={name}
-                      userId={conversation.slice(2)}
-                    />
-                  )
-                }
-                title={name}
-                subtitle={conversation.startsWith('c:') ? `${sender}: ${words}` : words}
-                trailing={unread > 0 ? <Badge label={String(unread)} tone="primary" /> : undefined}
-                accessibilityLabel={
-                  unread > 0 ? `${name}, ${t('messages.unread', { count: unread })}` : name
-                }
-                onPress={() => {
-                  open(conversation);
-                }}
-              />
-            );
-          })}
+                  }
+                  accessibilityLabel={
+                    unread > 0 ? `${name}, ${t('messages.unread', { count: unread })}` : name
+                  }
+                  onPress={() => {
+                    open(conversation);
+                  }}
+                />
+              );
+            })}
+          </ListGroup>
         </View>
       )}
       {groups.length === 0 ? null : (
         <View style={styles.group}>
           <SectionTitle>{t('messages.circles')}</SectionTitle>
-          {groups.map((circle) => (
-            <ListRow
-              key={circle.id}
-              testID={`start-${circle.id}`}
-              leading={
-                <View style={[styles.circleIcon, { backgroundColor: colors.primarySoft }]}>
-                  <Users color={colors.primary} size={20} strokeWidth={2.25} />
-                </View>
-              }
-              title={circle.name ?? ''}
-              onPress={() => {
-                open(circleConversation(circle.id));
-              }}
-            />
-          ))}
+          <ListGroup>
+            {groups.map((circle) => (
+              <ListRow
+                key={circle.id}
+                testID={`start-${circle.id}`}
+                leading={
+                  <View style={[styles.circleIcon, { backgroundColor: colors.primarySoft }]}>
+                    <Users color={colors.primary} size={20} strokeWidth={2.25} />
+                  </View>
+                }
+                title={circle.name ?? ''}
+                onPress={() => {
+                  open(circleConversation(circle.id));
+                }}
+              />
+            ))}
+          </ListGroup>
         </View>
       )}
       {people.length === 0 ? null : (
         <View style={styles.group}>
           <SectionTitle>{t('messages.people')}</SectionTitle>
-          {people.map((person) => (
-            <ListRow
-              key={person.userId}
-              testID={`start-${person.userId}`}
-              leading={<Avatar avatar={person.avatar} name={person.name} userId={person.userId} />}
-              title={person.name}
-              onPress={() => {
-                open(personConversation(person.userId));
-              }}
-            />
-          ))}
+          <ListGroup>
+            {people.map((person) => (
+              <ListRow
+                key={person.userId}
+                testID={`start-${person.userId}`}
+                leading={
+                  <Avatar avatar={person.avatar} name={person.name} userId={person.userId} />
+                }
+                title={person.name}
+                onPress={() => {
+                  open(personConversation(person.userId));
+                }}
+              />
+            ))}
+          </ListGroup>
         </View>
       )}
       {rules.sheet}
@@ -265,6 +288,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  trailing: { alignItems: 'flex-end', gap: space.xs },
   circleIcon: {
     width: avatarSize.md,
     height: avatarSize.md,
