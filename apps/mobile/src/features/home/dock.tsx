@@ -31,7 +31,8 @@ export interface DockProps {
 
 /**
  * The bar at the bottom of the map: Circles · Messages · Add · Me (BARGU_PLAN §4.3; Messages since
- * docs/ADR/0035).
+ * docs/ADR/0035). The + stands exactly in the middle (the owner, 2026-10-28): two halves of equal
+ * width, Circles and Messages in the left one, Me in the right one.
  */
 export function Dock({
   me,
@@ -63,40 +64,42 @@ export function Dock({
         },
       ]}
     >
-      <DockItem
-        label={t('main.dock.circles')}
-        accessibilityLabel={
-          requests > 0
-            ? t('main.dock.circlesWithRequests', { count: requests })
-            : t('main.dock.circles')
-        }
-        onPress={onCircles}
-        testID="dock-circles"
-        active={active === 'circles'}
-      >
-        <View>
-          <Users
-            color={active === 'circles' ? colors.primary : colors.text}
-            size={24}
-            strokeWidth={2.25}
-          />
-          {requests > 0 ? <RequestBadge count={requests} /> : null}
-        </View>
-      </DockItem>
-      <DockItem
-        label={t('messages.dock')}
-        accessibilityLabel={
-          unread > 0 ? t('messages.dockUnread', { count: unread }) : t('messages.dock')
-        }
-        onPress={onMessages}
-        testID="dock-messages"
-        active={false}
-      >
-        <View>
-          <MessageCircle color={colors.text} size={24} strokeWidth={2.25} />
-          {unread > 0 ? <RequestBadge count={unread} /> : null}
-        </View>
-      </DockItem>
+      <View style={styles.half}>
+        <DockItem
+          label={t('main.dock.circles')}
+          accessibilityLabel={
+            requests > 0
+              ? t('main.dock.circlesWithRequests', { count: requests })
+              : t('main.dock.circles')
+          }
+          onPress={onCircles}
+          testID="dock-circles"
+          active={active === 'circles'}
+        >
+          <View>
+            <Users
+              color={active === 'circles' ? colors.primary : colors.text}
+              size={24}
+              strokeWidth={2.25}
+            />
+            {requests > 0 ? <RequestBadge count={requests} /> : null}
+          </View>
+        </DockItem>
+        <DockItem
+          label={t('messages.dock')}
+          accessibilityLabel={
+            unread > 0 ? t('messages.dockUnread', { count: unread }) : t('messages.dock')
+          }
+          onPress={onMessages}
+          testID="dock-messages"
+          active={false}
+        >
+          <View>
+            <MessageCircle color={colors.text} size={24} strokeWidth={2.25} />
+            {unread > 0 ? <RequestBadge count={unread} /> : null}
+          </View>
+        </DockItem>
+      </View>
       <Animated.View style={[turned, styles.add, glow === undefined ? null : { boxShadow: glow }]}>
         <IconButton
           testID="dock-add"
@@ -107,9 +110,16 @@ export function Dock({
           onPress={onAdd}
         />
       </Animated.View>
-      <DockItem label={t('main.dock.me')} onPress={onMe} testID="dock-me" active={active === 'me'}>
-        <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="sm" userId={me.userId} />
-      </DockItem>
+      <View style={styles.half}>
+        <DockItem
+          label={t('main.dock.me')}
+          onPress={onMe}
+          testID="dock-me"
+          active={active === 'me'}
+        >
+          <Avatar avatar={me.avatar} name={me.displayName ?? '?'} size="sm" userId={me.userId} />
+        </DockItem>
+      </View>
     </View>
   );
 }
@@ -177,13 +187,14 @@ const styles = StyleSheet.create({
   dock: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
     borderRadius: radius.xl,
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     marginHorizontal: space.lg,
     borderWidth: StyleSheet.hairlineWidth * 2,
   },
+  /** Each side of the +: as wide as the other, so the + is in the middle whatever they hold. */
+  half: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly' },
   underline: { width: space.xl, height: space.xs - 1, borderRadius: radius.pill },
   add: { borderRadius: radius.pill },
   badge: {

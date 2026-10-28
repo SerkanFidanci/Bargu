@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { ShoppingBag } from 'lucide-react-native';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
@@ -42,6 +42,9 @@ export function StoreButton({ level }: { level: EffectLevel }) {
         : t('store.button.free');
 
   const width = useSharedValue(0);
+  // The band is drawn at the pill's size as it is now: its line can change (the plan arrives), and a
+  // band sized once stayed narrower than the pill (the owner, 2026-10-28).
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const shine = useSharedValue(0);
   const times = timesAt(level, storeFx.shines);
   useEffect(() => {
@@ -76,19 +79,23 @@ export function StoreButton({ level }: { level: EffectLevel }) {
         router.push('/store');
       }}
       onLayout={(event) => {
-        width.value = event.nativeEvent.layout.width;
+        const { width: w, height: h } = event.nativeEvent.layout;
+        width.value = w;
+        setSize((current) => (current?.w === w && current.h === h ? current : { w, h }));
       }}
-      style={[styles.pill, { boxShadow: elevation.raised }]}
+      style={[styles.pill, { backgroundColor: colors.promo, boxShadow: elevation.raised }]}
     >
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-        <Defs>
-          <LinearGradient id="store-band" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={colors.primary} />
-            <Stop offset="1" stopColor={colors.promo} />
-          </LinearGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill="url(#store-band)" />
-      </Svg>
+      {size === null ? null : (
+        <Svg testID="store-band" style={StyleSheet.absoluteFill} width={size.w} height={size.h}>
+          <Defs>
+            <LinearGradient id="store-band" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={colors.primary} />
+              <Stop offset="1" stopColor={colors.promo} />
+            </LinearGradient>
+          </Defs>
+          <Rect width={size.w} height={size.h} fill="url(#store-band)" />
+        </Svg>
+      )}
       <Animated.View
         pointerEvents="none"
         style={[styles.light, { backgroundColor: colors.promoShine }, light]}
