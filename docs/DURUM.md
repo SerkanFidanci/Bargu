@@ -18,6 +18,36 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 8 — Etkinlik Çemberleri      | ✅ Onaylandı (telefonda botla denendi; + planlama, geçmiş)                                                                                                                                |
 | Faz 9 — Güvenlik & Uyum          | ✅ Onaylandı (+ anahtar düzeltmesi, haritada çıkartma ve ada)                                                                                                                             |
 | Faz 9B — Para modeli & Bargu+    | ✅ PM onayı 2026-10-22 (kod ve testler); telefon denemeleri ve kullanılabilirlik testi sahipte; son APK `10d58b9` (seviye 5, katılım yanıtı, buluşma noktası ve Düzenle), kurulum sahipte |
+| Faz 9C — Kullanışlılık & Zenly   | Paket A kodlandı (2026-10-29): renk, + menüsü, kişi kartı, tek kart, hayalet adları, ipuçları, boş ekranlar, sorun bildir, emoji tepki, koyu tema düzeltmesi. APK ve QA turu: aşağıda     |
+
+## Faz 9C — Paket A (2026-10-29)
+
+Plan: BARGU_PLAN "Faz 9C", PM'in ürün raporu §2 ve §4. Sahip: "Lacivert turuncu renk geçişleri" ve
+"Devam et hepsini yap planla herşeyi". Sıra: Ek 1 şartları (`f43919f`), sonra A.
+
+| Madde           | Ne yapıldı                                                                                                                                                                                                                                                                 | Commit    |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| T1 renk         | Lacivert ana renk, logonun turuncusu vurgu, mor tamamen çıktı. Geçiş: lacivert → kırmızı → koyu turuncu (ortası çamurlaşmıyor, beyaz yazı her noktada AA). + düğmesi, hikaye halkası, kendi mesajların, Mağaza şeridi, ana düğmeler. Bildirim rengi lacivert. ADR 0008 eki | `2c5f9f8` |
+| T2 + menüsü     | Dört hızlı iş: Fotoğraf çek, Arkadaş ekle, Buluşma, Güvendeyim                                                                                                                                                                                                             | `be26e99` |
+| T3 kişi kartı   | Önde Mesaj, Dürt, Yol tarifi; hikaye, buluşma, geçmiş, bildirimler, çember "Daha fazla" altında                                                                                                                                                                            | `ddf5061` |
+| T4 tek kart     | Haritada soru soran kartlar zaten sırayla geliyordu; artık altında "+N" kaç kartın beklediğini söylüyor                                                                                                                                                                    | `3ff3f8e` |
+| T5 hayalet      | Harita düğmesi de Ben'deki üç seçeneği aynı adlarla açıyor (Kapalı / Dondur / Gizle); yanında kısa etiket; her yerde "Hayalet: Dondur/Gizle"                                                                                                                               | `9abd992` |
+| T6 ipuçları     | "+ ile hızlı işler", "Kişiye uzun bas", "Halka = yeni hikaye"; her biri bir kez, sade modda hareketsiz. Kişi kartında yüzün etrafında hikaye halkası, dokununca açılıyor                                                                                                   | `b9f5a0b` |
+| T7 boş ekran    | Kimse yokken haritada "Davet linki gönder" ve "QR ile ekle"; boş Mesajlar'da davet linki                                                                                                                                                                                   | `3eee477` |
+| Ö1 sorun bildir | Ben → Yardım → Sorun bildir: kısa yazı, telefonun e-posta uygulaması açılır (support@otenus.com, sürüm ve telefon modeli ekli; konum, mesaj, ad yok). Sunucu ve yeni bağımlılık yok                                                                                        | `3299ff8` |
+| Ö3 emoji tepki  | Çift dokunuş ❤️, basılı tutunca 6 emoji; hikayede kalp. Şifreli `react` öğesi, bildirim yok, 24 saat. Sunucu değişmedi. ADR 0035 Ek 2                                                                                                                                      | `1199641` |
+| T8 koyu tema    | Koyu temada alt çubuğun seçili yazısı 2,96:1'di; ana renk açık maviye çekildi (6,2:1), testler küçük yazı kontrastını istiyor                                                                                                                                              | `bf8aec6` |
+
+Testler: mobil 1393 test, şema ve kripto testleri yeşil.
+
+Açık işler:
+
+- Ekran görüntüleri (PM istedi: harita, Mesajlar, Mağaza; açık ve koyu). Bu makinede emülatör yok;
+  QA ya da sahip APK ile alacak.
+- Gizlilik ve Play etkisi (PM günceller): Ö1'de destek e-postasına giden bilgiler (kullanıcının
+  e-posta adresi, yazdığı metin, sürüm, telefon modeli, isterse ekran görüntüsü). Ö3'te yeni veri
+  yok (şifreli öğe).
+- QA-39 bulguları gelince düzeltilir.
 
 ## Ortamlar
 
