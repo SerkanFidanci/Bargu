@@ -579,6 +579,16 @@ Kurallar:
     - Ö7 kapalıyken derin link ile girilemesin.
   - Düşük 1 PM kararı olarak kalıyor: 15–17, en çok 8 kişilik karışık çembere Yakındayım gönderebilir.
   - Hepsi Ö12, N2 ve N3 ile aynı APK'ya girer; o APK'da QA-42 yapılır.
+- **QA-42 (`c8896be`, 2026-10-30):** yüksek bulgu yok. QA-41 düzeltmeleri, bitiş mesajı şartı, Ö12, N3, bağlantı kalkanı, Ö7'nin kapalı olması ve Android yedeğinin kapalı olması doğrulandı. Mobil 1497, API 368 test geçti.
+  - **Orta 1:** N2 ekranı eksikti; "Hepsi burada" diyordu ama THREAT_MODEL'deki listenin çoğu ekranda yoktu. Ekran gruplu listeye geçer ve tablodan testle beslenir. Politikanın "Kullanım olayları" satırı tamamlandı.
+  - **Orta 2:** "Göremez" listesinde "kime konum gösterdiğin" ve "hayalet modun" vardı. Sunucu hangi çembere zarf gittiğini görüyor, bu yüzden bunlar çıkar.
+  - **Düşük 5:**
+    - bitiş bildirimi duraklatma ve çıkışta iptal edilir;
+    - Bargu+ fiyatı Play'den okunur ve okunamazsa gösterilmez;
+    - "Aboneliği yönet" hatası yakalanır;
+    - Ö12'de gelecek tarihli zaman sayılmaz;
+    - büyük yazıda yer adı iki satıra iner.
+  - Hepsi G APK'sına girer; o APK'da QA-43 yapılır.
 - Ö2 pil modu: Canlı / Dengeli / Pil dostu, "bugün GPS şu kadar çalıştı" bilgisiyle (ADR 0036 eki). Sahibin pil ölçümünden sonra.
 - Ö6 kişiye süreli paylaşım ve tek kişiye sessiz dondurma: "21:30'a kadar" (Faz 11'den öne alındı).
 - Ö8 "Yakındayım, gelir misin?": tek dokunuş, seçilen çembere. Mesafeyi alan telefon hesaplar; yeni şifreli tür.
