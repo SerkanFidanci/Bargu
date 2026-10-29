@@ -17,8 +17,10 @@ import {
   MapPinOff,
   MessageCircle,
   Navigation,
+  TriangleAlert,
   UserRound,
   Users,
+  UserX,
   WifiOff,
   X,
 } from 'lucide-react-native';
@@ -261,7 +263,7 @@ export function PersonCard({
   from: ScreenPoint;
   /** Place name, once the map has it (null: none nearby, undefined: still looking). */
   place: string | null | undefined;
-  onAction: (action: PersonAction | 'meet' | 'message' | 'story') => void;
+  onAction: (action: PersonAction | 'meet' | 'message' | 'story' | 'report' | 'block') => void;
   /** The card's height, so the map keeps the person visible above it. */
   onHeight: (height: number) => void;
   /**
@@ -450,6 +452,15 @@ export function PersonCard({
               title: t(`map.actions.${circleLabel}`),
               action: 'profile' as const,
             },
+            // "Bildir" and "Engelle" on every person's card (docs/ADR/0035 §9, QA-40 O2): also for
+            // someone met only at an event, who has no conversation of their own.
+            {
+              key: 'report',
+              icon: TriangleAlert,
+              title: t('messages.report'),
+              action: 'report' as const,
+            },
+            { key: 'block', icon: UserX, title: t('messages.block'), action: 'block' as const },
           ]
             .filter((row) => row !== null)
             .map((row, index) => (

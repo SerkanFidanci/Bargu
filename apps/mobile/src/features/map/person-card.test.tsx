@@ -112,6 +112,17 @@ describe("a person's card (UX düzeni)", () => {
     expect(screen.queryByTestId('card-more-list')).toBeNull();
   });
 
+  it('reports or blocks them from "Daha fazla", also someone met only at an event (QA-40 O2)', async () => {
+    const onAction = await renderCard('group', false);
+    await fireEvent.press(screen.getByTestId('card-more'));
+    expect(screen.getByTestId('card-report').props.accessibilityLabel).toBe('Bildir');
+    expect(screen.getByTestId('card-block').props.accessibilityLabel).toBe('Engelle');
+    await fireEvent.press(screen.getByTestId('card-report'));
+    expect(onAction).toHaveBeenCalledWith('report');
+    await fireEvent.press(screen.getByTestId('card-block'));
+    expect(onAction).toHaveBeenCalledWith('block');
+  });
+
   it('opens their notifications from "Daha fazla", not only from a long press', async () => {
     const onAction = await renderCard();
     await fireEvent.press(screen.getByTestId('card-more'));

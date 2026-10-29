@@ -33,10 +33,12 @@ export const SEND_RULES = {
   /** The app open: at most every 5 s, and only after moving 10 m… */
   movingIntervalMs: 5_000,
   /**
-   * …the app closed: at most once a minute while moving (ADR 0036), also when the system hands
-   * over positions more often than it was asked to (QA-39)…
+   * …the app closed: about once a minute while moving (ADR 0036), also when the system hands over
+   * positions more often than it was asked to (QA-39). A little under the minute of the system's
+   * batches: at exactly a minute, a batch a moment early was skipped and sends came every ~85 s
+   * (QA-40)…
    */
-  backgroundIntervalMs: 60_000,
+  backgroundIntervalMs: 50_000,
   movingDistanceM: 10,
   /** …or a heartbeat every 5 minutes while still (battery, "still here"). */
   heartbeatMs: 5 * 60_000,

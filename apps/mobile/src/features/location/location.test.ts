@@ -191,7 +191,7 @@ describe('when a location is sent', () => {
     expect(shouldSend(last, GALATA, second - 1, true)).toBe(false);
   });
 
-  it('sends at most once a minute while moving with the app closed, live still live (ADR 0036)', () => {
+  it('sends about once a minute while moving with the app closed, live still live (ADR 0036)', () => {
     const last = { fix: GALATA, sentAt: NOW };
     const soon = NOW + SEND_RULES.movingIntervalMs;
     expect(shouldSend(last, moved(GALATA, 15, soon), soon, false, true)).toBe(false);
@@ -201,7 +201,7 @@ describe('when a location is sent', () => {
     // Someone looking: every second, closed app or not.
     expect(shouldSend(last, GALATA, NOW + SEND_RULES.liveIntervalMs, true, true)).toBe(true);
     // The numbers of the ADR.
-    expect(SEND_RULES.backgroundIntervalMs).toBe(60_000);
+    expect(SEND_RULES.backgroundIntervalMs).toBe(50_000);
     expect(SEND_RULES.heartbeatMs).toBe(5 * 60_000);
   });
 

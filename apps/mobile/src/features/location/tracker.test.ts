@@ -92,7 +92,11 @@ describe('a batch gathered in the background (docs/ADR/0036, QA-39)', () => {
     expect(TRACKING.liveIntervalMs).toBe(1_000);
     expect(SEND_RULES.liveIntervalMs).toBe(900);
     expect(SEND_RULES.liveIntervalMs).toBeLessThan(TRACKING.liveIntervalMs);
-    // Closed and moving: at the rate the service hands positions over (ADR 0036).
-    expect(SEND_RULES.backgroundIntervalMs).toBe(TRACKING.backgroundBatchMs);
+    // Closed and moving: each of the service's minute batches goes, none skipped for coming a
+    // moment early (ADR 0036, QA-40).
+    expect(SEND_RULES.backgroundIntervalMs).toBeLessThan(TRACKING.backgroundBatchMs);
+    expect(SEND_RULES.backgroundIntervalMs).toBeGreaterThanOrEqual(
+      TRACKING.backgroundBatchMs * 0.8,
+    );
   });
 });

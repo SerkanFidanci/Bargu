@@ -55,6 +55,17 @@ describe('"Sorun bildir" (the PM report Ö1, 2026-10-29)', () => {
     open.mockRestore();
   });
 
+  it('keeps the words to 500 characters and counts them (QA-40)', async () => {
+    await render(<HelpScreen />);
+    const field = screen.getByTestId('report-words');
+    await fireEvent.changeText(field, 'a'.repeat(500));
+    expect(screen.getByText('500/500')).toBeTruthy();
+    // Pasted longer: the first 500 stay.
+    await fireEvent.changeText(field, `${'b'.repeat(500)}cc`);
+    expect(screen.getByTestId('report-words').props.value).toBe('b'.repeat(500));
+    expect(screen.getByText(/e-posta açıldığında oraya ekleyebilirsin/)).toBeTruthy();
+  });
+
   it('gives the address when no e-mail app opens', async () => {
     const open = jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('no app'));
     await render(<HelpScreen />);

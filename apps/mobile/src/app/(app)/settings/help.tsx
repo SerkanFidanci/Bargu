@@ -50,12 +50,19 @@ export default function HelpScreen() {
         placeholder={t('help.report.placeholder')}
         value={words}
         onChangeText={(next) => {
-          if (codePointsOf(next) <= REPORT_MAX) setWords(next);
+          // Pasted longer: the first 500 characters stay, not none of it.
+          setWords(
+            codePointsOf(next) <= REPORT_MAX
+              ? next
+              : Array.from(next).slice(0, REPORT_MAX).join(''),
+          );
         }}
         multiline
         numberOfLines={5}
         textAlignVertical="top"
+        helper={t('help.report.count', { count: codePointsOf(words), max: REPORT_MAX })}
       />
+      <Hint>{t('help.report.more')}</Hint>
       <Hint>{t('help.report.includes')}</Hint>
       <Hint>{t('help.report.screenshot')}</Hint>
     </Screen>

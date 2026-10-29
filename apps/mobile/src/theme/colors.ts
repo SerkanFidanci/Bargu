@@ -113,7 +113,7 @@ export const darkColors: ColorTokens = {
   brandGradient: ['#2A55B8', sweepRed, sweepOrange],
   onBrand: '#FFFFFF',
   brandShine: 'rgba(255, 255, 255, 0.3)',
-  bubble: '#1F3360',
+  bubble: '#1C2E58',
 };
 
 /**

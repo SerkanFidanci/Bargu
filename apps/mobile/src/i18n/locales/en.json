@@ -1640,7 +1640,9 @@
       "subject": "Bargu problem report",
       "version": "Version",
       "phone": "Phone",
-      "noMail": "No e-mail app could be opened. You can write to {{address}}."
+      "noMail": "No e-mail app could be opened. You can write to {{address}}.",
+      "count": "{{count}}/{{max}}",
+      "more": "If you want to write more, add it in the e-mail once it opens."
     }
   }
 }

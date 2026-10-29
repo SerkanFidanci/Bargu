@@ -4,8 +4,11 @@ import { env } from '@/config/env';
 
 /** Where a problem report goes (the PM report Ö1, 2026-10-29). */
 export const SUPPORT_EMAIL = 'support@otenus.com';
-/** A report's own words stay short: what happened and while doing what. */
-export const REPORT_MAX = 1000;
+/**
+ * A report's own words stay short: what happened and while doing what. Longer, the mailto address
+ * grew past what some e-mail apps open (their body came empty, QA-40); more can be written there.
+ */
+export const REPORT_MAX = 500;
 
 /**
  * The phone as a report names it: maker, model and system version, nothing that tells this phone

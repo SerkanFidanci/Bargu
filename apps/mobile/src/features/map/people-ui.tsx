@@ -15,6 +15,7 @@ import { useMyFix } from '../location/engine';
 import { useLocations } from '../location/receive';
 import { useMe } from '../profile/queries';
 import { writablePeople } from '../messages/names';
+import { useSafety } from '../messages/safety';
 import { MuteSheet } from '../notifications/mute-sheet';
 import { poke, pokeWith } from '../social/poke';
 import { type PokeChoice, PokeSheet } from '../social/poke-sheet';
@@ -61,6 +62,10 @@ export function usePeopleUi(
   const [place, setPlace] = useState<{ userId: string; name: string | null } | null>(null);
   const focused = useRef<string | null>(null);
   const muteSheet = useRef<SheetRef>(null);
+  // "Bildir" and "Engelle" from a person's card; blocked, their card closes.
+  const safety = useSafety(() => {
+    closeCard();
+  });
   const [muting, setMuting] = useState<{ userId: string; name: string } | null>(null);
   const groupSheet = useRef<SheetRef>(null);
   const [group, setGroup] = useState<{ people: GroupMember[]; from: ScreenPoint } | null>(null);
@@ -145,9 +150,19 @@ export function usePeopleUi(
   );
 
   const act = useCallback(
-    (userId: string, action: PersonAction | 'meet' | 'message' | 'story') => {
+    (userId: string, action: PersonAction | 'meet' | 'message' | 'story' | 'report' | 'block') => {
       const person = personView(userId, circles, useLocations.getState());
       if (person === null) return;
+      // As in a conversation (docs/ADR/0035 §9): the reasons to report, or blocking with what it
+      // does not do ("Çemberden ayrıl" right there).
+      if (action === 'report') {
+        safety.askReport({ userId: person.userId });
+        return;
+      }
+      if (action === 'block') {
+        safety.askBlock(person.userId);
+        return;
+      }
       if (action === 'meet') {
         meet(person);
         return;
@@ -174,7 +189,7 @@ export function usePeopleUi(
         },
       });
     },
-    [circles, choosePoke, meet],
+    [circles, choosePoke, meet, safety],
   );
 
   const handlersFor = useCallback(
@@ -282,6 +297,7 @@ export function usePeopleUi(
         }}
       />
       <MuteSheet ref={muteSheet} person={muting} />
+      {safety.sheet}
       <PokeSheet
         ref={pokeSheet}
         name={poking?.name ?? null}

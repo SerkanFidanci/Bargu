@@ -1,8 +1,9 @@
 // Renders the invite card image (the Open Graph / Twitter image of the invite page, 1200x630) and
 // writes it into the API as a base64 TypeScript module (no image tools needed, no new dependency):
 //   node scripts/build-invite-card.mjs
-// The same white location pin with a coral dot on the brand violet as the app icon
-// (apps/mobile/scripts/build-icons.mjs), with a few quiet rings around it. One generic image for
+// The white location pin of the app icon (apps/mobile/scripts/build-icons.mjs) with a navy dot, on
+// the brand's sweep from left to right (navy, red, orange: apps/mobile/src/theme/colors.ts, ADR 0008
+// Ek 2026-10-29), with a few quiet rings around it. One generic image for
 // every invite: it shows no name, photo or circle (docs/ADR/0009 Ek, 2026-10-22). Change the shape
 // or colours here and re-run; commit the result.
 import { Buffer } from 'node:buffer';
@@ -12,9 +13,24 @@ import { crc32, deflateSync } from 'node:zlib';
 
 const WIDTH = 1200;
 const HEIGHT = 630;
-const VIOLET = [0x5b, 0x34, 0xf2];
+/** The brand's sweep (lightColors.brandGradient), evenly spaced from left to right. */
+const SWEEP = [
+  [0x1e, 0x3f, 0x8a],
+  [0xd2, 0x30, 0x3a],
+  [0xc8, 0x4b, 0x0e],
+];
 const WHITE = [0xff, 0xff, 0xff];
-const CORAL = [0xff, 0x6a, 0x3d];
+const NAVY = SWEEP[0];
+
+/** The sweep's colour at a fraction of the width: across the image only, so rows repeat and the
+ * PNG stays small. */
+function sweepAt(t) {
+  const at = Math.min(1, Math.max(0, t)) * (SWEEP.length - 1);
+  const index = Math.min(Math.floor(at), SWEEP.length - 2);
+  const from = SWEEP[index];
+  const to = SWEEP[index + 1];
+  return from.map((value, c) => value + (to[c] - value) * (at - index));
+}
 const SAMPLES = 4; // supersampling per axis for smooth edges
 /** Pin size relative to the image height (the icon script's `scale`). */
 const PIN_SCALE = 1;
@@ -74,10 +90,10 @@ function render() {
           let color = WHITE;
           if (!pinCoverage(x, y)) {
             if (dotCoverage(x, y)) {
-              color = CORAL;
+              color = NAVY;
             } else {
               const ring = ringCoverage(fx, fy);
-              color = VIOLET.map((value, c) => value * (1 - ring) + WHITE[c] * ring);
+              color = sweepAt(fx / WIDTH).map((value, c) => value * (1 - ring) + WHITE[c] * ring);
             }
           }
           for (let c = 0; c < 3; c++) sum[c] += color[c];

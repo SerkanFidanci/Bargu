@@ -62,8 +62,8 @@ const WORDS: Record<InviteLanguage, Words> = {
  * The page's one stylesheet, inline and allowed by its hash (no file to fetch, nothing from
  * anywhere else). Colours follow the account page's (apps/api/src/auth/web-page.ts), light and dark.
  */
-const STYLE = `:root{color-scheme:light dark;--bg:#ffffff;--text:#16151c;--muted:#5e5c68;--primary:#5b34f2;--dot:#ff6a3d}
-@media (prefers-color-scheme:dark){:root{--bg:#121118;--text:#f3f2f7;--muted:#a9a7b3;--primary:#8c72ff}}
+const STYLE = `:root{color-scheme:light dark;--bg:#ffffff;--text:#0e1a33;--muted:#55607a;--primary:#1e3f8a;--dot:#f26a21}
+@media (prefers-color-scheme:dark){:root{--bg:#0a1630;--text:#f1f5ff;--muted:#a7b3d0;--primary:#6e95f2}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:28rem;margin:0 auto;padding:3rem 1rem;display:grid;gap:1rem;justify-items:center;text-align:center}
@@ -140,7 +140,7 @@ export function renderInvitePage(language: InviteLanguage, host: string): string
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="theme-color" content="#5b34f2">
+<meta name="theme-color" content="#1e3f8a">
 <title>${title}</title>
 <meta name="description" content="${description}">
 <meta property="og:type" content="website">

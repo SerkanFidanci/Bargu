@@ -40,6 +40,9 @@ const pairs: readonly (readonly [ColorName, ColorName, number])[] = [
   // Messages: others' words on their grey (one's own are on the sweep).
   ['text', 'bubble', BODY],
   ['textMuted', 'bubble', BODY],
+  // A link or a failed item's words on the grey of a message (QA-40: 4.26 and 4.43 at night).
+  ['primary', 'bubble', BODY],
+  ['danger', 'bubble', BODY],
 ];
 
 describe.each([

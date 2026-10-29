@@ -1640,7 +1640,9 @@
       "subject": "Bargu sorun bildirimi",
       "version": "Sürüm",
       "phone": "Telefon",
-      "noMail": "E-posta uygulaması açılamadı. {{address}} adresine yazabilirsin."
+      "noMail": "E-posta uygulaması açılamadı. {{address}} adresine yazabilirsin.",
+      "count": "{{count}}/{{max}}",
+      "more": "Daha uzun yazmak istersen e-posta açıldığında oraya ekleyebilirsin."
     }
   }
 }

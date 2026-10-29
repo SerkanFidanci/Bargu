@@ -60,13 +60,13 @@ export const WEB_PAGE_HTML = `<!doctype html>
 
 export const WEB_PAGE_CSS = `:root {
   color-scheme: light dark;
-  --bg: #ffffff; --text: #16151c; --muted: #5e5c68; --surface: #f5f4f1;
-  --primary: #5b34f2; --on-primary: #ffffff; --danger: #c62f2f; --on-danger: #ffffff;
+  --bg: #ffffff; --text: #0e1a33; --muted: #55607a; --surface: #f3f6fb;
+  --primary: #1e3f8a; --on-primary: #ffffff; --danger: #c62f2f; --on-danger: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121118; --text: #f3f2f7; --muted: #a9a7b3; --surface: #1f1d27;
-    --primary: #8c72ff; --on-primary: #121118; --danger: #ff6b6b; --on-danger: #121118;
+    --bg: #0a1630; --text: #f1f5ff; --muted: #a7b3d0; --surface: #0f1f3e;
+    --primary: #6e95f2; --on-primary: #0a1630; --danger: #ff6b6b; --on-danger: #121118;
   }
 }
 * { box-sizing: border-box; }
