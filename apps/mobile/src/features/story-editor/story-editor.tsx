@@ -29,11 +29,12 @@ import {
   View,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { FadeIn, FadeOut, useSharedValue } from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { editorFx, mediaColors, radius, space, touchTarget } from '@/theme';
+import { useMotion } from '@/theme/use-motion';
 import { Button } from '@/ui/button';
 import { PressableScale } from '@/ui/pressable-scale';
 import { toast } from '@/ui/toast';
@@ -93,6 +94,8 @@ export function StoryEditor({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
+  // A filter's name pops in; at sade mod "off" it only fades.
+  const motion = useMotion();
   const [box, setBox] = useState<{ width: number; height: number } | null>(null);
   const [edit, setEdit] = useState<Edit>(NO_EDIT);
   const [mode, setMode] = useState<Mode>('idle');
@@ -315,8 +318,8 @@ export function StoryEditor({
       {named === null ? null : (
         <Animated.View
           key={named}
-          entering={FadeIn}
-          exiting={FadeOut}
+          entering={motion.pop}
+          exiting={motion.fadeOut}
           pointerEvents="none"
           style={styles.named}
         >

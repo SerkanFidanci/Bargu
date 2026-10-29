@@ -28,6 +28,7 @@ import {
   sealedFileOf,
   sweepPictureFiles,
   uploadPhoto,
+  withoutExif,
 } from './photo';
 
 const JPEG = new Uint8Array([0xff, 0xd8, 0x01, 0x02, 0x03, 0xff, 0xd9]);
@@ -91,5 +92,34 @@ describe('the pictures a closed app left', () => {
     expect(mockFolders.get('Camera')?.delete).toHaveBeenCalledTimes(1);
     expect(mockFolders.get('ImageManipulator')?.delete).not.toHaveBeenCalled();
     expect([...mockFolders.keys()].sort()).toEqual(['Camera', 'ImageManipulator']);
+  });
+});
+
+describe('no EXIF in what is sealed (the PM, 2026-10-29), edited or not', () => {
+  /** A JPEG segment: its marker and its bytes, with the length JPEG gives it. */
+  const segment = (marker: number, bytes: number[]) => [
+    0xff,
+    marker,
+    (bytes.length + 2) >> 8,
+    (bytes.length + 2) & 255,
+    ...bytes,
+  ];
+  const exif = [0x45, 0x78, 0x69, 0x66]; // "Exif"
+  const jpeg = (...segments: number[][]) =>
+    new Uint8Array([0xff, 0xd8, ...segments.flat(), 0xff, 0xda, 0, 2, 1, 2, 3, 0xff, 0xd9]);
+
+  it('takes out every APP1 segment (EXIF with its GPS, XMP) and keeps the picture whole', () => {
+    const app0 = segment(0xe0, [74, 70, 73, 70, 0]);
+    const gps = segment(0xe1, [...exif, 0, 0, 9, 9, 9]);
+    const xmp = segment(0xe1, [104, 116, 116, 112]);
+    const table = segment(0xdb, [0, 1, 2]);
+    expect([...withoutExif(jpeg(app0, gps, table, xmp))]).toEqual([...jpeg(app0, table)]);
+  });
+
+  it('leaves alone what it cannot read as JPEG segments', () => {
+    const odd = new Uint8Array([1, 2, 3, 4, 5]);
+    expect(withoutExif(odd)).toBe(odd);
+    const cut = new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0x10, 0x00, 1]);
+    expect(withoutExif(cut)).toBe(cut);
   });
 });

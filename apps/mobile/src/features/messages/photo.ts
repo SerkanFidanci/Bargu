@@ -40,6 +40,42 @@ export type PhotoFile = Pick<ChatPhoto, 'blobId' | 'key' | 'size' | 'hash' | 'w'
 /** base64 (the image tools) → base64url (our encoding). */
 const toUrl = (b64: string) => b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+const SOI = 0xd8;
+const SOS = 0xda;
+/** APP1: where EXIF (with any GPS) and XMP live. */
+const APP1 = 0xe1;
+
+/**
+ * The JPEG without any APP1 segment (EXIF, with any place in it, and XMP), checked before a photo
+ * is sealed (the PM, 2026-10-29): the encoders used here write none, and this makes sure of it,
+ * edited or not. A file it cannot read as JPEG segments is left as it is.
+ */
+export function withoutExif(jpeg: Uint8Array): Uint8Array {
+  const byte = (at: number) => jpeg[at] ?? 0;
+  if (jpeg.length < 4 || byte(0) !== 0xff || byte(1) !== SOI) return jpeg;
+  const kept: Uint8Array[] = [jpeg.subarray(0, 2)];
+  let at = 2;
+  while (at + 4 <= jpeg.length) {
+    if (byte(at) !== 0xff) return jpeg;
+    const marker = byte(at + 1);
+    if (marker === SOS) {
+      kept.push(jpeg.subarray(at));
+      const out = new Uint8Array(kept.reduce((sum, part) => sum + part.length, 0));
+      let offset = 0;
+      for (const part of kept) {
+        out.set(part, offset);
+        offset += part.length;
+      }
+      return out;
+    }
+    const length = (byte(at + 2) << 8) | byte(at + 3);
+    if (length < 2 || at + 2 + length > jpeg.length) return jpeg;
+    if (marker !== APP1) kept.push(jpeg.subarray(at, at + 2 + length));
+    at += 2 + length;
+  }
+  return jpeg;
+}
+
 /** An unencrypted picture written by the camera or the image tools: it does not stay on disk. */
 export function discardFile(uri: string): void {
   try {
@@ -73,7 +109,7 @@ export async function preparePhoto(
       const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress, base64: true });
       discardFile(saved.uri);
       if (saved.base64 === undefined) continue;
-      const jpeg = fromBase64url(toUrl(saved.base64));
+      const jpeg = withoutExif(fromBase64url(toUrl(saved.base64)));
       if (jpeg.length <= PHOTO_JPEG_MAX_BYTES) {
         return {
           jpeg,

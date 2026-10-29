@@ -165,7 +165,14 @@ export default function CameraScreen() {
   if (taken === null) {
     return (
       <View style={[styles.screen, styles.dark]} testID="camera">
-        <CameraView ref={camera} style={StyleSheet.absoluteFill} facing={facing} flash={flash} />
+        {/* The front camera's photo as its preview shows it, mirrored (the PM, 2026-10-29). */}
+        <CameraView
+          ref={camera}
+          style={StyleSheet.absoluteFill}
+          facing={facing}
+          flash={flash}
+          mirror={facing === 'front'}
+        />
         <SafeAreaView style={styles.overlay} pointerEvents="box-none">
           <View style={styles.topBar}>
             <IconButton

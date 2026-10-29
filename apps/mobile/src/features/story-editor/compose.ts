@@ -9,7 +9,12 @@ import {
   TextAlign,
 } from '@shopify/react-native-skia';
 
-import { PHOTO_JPEG_MAX_BYTES, PHOTO_QUALITIES, type TakenPhoto } from '../messages/photo';
+import {
+  PHOTO_JPEG_MAX_BYTES,
+  PHOTO_QUALITIES,
+  type TakenPhoto,
+  withoutExif,
+} from '../messages/photo';
 import { type Edit, inkOn, type Overlay, STICKER_SIZE, TEXT_SIZE } from './edit-model';
 import { filterMatrix } from './filters';
 
@@ -105,7 +110,7 @@ export function composeEdit(
   surface.flush();
   const drawn = surface.makeImageSnapshot();
   for (const quality of PHOTO_QUALITIES) {
-    const jpeg = drawn.encodeToBytes(ImageFormat.JPEG, Math.round(quality * 100));
+    const jpeg = withoutExif(drawn.encodeToBytes(ImageFormat.JPEG, Math.round(quality * 100)));
     if (jpeg.length > 0 && jpeg.length <= PHOTO_JPEG_MAX_BYTES) {
       return { jpeg, w: photo.w, h: photo.h };
     }

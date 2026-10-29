@@ -581,3 +581,15 @@ Sahip: "Kamera ekranı daha düzgün yap, Instagram gibi düzenleme seçeneğini
 - **Testler:** model (sığdırma, ekleme, taşıma, silme, geri alma, filtre matrisleri), düzenleyici
   ekran (Skia taklit edilerek: yazı, renk, kutu, çıkartma, kalem, hiç düzenlenmeyen fotoğraf) ve
   kamera akışı. Fotoğrafa gerçek çizim (compose.ts) telefonda denenir (QA).
+- **PM şartları (2026-10-29):**
+  1. Mühürlenen dosyada EXIF yok: hem çekilen hem düzenlenen JPEG mühürlenmeden önce APP1 bölümlerinden
+     (EXIF ve içindeki GPS, XMP) arındırılır (`withoutExif`, testli); kodlayıcılar zaten yazmıyor.
+  2. Kişi etiketi (@ad), saat, hava durumu ya da konumdan türeyen hiçbir çıkartma yok.
+  3. Yüz filtresi, yapay zekâ, ağdan inen çıkartma ya da filtre yok; emoji sistem yazı tipinden.
+  4. Hareketler Reanimated worklet'leri; süreler motion tokenları (`editorFx`, `useMotion`); sade mod
+     "Kapalı"da filtre adı yalnız solarak gelir. Her düğmenin ekran okuyucu etiketi var; metinler tr
+     ve en.
+  5. Çıktı bugünkü sınırda (en uzun kenar 1600 px, 500 KB). Ön kamerada fotoğraf önizlemedeki gibi
+     aynalanır (`mirror`).
+  6. "Bildir" bugün ne gidiyorsa onu gönderir: mühürlenen dosya düzenlenmiş son görüntüdür, ayrı bir
+     "ham" kopya yoktur.
