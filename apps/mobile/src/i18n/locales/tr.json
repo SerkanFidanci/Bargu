@@ -1308,7 +1308,7 @@
     "now": "Şu anki planın",
     "free": "Bedava: davetle katıldığın, ödeyeni olan çemberlerde her şey açık.",
     "trial": "Deneme: {{days}} gün kaldı. Bitince kendiliğinden ücretliye geçmez.",
-    "renews": "Bargu+ {{plan}}: {{date}} tarihinde yenilenir.",
+    "renews": "Bargu+ {{plan}}: {{date}} tarihinde {{price}} ile yenilenir.",
     "endsOn": "Bargu+ {{plan}}: {{date}} tarihinde biter, yenilenmeyecek.",
     "grace": "Ödeme alınamadı. Bargu+ {{date}} tarihine kadar açık; ödemeyi düzelt.",
     "monthly": "aylık",
@@ -1343,7 +1343,12 @@
     "asked": "Ebeveynine sordun. Onaylayınca Bargu+ açılır ve haber alırsın.",
     "pending": "Ebeveyninin onayı bekleniyor: Bargu+ {{plan}}.",
     "askOther": "Bunun yerine {{plan}} iste",
-    "teenSoon": "Satın almak için ebeveyn onayı gerekiyor. Mağaza bağlantısı henüz yok, yakında burada olacak."
+    "teenSoon": "Satın almak için ebeveyn onayı gerekiyor. Mağaza bağlantısı henüz yok, yakında burada olacak.",
+    "manage": "Aboneliği yönet",
+    "renewalReminder": {
+      "title": "Bargu+ yıllık aboneliğin 3 gün sonra yenileniyor",
+      "body": "{{date}} tarihinde {{price}} alınacak. İstemiyorsan mağazadan iptal edebilirsin; dokun, Bargu+ açılır."
+    }
   },
   "cosmetics": {
     "intro": "Pinin haritada böyle görünür. Süs yalnızca görünüştür: arkadaşların seçtiğin süsü ancak satın aldıysan görür.",

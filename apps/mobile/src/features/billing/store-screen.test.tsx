@@ -1,5 +1,6 @@
 import type { Plan } from '@bargu/schemas';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ApiError } from '@/features/auth/api-client';
@@ -192,6 +193,19 @@ describe('Bargu+, a shelf of the store (docs/ADR/0024 §9)', () => {
       expect(await screen.findByText(/ebeveyn onayı gerekiyor/)).toBeTruthy();
       expect(screen.queryByTestId('plus-ask')).toBeNull();
       expect(mockPurchase).not.toHaveBeenCalled();
+    });
+
+    it("says what it costs and when it renews, and manages it on the store's page (N3)", async () => {
+      const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+      mockPlan = { ...yearly, source: 'play' };
+      mockShelf = 'plus';
+      await show();
+      expect(await screen.findByText(/tarihinde ₺799,99 ile yenilenir/)).toBeTruthy();
+      await fireEvent.press(screen.getByTestId('plus-manage'));
+      expect(openURL).toHaveBeenCalledWith(
+        'https://play.google.com/store/account/subscriptions?sku=plus_year&package=app.bargu',
+      );
+      openURL.mockRestore();
     });
 
     it('offers no cancel for a plan an old test build started', async () => {

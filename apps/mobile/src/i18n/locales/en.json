@@ -1308,7 +1308,7 @@
     "now": "Your plan now",
     "free": "Free: everything in circles you joined by invite where someone pays.",
     "trial": "Trial: {{days}} days left. It does not turn into a paid plan by itself.",
-    "renews": "Bargu+ {{plan}}: renews on {{date}}.",
+    "renews": "Bargu+ {{plan}}: renews on {{date}} for {{price}}.",
     "endsOn": "Bargu+ {{plan}}: ends on {{date}}, it will not renew.",
     "grace": "The payment did not go through. Bargu+ stays on until {{date}}; fix the payment.",
     "monthly": "monthly",
@@ -1343,7 +1343,12 @@
     "asked": "You asked your parent. Once they say yes, Bargu+ opens and you'll hear about it.",
     "pending": "Waiting for your parent: Bargu+ {{plan}}.",
     "askOther": "Ask for {{plan}} instead",
-    "teenSoon": "Buying needs a parent's yes. The store isn't connected yet; it's coming soon."
+    "teenSoon": "Buying needs a parent's yes. The store isn't connected yet; it's coming soon.",
+    "manage": "Manage subscription",
+    "renewalReminder": {
+      "title": "Your yearly Bargu+ renews in 3 days",
+      "body": "{{price}} will be charged on {{date}}. If you don’t want it, cancel in the store; tap to open Bargu+."
+    }
   },
   "cosmetics": {
     "intro": "This is how your pin looks on the map. A look is only looks: your friends see the one you chose only if you bought it.",

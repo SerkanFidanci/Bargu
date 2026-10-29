@@ -2,8 +2,11 @@ import type { Plan } from '@bargu/schemas';
 
 import {
   daysLeft,
+  manageUrl,
   PLUS_PRICES,
   priceText,
+  RENEWAL_REMINDER_MS,
+  renewalReminderAt,
   TRIAL_REMINDER_MS,
   trialEndingSoon,
   trialReminderAt,
@@ -31,6 +34,41 @@ describe('the plan as the app shows it (docs/ADR/0024)', () => {
     expect(trialReminderAt({ ...trial(21 * DAY), plan: 'plus', product: 'plus_month' }, NOW)).toBe(
       null,
     );
+  });
+
+  it('reminds three days before a yearly plan renews, only while it renews (N3)', () => {
+    const yearly: Plan = {
+      ...trial(0),
+      plan: 'plus',
+      product: 'plus_year',
+      source: 'play',
+      expiresAt: NOW + 300 * DAY,
+      autoRenew: true,
+      trialEndsAt: null,
+    };
+    expect(renewalReminderAt(yearly, NOW)).toBe(NOW + 300 * DAY - RENEWAL_REMINDER_MS);
+    expect(renewalReminderAt({ ...yearly, autoRenew: false }, NOW)).toBeNull();
+    expect(renewalReminderAt({ ...yearly, product: 'plus_month' }, NOW)).toBeNull();
+    expect(renewalReminderAt({ ...yearly, expiresAt: NOW + 2 * DAY }, NOW)).toBeNull();
+  });
+
+  it("opens the store's own page for the subscription, and none for a test (N3)", () => {
+    const plus: Plan = {
+      ...trial(0),
+      plan: 'plus',
+      product: 'plus_month',
+      source: 'play',
+      autoRenew: true,
+      trialEndsAt: null,
+    };
+    expect(manageUrl(plus, 'app.bargu')).toBe(
+      'https://play.google.com/store/account/subscriptions?sku=plus_month&package=app.bargu',
+    );
+    expect(manageUrl({ ...plus, source: 'appstore' }, 'app.bargu')).toBe(
+      'https://apps.apple.com/account/subscriptions',
+    );
+    expect(manageUrl({ ...plus, source: 'test' }, 'app.bargu')).toBeNull();
+    expect(manageUrl(trial(DAY), 'app.bargu')).toBeNull();
   });
 
   it('says the trial ends soon only in its last three days', () => {

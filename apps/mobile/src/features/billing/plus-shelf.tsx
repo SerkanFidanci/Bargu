@@ -1,14 +1,21 @@
 import type { Plan, PlusProduct } from '@bargu/schemas';
+import Constants from 'expo-constants';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, FlaskConical, Sparkles } from 'lucide-react-native';
+import { Check, ExternalLink, FlaskConical, Sparkles } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { ageKey, fetchAge, isMinor } from '@/features/account/age-api';
 import { testBillingOf, useTestBilling } from '@/features/billing/test-slot';
 import { planKey, usePlan } from '@/features/billing/plan';
-import { daysLeft, PLUS_PRICES, priceText, yearlySaving } from '@/features/billing/plan-model';
+import {
+  daysLeft,
+  manageUrl,
+  PLUS_PRICES,
+  priceText,
+  yearlySaving,
+} from '@/features/billing/plan-model';
 import { errorMessage, isApiError } from '@/features/errors';
 import { useNow } from '@/features/location/clock';
 import { radius, space, useTheme } from '@/theme';
@@ -101,8 +108,16 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
       const kind = current.product === 'plus_year' ? t('plus.yearly') : t('plus.monthly');
       return {
         tone: 'success' as const,
+        // What it costs and when, said plainly (N3).
         text: current.autoRenew
-          ? t('plus.renews', { plan: kind, date: date(current.expiresAt) })
+          ? t('plus.renews', {
+              plan: kind,
+              date: date(current.expiresAt),
+              price: priceText(
+                PLUS_PRICES[current.product === 'plus_year' ? 'plus_year' : 'plus_month'],
+                i18n.language,
+              ),
+            })
           : t('plus.endsOn', { plan: kind, date: date(current.expiresAt) }),
       };
     }
@@ -126,6 +141,11 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
   const testing = tester !== null && current?.testBilling === true;
   const cancellable =
     tester !== null && subscribed && current.autoRenew && current.source === 'test';
+  // The store's own page for it, one tap away (N3).
+  const manage =
+    current === undefined
+      ? null
+      : manageUrl(current, Constants.expoConfig?.android?.package ?? 'app.bargu');
 
   const offer = (product: PlusProduct) => {
     const chosen = product === choice;
@@ -281,6 +301,15 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
         ))}
       </View>
 
+      {manage === null ? null : (
+        <Button
+          testID="plus-manage"
+          label={t('plus.manage')}
+          icon={ExternalLink}
+          variant="secondary"
+          onPress={() => void Linking.openURL(manage)}
+        />
+      )}
       {cancellable ? (
         <Button
           testID="plus-cancel"

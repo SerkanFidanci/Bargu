@@ -2,7 +2,10 @@ import * as Notifications from 'expo-notifications';
 
 import { ACCOUNT_CHANNEL } from '../notifications/channels';
 
-/** One trial reminder at a time: a new one replaces the earlier (same identifier). */
+/**
+ * One plan reminder at a time (the trial's end, or a yearly renewal, N3): a new one replaces the
+ * earlier (same identifier).
+ */
 const ID = 'trial-ends';
 
 /**
