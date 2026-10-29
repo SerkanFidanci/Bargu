@@ -563,6 +563,9 @@ Kurallar:
 - Ö3: mesaja ve hikayeye emoji tepki (ADR 0035 eki).
 
 **Paket B: kontrol**
+- **Durum (2026-10-29):** APK `fab5843` yayında. İçinde QA-40'ın geri kalanı, sahibin dört isteği, Ö8 ve Ö6 var. QA-41 açıldı. Gizlilik politikası ve VERI-GUVENLIGI güncellendi: yeni veri türü yok.
+  - PM kararı: okunamayan paylaşım ayarı tam konuma dönmez; konum durur ve kullanıcıya sorulur. Bir sonraki APK'ya girer.
+  - "Süreli paylaşım bitti" satırı karşı tarafa şimdilik yalnız o an bağlıysa düşüyor. Kalıcı DM öğesiyle düzeltilmesi istendi; protokol değişikliği gerekirse v2'ye kalır.
 - Ö2 pil modu: Canlı / Dengeli / Pil dostu, "bugün GPS şu kadar çalıştı" bilgisiyle (ADR 0036 eki). Sahibin pil ölçümünden sonra.
 - Ö6 kişiye süreli paylaşım ve tek kişiye sessiz dondurma: "21:30'a kadar" (Faz 11'den öne alındı).
 - Ö8 "Yakındayım, gelir misin?": tek dokunuş, seçilen çembere. Mesafeyi alan telefon hesaplar; yeni şifreli tür.

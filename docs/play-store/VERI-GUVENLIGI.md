@@ -80,6 +80,11 @@ Hepsinde **paylaşılıyor: HAYIR**; hesap silinince hepsi kalkar.
 
 Not: uçtan uca şifreli veri formda beyan edilmek zorunda değildir, ama bildirilen içerik bize açık geldiği için Mesajlar ve Fotoğraflar satırları **"toplanıyor"** işaretlenir.
 
+**Faz 9C paket B (ADR 0037, 0038; PM, 2026-10-29): formda değişiklik yok.**
+
+- "Yakındayım" daveti, yukarıdaki "Yazılı mesaj" satırına giren şifreli bir sohbet öğesidir (24 saat). İçinde yer ya da mesafe yoktur. Mesafeyi alan kişinin telefonu kendi elindeki şifreli konumdan hesaplar. Bildirim yalnız kimden geldiğini söyler.
+- Kişiye özel paylaşım ayarları (göster, saate kadar, dondur, gösterme) yalnız telefondaki şifreli kasada durur ve sunucuya gitmez. Süre sonu hatırlatmasını telefon kendisi kurar. Bitişte arkadaşa tek bir şifreli durum öğesi gider. Bu yüzden yeni bir veri türü beyan edilmez.
+
 **"Sorun bildir" (Faz 9C, Ö1):** uygulama yalnız kullanıcının kendi e-posta uygulamasını hazır bir taslakla açar: alıcı support@otenus.com, metin, uygulama sürümü, telefon modeli ve isteğe bağlı ekran görüntüsü. Gönderimi kullanıcı kendi e-postasından yapar, uygulama ve sunucu hiçbir şey iletmez. Bu yüzden formda ayrı bir veri türü olarak **beyan edilmez**. Politikada "destek yazışmaları" satırı olarak yazılıdır, en geç 12 ay saklanır. Bu akış uygulama içinden gönderime çevrilirse satır eklenir.
 
 Play kategori adları Console'da değişebilir; emin olunmayan satırlarda en yakın "Diğer bilgiler / Diğer eylemler" seçeneğini seç. Amaç olarak yalnızca **Uygulama işlevi, Hesap yönetimi, Dolandırıcılığı önleme/güvenlik/uyumluluk** işaretle. Hiçbiri reklam, analitik ya da kişiselleştirme için kullanılmaz (15–17 için davranışa dayalı profilleme yasak, ADR 0023).
