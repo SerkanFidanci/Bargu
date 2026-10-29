@@ -627,7 +627,12 @@ Kurallar:
 - **Sıra (PM, 2026-10-29):** elindeki APK (Ö12, N2, N3, QA-41 düzeltmeleri; QA-42) → G (QA-43) → C → D (Ö7'nin açılması) → E → F.
   - **Güncelleme:** o APK `c8896be` olarak yayında, QA-42 açıldı.
   - Ö7'nin gizlilik metinleri yazıldı, bu yüzden Ö7 D'yi beklemeden G APK'sında açılır.
-  - Şart: QA-42'de Ö7 dosyalarının Android yedeğine girmediği doğrulanır.
+  - Şart: QA-42'de Ö7 dosyalarının Android yedeğine girmediği doğrulanır. Kod oturumu Android yedeğinin tamamen kapalı olduğunu bildirdi (allowBackup false).
+  - **PM, 2026-10-30:**
+    - Ö7 kapatılırken sorulur: "Dışa aktar / Sil ve kapat / Vazgeç". Onaylanınca hemen silinir (ADR 0030 eki).
+    - Bargu+ biterse kayıt durur; eski günler seçilen süre dolunca silinir.
+    - Politika buna göre güncellendi.
+    - ADR 0035 Ek 3 (hikaye düzenleyici, `05e1fff`) PM şartlarıyla kabul edildi.
 
 **Paket C: güvenlik**
 - Ö5 eve vardım kontrolü (Faz 11'den öne alındı). Yeni ADR gerekir, tasarım Opus'ta.
