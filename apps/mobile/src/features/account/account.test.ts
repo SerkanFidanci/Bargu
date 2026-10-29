@@ -57,6 +57,9 @@ describe('"Verilerimi indir" (docs/ADR/0022)', () => {
         ],
         docs: [],
         myTrail: [{ at: NOW - 60_000, lat: 41.01, lng: 29.02, acc: 8 }],
+        ownTrail: [
+          { day: '2026-10-28', points: [{ at: NOW - 86_400_000, lat: 41.02, lng: 29.03, acc: 5 }] },
+        ],
         status: null,
       },
       NOW,
@@ -86,6 +89,10 @@ describe('"Verilerimi indir" (docs/ADR/0022)', () => {
       onThisPhone: {
         places: [{ id: 'p', name: 'Ev', lat: 41, lng: 29 }],
         myLocationHistory: [{ lat: 41.01, lng: 29.02, accuracyM: 8 }],
+        // One's own history, each day with its points (docs/ADR/0030).
+        myOwnLocationHistory: [
+          { day: '2026-10-28', points: [{ lat: 41.02, lng: 29.03, accuracyM: 5 }] },
+        ],
       },
     });
     expect(exportName(NOW)).toBe('bargu-verilerim-2026-10-15.json');

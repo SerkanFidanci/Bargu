@@ -20,6 +20,8 @@ export interface PhoneHeld {
   places: readonly Place[];
   docs: readonly Doc[];
   myTrail: readonly TracePoint[];
+  /** One's own history (docs/ADR/0030): every day kept on this phone, when it could be read. */
+  ownTrail?: readonly { day: string; points: readonly TracePoint[] }[];
   status: Status | null;
 }
 
@@ -87,6 +89,15 @@ export function exportFile(
         lat: point.lat,
         lng: point.lng,
         accuracyM: point.acc,
+      })),
+      myOwnLocationHistory: (phone.ownTrail ?? []).map((entry) => ({
+        day: entry.day,
+        points: entry.points.map((point) => ({
+          at: new Date(point.at).toISOString(),
+          lat: point.lat,
+          lng: point.lng,
+          accuracyM: point.acc,
+        })),
       })),
       status: phone.status,
     },

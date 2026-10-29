@@ -18,6 +18,7 @@ import { radius, space, useTheme } from '@/theme';
 import { ActionTile } from '@/ui/action-tile';
 import { Text } from '@/ui/text';
 
+import { OWN_HISTORY_ENABLED } from '../history/own/own-flag';
 import { useCircles } from '../circles/queries';
 import { sharingNow } from '../home/seers-pill';
 import { useNow } from '../location/clock';
@@ -80,7 +81,7 @@ export function MyCard({
         : minutes < 60
           ? t('map.card.minutesAgo', { minutes })
           : t('map.card.hoursAgo', { hours: Math.floor(minutes / 60) });
-  const go = (screen: '/seers' | '/history/viewers' | '/settings/location') => {
+  const go = (screen: '/seers' | '/history/mine' | '/history/viewers' | '/settings/location') => {
     closeCard();
     router.push(screen);
   };
@@ -156,7 +157,8 @@ export function MyCard({
           label={t('map.actions.history')}
           icon={History}
           onPress={() => {
-            go('/history/viewers');
+            // One's own history comes with package D (own-flag.ts); until then who sees it.
+            go(OWN_HISTORY_ENABLED ? '/history/mine' : '/history/viewers');
           }}
         />
         <ActionTile

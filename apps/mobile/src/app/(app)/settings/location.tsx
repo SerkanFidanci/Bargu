@@ -4,10 +4,13 @@ import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/features/auth/auth-store';
 import { useCircles } from '@/features/circles/queries';
+import { OWN_HISTORY_ENABLED } from '@/features/history/own/own-flag';
+import { ownTrail } from '@/features/history/own/own-session';
 import { useBackgroundLiveSlots } from '@/features/location/background-live/slot';
 import { useNow } from '@/features/location/clock';
 import { seersOf, useSharing } from '@/features/location/sharing';
 import { GhostControl } from '@/features/location/sharing-card';
+import { isVaultOpen } from '@/features/storage/vault';
 import { Screen } from '@/ui/screen';
 import { SettingsGroup, SettingsRow } from '@/ui/settings-row';
 import { Text } from '@/ui/text';
@@ -25,6 +28,8 @@ export default function LocationSettingsScreen() {
   const historyCircles = Object.values(sharing.circles).filter(
     (circle) => circle.history === true,
   ).length;
+  // One's own history (docs/ADR/0030), from package D: on or off, and how long it keeps.
+  const mine = OWN_HISTORY_ENABLED && isVaultOpen() ? ownTrail.settings() : null;
   // Only builds that have background live mode (docs/ADR/0028 step 3) fill this.
   const backgroundLiveRow = useBackgroundLiveSlots((state) => state.settingsRow);
   return (
@@ -53,14 +58,18 @@ export default function LocationSettingsScreen() {
         <SettingsRow
           testID="location-history"
           icon={History}
-          label={t('sheets.me.history')}
+          label={OWN_HISTORY_ENABLED ? t('history.mine.title') : t('sheets.me.history')}
           detail={
-            historyCircles === 0
-              ? t('sheets.me.historyOff')
-              : t('sheets.me.historyOn', { count: historyCircles })
+            mine !== null
+              ? mine.on
+                ? t(mine.keep === 365 ? 'history.mine.onYear' : 'history.mine.on30')
+                : t('history.mine.off')
+              : historyCircles === 0
+                ? t('sheets.me.historyOff')
+                : t('sheets.me.historyOn', { count: historyCircles })
           }
           onPress={() => {
-            router.push('/history/viewers');
+            router.push(OWN_HISTORY_ENABLED ? '/history/mine' : '/history/viewers');
           }}
         />
       </SettingsGroup>

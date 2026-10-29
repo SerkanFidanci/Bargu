@@ -50,6 +50,8 @@ QA-39 (`4f29fe7`) düşük bulguları da bu APK'da:
 
 Testler: mobil 1393+ test, şema ve kripto testleri yeşil.
 
+**APK (2026-10-29): `e1c7e4a`**, paket A ve QA-39 düzeltmeleri: https://api.46-62-162-70.sslip.io/apk/bargu-e1c7e4a-9c2bea73f3015ff8.apk. Linux CI ve GitHub CI yeşil. QA-40 (`3821598`): yüksek bulgu yok.
+
 Açık işler:
 
 - Ekran görüntüleri (PM istedi: harita, Mesajlar, Mağaza; açık ve koyu). Bu makinede emülatör yok;

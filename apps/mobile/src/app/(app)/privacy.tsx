@@ -22,6 +22,7 @@ import { ageKey, fetchAge, isMinor, setAgeBand } from '@/features/account/age-ap
 import { exportFile, exportName, saveExport, trailWindow } from '@/features/account/export';
 import { signOut, useAuth } from '@/features/auth/auth-store';
 import { errorMessage } from '@/features/errors';
+import { ownTrailForExport } from '@/features/history/own/own-session';
 import { guardiansApi } from '@/features/guardians/guardians-api';
 import {
   applyMinorRules,
@@ -133,6 +134,7 @@ export default function PrivacyScreen() {
           places: Object.values(usePlaces.getState()),
           docs: Object.values(useDocs.getState()),
           myTrail: history.mine(from, to),
+          ownTrail: await ownTrailForExport(),
           status: useMyStatus.getState().status,
         },
         now,

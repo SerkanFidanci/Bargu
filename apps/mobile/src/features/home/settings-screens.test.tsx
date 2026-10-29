@@ -30,6 +30,10 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@/features/storage/vault', () => ({ isVaultOpen: () => false }));
 jest.mock('@/features/location/location-session', () => ({ updateSharing: jest.fn() }));
+// One's own history needs the native month files (own-trail.test.ts has them in memory).
+jest.mock('@/features/history/own/own-session', () => ({
+  ownTrail: { settings: () => ({ on: false, keep: 30 }) },
+}));
 jest.mock('@/features/circles/queries', () => ({ useCircles: () => ({ data: [] }) }));
 jest.mock('@/features/profile/queries', () => ({ useMe: () => ({ data: undefined }) }));
 jest.mock('@/features/auth/auth-store', () => ({

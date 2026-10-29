@@ -83,6 +83,7 @@ import {
   statusGone,
 } from '../social/status';
 import { isVaultOpen, vault } from '../storage/vault';
+import { OWN_HISTORY_ENABLED } from '../history/own/own-flag';
 import { ownEntitled, ownTrail } from '../history/own/own-session';
 import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix } from './engine';
 import { timed } from './probe';
@@ -345,6 +346,7 @@ export const meetings = createMeetings({
  * the location's way.
  */
 function recordOwnTrail(fix: Fix): void {
+  if (!OWN_HISTORY_ENABLED) return;
   try {
     const settings = loadSharingSettings();
     const at = Date.now();

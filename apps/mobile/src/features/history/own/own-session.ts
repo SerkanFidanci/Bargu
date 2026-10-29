@@ -6,6 +6,8 @@ import { planKey } from '../../billing/plan';
 import { queryClient } from '../../query-client';
 import { isVaultOpen, vault } from '../../storage/vault';
 import { createMonthFiles, forgetTrailKey, prepareTrailKey, trailKeyReady } from './own-files';
+import { OWN_HISTORY_ENABLED } from './own-flag';
+import { entitledUntil } from './own-model';
 import { createOwnTrail } from './own-trail';
 
 /**
@@ -28,12 +30,8 @@ const DAY_MS = 24 * 3_600_000;
  * no query cache to ask. It lasts until the plan's end (a payment in grace as long as that).
  */
 export function rememberEntitlement(plan: Plan | undefined): void {
-  if (plan === undefined || !isVaultOpen()) return;
-  const ends = [plan.expiresAt, plan.graceUntil, plan.plan === 'trial' ? plan.trialEndsAt : null]
-    .filter((at): at is number => at !== null)
-    .sort((a, b) => b - a)[0];
-  const until = plan.plan === 'free' ? 0 : (ends ?? null);
-  vault().set(ENTITLED_KEY, JSON.stringify({ until }));
+  if (!OWN_HISTORY_ENABLED || plan === undefined || !isVaultOpen()) return;
+  vault().set(ENTITLED_KEY, JSON.stringify({ until: entitledUntil(plan) }));
 }
 
 /** Whether the recording is entitled now (Bargu+ or its trial): false when it is not known. */
@@ -49,6 +47,16 @@ export function ownEntitled(now: number): boolean {
   }
 }
 
+/**
+ * Every day kept, for "Verilerimi indir" (KVKK md. 11): the files' key is read first, so with the
+ * phone locked only what waits in the vault comes (the export screen is in front, so it is not).
+ */
+export async function ownTrailForExport(): Promise<ReturnType<typeof ownTrail.exported>> {
+  if (!OWN_HISTORY_ENABLED || !isVaultOpen()) return [];
+  await prepareTrailKey(false);
+  return ownTrail.exported();
+}
+
 const LAST_TICK_KEY = 'own:tick:v1';
 
 /**
@@ -57,7 +65,7 @@ const LAST_TICK_KEY = 'own:tick:v1';
  * nothing happens and the points keep waiting. Cheap when there is nothing to do.
  */
 export async function ownTrailTick(now = Date.now()): Promise<void> {
-  if (!isVaultOpen()) return;
+  if (!OWN_HISTORY_ENABLED || !isVaultOpen()) return;
   const on = ownTrail.settings().on;
   if (!on && ownTrail.days().length === 0) return;
   if (!(await prepareTrailKey(on))) return;

@@ -79,6 +79,9 @@ jest.mock('./own-files', () => ({
   trailKeyReady: () => mockKey.ready,
 }));
 
+// What it does once package D turns it on (own-off.test.ts: what it does before).
+jest.mock('./own-flag', () => ({ OWN_HISTORY_ENABLED: true }));
+
 import { ownEntitled, ownTrail, ownTrailTick, rememberEntitlement } from './own-session';
 
 const NOW = new Date(2026, 9, 29, 12, 0).getTime();

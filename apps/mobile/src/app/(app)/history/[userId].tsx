@@ -1,16 +1,5 @@
-import type { LngLatBounds } from '@maplibre/maplibre-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  Bike,
-  Car,
-  CircleDashed,
-  Footprints,
-  History as HistoryIcon,
-  type LucideIcon,
-  MapPin,
-  WifiOff,
-  X,
-} from 'lucide-react-native';
+import { History as HistoryIcon, WifiOff, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -20,52 +9,24 @@ import { useAuth } from '@/features/auth/auth-store';
 import { memberName } from '@/features/circles/names';
 import { useCircle } from '@/features/circles/queries';
 import { useHistoryPings } from '@/features/history/history-api';
+import { boundsOf, DaySegments, placeOf } from '@/features/history/day-segments';
 import { HistoryLayer } from '@/features/history/history-layer';
 import { nameStays } from '@/features/history/stay-names';
-import {
-  dayStart,
-  historyDays,
-  type Segment,
-  segments,
-  type TracePoint,
-} from '@/features/history/trail-model';
+import { dayStart, historyDays, segments, type TracePoint } from '@/features/history/trail-model';
 import { onOnline } from '@/features/live/live-session';
 import { useNow } from '@/features/location/clock';
 import { history } from '@/features/location/location-session';
-import { distanceM } from '@/features/location/send';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
-import { distanceText } from '@/features/map/distance-text';
-import type { Place } from '@/features/places/place-model';
 import { usePlaces } from '@/features/places/places';
 import { radius, space, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
 import { EmptyState } from '@/ui/empty-state';
 import { IconButton } from '@/ui/icon-button';
-import { ListRow } from '@/ui/list-row';
 import { PressableScale } from '@/ui/pressable-scale';
 import { Skeleton } from '@/ui/skeleton';
 import { Text } from '@/ui/text';
 
 const DAY_MS = 24 * 60 * 60_000;
-
-/** Where a stay was, by the circle's places (no map service is asked). */
-function placeOf(stay: { lat: number; lng: number }, places: readonly Place[]): Place | undefined {
-  return places.find((place) => distanceM(place, stay) <= place.radius + 50);
-}
-
-/** The area a day's points cover, for the camera. */
-function boundsOf(points: readonly TracePoint[]): LngLatBounds | null {
-  const first = points[0];
-  if (first === undefined) return null;
-  const bounds: LngLatBounds = [first.lng, first.lat, first.lng, first.lat];
-  for (const point of points) {
-    bounds[0] = Math.min(bounds[0], point.lng);
-    bounds[1] = Math.min(bounds[1], point.lat);
-    bounds[2] = Math.max(bounds[2], point.lng);
-    bounds[3] = Math.max(bounds[3], point.lat);
-  }
-  return bounds;
-}
 
 /**
  * A member's location history over a day (docs/ADR/0019): the route on the map and the day as
@@ -149,54 +110,12 @@ export default function HistoryScreen() {
   }, [points, panel]);
 
   const name = userId === me ? t('history.me') : member === undefined ? '' : memberName(member);
-  const clock = (at: number) =>
-    new Date(at).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
-  const span = (from: number, to: number) => {
-    const minutes = Math.max(1, Math.round((to - from) / 60_000));
-    const length =
-      minutes < 60
-        ? t('history.minutes', { minutes })
-        : t('history.hours', { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
-    return `${clock(from)} – ${clock(to)} · ${length}`;
-  };
   const dayLabel = (start: number, index: number) =>
     index === 0
       ? t('history.today')
       : index === 1
         ? t('history.yesterday')
         : new Date(start).toLocaleDateString(i18n.language, { weekday: 'short', day: 'numeric' });
-
-  const row = (segment: Segment, index: number) => {
-    let icon: LucideIcon = CircleDashed;
-    let title = t('history.gap');
-    if (segment.kind === 'stay') {
-      const place = placeOf(segment, places);
-      icon = MapPin;
-      title =
-        place === undefined
-          ? (names[segment.from] ?? t('history.stay'))
-          : `${place.emoji} ${place.name}`;
-    } else if (segment.kind === 'move') {
-      icon = segment.mode === 'vehicle' ? Car : segment.mode === 'bike' ? Bike : Footprints;
-      title = t(`history.${segment.mode}`, {
-        distance: distanceText(segment.meters, i18n.language),
-      });
-    }
-    const Icon = icon;
-    return (
-      <ListRow
-        key={`${segment.kind}-${String(segment.from)}-${String(index)}`}
-        testID={`history-${segment.kind}`}
-        leading={
-          <View style={[styles.round, { backgroundColor: colors.primarySoft }]}>
-            <Icon size={18} color={colors.primary} strokeWidth={2.25} />
-          </View>
-        }
-        title={title}
-        subtitle={span(segment.from, segment.to)}
-      />
-    );
-  };
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="history-screen">
@@ -281,7 +200,7 @@ export default function HistoryScreen() {
               body={userId === me ? t('history.emptyMine') : t('history.emptyTheirs')}
             />
           ) : (
-            [...timeline].reverse().map(row)
+            <DaySegments timeline={timeline} places={places} names={names} />
           )}
           <Text variant="caption" color="textMuted">
             {t('history.privacy')}
@@ -314,11 +233,4 @@ const styles = StyleSheet.create({
   day: { paddingHorizontal: space.lg, paddingVertical: space.sm, borderRadius: radius.pill },
   list: { flexGrow: 0 },
   content: { paddingHorizontal: space.xl, gap: space.xs },
-  round: {
-    width: space.xxl,
-    height: space.xxl,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });

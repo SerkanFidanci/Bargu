@@ -40,6 +40,23 @@ export function mayRecord(settings: OwnSettings, state: Recording): boolean {
   return settings.on && state.entitled && state.ghost === 'off' && state.sharing;
 }
 
+/**
+ * Until when a plan carries the history (Bargu+ or its trial): null when it never ends, 0 for no
+ * plan. A payment in grace holds it as long as the grace.
+ */
+export function entitledUntil(plan: {
+  plan: 'free' | 'trial' | 'plus';
+  expiresAt: number | null;
+  graceUntil: number | null;
+  trialEndsAt: number | null;
+}): number | null {
+  if (plan.plan === 'free') return 0;
+  const ends = [plan.expiresAt, plan.graceUntil, plan.plan === 'trial' ? plan.trialEndsAt : null]
+    .filter((at): at is number => at !== null)
+    .sort((a, b) => b - a)[0];
+  return ends ?? null;
+}
+
 /** The day a moment falls in as a key: `2026-10-29`, on this phone's clock. */
 export function dayKey(at: number): string {
   const day = new Date(at);

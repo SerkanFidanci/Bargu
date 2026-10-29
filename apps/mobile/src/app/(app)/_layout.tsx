@@ -63,6 +63,7 @@ export default function AppLayout() {
         <Stack.Screen name="meeting/new" />
         <Stack.Screen name="meeting/[circleId]" />
         <Stack.Screen name="history/viewers" />
+        <Stack.Screen name="history/mine" />
         <Stack.Screen name="history/[userId]" />
         <Stack.Screen name="security" />
         <Stack.Screen name="seers" />
