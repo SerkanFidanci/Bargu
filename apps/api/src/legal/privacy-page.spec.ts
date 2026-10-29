@@ -20,6 +20,11 @@ describe('the privacy page (/gizlilik, docs/play-store/GIZLILIK-POLITIKASI.md)',
       // "Sorun bildir" goes from the user's own email app (the PM, 29.10.2026).
       'Destek yazışmaların (isteğe bağlı)',
       'Your support messages (optional)',
+      // Package B (the PM, 29.10.2026): per-person sharing and "Yakındayım", no new data.
+      'Kime, ne kadar süre göstereceğin (kişiye özel paylaşım) yalnızca telefonunda',
+      'Who sees you and for how long (per-person sharing) stays only on your phone',
+      '"Yakındayım" daveti de bir mesajdır',
+      `An "I'm nearby" invite is a message too`,
     ]) {
       expect(PRIVACY_PAGE_HTML).toContain(words);
     }
