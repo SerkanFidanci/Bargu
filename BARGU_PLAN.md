@@ -514,9 +514,21 @@ Kurallar:
   - grup sohbetine ⋮ menüsü gelir (Bildir ve Engelle kolay bulunsun).
 
 **Paket A: görünüm ve küçük kolaylıklar** (QA-39 düzeltmeleriyle birlikte)
-- **Durum (2026-10-29):** kodlandı (`2c5f9f8`..`3821598`), CI yeşil, APK derleniyor. QA-40 test oturumunda.
+- **Durum (2026-10-29):** kodlandı (`2c5f9f8`..`3821598`) ve QA-39'un tamamıyla birlikte `e1c7e4a` APK'sı yayında. CI yeşil.
+- `e1c7e4a` için ayrı test turu yok (PM kararı, jeton tasarrufu). Bu APK'daki değişiklikler QA-41'de B APK'sıyla birlikte denenir.
 - Ö1 "Sorun bildir" kullanıcının kendi e-posta uygulamasıyla gider, sunucudan geçmez. Gizlilik politikasına "destek yazışmaları" satırı eklendi (en geç 12 ay saklanır). Play formunda ayrı veri türü değil.
 - Grup sohbetindeki ⋮ menüsünün iPhone bildirim eklentisi tarafı iOS dilimine kaldı.
+- **QA-40 (`3821598`):** yüksek bulgu yok.
+  - O1 (grup ⋮ menüsünde sessize al ve ayrıl yoktu): `e1c7e4a` ile kapandı; QA-41'de bakılacak.
+  - O2 (kişi kartında Bildir ve Engelle yok): "Daha fazla" altına iki ayrı satır olarak eklenecek.
+  - 6 düşük bulgu:
+    - arka plan gönderim eşiği 50 sn;
+    - düğme parlaması yazı kontrastını düşürmesin;
+    - koyu temada iki renk çifti 4,5'e çıksın;
+    - davet sayfası ve davet kartında mor kalmış, lacivert ve turuncuya geçecek;
+    - Sorun bildir metni 500 karakter;
+    - canlı aralık testi.
+  - Hepsi paket B APK'sına girer.
 - T1 renk: lacivert ve turuncu, geçişli (sahibin kararı; ADR 0008 eki).
 - T2: + düğmesi hızlı eylem menüsü açar.
 - T3: kişi kartında 3 ana eylem.
@@ -532,6 +544,21 @@ Kurallar:
 - Ö2 pil modu: Canlı / Dengeli / Pil dostu, "bugün GPS şu kadar çalıştı" bilgisiyle (ADR 0036 eki). Sahibin pil ölçümünden sonra.
 - Ö6 kişiye süreli paylaşım ve tek kişiye sessiz dondurma: "21:30'a kadar" (Faz 11'den öne alındı).
 - Ö8 "Yakındayım, gelir misin?": tek dokunuş, seçilen çembere. Mesafeyi alan telefon hesaplar; yeni şifreli tür.
+- **PM kararları (2026-10-29):**
+  - **ADR 0037 (Ö8) kabul.**
+    - Mesafe 50 m'ye yuvarlanır. Gönderenin hassasiyeti tam değilse yalnız "yakınlarda" yazar.
+    - Hayalet modda kapalı.
+    - 15–17 için yalnız arkadaşlıklarda ve en çok 8 üyeli çemberlerde var.
+    - Hazır cevaplar "Geliyorum" ve "Şimdi olmaz" sıradan yazı mesajı olarak gider.
+  - **ADR 0038 (Ö6) kabul.**
+    - Yalnız arkadaşlıklarda var. Gruptaki kişiyi çemberin ayarı yönetir; kişiye özel paylaşım v2 fikri.
+    - Süre dolunca arkadaş haritadan kaybolur, iki tarafa tek satırlık bilgi düşer.
+  - Ö2 sahibin pil ölçümünü bekliyor.
+  - Bu arada paket D (Ö7, Ö12) başladı.
+  - **Sıra (PM, 2026-10-29): B ve D ayrı APK.** Önce B (QA-40 bulguları, Ö8, Ö6), sonra D (Ö7, Ö12).
+    - Ö7'nin kodu B'den önce main'e girdiği için B APK'sında Ö7'ye giriş gizli kalır. Kayıt kapalıdır, açılamaz, hiçbir şey yazılmaz.
+    - QA-41 bunu da kontrol eder: ayarda ve haritada Ö7'ye giriş yok, telefonda geçmiş dosyası oluşmuyor.
+    - Ö7, D APK'sında Ö12 ile birlikte açılır. Açılmadan önce gizlilik politikası, /gizlilik ve veri güvenliği formu Ö7'yi anlatır (yalnız telefonda, Bargu+).
 
 **Paket C: güvenlik**
 - Ö5 eve vardım kontrolü (Faz 11'den öne alındı). Yeni ADR gerekir, tasarım Opus'ta.
@@ -732,3 +759,4 @@ Kurallar:
 - Operatör kanalı: Turkcell Pasaj gibi pazar yerlerinde yıllık aile paketi kodu
 - Apple Watch
 - MLS'e geçiş, multi-device
+- Grup çemberinde tek bir kişiye özel süreli paylaşım ya da dondurma: ayrı bir kripto tasarımı gerekir, çünkü konum çember anahtarıyla mühürleniyor (ADR 0038)
