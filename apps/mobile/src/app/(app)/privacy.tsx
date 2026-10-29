@@ -1,6 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Download, ExternalLink, History, Trash2, UserRound } from 'lucide-react-native';
+import {
+  Download,
+  ExternalLink,
+  History,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+} from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
@@ -202,6 +209,16 @@ export default function PrivacyScreen() {
           icon={ExternalLink}
           variant="secondary"
           onPress={() => void Linking.openURL(`${env.apiUrl}/gizlilik`)}
+        />
+        {/* What the server sees and cannot (N2): the accepted leaks, said plainly. */}
+        <Button
+          testID="privacy-server-knows"
+          label={t('serverKnows.open')}
+          icon={ShieldCheck}
+          variant="secondary"
+          onPress={() => {
+            router.push('/server-knows');
+          }}
         />
       </View>
 

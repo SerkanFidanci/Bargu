@@ -1706,5 +1706,29 @@
     "sentMore": "Haber verildi: {{name}} ve {{count}} kişi",
     "failed": "Gönderilemedi, biraz sonra tekrar dene.",
     "limited": "Şimdilik çok fazla gönderdin, biraz sonra tekrar dene."
+  },
+  "serverKnows": {
+    "title": "Sunucu ne biliyor?",
+    "intro": "Konumun ve yazdıkların telefonunda şifrelenir; Bargu'nun sunucusu onları okuyamaz. Çalışabilmek için bazı şeyleri bilmesi gerekir. Hepsi burada.",
+    "seesTitle": "Sunucu görür",
+    "cannotTitle": "Sunucu göremez",
+    "sees": {
+      "email": "E-posta adresin: giriş kodunu göndermek için. Veritabanında düz hâli değil, anahtarlı özeti durur.",
+      "circles": "Hangi çemberlerde olduğun, çemberlerin adları ve kimin yönetici olduğu.",
+      "profile": "Kullanıcı adın, görünen adın, avatar rengin ve emojin; fotoğrafın olup olmadığı (fotoğrafın kendisi şifreli).",
+      "timing": "Konumunu ne zaman ve ne sıklıkta gönderdiğin (hareket edip etmediğin anlaşılabilir) ve bir çemberle paylaşımı ne zaman kestiğin.",
+      "push": "Bildirim jetonun ve bildirimlerin ne zaman gittiği; içerikleri ve kimden geldikleri şifreli.",
+      "ip": "Bağlanırken IP adresin (ağın yaklaşık yeri); kaydedilmez.",
+      "account": "Yaş grubun (15–17 ya da 18+), Bargu+ aboneliğin ve aldığın süsler."
+    },
+    "cannot": {
+      "location": "Konumun: telefonunda şifrelenir, sunucu okuyamaz.",
+      "history": "Konum geçmişin: şifreli durur, 14 gün sonra silinir.",
+      "messages": "Mesajların, fotoğrafların, hikayelerin ve tepkilerin.",
+      "places": "Yerlerinin adları ve konumları; buluşmaların yeri ve oyların neye verildiği.",
+      "sharing": "Kime, ne kadar süre ve ne kadar ayrıntılı konum gösterdiğin; hayalet modun ve durum yazın."
+    },
+    "verify": "Arkadaşının anahtarının gerçekten ona ait olduğunu görmek için: çemberde kişiye dokun, sonra Güvenlik numarası.",
+    "open": "Sunucu ne biliyor?"
   }
 }

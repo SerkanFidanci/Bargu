@@ -1706,5 +1706,29 @@
     "sentMore": "Sent to {{name}} and {{count}} more",
     "failed": "Couldn't send, try again in a bit.",
     "limited": "You've sent a lot for now, try again in a bit."
+  },
+  "serverKnows": {
+    "title": "What does the server know?",
+    "intro": "Your location and what you write are encrypted on your phone; Bargu's server cannot read them. To work, it has to know a few things. Here they all are.",
+    "seesTitle": "The server sees",
+    "cannotTitle": "The server cannot see",
+    "sees": {
+      "email": "Your email address: to send your sign-in code. The database keeps a keyed hash of it, not the address.",
+      "circles": "Which circles you are in, their names and who runs them.",
+      "profile": "Your username, display name, avatar colour and emoji; whether you have a photo (the photo itself is encrypted).",
+      "timing": "When and how often you send your location (whether you move can be inferred), and when you stop sharing with a circle.",
+      "push": "Your notification token and when notifications go; what they say and who sends them are encrypted.",
+      "ip": "Your IP address while connected (roughly where your network is); it is not logged.",
+      "account": "Your age group (15–17 or 18+), your Bargu+ subscription and the looks you bought."
+    },
+    "cannot": {
+      "location": "Your location: encrypted on your phone, the server cannot read it.",
+      "history": "Your location history: kept encrypted, deleted after 14 days.",
+      "messages": "Your messages, photos, stories and reactions.",
+      "places": "Your places' names and locations; where meetings are and what votes went to.",
+      "sharing": "Who sees your location, for how long and how precisely; your ghost mode and your status."
+    },
+    "verify": "To check a friend's key really is theirs: tap them in a circle, then Safety number.",
+    "open": "What does the server know?"
   }
 }
