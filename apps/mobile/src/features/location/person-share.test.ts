@@ -4,6 +4,7 @@ import {
   isFrozenFor,
   isSharingWith,
   type SharingSettings,
+  timedEnds,
   timedShareOver,
 } from './sharing';
 import { circleOf, somebody } from './test-support';
@@ -69,6 +70,31 @@ describe("one friend's sharing (docs/ADR/0038)", () => {
     expect(timedShareOver(set({ mode: 'off' }), pair.id, NOW)).toBe(false);
     expect(timedShareOver({ ...timed, ghost: 'hide' }, pair.id, NOW)).toBe(false);
     expect(timedShareOver(set({ mode: 'until', until: NOW + 1 }), pair.id, NOW)).toBe(false);
+  });
+
+  it('tells a friend only that a timed share ran out: never a freeze, an off or a ghost (the PM)', () => {
+    const circles = [pair, group];
+    const ids = [pair.id, group.id];
+    const ended: SharingSettings = {
+      ...DEFAULT_SHARING,
+      circles: {
+        [pair.id]: { sharing: true, precision: 'exact', until: NOW - 1 },
+        [group.id]: { sharing: true, precision: 'exact', until: NOW - 1 },
+      },
+    };
+    // The friendship whose time ran out, with when; a group's timed share says nothing.
+    expect(timedEnds(circles, ended, ids, NOW)).toEqual([{ circle: pair, until: NOW - 1 }]);
+    // Frozen or "Gösterme" by hand: no message (a freeze is silent and gives no reason).
+    expect(timedEnds(circles, set({ mode: 'frozen' }), ids, NOW)).toEqual([]);
+    expect(timedEnds(circles, set({ mode: 'off' }), ids, NOW)).toEqual([]);
+    const frozenLate: SharingSettings = {
+      ...DEFAULT_SHARING,
+      circles: { [pair.id]: { sharing: true, precision: 'exact', until: NOW - 1, frozen: true } },
+    };
+    expect(timedEnds(circles, frozenLate, ids, NOW)).toEqual([]);
+    expect(timedEnds(circles, { ...ended, ghost: 'hide' }, ids, NOW)).toEqual([]);
+    // Not among those taken back now: nothing either.
+    expect(timedEnds(circles, ended, [], NOW)).toEqual([]);
   });
 
   it('offers the half hours from at least half an hour on, for six hours', () => {

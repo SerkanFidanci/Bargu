@@ -29,7 +29,8 @@ const PALETTE: Record<
   primary: { background: null, text: 'onBrand', shine: false, sweep: true },
   secondary: { background: 'surface', text: 'text', shine: false, sweep: false },
   ghost: { background: null, text: 'primary', shine: false, sweep: false },
-  danger: { background: 'danger', text: 'onDanger', shine: true, sweep: false },
+  // No light across it: under the shine its words fell to 3.48:1 in the light theme (QA-41).
+  danger: { background: 'danger', text: 'onDanger', shine: false, sweep: false },
 };
 
 /** Width of the light band sweeping across a pressed button, relative to the button. */

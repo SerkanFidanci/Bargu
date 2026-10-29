@@ -17,7 +17,21 @@ jest.mock('expo-secure-store', () => ({
   setItemAsync: jest.fn(() => Promise.resolve()),
   deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
-jest.mock('expo-router', () => ({ router: { back: jest.fn(), push: jest.fn() } }));
+jest.mock('expo-router', () => {
+  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    router: { back: jest.fn(), push: jest.fn() },
+    Redirect: ({ href }: { href: string }) => createElement(Text, { testID: 'redirect' }, href),
+  };
+});
+// On here, as in package D; off as in this build, a link here leads back (QA-41).
+const mockFlag = { on: true };
+jest.mock('@/features/history/own/own-flag', () => ({
+  get OWN_HISTORY_ENABLED() {
+    return mockFlag.on;
+  },
+}));
 // The map and its layer are native; the screen's own parts are what is tested here.
 jest.mock('@/features/map/bargu-map', () => ({ BarguMap: () => null }));
 jest.mock('@/features/history/history-layer', () => ({ HistoryLayer: () => null }));
@@ -132,6 +146,19 @@ beforeEach(() => {
   alerts = [];
   jest.spyOn(Alert, 'alert').mockImplementation((title, _message, buttons) => {
     alerts.push({ title, buttons: buttons ?? [] });
+  });
+});
+
+describe('"Konum geçmişim" off in this build (QA-41)', () => {
+  it('sends a deep link here back to the map', async () => {
+    mockFlag.on = false;
+    try {
+      await render(<MyHistoryScreen />);
+      expect(screen.getByTestId('redirect')).toHaveTextContent('/');
+      expect(screen.queryByTestId('my-history')).toBeNull();
+    } finally {
+      mockFlag.on = true;
+    }
   });
 });
 

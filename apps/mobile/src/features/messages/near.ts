@@ -64,8 +64,13 @@ export function nearTargets(
     const last = Math.max(
       0,
       ...items
+        // Only what went (or is going): one that failed starts no wait (QA-41).
         .filter(
-          (item) => item.kind === 'near' && item.from === me && item.conversation === conversation,
+          (item) =>
+            item.kind === 'near' &&
+            item.from === me &&
+            item.conversation === conversation &&
+            item.state !== 'failed',
         )
         .map((item) => item.at),
     );

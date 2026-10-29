@@ -103,6 +103,8 @@ describe('where "Yakındayım" can go (docs/ADR/0037 §3, the PM 2026-10-29)', (
     const [pair, small] = nearTargets(circles, all, ME, [sent], NOW);
     expect(pair?.waitMs).toBe(NEAR_EVERY_MS - 4 * 60_000);
     expect(small?.waitMs).toBe(0);
+    // One that failed starts no wait (QA-41).
+    expect(nearTargets(circles, all, ME, [{ ...sent, state: 'failed' }], NOW)[0]?.waitMs).toBe(0);
     // Someone else's, or one older than ten minutes, does not count.
     expect(nearTargets(circles, all, ME, [{ ...sent, from: ALI }], NOW)[0]?.waitMs).toBe(0);
     expect(

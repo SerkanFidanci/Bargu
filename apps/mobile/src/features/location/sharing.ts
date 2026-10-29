@@ -82,16 +82,27 @@ const SHARING_KEY = 'sharing:v1';
 
 /** Read leniently: a field a newer version wrote is dropped, not a reason to refuse the rest. */
 const circleSharingReadSchema = z.object(circleSharingSchema.shape);
-const sharingReadSchema = z.object({
-  ...sharingSchema.shape,
-  circles: z.record(z.string(), z.unknown()),
-});
 
 /**
- * Settings that cannot be read send nothing anywhere: every circle unshared, a new one too, until
- * the user chooses again (the PM, 2026-10-29: "okunamayan ayar, tam konum demek değildir").
+ * Settings that cannot be read send nothing anywhere: a hidden ghost, every circle unshared, a new
+ * one too, until the user chooses again (the PM, 2026-10-29: "okunamayan ayar, tam konum demek
+ * değildir"; QA-41 O1: what cannot be read is read as its most closed choice).
  */
-const NOTHING_READ: SharingSettings = { ghost: 'off', circles: {}, newCircles: 'off' };
+const NOTHING_READ: SharingSettings = { ghost: 'hide', circles: {}, newCircles: 'off' };
+
+/** One choice as saved: absent stays absent (the default); unreadable is the most closed one. */
+function readChoice<T extends string>(
+  value: unknown,
+  choices: readonly [T, ...T[]],
+  closed: T,
+  lost: () => void,
+): T | undefined {
+  if (value === undefined) return undefined;
+  const read = z.enum(choices).safeParse(value);
+  if (read.success) return read.data;
+  lost();
+  return closed;
+}
 
 /**
  * The saved settings and whether some of them could not be read. A circle whose choice cannot be
@@ -108,22 +119,53 @@ export function readSharing(store: KeyValueStore): {
   try {
     json = JSON.parse(raw);
   } catch {
+    // Not even JSON (QA-41 O1: JSON.parse throws a SyntaxError).
     return { settings: NOTHING_READ, unreadable: true };
   }
-  const read = sharingReadSchema.safeParse(json);
-  if (!read.success) return { settings: NOTHING_READ, unreadable: true };
+  if (typeof json !== 'object' || json === null || Array.isArray(json)) {
+    return { settings: NOTHING_READ, unreadable: true };
+  }
+  const saved = json as Record<string, unknown>;
   let unreadable = false;
+  const lost = () => {
+    unreadable = true;
+  };
+  if (saved.ghost === undefined) lost();
+  const ghost = readChoice(saved.ghost, GHOST_MODES, 'hide', lost) ?? 'hide';
+  let newCircles = readChoice(saved.newCircles, ['share', 'off'], 'off', lost);
   const circles: Record<string, CircleSharing> = {};
-  for (const [circleId, entry] of Object.entries(read.data.circles)) {
-    const circle = circleSharingReadSchema.safeParse(entry);
-    if (circle.success) {
-      circles[circleId] = circle.data;
-    } else {
-      circles[circleId] = NOT_SHARED;
-      unreadable = true;
+  const entries = saved.circles;
+  if (typeof entries !== 'object' || entries === null || Array.isArray(entries)) {
+    // Which circles were chosen for is lost: none is shared, nor one joined later.
+    unreadable = true;
+    newCircles = 'off';
+  } else {
+    for (const [circleId, entry] of Object.entries(entries)) {
+      const circle = circleSharingReadSchema.safeParse(entry);
+      if (circle.success) {
+        circles[circleId] = circle.data;
+      } else {
+        circles[circleId] = NOT_SHARED;
+        unreadable = true;
+      }
     }
   }
-  return { settings: { ...read.data, circles }, unreadable };
+  const speed = readChoice(saved.speed, ['show', 'hide'], 'hide', lost);
+  const backgroundLive = readChoice(saved.backgroundLive, ['on', 'off'], 'off', lost);
+  const backgroundLiveDefault = readChoice(saved.backgroundLiveDefault, ['on', 'off'], 'off', lost);
+  const settings = {
+    ghost,
+    circles,
+    ...(newCircles === undefined ? {} : { newCircles }),
+    ...(speed === undefined ? {} : { speed }),
+    ...(backgroundLive === undefined ? {} : { backgroundLive }),
+    ...(backgroundLiveDefault === undefined ? {} : { backgroundLiveDefault }),
+  };
+  // What was read, checked whole as it is written: anything else is read closed.
+  const checked = sharingSchema.safeParse(settings);
+  return checked.success
+    ? { settings: checked.data, unreadable }
+    : { settings: NOTHING_READ, unreadable: true };
 }
 
 export function loadSharing(store: KeyValueStore): SharingSettings {
@@ -263,6 +305,28 @@ export function timedShareOver(settings: SharingSettings, circleId: string, now:
   if (settings.ghost !== 'off') return false;
   const sharing = circleSharing(settings, circleId);
   return sharing.sharing && sharing.until !== null && sharing.until <= now;
+}
+
+/**
+ * Which of the circles whose location is being taken back are told their timed share ended
+ * (docs/ADR/0038 Ek 1, Ek 2): friendships whose time ran out, and nothing else. A freeze is silent
+ * and says no reason; "Gösterme", a ghost or a pause say nothing either (the PM, 2026-10-29).
+ */
+export function timedEnds<T extends { id: string; kind?: string | undefined }>(
+  circles: readonly T[],
+  settings: SharingSettings,
+  circleIds: readonly string[],
+  now: number,
+): { circle: T; until: number }[] {
+  const ends: { circle: T; until: number }[] = [];
+  for (const circle of circles) {
+    const sharing = circleSharing(settings, circle.id);
+    if (circle.kind !== 'pair' || !circleIds.includes(circle.id)) continue;
+    if (sharing.frozen === true || sharing.until === null) continue;
+    if (!timedShareOver(settings, circle.id, now)) continue;
+    ends.push({ circle, until: sharing.until });
+  }
+  return ends;
 }
 
 /**

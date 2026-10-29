@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { Eye, History as HistoryIcon, Trash2, Upload, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import {
   KEEP_CHOICES,
   type OwnSettings,
 } from '@/features/history/own/own-model';
+import { OWN_HISTORY_ENABLED } from '@/features/history/own/own-flag';
 import { ownTrail, ownTrailTick } from '@/features/history/own/own-session';
 import { prepareTrailKey } from '@/features/history/own/own-files';
 import { nameStays } from '@/features/history/stay-names';
@@ -55,6 +56,12 @@ const STRIP_DAYS = 14;
  * already kept waits. Choosing how long, deleting it all and taking it out are at the bottom.
  */
 export default function MyHistoryScreen() {
+  // Off until package D (Ö7): a deep link here goes back to the map (QA-41).
+  if (!OWN_HISTORY_ENABLED) return <Redirect href="/" />;
+  return <MyHistory />;
+}
+
+function MyHistory() {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();

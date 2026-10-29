@@ -72,12 +72,43 @@ describe('reading the saved sharing settings', () => {
   });
 
   it('shares with nobody when nothing can be read: not the full location everywhere', () => {
-    for (const raw of ['{not json', JSON.stringify({ ghost: 'sometimes', circles: {} }), '[]']) {
+    // Not JSON at all (JSON.parse throws), not an object, or no circles to read (QA-41 O1).
+    for (const raw of ['{not json', '[]', '"x"', JSON.stringify({ ghost: 'off', circles: 3 })]) {
       const read = readSharing(saved(raw));
       expect(read.unreadable).toBe(true);
       expect(isSharingWith(read.settings, HOME, NOW)).toBe(false);
       // A circle joined later starts unshared too, until the user chooses.
       expect(circleSharing(read.settings, NEW).sharing).toBe(false);
     }
+  });
+
+  it('reads what cannot be read as its most closed choice, and keeps the rest (QA-41 O1)', () => {
+    const read = readSharing(
+      saved(
+        JSON.stringify({
+          ghost: 'sometimes',
+          newCircles: 'later',
+          speed: 'fast',
+          circles: { [CLUB]: { sharing: true, precision: 'exact', until: null } },
+        }),
+      ),
+    );
+    expect(read.unreadable).toBe(true);
+    expect(read.settings).toMatchObject({ ghost: 'hide', newCircles: 'off', speed: 'hide' });
+    expect(read.settings.circles[CLUB]).toEqual({ sharing: true, precision: 'exact', until: null });
+    expect(isSharingWith(read.settings, CLUB, NOW)).toBe(false);
+    // A 15-17 phone keeps its closed start for new circles when another part cannot be read.
+    const teen = readSharing(
+      saved(
+        JSON.stringify({
+          ghost: 'off',
+          newCircles: 'off',
+          circles: { [HOME]: { sharing: 'yes' } },
+        }),
+      ),
+    );
+    expect(teen.unreadable).toBe(true);
+    expect(teen.settings.newCircles).toBe('off');
+    expect(isSharingWith(teen.settings, HOME, NOW)).toBe(false);
   });
 });

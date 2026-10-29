@@ -97,7 +97,7 @@ import {
   DEFAULT_SHARING,
   historyOn,
   isSharingWith,
-  timedShareOver,
+  timedEnds,
   readSharing,
   useSharingUnreadable,
   saveSharing,
@@ -221,6 +221,29 @@ async function publishState(envelope: MessageEnvelope): Promise<PublishReply> {
  * last reason; told afterwards, the relay keeps it a day, so a friend who was away hears it too. A
  * share turned off, a ghost or a pause says nothing of the kind.
  */
+/**
+ * The line a timed share set for its end goes when that end no longer comes (QA-41): shown, frozen
+ * or off instead, a ghost, "Tümünü durdur", or the friendship gone. Loaded only when needed: the
+ * notifications module is native.
+ */
+function cancelShareEnds(before: SharingSettings, after: SharingSettings): void {
+  const at = Date.now();
+  for (const [circleId, was] of Object.entries(before.circles)) {
+    if (was.until === null || was.until <= at) continue;
+    const now = after.circles[circleId];
+    const still =
+      after.ghost === 'off' &&
+      now !== undefined &&
+      now.sharing &&
+      now.frozen !== true &&
+      now.until === was.until;
+    if (still) continue;
+    void import('./share-ends')
+      .then((ends) => ends.cancelShareEnd(circleId))
+      .catch(() => undefined);
+  }
+}
+
 async function withdraw(circleIds: string[]): Promise<void> {
   const settings = loadSharingSettings();
   const at = Date.now();
@@ -231,17 +254,7 @@ async function withdraw(circleIds: string[]): Promise<void> {
     if (typeof reply === 'object' && reply !== null && 'ok' in reply) continue;
     await api.authed('/v1/locations/withdraw', { method: 'POST', body });
   }
-  for (const circle of sendCircles()) {
-    const until = settings.circles[circle.id]?.until;
-    if (
-      circle.kind !== 'pair' ||
-      until === null ||
-      until === undefined ||
-      !circleIds.includes(circle.id) ||
-      !timedShareOver(settings, circle.id, at)
-    ) {
-      continue;
-    }
+  for (const { circle, until } of timedEnds(sendCircles(), settings, circleIds, at)) {
     await stateReporter.ended(circle, until).catch(() => undefined);
   }
 }
@@ -721,7 +734,10 @@ export function updateSharing(change: (current: SharingSettings) => SharingSetti
   const before = loadSharingSettings();
   const next = change(before);
   useSharing.setState(next, true);
-  saveSharing(vault(), next);
+  // Settings that could not be read stay saved as they were until the user looks at them ("Kontrol
+  // et", QA-41 O1): until then a change lives in memory, and the next start reads them closed again.
+  if (!useSharingUnreadable.getState().unreadable) saveSharing(vault(), next);
+  cancelShareEnds(before, next);
   history.sharingChanged();
   watchSharingEnd();
   shareSeenWithExtension(next);

@@ -7,6 +7,7 @@ import {
   Ghost,
   LocateFixed,
   type LucideIcon,
+  MapPin,
   Snowflake,
 } from 'lucide-react-native';
 import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from 'react';
@@ -204,7 +205,8 @@ function RecenterButton({
  * Ghost mode from the map: a tap offers the three choices of Me, "Kapalı / Dondur / Gizle" (the PM
  * report T5, 2026-10-29; GhostSheet). Only the icon on the map (the owner, 2026-10-29: "Hayalet
  * yazmasın sadece iconu gözüksün"). Turned on, the ghost floats a few times, then rests; off, a
- * little "pof". Its state shows in colour, in a badge of its own shape (a snowflake for "Dondur",
+ * little "pof". Off it wears the pin of "Kapalı" (QA-41, as the sheet and the settings do). Its
+ * state shows in colour, in a badge of its own shape (a snowflake for "Dondur",
  * a crossed-out eye for "Gizle": the PM, 2026-10-29, not by colour alone, so no one stays hidden
  * without noticing), in the button's state and in what a screen reader says.
  */
@@ -264,7 +266,7 @@ function GhostButton({
       <Animated.View style={popping}>
         <RoundButton
           testID="shortcut-ghost"
-          icon={Ghost}
+          icon={on ? Ghost : MapPin}
           tone={on ? 'primary' : 'raised'}
           selected={on}
           label={[
