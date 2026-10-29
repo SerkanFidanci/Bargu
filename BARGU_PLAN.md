@@ -589,6 +589,9 @@ Kurallar:
     - Ö12'de gelecek tarihli zaman sayılmaz;
     - büyük yazıda yer adı iki satıra iner.
   - Hepsi G APK'sına girer; o APK'da QA-43 yapılır.
+  - **PM, 2026-10-30, fiyat kuralı:** Bargu+ ve süs paketlerinin fiyatı yalnız Play'in yerelleştirilmiş fiyatından gelir; koddaki sabit fiyatlar kaldırıldı.
+    - Fiyat bilinmiyorsa satın alma düğmesi ve 15–17 ebeveyn onayı kapalıdır, yanında "Fiyat şu an alınamadı" yazar.
+    - Play Billing bağlanana kadar uygulamada fiyat görünmez. Bölüm 5'teki TL fiyatları Play Console'a girilecek fiyatlardır.
 - Ö2 pil modu: Canlı / Dengeli / Pil dostu, "bugün GPS şu kadar çalıştı" bilgisiyle (ADR 0036 eki). Sahibin pil ölçümünden sonra.
 - Ö6 kişiye süreli paylaşım ve tek kişiye sessiz dondurma: "21:30'a kadar" (Faz 11'den öne alındı).
 - Ö8 "Yakındayım, gelir misin?": tek dokunuş, seçilen çembere. Mesafeyi alan telefon hesaplar; yeni şifreli tür.
@@ -643,6 +646,7 @@ Kurallar:
     - Bargu+ biterse kayıt durur; eski günler seçilen süre dolunca silinir.
     - Politika buna göre güncellendi.
     - ADR 0035 Ek 3 (hikaye düzenleyici, `05e1fff`) PM şartlarıyla kabul edildi.
+  - **Durum (2026-10-30):** G APK'sı `60563a5` olarak yayında. İçinde hikaye düzenleyici, Ö7 açık, QA-42 düzeltmeleri ve fiyat kuralı var. Linux CI (1523 test), GitHub CI ve güvenlik taraması yeşil. QA-43 açıldı.
 
 **Paket C: güvenlik**
 - Ö5 eve vardım kontrolü (Faz 11'den öne alındı). Yeni ADR gerekir, tasarım Opus'ta.
