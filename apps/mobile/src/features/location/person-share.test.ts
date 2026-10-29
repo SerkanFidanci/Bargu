@@ -1,5 +1,4 @@
-import { personShareOf, untilChoices, withPersonShare } from './person-share';
-import { endedFriendShares } from './share-ends';
+import { endedFriendShares, personShareOf, untilChoices, withPersonShare } from './person-share';
 import {
   DEFAULT_SHARING,
   isFrozenFor,
