@@ -36,6 +36,7 @@ import { docKey, useDocs } from './docs';
 import { type Meeting, meetingOf, useMeetingChoices } from './meeting';
 import { PlaceIcon, PlaceSheet, PollSheet, TimeSheet, timeRange } from './meeting-sheets';
 import { closePoll, mayRunMeeting, removePoll, setMeeting, vote, votesOf } from './plan-actions';
+import { etaWords } from './eta-words';
 import { type Arrival, type Doc, inEtaWindow, MEETING, tally, type TravelMode } from './plan-model';
 import { useArrivals } from './use-arrivals';
 
@@ -324,8 +325,8 @@ function ArrivalsBoard({
   const text = (row: Arrival): string => {
     if (row.state === 'there') return t('plan.there');
     if (row.state === 'unknown') return t('plan.unknown');
-    const time = endClock(row.at, now, i18n.language);
-    return row.late > 0 ? t('plan.etaLate', { time, minutes: row.late }) : t('plan.eta', { time });
+    if (row.state === 'still') return t('plan.still');
+    return etaWords(t, row, now, i18n.language);
   };
 
   return (

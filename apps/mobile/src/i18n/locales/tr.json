@@ -755,7 +755,8 @@
       "statusLeft": "{{hours}} sa daha",
       "muted": "Sessizde",
       "notifications": "{{name}}: bildirimler",
-      "notificationsMuted": "{{name}}: bildirimler sessizde"
+      "notificationsMuted": "{{name}}: bildirimler sessizde",
+      "homeEta": "{{place}}: yaklaşık {{minutes}} dk"
     },
     "poke": {
       "sent": "{{name}} dürtüldü",
@@ -968,8 +969,8 @@
     "board": "Kim ne zaman orada?",
     "boardHint": "Herkesin telefonu kendi varış tahminini yapar ve yalnızca bu etkinliğe şifreli gönderir. Tam konum paylaşmayanlar görünmez.",
     "there": "Orada",
-    "eta": "~{{time}}",
-    "etaLate": "~{{time}} · {{minutes}} dk geç",
+    "eta": "Yaklaşık {{time}}",
+    "etaLate": "{{when}} · {{minutes}} dk geç",
     "unknown": "Bilinmiyor",
     "you": "Sen",
     "mode": "Nasıl geleceksin?",
@@ -987,7 +988,9 @@
     "leaveIn": "Buluşmaya yetişmek için {{minutes}} dk içinde çıkmalısın",
     "adminChooses": "Yönetici belirleyecek",
     "meetingPoint": "{{event}} buluşma noktası: {{place}}, {{time}}",
-    "exists": "Bu çemberde zaten bir buluşma var; onu görüyorsun."
+    "exists": "Bu çemberde zaten bir buluşma var; onu görüyorsun.",
+    "etaIn": "Yaklaşık {{minutes}} dk",
+    "still": "Henüz yola çıkmadı"
   },
   "history": {
     "title": "Geçmiş",

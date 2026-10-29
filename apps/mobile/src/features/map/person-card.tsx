@@ -11,6 +11,7 @@ import {
   Flag,
   Hand,
   History,
+  House,
   LocateOff,
   type LucideIcon,
   MapPin,
@@ -66,6 +67,8 @@ import { LOW_BATTERY, staleMinutes } from './people-layer';
 import { circleActionLabel, type PersonView } from './person-actions';
 import { closeCard, type PersonAction, type ScreenPoint } from './person-focus';
 import { distanceText } from './distance-text';
+import { homeEta } from './home-eta';
+import type { Place } from '../places/place-model';
 
 /** Dragging the card down this far (px) closes it. */
 const DISMISS_PX = space.xxxl * 2;
@@ -259,6 +262,7 @@ export function PersonCard({
   onAction,
   onHeight,
   canMessage,
+  homes = [],
 }: {
   person: PersonView;
   /** Where on screen their avatar was tapped. */
@@ -275,6 +279,8 @@ export function PersonCard({
    * written to in the event's conversation (docs/ADR/0035 §1, QA-38 O2).
    */
   canMessage: boolean;
+  /** Homes of the circles shared with them: "Eve yaklaşık 12 dk" while on their way (Ö12). */
+  homes?: readonly Place[];
 }) {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
@@ -312,6 +318,7 @@ export function PersonCard({
   const hasStory = storyState !== 'none';
   const status = statusOf(useStatuses(), person.userId, now);
   const minutes = loc === null ? undefined : staleMinutes(loc.ts, now);
+  const home = loc === null ? null : homeEta(loc, homes, now);
   const states = useStates();
   const why =
     loc === null ? null : whyShown({ loc, state: newestState(states, person.userId), now });
@@ -383,6 +390,16 @@ export function PersonCard({
           )}
           <Fact icon={MapPin} text={place ?? (place === null ? t('map.card.placeUnknown') : '…')} />
           {far === null ? null : <Fact icon={Navigation} text={t('map.card.distance', { far })} />}
+          {home === null ? null : (
+            <Fact
+              testID="card-home-eta"
+              icon={House}
+              text={t('map.card.homeEta', {
+                place: `${home.place.emoji} ${home.place.name}`,
+                minutes: home.minutes,
+              })}
+            />
+          )}
           <Fact
             icon={BatteryIcon}
             text={

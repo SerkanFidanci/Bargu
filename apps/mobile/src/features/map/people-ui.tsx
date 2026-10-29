@@ -12,6 +12,8 @@ import type { SheetRef } from '@/ui/sheet';
 
 import { useAuth } from '../auth/auth-store';
 import { useMyFix } from '../location/engine';
+import { usePlaces } from '../places/places';
+import { homesOf } from './home-eta';
 import { type PersonShareTarget, PersonShareSheet } from '../location/person-share-sheet';
 import { useLocations } from '../location/receive';
 import { useMe } from '../profile/queries';
@@ -63,6 +65,8 @@ export function usePeopleUi(
   const [place, setPlace] = useState<{ userId: string; name: string | null } | null>(null);
   const focused = useRef<string | null>(null);
   const muteSheet = useRef<SheetRef>(null);
+  // The homes of the circles shared with someone, for "Eve yaklaşık 12 dk" on their card (Ö12).
+  const places = usePlaces();
   // "Bildir" and "Engelle" from a person's card; blocked, their card closes.
   const safety = useSafety(() => {
     closeCard();
@@ -297,6 +301,7 @@ export function usePeopleUi(
           canMessage={writablePeople(circles, myUserId).some(
             (writable) => writable.userId === person.userId,
           )}
+          homes={homesOf(places, circles, person.userId)}
         />
       )}
       {mine && me !== undefined ? (

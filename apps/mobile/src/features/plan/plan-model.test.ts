@@ -261,6 +261,32 @@ describe('who is there when', () => {
     ]);
   });
 
+  it('shows no estimate for someone standing still, only their own word (Ö12)', () => {
+    const eta = { eta: { meetAt, at: meetAt + 5 * MIN } };
+    const rows = arrivals({
+      meetAt,
+      place,
+      members: [ids.ayse, ids.bora, ids.can, 'dana'],
+      locations: {
+        // Walking: on the way.
+        [ids.ayse]: loc(north(800), { ...eta, spd: 1.4 }),
+        // Speed near nothing, or staying for minutes: not on the way.
+        [ids.bora]: loc(north(800), { ...eta, spd: 0.2 }),
+        [ids.can]: loc(north(800), { ...eta, since: now - 10 * MIN }),
+        // Still, but said they would be late: their word.
+        dana: loc(north(800), { ...eta, spd: 0 }),
+      },
+      told: { dana: 20 },
+      now,
+    });
+    expect(rows.map((row) => [row.userId, row.state])).toEqual([
+      [ids.ayse, 'coming'],
+      ['dana', 'coming'],
+      [ids.bora, 'still'],
+      [ids.can, 'still'],
+    ]);
+  });
+
   it('outside an event, shows only who said "Geliyorum", its starter and who said "Geldim" (QA-35)', () => {
     const coming = { eta: { meetAt, at: meetAt + 10 * MIN } };
     const rows = arrivals({

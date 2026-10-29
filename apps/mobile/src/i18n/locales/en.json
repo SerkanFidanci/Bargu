@@ -755,7 +755,8 @@
       "statusLeft": "{{hours}} h left",
       "muted": "Muted",
       "notifications": "{{name}}: notifications",
-      "notificationsMuted": "{{name}}: notifications muted"
+      "notificationsMuted": "{{name}}: notifications muted",
+      "homeEta": "{{place}}: about {{minutes}} min"
     },
     "poke": {
       "sent": "You poked {{name}}",
@@ -968,8 +969,8 @@
     "board": "Who gets there when?",
     "boardHint": "Each phone estimates its own arrival and sends it, encrypted, to this event only. People not sharing their exact location do not show.",
     "there": "There",
-    "eta": "~{{time}}",
-    "etaLate": "~{{time}} · {{minutes}} min late",
+    "eta": "About {{time}}",
+    "etaLate": "{{when}} · {{minutes}} min late",
     "unknown": "Unknown",
     "you": "You",
     "mode": "How are you getting there?",
@@ -987,7 +988,9 @@
     "leaveIn": "Leave within {{minutes}} min to make the meeting",
     "adminChooses": "An admin will choose",
     "meetingPoint": "{{event}} meeting point: {{place}}, {{time}}",
-    "exists": "This circle already has a meeting; you can see it."
+    "exists": "This circle already has a meeting; you can see it.",
+    "etaIn": "About {{minutes}} min",
+    "still": "Not on the way yet"
   },
   "history": {
     "title": "History",

@@ -19,6 +19,7 @@ export function useArrivals(circle: Circle, meeting: Meeting, me: string, now: n
   const said = useArrived();
   const docs = useDocs();
   const myFix = useMyFix((state) => state.fix);
+  const mySince = useMyFix((state) => state.since);
   const active = circle.members.filter((member) => member.status === 'active');
   const located: Record<string, LocPayload | undefined> = {};
   const told: Record<string, number | undefined> = {};
@@ -41,6 +42,9 @@ export function useArrivals(circle: Circle, meeting: Meeting, me: string, now: n
       bat: 100,
       chg: false,
       ts: myFix.ts,
+      // Standing or moving, as for everyone else (Ö12).
+      ...(myFix.spd === null ? {} : { spd: myFix.spd }),
+      ...(mySince === null ? {} : { since: mySince }),
       ...(eta === undefined ? {} : { eta }),
     };
   }

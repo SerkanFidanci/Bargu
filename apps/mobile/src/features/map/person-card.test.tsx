@@ -223,6 +223,67 @@ describe("a person's card (UX düzeni)", () => {
   });
 });
 
+describe('on their way home (Ö12)', () => {
+  it('says "yaklaşık" how long to a home of a shared circle while they move toward it', async () => {
+    const at = (spd: number): PersonView => ({
+      ...person('pair'),
+      location: {
+        circleId: 'c1',
+        userId: ADA,
+        receivedAt: Date.now(),
+        loc: {
+          kind: 'loc',
+          lat: 41.0,
+          lng: 29.0,
+          acc: 8,
+          bat: 70,
+          chg: false,
+          spd,
+          hdg: 5,
+          ts: Date.now(),
+        },
+      },
+    });
+    const moving = at(8);
+    const home = {
+      id: 'p1',
+      circleId: 'c1',
+      version: 1,
+      name: 'Bizim ev',
+      emoji: '🏠',
+      lat: 41.018,
+      lng: 29.0,
+      radius: 100,
+      ts: 1,
+    };
+    const view = await render(
+      <PersonCard
+        person={moving}
+        from={{ x: 0, y: 0 }}
+        place={undefined}
+        onAction={jest.fn()}
+        onHeight={jest.fn()}
+        canMessage
+        homes={[home]}
+      />,
+    );
+    expect(screen.getByTestId('card-home-eta')).toHaveTextContent(/^🏠 Bizim ev: yaklaşık \d+ dk$/);
+    // Standing: nothing.
+    await view.rerender(
+      <PersonCard
+        person={at(0)}
+        from={{ x: 0, y: 0 }}
+        place={undefined}
+        onAction={jest.fn()}
+        onHeight={jest.fn()}
+        canMessage
+        homes={[home]}
+      />,
+    );
+    expect(screen.queryByTestId('card-home-eta')).toBeNull();
+  });
+});
+
 describe('why the location is old, on the card ("Neden eski?", docs/ADR/0028)', () => {
   const MINUTE = 60_000;
   const CIRCLE = '0190a8a0-0000-7000-8000-0000000000d1';

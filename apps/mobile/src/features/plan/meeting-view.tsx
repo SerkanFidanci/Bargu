@@ -27,6 +27,7 @@ import { toast } from '@/ui/toast';
 import { Toggle } from '@/ui/toggle';
 
 import { endClock } from '../circles/event-ui';
+import { etaWords } from './eta-words';
 import { memberName } from '../circles/names';
 import { meetings, sayArrived } from '../location/location-session';
 import { BarguMap } from '../map/bargu-map';
@@ -411,10 +412,11 @@ function ArrivalRows({
   const label = (row: Arrival): { text: string; tone: Tone } => {
     if (row.state === 'there') return { text: t('plan.there'), tone: 'success' };
     if (row.state === 'unknown') return { text: t('plan.unknown'), tone: 'muted' };
-    const time = endClock(row.at, now, i18n.language);
-    return row.late > 0
-      ? { text: t('plan.etaLate', { time, minutes: row.late }), tone: 'danger' }
-      : { text: t('plan.eta', { time }), tone: 'primary' };
+    if (row.state === 'still') return { text: t('plan.still'), tone: 'muted' };
+    return {
+      text: etaWords(t, row, now, i18n.language),
+      tone: row.late > 0 ? 'danger' : 'primary',
+    };
   };
   const counted = new Set(rows.map((row) => row.userId));
   // Those not on the way: what they said, under the board.

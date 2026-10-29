@@ -57,6 +57,13 @@ export const MEETING = {
    * a cell's centre, which may fall inside the place, and must never tell an arrival.
    */
   arrivalAccuracyM: 100,
+  /**
+   * Ö12 (the PM, 2026-10-29): an estimate only for someone on the move. Slower than this (m/s, well
+   * under a walk) they are standing…
+   */
+  movingMps: 0.5,
+  /** …as they are after this long within about 100 m of one place (their location's `since`). */
+  stillAfterMs: 3 * 60_000,
 } as const;
 
 const HOUR_MS = 3600_000;
@@ -272,6 +279,8 @@ export type Arrival =
   | { userId: string; state: 'there'; by: 'location' | 'word' }
   /** `estimated`: their phone's estimate says so (exact sharing only), not only their own word. */
   | { userId: string; state: 'coming'; at: number; late: number; estimated: boolean }
+  /** Their exact location says they are not on the move: an estimate would only guess (Ö12). */
+  | { userId: string; state: 'still' }
   | { userId: string; state: 'unknown' };
 
 /** A location this old says nothing about the meeting any more. */
@@ -323,9 +332,14 @@ export function arrivals(input: {
     // with an exact location: a coarse sharer's phone sends none, and one that did is not taken
     // (QA 22).
     const said = input.told?.[userId];
-    const estimate = exact?.eta?.meetAt === meetAt ? exact.eta.at : undefined;
+    // Standing still (Ö12): their phone's "leaving now" estimate is no arrival; their word counts.
+    const still =
+      exact !== undefined &&
+      ((exact.spd !== undefined && exact.spd < MEETING.movingMps) ||
+        (exact.since !== undefined && now - exact.since >= MEETING.stillAfterMs));
+    const estimate = !still && exact?.eta?.meetAt === meetAt ? exact.eta.at : undefined;
     const at = Math.max(estimate ?? 0, said === undefined ? 0 : meetAt + said * 60_000);
-    if (at === 0) return { userId, state: 'unknown' };
+    if (at === 0) return { userId, state: still ? 'still' : 'unknown' };
     return {
       userId,
       state: 'coming',
@@ -335,7 +349,13 @@ export function arrivals(input: {
     };
   });
   const rank = (row: Arrival) =>
-    row.state === 'there' ? -1 : row.state === 'coming' ? row.at : Number.MAX_SAFE_INTEGER;
+    row.state === 'there'
+      ? -1
+      : row.state === 'coming'
+        ? row.at
+        : row.state === 'still'
+          ? Number.MAX_SAFE_INTEGER - 1
+          : Number.MAX_SAFE_INTEGER;
   return rows.sort((a, b) => rank(a) - rank(b));
 }
 
