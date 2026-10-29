@@ -11,6 +11,14 @@ import { SPOT_KEEP_MS, spotShape, useSafeSpot } from './safe-spot';
 
 /** The dot of a place the phone knew well. */
 const DOT = space.lg;
+/** The name beside the dot, at most this wide. */
+const TAG_MAX = space.xxxl * 4;
+/**
+ * The dot's box: the dot in its middle (the map anchors the middle on the place) and room on both
+ * sides for the name. A box only as wide as the dot squeezed the name to nothing: an empty dark
+ * pill over the friend's pin (the owner's screenshot, 2026-10-29).
+ */
+const BOX_WIDTH = 2 * (DOT / 2 + space.xs + TAG_MAX);
 
 /**
  * Where somebody said "Güvendeyim" (docs/ADR/0029 §5), after their notification or line was tapped:
@@ -72,9 +80,10 @@ export function SafeSpotLayer() {
             />
           )}
           <View
+            testID="safe-spot-tag"
             style={[
               styles.tag,
-              circle ? null : styles.above,
+              circle ? null : styles.beside,
               { backgroundColor: colors.surfaceRaised },
             ]}
           >
@@ -89,16 +98,16 @@ export function SafeSpotLayer() {
 }
 
 const styles = StyleSheet.create({
-  dotBox: { width: DOT, height: DOT, alignItems: 'center', justifyContent: 'center' },
+  dotBox: { width: BOX_WIDTH, height: DOT, alignItems: 'center', justifyContent: 'center' },
   centre: { alignItems: 'center', justifyContent: 'center' },
   tag: {
     paddingHorizontal: space.sm,
     paddingVertical: space.xxs,
     borderRadius: radius.pill,
-    maxWidth: space.xxxl * 4,
+    maxWidth: TAG_MAX,
   },
-  // Above the dot, centred on it.
-  above: { position: 'absolute', bottom: DOT + space.xxs, alignSelf: 'center' },
+  // Right of the dot, level with it: above it stands the person's pin, below it their own line.
+  beside: { position: 'absolute', left: BOX_WIDTH / 2 + DOT / 2 + space.xs },
   name: { flexShrink: 1 },
   dot: {
     width: DOT,

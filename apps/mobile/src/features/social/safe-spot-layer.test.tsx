@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react-native';
+import { StyleSheet, type ViewStyle } from 'react-native';
 
 import i18n from '@/i18n';
 
@@ -63,7 +64,7 @@ describe('where somebody said "Güvendeyim" (docs/ADR/0029 §5)', () => {
     expect(screen.queryByTestId('safe-spot')).toBeNull();
   });
 
-  it('is a dot for an exact place: no circle, the name above it', async () => {
+  it('is a dot for an exact place: no circle, the name beside it with room for it', async () => {
     await render(<SafeSpotLayer />);
     await act(() => {
       showSpot(spot({ acc: 8 }));
@@ -74,6 +75,13 @@ describe('where somebody said "Güvendeyim" (docs/ADR/0029 §5)', () => {
     expect(screen.getByTestId('safe-spot').props.accessibilityLabel).toBe(
       'Ayşe iyiyim dedi, buradan',
     );
+    // Its box leaves the name its width, right of the dot (the owner, 2026-10-29: the name had
+    // been squeezed into an empty dark pill over the friend's pin).
+    const box = StyleSheet.flatten(screen.getByTestId('safe-spot').props.style as ViewStyle);
+    const tag = StyleSheet.flatten(screen.getByTestId('safe-spot-tag').props.style as ViewStyle);
+    expect(tag).toMatchObject({ position: 'absolute' });
+    expect(Number(tag.left)).toBeGreaterThan(Number(box.width) / 2);
+    expect(Number(box.width) - Number(tag.left)).toBeGreaterThanOrEqual(Number(tag.maxWidth));
   });
 
   it('is a circle with the accuracy for a coarse place: no dot that claims more', async () => {
