@@ -679,6 +679,16 @@ Kurallar:
   - Varmaz ve cevap vermezse sunucu, açamadığı uyarıyı saatinde iletir. Böylece telefon kapansa bile uyarı gider.
 - Sunucu yalnız "bir emanet var" ve saatini görür. Ekranda KADES ve 112 kısayolu olur. Bargu acil servis değildir; bu ekranda yazar.
 - THREAT_MODEL ve gizlilik politikası güncellenir.
+- **ADR'ler (PM, 2026-10-30):** 0039 (Ö5 ve N1), 0040 (N4) ve 0041 (Ö9, paket E) aşağıdaki şartlarla kabul edildi (`7e2bea5`). ADR'lerdeki PM sorularının hepsi öneri yönünde cevaplandı.
+  - **0039, şart 1:** Uyarı iletildikten sonra alıcı onu en az 24 saat açabilmeli. Bugünkü 24 saatlik sınır kutunun yapıldığı andan sayılıyor; telefon yolda erken kapanırsa alıcıya bir saat bile kalmayabilir. `checkin` türünde süre imzalı `due + grace`'ten sayılır. Bu yeni bir primitive değil, `packages/crypto`'daki yaş kuralının türe göre değeridir; testli olur.
+  - **0039, şart 2:** Kişi vardığında telefon çevrimdışıysa iptal sıraya girer ve yeniden denenir. Uyarı o arada gittiyse telefon alıcılara kendiliğinden "vardı, haber geç ulaştı" (`checkin-ok`) gönderir.
+  - **0039, şart 3:** Tekrarlı kontrolde alıcıya kurulum haberi yalnız plan kurulunca ya da değişince gider, her gün gitmez. "Vardı ✓" sessiz bir öğedir; ses ya da bildirim çıkarmaz.
+  - **0039, şart 4:** Yeni izin yok. Tam ekran bildirim (USE_FULL_SCREEN_INTENT) ve "Rahatsız etme"yi aşma izni istenmez; Play bunları kısıtlıyor. Uyarı "Güvenlik uyarıları" kanalında yüksek öncelikli bildirimdir; tam ekran görünüm bildirime dokununca açılır.
+  - **0040, şart:** Sahip "Yoklamada olmayan: N kişi" görür, ama adlar listesinden kimin dışarıda kaldığını çıkarabilir. Bu THREAT_MODEL'e dürüstçe yazılır: kimin dışarıda kaldığı çıkarılabilir; nedeni (eski uygulama, ayar kapalı ya da 15–17) görünmez. "Sahip", rolü `owner` olan bütün yöneticilerdir.
+  - **0041, şart 1:** "Açık kaynak" ve "SRI" azaltma olarak yazılmaz. Depo açık değil (N5 sahibin kararı). Sayfayı kendi sunucumuz verdiği için SRI bu riske karşı korumaz. Kabul edilen risk olduğu gibi yazılır.
+  - **0041, şart 2:** Çıkış yapınca da kişinin açık linkleri silinir. Sayfa ilk yayından önce test oturumunun ayrı bir güvenlik incelemesinden geçer (CSP, başlıklar, betik).
+  - **Belgeler:** THREAT_MODEL ve N2 kodla birlikte kod oturumunda güncellenir, çünkü N2 testi THREAT_MODEL'i okur. Gizlilik politikası ve Play belgeleri, paketin APK'sı çıkmadan önce PM'de güncellenir.
+- **Ara APK (2026-10-30, `1108f18`):** Sahip sohbette yazdığını göremiyordu; yazı kutusu klavyenin altında kalıyordu. Düzeltme, sahip mesajlaşmayı kullanabilsin diye küçük bir APK olarak verildi. Ayrı QA turu yok; düzeltme C APK'sının QA'sına girer.
 
 **Paket D: kendi dünyan**
 - Ö7 kendi konum geçmişin ve kazıma haritası (ADR 0030, onaylı): gün gün iz, duraklar, gezilen yerlerin açılması. Hepsi telefonda.
