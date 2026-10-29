@@ -1,6 +1,6 @@
 # 0041. Uygulamasız şifreli konum linki
 
-- Durum: Önerildi (kodlama oturumu, 2026-10-30); PM onayı bekliyor
+- Durum: Kabul edildi (PM, 2026-10-30), PM şartlarıyla; önerildi (kodlama oturumu, 2026-10-30)
 - Tarih: 2026-10-30
 - İlgili: BARGU_PLAN Faz 9C paket E (Ö9), [sektör analizi](../arastirma/sektor-analizi-2026-10-29.md),
   [ADR 0034](0034-domain-and-closed-test-server.md) (bargu.app), [ADR 0009](0009-circles-keys-and-events.md)
@@ -53,7 +53,7 @@ kısım tarayıcıdan sunucuya hiç gitmez. Sayfa şifreyi tarayıcıda çözer.
   Süre için pg-boss işi `link.expire`, `startAfter = expiresAt`, yükü yalnız linkin kimliği.
 - Açık sayfalara canlı olay `link.ended` gider; sayfa haritayı ve anahtarı bellekten temizler ve
   "Bu link bitti" der. Sayfa ayrıca şifreli `until`'e kendisi de bakar.
-- Hesap silinince linkler silinir.
+- Hesap silinince **ve çıkış yapılınca** açık linkler silinir (PM şartı).
 
 ### 4. Konumun gitmesi
 
@@ -82,8 +82,8 @@ olmayan birine "biz buradayız" linki atar. Link yine **yalnız kuranın kendi k
 - Küçük, kendi derlediğimiz bir sayfa: `packages/crypto` (noble) ve `packages/schemas`; harita
   **bizim haritamız** (MapLibre GL JS, karo ve yazı tipleri `api.bargu.app/map`'ten; stilde başka adres
   olmadığı uygulamadaki testle aynı şekilde denetlenir).
-- **Üçüncü taraf betik, yazı tipi, analitik ve izleyici yok.** Bütün dosyalar kendi sunucumuzdan,
-  karma adlı ve SRI'lı.
+- **Üçüncü taraf betik, yazı tipi, analitik ve izleyici yok.** Bütün dosyalar kendi sunucumuzdan ve
+  kendi derlememizden, karma adlı.
 - Başlıklar:
   - `Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'
 blob: data: https://api.bargu.app; connect-src https://api.bargu.app wss://api.bargu.app;
@@ -139,15 +139,15 @@ görenler" ekranı açık linkleri, bitişlerini ve açılma sayılarını liste
 
 ## Tehditler
 
-| Tehdit                                            | Ne olur                                  | Önlem                                                                                                                                                  |
-| ------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Link ele geçer ya da iletilir                     | Alan herkes görür                        | Kısa süreler, tek dokunuşla iptal, açılma sayısı kurana gösterilir, kurulurken uyarı                                                                   |
-| Sunucu eski kutuyu gösterir ya da hiç güncellemez | Bakan eski konumu görür                  | Sayfa tazeliği yazar; daha eski `ts`'i kabul etmez                                                                                                     |
-| Sunucu kendi betiğini sayfaya koyar               | Anahtar okunabilir                       | **Kabul edilen risk:** sayfayı sunan sunucuya güvenmek web'in doğası. Azaltma: sayfa küçük, açık kaynak, SRI'lı; uygulama içi görünüm bu riski taşımaz |
-| Karo istekleri                                    | Haritanın baktığı bölge sunucumuza gider | Uygulamadaki ile aynı: karolar kendi sunucumuzda, istekler log'lanmaz (THREAT_MODEL "Harita" satırı)                                                   |
-| Zorlama (biri kişiye link kurdurur)               | Zorlayan konumu görür                    | Kalıcı bildirim; "Seni görenler"de liste; "Tümünü durdur"                                                                                              |
-| Kimlik tahmini                                    | —                                        | 128 bit rastgele kimlik; anahtar olmadan kutu işe yaramaz; IP başına hız sınırı                                                                        |
-| Tarayıcı geçmişi                                  | Linkin tamamı geçmişe yazılabilir        | `replaceState` adresten siler; ilk açılışta geçmişe yazılmış olabilir, link zaten süreli                                                               |
+| Tehdit                                            | Ne olur                                  | Önlem                                                                                                                                                                                                                               |
+| ------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Link ele geçer ya da iletilir                     | Alan herkes görür                        | Kısa süreler, tek dokunuşla iptal, açılma sayısı kurana gösterilir, kurulurken uyarı                                                                                                                                                |
+| Sunucu eski kutuyu gösterir ya da hiç güncellemez | Bakan eski konumu görür                  | Sayfa tazeliği yazar; daha eski `ts`'i kabul etmez                                                                                                                                                                                  |
+| Sunucu kendi betiğini sayfaya koyar               | Anahtar okunabilir                       | **Kabul edilen risk:** sayfayı sunan sunucuya güvenmek web'in doğası. Azaltma: sayfa küçük, betik yalnız kendi derlememiz, uygulama içi görünüm bu riski taşımaz (PM şartı: depo açık değil, SRI da kendi sunucumuza karşı korumaz) |
+| Karo istekleri                                    | Haritanın baktığı bölge sunucumuza gider | Uygulamadaki ile aynı: karolar kendi sunucumuzda, istekler log'lanmaz (THREAT_MODEL "Harita" satırı)                                                                                                                                |
+| Zorlama (biri kişiye link kurdurur)               | Zorlayan konumu görür                    | Kalıcı bildirim; "Seni görenler"de liste; "Tümünü durdur"                                                                                                                                                                           |
+| Kimlik tahmini                                    | —                                        | 128 bit rastgele kimlik; anahtar olmadan kutu işe yaramaz; IP başına hız sınırı                                                                                                                                                     |
+| Tarayıcı geçmişi                                  | Linkin tamamı geçmişe yazılabilir        | `replaceState` adresten siler; ilk açılışta geçmişe yazılmış olabilir, link zaten süreli                                                                                                                                            |
 
 ## Sonuçlar
 
@@ -155,7 +155,9 @@ görenler" ekranı açık linkleri, bitişlerini ve açılma sayılarını liste
 kutunun ne zaman yenilendiği (hareket ediyor mu, sıradan konumdaki gibi), kutu boyu (sabit). IP
 yalnız hız sınırı için kısa süre, log'lanmadan. Konum, ad ve anahtar gitmez.
 
-**Belgelerde değişecek satırlar** (PM günceller):
+**Belgeler (PM kararı):** THREAT_MODEL ve N2'yi kodlama oturumu, **kodla aynı commit'te** günceller
+(N2 testi THREAT_MODEL'i okur). Gizlilik politikası ve Play belgelerini PM, paketin APK'sı çıkmadan
+önce günceller. Değişecek satırlar:
 
 - THREAT_MODEL, "Saldırganlar ve önlemler": yeni satır "Konum linkinin ele geçmesi ya da kötüye
   kullanılması"; "Kontrolcü partner" satırına: açık linkler "Seni görenler"de ve "Tümünü durdur"la
@@ -176,10 +178,10 @@ yalnız hız sınırı için kısa süre, log'lanmadan. Konum, ad ve anahtar git
 - API: zod, yetki, "başka kullanıcı erişemez"; 15–17 reddedilir; 3 link sınırı; iptal ve süre kalıcı
   siler; açık uç her geçersiz durumda aynı cevabı verir; IP log'lanmaz.
 
-**Riskler:** alan adı alınmadan canlıya çıkamaz; sayfa ilk yayından önce bağımsız gözden geçirme
-ister (CSP ve betik).
+**Riskler:** alan adı alınmadan canlıya çıkamaz. İlk yayından önce **test oturumu** sayfaya ayrı bir
+güvenlik incelemesi yapar (CSP, başlıklar, betik). Bağımsız denetim N5'te, sahibin kararı (PM şartı).
 
-## PM soruları
+## PM soruları (karara bağlandı, PM 2026-10-30: hepsinde öneri geçerli; etkinlik yorumu doğru)
 
 1. Hayalet modda link de dursun mu (öneri: evet; "şu an paylaşmıyor" yazar)?
 2. "Link etkinlik çemberinde de olur" kararını, "etkinlik ekranından kurulabilir ve yalnız kuranın

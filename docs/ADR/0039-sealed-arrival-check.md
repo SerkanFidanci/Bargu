@@ -1,6 +1,7 @@
 # 0039. Eve vardım kontrolü ("mühürlü emanet") ve pil bitmeden son konum
 
-- Durum: Önerildi (kodlama oturumu, 2026-10-30); PM onayı bekliyor
+- Durum: Kabul edildi (PM, 2026-10-30), PM şartlarıyla (aşağıda "PM şartı 1–4"); önerildi (kodlama
+  oturumu, 2026-10-30)
 - Tarih: 2026-10-30
 - İlgili: BARGU_PLAN Faz 9C paket C (Ö5, N1), [sektör analizi](../arastirma/sektor-analizi-2026-10-29.md),
   [ADR 0029](0029-safe-check-in.md) (Güvendeyim), [ADR 0035](0035-messages-and-moments.md) (kişisel
@@ -73,7 +74,7 @@ bir kutu yapılır. Yeni primitive yok: `packages/crypto`'daki **kişisel öğe*
 - her kutu için taze X25519 anahtarı;
 - gönderen cihazın Ed25519 imzası (sunucu ya da başka biri uyarı uyduramaz);
 - anahtar bağlılığı ve dolgu;
-- 24 saat saati (eski kutu açılmaz).
+- yaş kuralı (eski kutu açılmaz; `checkin` için değeri aşağıda, PM şartı 1).
 
 `packages/schemas`'a yalnız yeni bir öğe türü eklenir, `checkin`:
 
@@ -93,6 +94,12 @@ bir kutu yapılır. Yeni primitive yok: `packages/crypto`'daki **kişisel öğe*
   uyarı giderse görür. Kurulum ekranı bunu yazar (bkz. 1.3). (PM sorusu 1.)
 - `due` ve `grace` imzalı metnin içindedir. Alıcının telefonu uyarının **erken** gelip gelmediğini
   bundan anlar (bkz. 10).
+- **Açılma süresi (PM şartı 1, en önemlisi):** `checkin` kutusunun yaşı kutunun `ts`'inden değil,
+  imzalı `due + grace`'ten sayılır. Alıcı uyarıyı **`due + grace + 24 sa`'e kadar** açabilir; kutunun
+  `ts`'i `due`'dan en çok 23 sa önce olabilir. Daha eski kutu ve sınırı geçen uyarı açılmaz. Böylece
+  kişi kontrolü 23 saat sonrasına kurup telefonu hemen kapansa, alıcı da ilk saatlerde çevrimdışı olsa,
+  uyarı iletildikten sonra en az 24 saat açılabilir. Bu, `packages/crypto`'daki yaş kuralının bu türe
+  özel değeridir; yeni primitive değil. Test: geç açılan uyarı açılır, sınırı geçen açılmaz.
 
 ### 4. Yol boyunca yenileme
 
@@ -141,16 +148,17 @@ kullanıcı erişemez" testi):
     anahtarıyla imzalı, cihaza mühürlü): `{ kind: 'checkin', checkinId, ownerId }`. İçinde konum, not,
     yer, saat yok. Telefon haberi alınca kutuyu `inbox`'tan çeker.
   - İş başarısız olursa yeniden denenir. Sunucu kapalı kaldıysa açılınca gecikmiş işleri hemen
-    çalıştırır; telefondaki 24 saat saati yüzünden bir saati aşan gecikme anlamsızlaşır (kutunun `ts`'i
-    açılma saatinden en çok 23 saat öncedir).
+    çalıştırır. Gecikse de alıcı uyarıyı `due + grace + 24 sa`'e kadar açabilir (bkz. 3, PM şartı 1).
 - **Silme kuralları:**
   - iptal edilen emanet hemen silinir;
   - iletilen emanetin kutusu alıcı "gördüm" deyince ya da **en geç 24 saat sonra** silinir; son kutu
     gidince satır da gider;
   - hesap silinince kişinin emanetleri ve ona gelen kutular silinir (ADR 0022 silme işine eklenir);
   - alıcı artık uygun değilse (bkz. 8) iletimde onun kutusu iletilmeden silinir.
-- **Bildirim sınıfı:** Güvendeyim gibi **susturulamaz**; ayrı bir Android kanalı ("Güvenlik
-  uyarıları"), yüksek öncelik, sesli.
+- **Bildirim sınıfı (PM şartı 4):** Güvendeyim gibi sessize almayla **susturulmaz**; ayrı bir Android
+  kanalı ("Güvenlik uyarıları"), yüksek öncelik, sesli. **Yeni izin yok:** `USE_FULL_SCREEN_INTENT`
+  ve "Rahatsız etme"yi aşma izni istenmez; Play ikisini de kısıtlıyor. Telefon "Rahatsız etme"
+  modundaysa sistemin kuralı geçerlidir. Tam ekran görünüm bildirime dokununca açılır (bkz. 8).
 
 ### 6. Varış telefonda anlaşılır
 
@@ -161,6 +169,10 @@ kullanıcı erişemez" testi):
   hemen kalıcı olarak siler.
 - Varış anlaşılamazsa (konum yok, kaba konum) telefon **"varmadı" demez**; yalnız kontrol açık kalır
   ve T'de kişiye sorar.
+- **Çevrimdışı varış (PM şartı 2):** kişi vardığında telefon çevrimdışıysa iptal (`DELETE`) sıraya
+  girer ve bağlantı gelince yeniden denenir (Güvendeyim kuyruğu gibi, ADR 0029 §6). Uyarı o arada
+  gittiyse ve varış T + G'den önce anlaşılmışsa telefon alıcılara kendiliğinden `checkin-ok` gönderir:
+  "Ali vardı, haber geç ulaştı".
 
 ### 7. "İyi misin?" ve ek süre (rakiplerden ders)
 
@@ -188,10 +200,14 @@ kişisel öğe kuralı) burada uygulanmaz, çünkü kişi güvenliğini o alıc�
 Alıcının görmesi:
 
 - **Kurulunca:** alıcıya kişisel bir öğe gider: "Ali seni eve vardım kontrolüne ekledi · en geç 23:30."
-  Yer ve konum yok. (PM sorusu 5.)
+  Yer ve konum yok. **Tekrarlı kontrolde** bu haber yalnız plan kurulunca ya da değişince gider,
+  planın metniyle ("hafta içi 23:30"); günlük kurulumlarda gitmez (PM şartı 3).
 - **Varınca / iptalde:** "Ali vardı ✓" (kişisel öğe, `id` ile). Bu, sunucunun iptal edilmiş bir emaneti
-  sonradan iletmesine karşı da korur (bkz. 10).
-- **Uyarı gelince** tam ekran: "Ali, 23:30'daki eve vardım kontrolüne cevap vermedi." Altında:
+  sonradan iletmesine karşı da korur (bkz. 10). **Ses ya da bildirim çıkarmaz**, yalnız alıcının
+  telefonundaki durumu günceller (PM şartı 3).
+- **Uyarı gelince** "Güvenlik uyarıları" kanalında yüksek öncelikli bir bildirim gelir; **tam ekran
+  görünüm bildirime dokununca** (ya da uygulama açıkken hemen) açılır, tam ekran niyet izni istenmez
+  (PM şartı 4). Görünüm: "Ali, 23:30'daki eve vardım kontrolüne cevap vermedi." Altında:
   - hedefin adı;
   - haritada son konum ve **tazeliği**: "son konum 7 dk önce" (bkz. 9);
   - pil: "%3, şarjda değil";
@@ -225,16 +241,16 @@ uyarısında ve haritada aynı biçim: "3 dk önce", "1 sa önce". Eskiyince var
 
 ### 10. Tehditler (açıkça)
 
-| Tehdit                                                 | Ne olur                                                               | Önlem                                                                                                                                                                                              |
-| ------------------------------------------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sunucu uyarıyı **erken** iletir                        | Alıcılar ancak kişinin zaten seçtiği şeyi görür (son konum, pil, not) | Alıcının telefonu imzalı `due + grace` ile karşılaştırır; erkense ekranda "Bu uyarı beklenenden erken geldi (23:40 bekleniyordu)" yazar. 2 dk saat farkı payı                                      |
-| Sunucu uyarıyı **tutar, hiç iletmez** ya da geciktirir | Kimseye haber gitmez                                                  | Önlenemez; açıkça yazılır. Kurulum ve uyarı ekranında 112 ve KADES kısayolu ile "Bargu acil servis değildir"                                                                                       |
-| Sunucu **iptal edilmiş** ya da eski bir emaneti iletir | Alıcı yanlış alarm görür                                              | Sunucu iptal edileni hemen siler (güven); alıcı telefon gördüğü `id`'leri 48 saat tutar, "vardı ✓" aldığı `id`'yi gösterme yerine "Ali bu kontrolde varmıştı" der; 24 saat saati eski kutuyu açmaz |
-| Sunucu ya da üye **sahte uyarı** uydurur               | —                                                                     | Kutu kişinin cihazıyla imzalı; imzasız ya da tanınmayan cihazdan gelen atılır. Sunucu haberi tek başına bir şey göstermez, kutu açılmazsa "uyarı açılamadı" yazar                                  |
-| Kişiyi **zorla** kontrol kurdurmak (alıcı: zorlayan)   | Zorlayan, uyarı giderse konumu görür                                  | Gizli kontrol yok: kalıcı bildirim alıcıları yazar; "Seni görenler" ekranı açık kontrolleri ve alıcılarını listeler; kişi tek dokunuşla kapatır                                                    |
-| Uyarıyla **taciz** (birine sürekli alarm)              | Alıcı rahatsız olur                                                   | Ortak çember şartı, 3 etkin ve günde 10 sınırı; Engelle hemen keser (yeni kurulum reddedilir, iletimde kutu silinir)                                                                               |
-| Alıcının telefonu yeni cihaz oldu                      | Eski cihaza mühürlü kutu açılamaz                                     | Kişinin telefonu anahtar değişikliğini görünce sonraki yenilemede yeni cihaza mühürler; uyarı o arada giderse alıcıya "Ali'den bir güvenlik uyarısı geldi ama açılamadı; Ali'ye ulaş" yazar        |
-| Saat hatası                                            | Erken ya da geç kurulum                                               | Sunucu `openAt` sınırlarını kendi saatiyle denetler; alıcının "erken" denetimi 2 dk pay bırakır                                                                                                    |
+| Tehdit                                                 | Ne olur                                                               | Önlem                                                                                                                                                                                                                   |
+| ------------------------------------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sunucu uyarıyı **erken** iletir                        | Alıcılar ancak kişinin zaten seçtiği şeyi görür (son konum, pil, not) | Alıcının telefonu imzalı `due + grace` ile karşılaştırır; erkense ekranda "Bu uyarı beklenenden erken geldi (23:40 bekleniyordu)" yazar. 2 dk saat farkı payı                                                           |
+| Sunucu uyarıyı **tutar, hiç iletmez** ya da geciktirir | Kimseye haber gitmez                                                  | Önlenemez; açıkça yazılır. Kurulum ve uyarı ekranında 112 ve KADES kısayolu ile "Bargu acil servis değildir"                                                                                                            |
+| Sunucu **iptal edilmiş** ya da eski bir emaneti iletir | Alıcı yanlış alarm görür                                              | Sunucu iptal edileni hemen siler (güven); alıcı telefon gördüğü `id`'leri 48 saat tutar, "vardı ✓" aldığı `id`'yi gösterme yerine "Ali bu kontrolde varmıştı" der; yaş kuralı (`due + grace + 24 sa`) eski kutuyu açmaz |
+| Sunucu ya da üye **sahte uyarı** uydurur               | —                                                                     | Kutu kişinin cihazıyla imzalı; imzasız ya da tanınmayan cihazdan gelen atılır. Sunucu haberi tek başına bir şey göstermez, kutu açılmazsa "uyarı açılamadı" yazar                                                       |
+| Kişiyi **zorla** kontrol kurdurmak (alıcı: zorlayan)   | Zorlayan, uyarı giderse konumu görür                                  | Gizli kontrol yok: kalıcı bildirim alıcıları yazar; "Seni görenler" ekranı açık kontrolleri ve alıcılarını listeler; kişi tek dokunuşla kapatır                                                                         |
+| Uyarıyla **taciz** (birine sürekli alarm)              | Alıcı rahatsız olur                                                   | Ortak çember şartı, 3 etkin ve günde 10 sınırı; Engelle hemen keser (yeni kurulum reddedilir, iletimde kutu silinir)                                                                                                    |
+| Alıcının telefonu yeni cihaz oldu                      | Eski cihaza mühürlü kutu açılamaz                                     | Kişinin telefonu anahtar değişikliğini görünce sonraki yenilemede yeni cihaza mühürler; uyarı o arada giderse alıcıya "Ali'den bir güvenlik uyarısı geldi ama açılamadı; Ali'ye ulaş" yazar                             |
+| Saat hatası                                            | Erken ya da geç kurulum                                               | Sunucu `openAt` sınırlarını kendi saatiyle denetler; alıcının "erken" denetimi 2 dk pay bırakır                                                                                                                         |
 
 ### 11. 15–17
 
@@ -259,7 +275,9 @@ uyarısında ve haritada aynı biçim: "3 dk önce", "1 sa önce". Eskiyince var
 kutuların boyutu (dolgulu), kurulma, yenilenme, uzatılma, iptal ve iletilme anları, alıcının "gördüm"
 dediği an. Gidilen yer, konum, pil, not ve tekrar planı **gitmez**.
 
-**Belgelerde değişecek satırlar** (PM günceller):
+**Belgeler (PM kararı):** THREAT_MODEL ve N2'yi kodlama oturumu, **kodla aynı commit'te** günceller
+(N2 testi THREAT_MODEL'i okur). Gizlilik politikası ve Play belgelerini PM, paketin APK'sı çıkmadan
+önce günceller. Değişecek satırlar:
 
 - THREAT_MODEL, "Saldırganlar ve önlemler":
   - yeni satır "Sunucunun eve vardım uyarısını erken, geç iletmesi ya da hiç iletmemesi" (bkz. 10);
@@ -280,13 +298,16 @@ dediği an. Gidilen yer, konum, pil, not ve tekrar planı **gitmez**.
 
 - `packages/schemas`: `checkin` öğe şeması; eski uygulama türü atar.
 - `packages/crypto`: kişisel öğe yoluyla `checkin` mühürleme ve açma; başka cihaz açamaz; imza
-  bozulursa reddedilir; 24 saatten eski açılmaz.
+  bozulursa reddedilir; geç açılan uyarı `due + grace + 24 sa`'e kadar açılır, sınırı geçen ya da
+  `ts`'i `due`'dan 23 saatten eski kutu açılmaz (PM şartı 1).
 - API: her uç nokta için zod, yetki ve "başka kullanıcı erişemez"; yenileme `openAt`'ı değiştiremez;
   uzatmayı yalnız sahip yapar; 3 etkin sınırı; engelli ve ortak çembersiz alıcı tek genel cevap alır;
   iptal satırı kalıcı siler; iş yükünde yalnız kimlik var; iletimde alıcı yeniden denetlenir; 24 saat
   ve "gördüm" silmesi; hesap silme.
-- Telefon: varış yalnız taze ve iyi konumla; "varmadı" yazısı yok; erken uyarı etiketi; N1 bir kez
-  gönderir ve şarjla yeniden kurulur; hayalette N1 gitmez.
+- Telefon: varış yalnız taze ve iyi konumla; "varmadı" yazısı yok; erken uyarı etiketi; çevrimdışı
+  iptal sıraya girer, uyarı gittiyse "haber geç ulaştı" gider; tekrarlı kontrolde kurulum haberi yalnız
+  plan değişince; "vardı ✓" sessiz; N1 bir kez gönderir ve şarjla yeniden kurulur; hayalette N1
+  gitmez; yeni izin yok (manifest testi).
 
 **Riskler:**
 
@@ -295,7 +316,7 @@ dediği an. Gidilen yer, konum, pil, not ve tekrar planı **gitmez**.
 - Kontrol açıkken konum servisi çalışır; pil maliyeti ADR 0036'daki gibi.
 - Tekrarlı kontrol, telefon o gün hiç çalışmazsa kurulmaz.
 
-## PM soruları
+## PM soruları (karara bağlandı, PM 2026-10-30: hepsinde öneri geçerli)
 
 1. Emanetteki son konum **tam hassasiyette** mi gitsin (öneri), yoksa alıcının çemberindeki
    hassasiyette mi?

@@ -1,6 +1,6 @@
 # 0040. Etkinlik yoklaması: "Herkes yerinde mi?"
 
-- Durum: Önerildi (kodlama oturumu, 2026-10-30); PM onayı bekliyor
+- Durum: Kabul edildi (PM, 2026-10-30), PM şartlarıyla; önerildi (kodlama oturumu, 2026-10-30)
 - Tarih: 2026-10-30
 - İlgili: BARGU_PLAN Faz 9C paket C (N4), [ADR 0037](0037-nearby-invite.md) (Ö8, küçük şifreli
   öğe), [ADR 0035](0035-messages-and-moments.md) (öğeler, bildirim), [ADR 0017](0017-event-circles.md)
@@ -20,10 +20,9 @@ Yoklama konum sormaz. "Buradayım" kişinin kendi beyanıdır; içinde konum yok
 ### 1. Kim, nerede
 
 - **Yalnız etkinlik çemberinde** (`kind = 'event'`).
-- **Yalnız çemberin sahibi** başlatır. Kodda "sahip" rolü (`role = 'owner'`) yöneticidir ve bir
-  etkinlikte birden çok yönetici olabilir (ADR 0020). Öneri: rolü `owner` olan herkes başlatır, ama
-  aynı anda yine tek yoklama olur. Yalnız çemberi kuran kişi (`circles.created_by`) isteniyorsa
-  kural daraltılır. (PM sorusu 4.) Bu belgede "sahip" bu rolü anlatır.
+- **Yalnız çemberin sahibi** başlatır. "Sahip", rolü `owner` olan **bütün yöneticilerdir** (ADR 0020:
+  bir etkinlikte birden çok yönetici olabilir; PM kararı, 2026-10-30). Aynı anda yine tek yoklama olur.
+  Bu belgede "sahip" bu rolü anlatır.
 - Bir çemberde **aynı anda tek yoklama** olur. Yoklama **10 dakikada** kapanır; sahip daha önce
   "Bitir" diyebilir.
 - Aynı çemberde saatte en çok 6 yoklama (sahibin üyeleri bildirime boğmaması için).
@@ -77,10 +76,11 @@ katılan üye bu yoklamaya girmez. Katılamayanlar:
 - "Etkinlik yoklamaları" ayarını kapatanlar (bkz. 6);
 - **15–17 yaştakiler, çember 8 üyeden büyükse** (PM şartı).
 
-Sahibin ekranı yalnız şunu söyler: "Yoklamada olmayan: 2 kişi." **Neden söylenmez.** Böylece
-sahip, kimin 15–17 olduğunu çıkaramaz: o kişi eski uygulamalı ya da ayarı kapatmış biri de olabilir
-(ADR 0023'teki "bulunabilirlik" ayarıyla aynı yol: herkesin açıp kapatabildiği bir ayar, 15–17 için
-kilitli).
+Sahibin ekranı yalnız şunu söyler: "Yoklamada olmayan: 2 kişi." **Neden söylenmez.** Dürüst olmak
+gerekirse sahip, cevap verenlerle verebilecekleri üye listesiyle karşılaştırıp **kimin** yoklamada
+olmadığını adlardan çıkarabilir; **nedenini** göremez: o kişi eski uygulamalı, ayarı kapatmış ya da
+15–17 olabilir (ADR 0023'teki "bulunabilirlik" ayarıyla aynı yol: herkesin açıp kapatabildiği bir
+ayar, 15–17 için kilitli). Bu, THREAT_MODEL'e de böyle yazılır (PM şartı).
 
 ### 5. Ekran
 
@@ -126,11 +126,14 @@ zamanı, kimlerin katılabildiği, **kimin hangi yoklamaya ne zaman cevap verdi�
 yoklamaları" ayarını kapattığı. "Buradayım" konum taşımaz; sunucu konumla ilgili yeni bir şey
 öğrenmez.
 
-**Belgelerde değişecek satırlar** (PM günceller):
+**Belgeler (PM kararı):** THREAT_MODEL ve N2'yi kodlama oturumu, **kodla aynı commit'te** günceller
+(N2 testi THREAT_MODEL'i okur). Gizlilik politikası ve Play belgelerini PM, paketin APK'sı çıkmadan
+önce günceller. Değişecek satırlar:
 
 - THREAT_MODEL, "Kabul edilen sızıntılar": yeni satır **"Etkinlik yoklamaları"**: yukarıdaki liste;
   azaltma: konum yok, içerik şifreli, 24 saatte ya da etkinlik bitince silinir. "Etkinlik belgeleri"
-  satırının yanına konur.
+  satırının yanına konur. Satır dürüstçe şunu da yazar: sahip adlardan kimin yoklamada olmadığını
+  çıkarabilir, nedenini göremez (eski uygulama, ayar kapalı ya da 15–17).
 - THREAT_MODEL, "Saldırganlar ve önlemler": "Etkinliği bozan üye" satırına: yoklamayı yalnız sahip
   başlatır, tek yoklama, saatte 6, 10 dakika.
 - N2 "Sunucu ne biliyor?" ekranı: yeni satır "olay zamanları" ya da çember grubuna bağlanır (eşleme
@@ -147,7 +150,7 @@ silme; hesap silme.
 **Riskler:** sahip "kim cevap vermedi" listesini görür; bu, etkinliğin amacı. Ayarı kapatan kişi
 listede adıyla değil sayıyla görünür.
 
-## PM soruları
+## PM soruları (karara bağlandı, PM 2026-10-30: hepsinde öneri geçerli; "sahip" bütün yöneticiler)
 
 1. Cevapları **çemberdeki herkes** mi görsün (öneri: evet, "kim eksik?" gruba da yarar), yoksa yalnız
    sahip mi (o zaman cevaplar sahibe kişisel öğe olarak gider)?
