@@ -334,13 +334,14 @@ export default function HomeScreen() {
                 sharingNow({ ghost: sharing.ghost, seers: seers.length, permission }) === 'shared'
               }
             />
-            {/* First-use tips (T6), one at a time, above the dock. */}
-            <TipBubble me={myUserId} bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
             {/* "Güvendeyim", one tap away on the left (docs/ADR/0029); above the map credit. */}
             <SafeButton
               bottom={insets.bottom + DOCK_HEIGHT + space.md + space.xxl}
               onPress={() => safeSheet.current?.present()}
             />
+            {/* First-use tips (T6), one at a time, above the dock: drawn last, over the round
+                buttons beside it (the owner, 2026-10-29: the safe button sat on its "Tamam"). */}
+            <TipBubble me={myUserId} bottom={insets.bottom + DOCK_HEIGHT + space.sm} />
           </>
         )}
         {people.overlay}

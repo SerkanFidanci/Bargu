@@ -17,6 +17,9 @@ describe('the privacy page (/gizlilik, docs/play-store/GIZLILIK-POLITIKASI.md)',
       // Who opened a story goes to its sender alone (ADR 0035 Ek 1, the PM 29.10.2026).
       'Bir hikayeyi açtığında adın ve açtığın saat',
       'When you open a story, your name and the time go',
+      // "Sorun bildir" goes from the user's own email app (the PM, 29.10.2026).
+      'Destek yazışmaların (isteğe bağlı)',
+      'Your support messages (optional)',
     ]) {
       expect(PRIVACY_PAGE_HTML).toContain(words);
     }

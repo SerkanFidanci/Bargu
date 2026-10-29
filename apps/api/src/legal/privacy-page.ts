@@ -2,8 +2,9 @@
  * The privacy policy and KVKK information notice (docs/ADR/0022, docs/play-store/
  * GIZLILIK-POLITIKASI.md), served at /gizlilik in Turkish and English. Plain HTML with the account
  * page's stylesheet; nothing from elsewhere. Follows the PM's text of 27.10.2026 (messages and
- * stories, ADR 0035) and of 29.10.2026 (who opened a story, Ek 1; the notice version stays); it also keeps what this page said before of the age band, findability,
- * parent links and the notice records, which that text does not list yet.
+ * stories, ADR 0035) and of 29.10.2026 (who opened a story, Ek 1; support messages from "Sorun
+ * bildir"; the notice version stays); it also keeps what this page said before of the age band,
+ * findability, parent links and the notice records, which that text does not list yet.
  */
 
 export const PRIVACY_PAGE_CSP = [
@@ -47,6 +48,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li><strong>Profil fotoğrafı (isteğe bağlı):</strong> arkadaşlarında görünmesi için. Şifreli yüklenir; yalnızca güvendiğin arkadaşların açar.</li>
 <li><strong>Mesajlar, anlık fotoğraflar ve hikayeler (isteğe bağlı):</strong> çember üyeleriyle yazışmak ve o an çekilen fotoğrafı paylaşmak için. Uçtan uca şifreli, sunucu okuyamaz; 24 saat sonra sunucudan ve telefonlardan silinir. Fotoğraf yalnızca uygulamanın kamerasıyla çekilir; içindeki konum bilgisi (EXIF) silinir. Bir hikayeyi açtığında adın ve açtığın saat, uçtan uca şifreli olarak yalnızca hikayeyi paylaşana gider; liste 24 saatte silinir. Mesajlar için okundu bilgisi yoktur.</li>
 <li><strong>Bildirdiğin içerik:</strong> kötüye kullanımı önlemek ve güvenlik için. "Bildir"e bastığında yalnızca o mesaj ya da fotoğraf açık hâliyle bize gelir; şifreli saklanır, 90 gün sonra silinir.</li>
+<li><strong>Destek yazışmaların (isteğe bağlı):</strong> "Sorun bildir" ile ya da e-postayla bize yazdığında sorunu çözmek için. Kendi e-posta uygulamandan gider: yazdığın metin, uygulama sürümü, telefon modeli ve eklersen ekran görüntüsü. Konum ve mesaj eklenmez. Sorun çözüldükten sonra en geç 12 ay saklanır.</li>
 <li><strong>Engelleme listen:</strong> engellediğin kişinin sana yazamaması için. Engeli kaldırana ya da hesabını silene kadar tutulur.</li>
 <li><strong>Yerlerin (ev, okul vb.) ve etkinlik bilgileri:</strong> varış bildirimleri ve planlama için. Şifreli; etkinlik bitince silinir.</li>
 <li><strong>Cihaz anahtarları, bildirim kodu (FCM token), cihaz doğrulaması (Play Integrity):</strong> hesabın cihazına bağlanması, bildirim gönderme, sahte uygulamaları engelleme. Gizli anahtarlar telefondan çıkmaz; yalnızca açık anahtarlar sunucuya gider.</li>
@@ -126,6 +128,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li><strong>Profile photo (optional):</strong> to show you to friends. Uploaded encrypted; only trusted friends can open it.</li>
 <li><strong>Messages, instant photos and stories (optional):</strong> chatting and sharing a photo taken right now with your circle members. End-to-end encrypted; the server cannot read them; deleted from the server and phones after 24 hours. Photos are taken only with the app's camera; their location data (EXIF) is removed. When you open a story, your name and the time go, end-to-end encrypted, only to the person who shared it; the list is deleted after 24 hours. Messages have no read receipts.</li>
 <li><strong>Content you report:</strong> preventing abuse and keeping people safe. When you tap "Report", only that message or photo reaches us in readable form; stored encrypted, deleted after 90 days.</li>
+<li><strong>Your support messages (optional):</strong> solving the problem when you write to us with "Report a problem" or by email. Sent from your own email app: your text, the app version, the phone model and, if you add one, a screenshot. No location or messages are added. Kept for at most 12 months after the problem is solved.</li>
 <li><strong>Your block list:</strong> so people you block cannot write to you. Kept until you unblock or delete your account.</li>
 <li><strong>Places (home, school…) and event data:</strong> arrival notices and planning. Encrypted; events are deleted when they end.</li>
 <li><strong>Device keys, notification token (FCM), device check (Play Integrity):</strong> binding your account to your device, sending notifications, blocking fake apps. Private keys never leave your phone; only public keys reach the server.</li>

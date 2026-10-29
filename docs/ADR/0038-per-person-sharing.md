@@ -1,6 +1,6 @@
 # 0038. Kişiye süreli paylaşım ve tek kişiye sessiz dondurma
 
-- Durum: Önerildi (kodlama oturumu, 2026-10-29); PM kararı bekliyor (kapsam: bölüm 3)
+- Durum: Kabul edildi (PM, 2026-10-29); önerildi (kodlama oturumu, 2026-10-29)
 - Tarih: 2026-10-29
 - İlgili: [ADR 0008](0008-design-system-and-map.md), [ADR 0019](0019-location-history.md),
   BARGU_PLAN §3.3 ve §4 (çember anahtarları), `docs/arastirma/urun-gelistirme-2026-10-29.md` Ö6,
@@ -68,7 +68,15 @@ satırın "çemberin ayarı" demesi; kişi kartı satırının mevcut durumu sö
   eski bir konum görür. Çözüm: dondurmada hatırlatma ("3 saattir donduruldu"), mevcut paylaşım
   hatırlatma kartıyla (`sharing-reminder`) birleştirilir.
 
-## Sorular (PM)
+## PM kararları (2026-10-29)
+
+1. **Kapsam yalnız arkadaşlıklar** (seçenek 1). Grup üyesinin kartında "Bu kişiyi çemberin ayarı
+   yönetir" yazar ve çemberin paylaşım ekranına götürür. Gruptaki tek kişiye özel paylaşım plana
+   v2 fikri olarak girer.
+2. **Süre dolunca** arkadaş haritadan kaybolur. Kaybolunca iki tarafa da tek satırlık bilgi düşer
+   ("Ayşe ile süreli paylaşım bitti"); yeniden açmak tek dokunuştur.
+
+## Sorular (PM, karara bağlandı: yukarıda)
 
 1. **Kapsam**: Seçenek 1 (yalnız arkadaşlıklar) mi, yoksa grup üyeleri için de ikili mühürleme
    (seçenek 2) mi? Öneri: seçenek 1.

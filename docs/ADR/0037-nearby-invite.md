@@ -1,6 +1,6 @@
 # 0037. "Yakındayım, gelir misin?": tek dokunuşluk davet, koordinatsız
 
-- Durum: Önerildi (kodlama oturumu, 2026-10-29); PM onayı bekliyor
+- Durum: Kabul edildi (PM, 2026-10-29); önerildi (kodlama oturumu, 2026-10-29)
 - Tarih: 2026-10-29
 - İlgili: [ADR 0035](0035-messages-and-moments.md) (şifreli öğeler, bildirimin içeriği taşımaması),
   [ADR 0026](0026-meetings-in-any-circle.md) (buluşma, varış tahmini), [ADR 0023](0023-age-15-plus.md)
@@ -95,7 +95,17 @@ olmayan biri** varsa düğme gizlenir mi? Bu bir ürün kararıdır:
 - Testler: öğe şeması, yalnız paylaşılan çembere gönderme, 10 dk sınırı, mesafenin yalnız taze ve
   tam konumla yazılması, eski uygulama türü atar, bildirim metni sessize alınana kadar.
 
-## Açık sorular (PM)
+## PM kararları (2026-10-29)
+
+1. **15–17 ve büyüklük:** düğme herkes için yalnız arkadaşlıklarda (iki kişilik çember) ve en çok
+   8 üyeli çemberlerde görünür; büyük gruplarda gizli. Etkinlik çemberlerinde kimse için yok.
+2. **Mesafe** 50 m'ye yuvarlanır. Gönderenin o çemberdeki paylaşımı tam değilse (mahalle ya da
+   şehir) alıcı sayı görmez, yalnız "yakınlarda" yazar.
+3. **Hayalet** (Dondur ya da Gizle) açıkken düğme kapalı.
+4. **Hızlı yanıt:** bildirimde ve sohbette iki hazır cevap: "Geliyorum" ve "Şimdi olmaz". Yeni
+   tür değil, sıradan yazı mesajı olarak giderler. Kalp tepkisi de durur.
+
+## Açık sorular (PM, karara bağlandı: yukarıda)
 
 1. 15–17 için büyük çemberlerde gizlensin mi (bölüm 7 önerisi)?
 2. Mesafe yaklaşık 50 m'ye yuvarlansın mı (öneri) yoksa tam mı?

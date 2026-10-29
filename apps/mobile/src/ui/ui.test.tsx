@@ -79,6 +79,21 @@ describe('Button', () => {
     await fireEvent.press(button);
     expect(onPress).not.toHaveBeenCalled();
   });
+
+  it('draws its sweep over the whole of it, at the size it measures (the owner, 2026-10-29)', async () => {
+    await render(<Button label="Bitti" onPress={jest.fn()} />);
+    const fill = screen.getByTestId('brand-fill', { includeHiddenElements: true });
+    // Nothing is drawn before the size is known: no part-drawn sweep.
+    expect(fill.children).toHaveLength(0);
+    await fireEvent(fill, 'layout', {
+      nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 56 } },
+    });
+    const drawn = JSON.stringify(screen.toJSON());
+    expect(drawn).toContain('"width":320');
+    expect(drawn).toContain('"height":56');
+    // The sweep fills it in numbers, never in percentages that Android drew only in part.
+    expect(drawn).not.toContain('"100%"');
+  });
 });
 
 describe('CodeInput', () => {

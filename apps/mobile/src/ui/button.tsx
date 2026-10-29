@@ -25,7 +25,8 @@ const PALETTE: Record<
   { background: ColorName | null; text: ColorName; shine: boolean; sweep: boolean }
 > = {
   // The main button wears the brand's sweep (docs/ADR/0008 Ek 2026-10-29), its first colour under.
-  primary: { background: null, text: 'onBrand', shine: true, sweep: true },
+  // No light crossing it: over the sweep it took white words below 4.5:1 for a moment (QA-40).
+  primary: { background: null, text: 'onBrand', shine: false, sweep: true },
   secondary: { background: 'surface', text: 'text', shine: false, sweep: false },
   ghost: { background: null, text: 'primary', shine: false, sweep: false },
   danger: { background: 'danger', text: 'onDanger', shine: true, sweep: false },
