@@ -1,17 +1,19 @@
-import { Eye, EyeOff, type LucideIcon } from 'lucide-react-native';
+import { ExternalLink, Eye, EyeOff, type LucideIcon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
-import { SERVER_CANNOT_SEE, SERVER_SEES } from '@/features/account/server-knows';
+import { env } from '@/config/env';
+import { SERVER_CANNOT_SEE, SERVER_SEES_KEYS } from '@/features/account/server-knows';
 import { radius, space, useTheme } from '@/theme';
+import { Button } from '@/ui/button';
 import { Hint } from '@/ui/hint';
 import { Screen, SectionTitle } from '@/ui/screen';
 import { Text } from '@/ui/text';
 
 /**
- * "Sunucu ne biliyor?" (N2, the PM 2026-10-29), from "Hesap ve veri": what Bargu's server sees to
- * work, and what it cannot see because the phone encrypts it first. The same list as the accepted
- * leaks of docs/THREAT_MODEL.md, said plainly; nothing more promised than is so.
+ * "Sunucu ne biliyor?" (N2, the PM 2026-10-29; QA-42), from "Hesap ve veri": what Bargu's server
+ * sees to work, in groups, each resting on an accepted leak of docs/THREAT_MODEL.md, and what it
+ * cannot see because the phone encrypts it first. The full list is the privacy policy, one tap away.
  */
 export default function ServerKnowsScreen() {
   const { t } = useTranslation();
@@ -23,7 +25,7 @@ export default function ServerKnowsScreen() {
       <SectionTitle>{t('serverKnows.seesTitle')}</SectionTitle>
       <List
         icon={Eye}
-        items={SERVER_SEES.map((key) => ({ key, text: t(`serverKnows.sees.${key}`) }))}
+        items={SERVER_SEES_KEYS.map((key) => ({ key, text: t(`serverKnows.sees.${key}`) }))}
       />
       <SectionTitle>{t('serverKnows.cannotTitle')}</SectionTitle>
       <List
@@ -31,6 +33,13 @@ export default function ServerKnowsScreen() {
         items={SERVER_CANNOT_SEE.map((key) => ({ key, text: t(`serverKnows.cannot.${key}`) }))}
       />
       <Hint>{t('serverKnows.verify')}</Hint>
+      <Button
+        testID="server-knows-policy"
+        label={t('serverKnows.full')}
+        icon={ExternalLink}
+        variant="secondary"
+        onPress={() => void Linking.openURL(`${env.apiUrl}/gizlilik`)}
+      />
     </Screen>
   );
 }

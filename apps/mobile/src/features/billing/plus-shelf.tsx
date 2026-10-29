@@ -9,13 +9,8 @@ import { Linking, StyleSheet, View } from 'react-native';
 import { ageKey, fetchAge, isMinor } from '@/features/account/age-api';
 import { testBillingOf, useTestBilling } from '@/features/billing/test-slot';
 import { planKey, usePlan } from '@/features/billing/plan';
-import {
-  daysLeft,
-  manageUrl,
-  PLUS_PRICES,
-  priceText,
-  yearlySaving,
-} from '@/features/billing/plan-model';
+import { daysLeft, manageUrl } from '@/features/billing/plan-model';
+import { useStorePrices, yearlySaving } from '@/features/billing/store-prices';
 import { errorMessage, isApiError } from '@/features/errors';
 import { useNow } from '@/features/location/clock';
 import { radius, space, useTheme } from '@/theme';
@@ -99,6 +94,10 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
 
   const current = plan.data;
   const date = (at: number) => new Date(at).toLocaleDateString(i18n.language);
+  // Prices only as the store gives them (QA-42): none known, none shown.
+  const prices = useStorePrices((state) => state.plus);
+  const renewal = prices[current?.product === 'plus_year' ? 'plus_year' : 'plus_month'];
+  const saving = yearlySaving(prices);
   const status = (() => {
     if (current === undefined) return null;
     if (current.graceUntil !== null) {
@@ -108,17 +107,16 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
       const kind = current.product === 'plus_year' ? t('plus.yearly') : t('plus.monthly');
       return {
         tone: 'success' as const,
-        // What it costs and when, said plainly (N3).
-        text: current.autoRenew
-          ? t('plus.renews', {
-              plan: kind,
-              date: date(current.expiresAt),
-              price: priceText(
-                PLUS_PRICES[current.product === 'plus_year' ? 'plus_year' : 'plus_month'],
-                i18n.language,
-              ),
-            })
-          : t('plus.endsOn', { plan: kind, date: date(current.expiresAt) }),
+        // What it costs and when, said plainly (N3); the price only as the store gives it.
+        text: !current.autoRenew
+          ? t('plus.endsOn', { plan: kind, date: date(current.expiresAt) })
+          : renewal === undefined
+            ? t('plus.renewsPlain', { plan: kind, date: date(current.expiresAt) })
+            : t('plus.renews', {
+                plan: kind,
+                date: date(current.expiresAt),
+                price: renewal.formatted,
+              }),
       };
     }
     if (current.plan === 'trial' && current.trialEndsAt !== null) {
@@ -133,10 +131,13 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
   const pending = current?.pendingPurchase ?? null;
   const planName = (product: PlusProduct) =>
     product === 'plus_year' ? t('plus.yearly') : t('plus.monthly');
-  const priceOf = (product: PlusProduct) => ({
-    price: priceText(PLUS_PRICES[product], i18n.language),
-    per: product === 'plus_year' ? t('plus.perYear') : t('plus.perMonth'),
-  });
+  /** "Bargu+'ya geç · ₺799,99 / yıl" with the store's price, else without one. */
+  const withPrice = (key: 'buy' | 'ask', product: PlusProduct) => {
+    const price = prices[product]?.formatted;
+    if (price === undefined) return key === 'buy' ? t('plus.buyPlain') : t('plus.askPlain');
+    const per = product === 'plus_year' ? t('plus.perYear') : t('plus.perMonth');
+    return key === 'buy' ? t('plus.buy', { price, per }) : t('plus.ask', { price, per });
+  };
   // The build has test billing and the server has it on; a production build never does.
   const testing = tester !== null && current?.testBilling === true;
   const cancellable =
@@ -171,16 +172,18 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
           <Text variant="headline">
             {product === 'plus_year' ? t('plus.yearly') : t('plus.monthly')}
           </Text>
-          {product === 'plus_year' ? (
-            <Badge label={t('plus.saving', { percent: yearlySaving() })} tone="success" />
+          {product === 'plus_year' && saving !== null ? (
+            <Badge label={t('plus.saving', { percent: saving })} tone="success" />
           ) : null}
         </View>
-        <Text variant="title2">
-          {priceText(PLUS_PRICES[product], i18n.language)}
-          <Text variant="callout" color="textMuted">
-            {product === 'plus_year' ? t('plus.perYear') : t('plus.perMonth')}
+        {prices[product] === undefined ? null : (
+          <Text variant="title2">
+            {prices[product].formatted}
+            <Text variant="callout" color="textMuted">
+              {product === 'plus_year' ? t('plus.perYear') : t('plus.perMonth')}
+            </Text>
           </Text>
-        </Text>
+        )}
       </PressableScale>
     );
   };
@@ -201,7 +204,7 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
           testID="plus-ask"
           label={
             pending === null
-              ? t('plus.ask', priceOf(choice))
+              ? withPrice('ask', choice)
               : t('plus.askOther', { plan: planName(choice) })
           }
           icon={Sparkles}
@@ -219,7 +222,7 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
   ) : testing ? (
     <Button
       testID="plus-buy"
-      label={t('plus.buy', priceOf(choice))}
+      label={withPrice('buy', choice)}
       icon={Sparkles}
       loading={buy.isPending}
       onPress={() => {
@@ -307,7 +310,12 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
           label={t('plus.manage')}
           icon={ExternalLink}
           variant="secondary"
-          onPress={() => void Linking.openURL(manage)}
+          onPress={() => {
+            // The store's page did not open (no store on this phone): said, not swallowed (QA-42).
+            Linking.openURL(manage).catch(() => {
+              toast.error(t('plus.manageFailed'));
+            });
+          }}
         />
       )}
       {cancellable ? (

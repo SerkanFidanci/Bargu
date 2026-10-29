@@ -31,6 +31,9 @@ describe('the privacy page (/gizlilik, docs/play-store/GIZLILIK-POLITIKASI.md)',
       'Your own location history (optional, off by default, Bargu+)',
       'When you turn it off you are asked first',
       'yalnızca telefonunda, seçtiğin kadar: 30 gün ya da 1 yıl',
+      // The metadata the server sees, as the PM listed it (QA-42).
+      'kısa mı uzun mu ve fotoğrafın boyutu',
+      'whether short or long and a photo',
     ]) {
       expect(PRIVACY_PAGE_HTML).toContain(words);
     }

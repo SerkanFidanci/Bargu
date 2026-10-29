@@ -44,6 +44,8 @@ describe('"Eve yaklaşık 12 dk" (Ö12)', () => {
     expect(homeEta(at({ lat: 41.018 }), [home], NOW)).toBeNull();
     expect(homeEta(at({ ts: NOW - HOME_ETA.freshMs - 1 }), [home], NOW)).toBeNull();
     expect(homeEta(at({ acc: 708 }), [home], NOW)).toBeNull();
+    // Dated ahead: a wrong clock, not a fresh location (QA-42).
+    expect(homeEta(at({ ts: NOW + 5 * 60_000 }), [home], NOW)).toBeNull();
     // No speed known (a location from a coarse circle carries none).
     expect(homeEta({ ...at(), spd: undefined }, [home], NOW)).toBeNull();
     expect(homeEta(at(), [], NOW)).toBeNull();

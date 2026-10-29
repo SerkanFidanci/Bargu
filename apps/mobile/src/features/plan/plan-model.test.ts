@@ -261,6 +261,19 @@ describe('who is there when', () => {
     ]);
   });
 
+  it('takes no location dated ahead (a wrong clock, QA-42)', () => {
+    const rows = arrivals({
+      meetAt,
+      place,
+      members: [ids.ayse],
+      locations: {
+        [ids.ayse]: loc(north(800), { eta: { meetAt, at: meetAt + 5 * MIN }, ts: now + 10 * MIN }),
+      },
+      now,
+    });
+    expect(rows).toEqual([{ userId: ids.ayse, state: 'unknown' }]);
+  });
+
   it('shows no estimate for someone standing still, only their own word (Ö12)', () => {
     const eta = { eta: { meetAt, at: meetAt + 5 * MIN } };
     const rows = arrivals({

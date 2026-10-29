@@ -106,8 +106,9 @@ describe('guardian tools on the shared view (docs/ADR/0023 §5)', () => {
     await show('guardian');
     expect(screen.getByText('Grup: Kulüp (4 kişi), davet eden Fikret')).toBeTruthy();
     expect(screen.getByText('42 dk')).toBeTruthy();
-    // The child asks for Bargu+ (docs/ADR/0024 §5): the plan and its price.
-    expect(screen.getByText(/^Bargu\+ yıllık almak istiyor \(.*799,99.*yıl\)$/)).toBeTruthy();
+    // The child asks for Bargu+ (docs/ADR/0024 §5): the plan; its price only as the store gives
+    // it, none before (QA-42).
+    expect(screen.getByText('Bargu+ yıllık almak istiyor')).toBeTruthy();
     await fireEvent.press(screen.getByTestId(`guardian-approve-${REQUEST}`));
     await waitFor(() => {
       expect(mockAnswer).toHaveBeenCalledWith(LINK, REQUEST, true);

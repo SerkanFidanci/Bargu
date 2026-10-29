@@ -1050,7 +1050,7 @@
       "lockAdvice": "Telefonunun kilidi açıkken geçmişini başkası da görebilir. Uygulama kilidini açmanı öneririz.",
       "note": "Geçmişin yalnız bu telefonda durur. Telefon değişince ya da Bargu'yu silince gider; istersen önce dışa aktar. Kilitli telefonda geçmiş günler açılmaz.",
       "offTitle": "Konum geçmişin kapatılsın mı?",
-      "offBody": "Kapatınca bu telefondaki geçmişin hemen silinir. İstersen önce dışa aktar.",
+      "offBody": "Kapatınca geçmişin bu telefondan silinir. Önce dışa aktarmak ister misin?",
       "offExport": "Dışa aktar",
       "offDelete": "Sil ve kapat"
     }
@@ -1293,7 +1293,8 @@
       "askInvites": "Çocuğun {{by}} kişisini {{name}} çemberine davet etmek istiyor",
       "askPurchase": "Bargu+ {{plan}} almak istiyor ({{price}})",
       "askCosmetic": "“{{pack}}” süs paketini almak istiyor ({{price}})",
-      "askCosmeticOther": "Yeni bir süs paketi almak istiyor"
+      "askCosmeticOther": "Yeni bir süs paketi almak istiyor",
+      "askPurchasePlain": "Bargu+ {{plan}} almak istiyor"
     },
     "unnamed": "Adı yazılmamış biri",
     "newMember": "{{name}} (yeni)"
@@ -1351,8 +1352,13 @@
     "manage": "Aboneliği yönet",
     "renewalReminder": {
       "title": "Bargu+ yıllık aboneliğin 3 gün sonra yenileniyor",
-      "body": "{{date}} tarihinde {{price}} alınacak. İstemiyorsan mağazadan iptal edebilirsin; dokun, Bargu+ açılır."
-    }
+      "body": "{{date}} tarihinde {{price}} alınacak. İstemiyorsan mağazadan iptal edebilirsin; dokun, Bargu+ açılır.",
+      "bodyPlain": "{{date}} tarihinde yenilenecek. İstemiyorsan mağazadan iptal edebilirsin; dokun, Bargu+ açılır."
+    },
+    "buyPlain": "Bargu+’ya geç",
+    "askPlain": "Ebeveynime sor",
+    "renewsPlain": "Bargu+ {{plan}}: {{date}} tarihinde yenilenir.",
+    "manageFailed": "Mağazanın abonelik sayfası açılamadı."
   },
   "cosmetics": {
     "intro": "Pinin haritada böyle görünür. Süs yalnızca görünüştür: arkadaşların seçtiğin süsü ancak satın aldıysan görür.",
@@ -1724,27 +1730,29 @@
   },
   "serverKnows": {
     "title": "Sunucu ne biliyor?",
-    "intro": "Konumun ve yazdıkların telefonunda şifrelenir; Bargu'nun sunucusu onları okuyamaz. Çalışabilmek için bazı şeyleri bilmesi gerekir. Hepsi burada.",
+    "intro": "Konumun ve yazdıkların telefonunda şifrelenir; Bargu'nun sunucusu onları okuyamaz. Ama çalışabilmek için bazı şeyleri görür.",
     "seesTitle": "Sunucu görür",
     "cannotTitle": "Sunucu göremez",
     "sees": {
-      "email": "E-posta adresin: giriş kodunu göndermek için. Veritabanında düz hâli değil, anahtarlı özeti durur.",
-      "circles": "Hangi çemberlerde olduğun, çemberlerin adları ve kimin yönetici olduğu.",
-      "profile": "Kullanıcı adın, görünen adın, avatar rengin ve emojin; fotoğrafın olup olmadığı (fotoğrafın kendisi şifreli).",
-      "timing": "Konumunu ne zaman ve ne sıklıkta gönderdiğin (hareket edip etmediğin anlaşılabilir) ve bir çemberle paylaşımı ne zaman kestiğin.",
-      "push": "Bildirim jetonun ve bildirimlerin ne zaman gittiği; içerikleri ve kimden geldikleri şifreli.",
-      "ip": "Bağlanırken IP adresin (ağın yaklaşık yeri); kaydedilmez.",
-      "account": "Yaş grubun (15–17 ya da 18+), Bargu+ aboneliğin ve aldığın süsler."
+      "account": "Hesabın: e-postanın anahtarlı özeti (adres yalnız giriş kodu giderken bir an geçer), görünen adın, kullanıcı adın, avatar rengin ve emojin.",
+      "circles": "Çemberlerin ve üyelikler: hangi çemberlerde olduğun, çemberlerin adları, kimin yönetici olduğu.",
+      "messages": "Mesajların üst verisi: kim kime ya da hangi çembere ne zaman yazdı, kısa mı uzun mu, fotoğraf dosyasının boyutu. İçeriği değil.",
+      "events": "Olayların zamanı: Güvendeyim, Yakındayım, bir yere varış ya da ayrılış, geç kalacağım. Ne yazdığı ya da nerede olduğu değil.",
+      "votes": "Etkinlik ve oylar: buluşma ya da oylama olduğu, kimin hangi oylamada oy verdiği. Neye verdiği değil.",
+      "sharing": "Konum zarfları: hangi çembere ne zaman ve ne sıklıkta konum gittiği, paylaşımın ne zaman durduğu. Zarfın içi değil.",
+      "guardian": "15–17 yaşta: ebeveyn bağlantısı ve uygulamanın günde kaç dakika açık kaldığı.",
+      "push": "Bildirim jetonun ve bildirimlerin ne zaman gittiği. İçerikleri ve kimden geldikleri değil."
     },
     "cannot": {
-      "location": "Konumun: telefonunda şifrelenir, sunucu okuyamaz.",
-      "history": "Konum geçmişin: şifreli durur, 14 gün sonra silinir.",
-      "messages": "Mesajların, fotoğrafların, hikayelerin ve tepkilerin.",
-      "places": "Yerlerinin adları ve konumları; buluşmaların yeri ve oyların neye verildiği.",
-      "sharing": "Kime, ne kadar süre ve ne kadar ayrıntılı konum gösterdiğin; hayalet modun ve durum yazın."
+      "location": "Nerede olduğun: konumun telefonunda şifrelenir.",
+      "meeting": "Kiminle nerede buluştuğun: buluşmanın yeri şifreli.",
+      "content": "Mesajlarının, fotoğraflarının ve hikayelerinin içeriği.",
+      "places": "Yerlerinin adları ve konumları.",
+      "history": "Geçmişin: çember geçmişi şifreli, kendi konum geçmişin yalnız telefonunda."
     },
     "verify": "Arkadaşının anahtarının gerçekten ona ait olduğunu görmek için: çemberde kişiye dokun, sonra Güvenlik numarası.",
-    "open": "Sunucu ne biliyor?"
+    "open": "Sunucu ne biliyor?",
+    "full": "Tam liste: Gizlilik politikası"
   },
   "storyEditor": {
     "close": "Kapat",

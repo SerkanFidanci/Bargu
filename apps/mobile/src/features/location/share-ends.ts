@@ -27,3 +27,18 @@ export async function scheduleShareEnd(
 export async function cancelShareEnd(circleId: string): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(idOf(circleId));
 }
+
+/**
+ * Every such line this phone set, gone: at sign-out and with the account (QA-42: they carry a
+ * friend's name).
+ */
+export async function cancelAllShareEnds(): Promise<void> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter((notification) => notification.identifier.startsWith(idOf('')))
+      .map((notification) =>
+        Notifications.cancelScheduledNotificationAsync(notification.identifier),
+      ),
+  );
+}

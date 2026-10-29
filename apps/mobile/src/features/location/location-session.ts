@@ -1011,6 +1011,8 @@ onSignedOut(() => {
   sharingEndTimer = null;
   void cancelAllReminders().catch(() => undefined);
   void cancelSharingReminder().catch(() => undefined);
+  // The lines set for friends' timed shares to end name them: they go with the account (QA-42).
+  void import('./share-ends').then((ends) => ends.cancelAllShareEnds()).catch(() => undefined);
   reminderPlanned = undefined;
   useSharingReminder.setState({ reviewedAt: null }, true);
   locationEngine.reset();

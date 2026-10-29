@@ -17,7 +17,8 @@ import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 import { Toggle } from '@/ui/toggle';
 
-import { PLUS_PRICES, priceText } from '../billing/plan-model';
+import { priceText } from '../billing/plan-model';
+import { plusPrice } from '../billing/store-prices';
 import { PACK_PRICE, PACKS } from '../cosmetics/look-styles';
 import { errorMessage, isApiError } from '../errors';
 import { guardiansApi, guardiansKey, guardianViewKey } from './guardians-api';
@@ -117,14 +118,17 @@ export function GuardianTools({ view }: { view: GuardianView }) {
           name: request.name ?? '',
         });
       case 'purchase': {
-        // docs/ADR/0024 §5: the plan and its price, as on the child's Bargu+ screen.
+        // docs/ADR/0024 §5: the plan and its price, as on the child's Bargu+ screen; the price
+        // only as the store gives it (QA-42).
         const yearly = request.product === 'plus_year';
-        return t('guardians.tools.askPurchase', {
-          plan: yearly ? t('plus.yearly') : t('plus.monthly'),
-          price:
-            priceText(PLUS_PRICES[yearly ? 'plus_year' : 'plus_month'], i18n.language) +
-            (yearly ? t('plus.perYear') : t('plus.perMonth')),
-        });
+        const plan = yearly ? t('plus.yearly') : t('plus.monthly');
+        const price = plusPrice(yearly ? 'plus_year' : 'plus_month');
+        return price === null
+          ? t('guardians.tools.askPurchasePlain', { plan })
+          : t('guardians.tools.askPurchase', {
+              plan,
+              price: price + (yearly ? t('plus.perYear') : t('plus.perMonth')),
+            });
       }
       case 'cosmetic': {
         // docs/ADR/0025 §6: the pack by its name, as on the child's look screen. A pack this app

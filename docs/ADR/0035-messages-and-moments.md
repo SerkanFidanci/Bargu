@@ -559,6 +559,8 @@ bilgisi yine yok.
 
 ## Ek 3 (2026-10-29): Hikaye düzenleyici
 
+- Durum: Kabul edildi (PM, 2026-10-30), şartları aşağıda.
+
 Sahip: "Kamera ekranı daha düzgün yap, Instagram gibi düzenleme seçeneğini getir hikayelerde."
 
 - **Akış:** kamera (flaş kapalı/açık/otomatik, ön/arka) → çekim → **düzenleyici** → "İleri" → bugünkü

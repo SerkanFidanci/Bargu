@@ -1050,7 +1050,7 @@
       "lockAdvice": "With your phone unlocked, someone else could see your history. We suggest turning on the app lock.",
       "note": "Your history stays on this phone only. It is gone when you change phones or delete Bargu; export it first if you want. Past days cannot be opened on a locked phone.",
       "offTitle": "Turn your location history off?",
-      "offBody": "Turned off, your history on this phone is deleted at once. Export it first if you like.",
+      "offBody": "Turned off, your history is deleted from this phone. Export it first?",
       "offExport": "Export",
       "offDelete": "Delete and turn off"
     }
@@ -1293,7 +1293,8 @@
       "askInvites": "Your child wants to invite {{by}} into {{name}}",
       "askPurchase": "Wants Bargu+ {{plan}} ({{price}})",
       "askCosmetic": "Wants the “{{pack}}” look pack ({{price}})",
-      "askCosmeticOther": "Wants a new look pack"
+      "askCosmeticOther": "Wants a new look pack",
+      "askPurchasePlain": "Wants Bargu+ {{plan}}"
     },
     "unnamed": "Someone without a name",
     "newMember": "{{name}} (new)"
@@ -1351,8 +1352,13 @@
     "manage": "Manage subscription",
     "renewalReminder": {
       "title": "Your yearly Bargu+ renews in 3 days",
-      "body": "{{price}} will be charged on {{date}}. If you don’t want it, cancel in the store; tap to open Bargu+."
-    }
+      "body": "{{price}} will be charged on {{date}}. If you don’t want it, cancel in the store; tap to open Bargu+.",
+      "bodyPlain": "It renews on {{date}}. If you don't want it, cancel in the store; tap to open Bargu+."
+    },
+    "buyPlain": "Get Bargu+",
+    "askPlain": "Ask my parent",
+    "renewsPlain": "Bargu+ {{plan}}: renews on {{date}}.",
+    "manageFailed": "The store's subscription page could not open."
   },
   "cosmetics": {
     "intro": "This is how your pin looks on the map. A look is only looks: your friends see the one you chose only if you bought it.",
@@ -1724,27 +1730,29 @@
   },
   "serverKnows": {
     "title": "What does the server know?",
-    "intro": "Your location and what you write are encrypted on your phone; Bargu's server cannot read them. To work, it has to know a few things. Here they all are.",
+    "intro": "Your location and what you write are encrypted on your phone; Bargu's server cannot read them. To work, though, it sees a few things.",
     "seesTitle": "The server sees",
     "cannotTitle": "The server cannot see",
     "sees": {
-      "email": "Your email address: to send your sign-in code. The database keeps a keyed hash of it, not the address.",
-      "circles": "Which circles you are in, their names and who runs them.",
-      "profile": "Your username, display name, avatar colour and emoji; whether you have a photo (the photo itself is encrypted).",
-      "timing": "When and how often you send your location (whether you move can be inferred), and when you stop sharing with a circle.",
-      "push": "Your notification token and when notifications go; what they say and who sends them are encrypted.",
-      "ip": "Your IP address while connected (roughly where your network is); it is not logged.",
-      "account": "Your age group (15–17 or 18+), your Bargu+ subscription and the looks you bought."
+      "account": "Your account: a keyed hash of your email (the address only passes by while a sign-in code goes), your display name, username, avatar colour and emoji.",
+      "circles": "Your circles and memberships: which circles you are in, their names, who runs them.",
+      "messages": "Message metadata: who wrote to whom or to which circle and when, whether short or long, a photo file’s size. Not what it says.",
+      "events": "When things happen: I'm safe, I'm nearby, arriving at or leaving a place, running late. Not what was said or where.",
+      "votes": "Events and votes: that there is a meeting or a poll, who voted in which poll. Not for what.",
+      "sharing": "Location envelopes: which circles get your location, when and how often, and when sharing stops. Not what is inside.",
+      "guardian": "For ages 15 to 17: the parent link and how many minutes a day the app was open.",
+      "push": "Your notification token and when notifications go. Not what they say or who sends them."
     },
     "cannot": {
-      "location": "Your location: encrypted on your phone, the server cannot read it.",
-      "history": "Your location history: kept encrypted, deleted after 14 days.",
-      "messages": "Your messages, photos, stories and reactions.",
-      "places": "Your places' names and locations; where meetings are and what votes went to.",
-      "sharing": "Who sees your location, for how long and how precisely; your ghost mode and your status."
+      "location": "Where you are: your location is encrypted on your phone.",
+      "meeting": "Where you meet whom: a meeting’s place is encrypted.",
+      "content": "What your messages, photos and stories say and show.",
+      "places": "Your places' names and locations.",
+      "history": "Your history: circle history is encrypted, your own location history stays on your phone."
     },
     "verify": "To check a friend's key really is theirs: tap them in a circle, then Safety number.",
-    "open": "What does the server know?"
+    "open": "What does the server know?",
+    "full": "Full list: Privacy policy"
   },
   "storyEditor": {
     "close": "Close",

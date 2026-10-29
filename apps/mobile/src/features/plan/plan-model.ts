@@ -285,6 +285,8 @@ export type Arrival =
 
 /** A location this old says nothing about the meeting any more. */
 const ARRIVAL_FRESH_MS = 15 * 60_000;
+/** Dated further ahead than this, a location is not taken at all. */
+const ARRIVAL_AHEAD_MS = 60_000;
 
 /**
  * "Kim ne zaman orada?": there (inside the place), coming (with the time their phone estimated
@@ -321,7 +323,11 @@ export function arrivals(input: {
         });
   const rows = members.map((userId): Arrival => {
     const loc = input.locations[userId];
-    const fresh = loc !== undefined && now - loc.ts <= ARRIVAL_FRESH_MS ? loc : undefined;
+    // Fresh: recent, and not dated ahead (a wrong clock, QA-42).
+    const fresh =
+      loc !== undefined && now - loc.ts <= ARRIVAL_FRESH_MS && loc.ts - now <= ARRIVAL_AHEAD_MS
+        ? loc
+        : undefined;
     // Only an exact location tells an arrival (a coarse one is a cell's centre), or their word.
     const exact = fresh !== undefined && fresh.acc <= MEETING.arrivalAccuracyM ? fresh : undefined;
     if (exact !== undefined && distanceM(exact, place) <= place.radius) {

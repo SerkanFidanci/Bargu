@@ -116,6 +116,10 @@ describe("one friend's sharing (docs/ADR/0038)", () => {
     const circles = [pair, group];
     expect(endedFriendShares(both, circles, NOW - 60_000, NOW).map((c) => c.id)).toEqual([pair.id]);
     expect(endedFriendShares(both, circles, NOW - 500, NOW)).toEqual([]);
+    // A paused friendship sends nothing, and says nothing of an end either (QA-42).
+    expect(endedFriendShares(both, [{ ...pair, paused: true }, group], NOW - 60_000, NOW)).toEqual(
+      [],
+    );
     expect(endedFriendShares({ ...both, ghost: 'freeze' }, circles, NOW - 60_000, NOW)).toEqual([]);
   });
 });

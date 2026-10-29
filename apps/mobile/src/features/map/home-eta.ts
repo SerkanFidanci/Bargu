@@ -14,6 +14,8 @@ export const HOME_EMOJI = '🏠';
  */
 export const HOME_ETA = {
   freshMs: 2 * 60_000,
+  /** A location dated further ahead than this is a wrong clock, not a fresh one (QA-42). */
+  aheadMs: 60_000,
   /** How far off their heading the home may lie (degrees either way). */
   headingDeg: 45,
   maxM: 50_000,
@@ -60,7 +62,8 @@ export function homeEta(
   homes: readonly Place[],
   now: number,
 ): { place: Place; minutes: number } | null {
-  if (now - loc.ts > HOME_ETA.freshMs || loc.acc > MEETING.arrivalAccuracyM) return null;
+  if (now - loc.ts > HOME_ETA.freshMs || loc.ts - now > HOME_ETA.aheadMs) return null;
+  if (loc.acc > MEETING.arrivalAccuracyM) return null;
   if (loc.spd === undefined || loc.spd < MEETING.movingMps || loc.hdg === undefined) return null;
   if (loc.since !== undefined && now - loc.since >= MEETING.stillAfterMs) return null;
   const byDistance = homes

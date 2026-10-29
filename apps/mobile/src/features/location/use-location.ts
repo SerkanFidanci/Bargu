@@ -97,6 +97,19 @@ export function useLocationSession(ready: boolean): void {
     if (ready) restoreLocations();
   }, [ready]);
 
+  // A paused friendship sends nothing: the line set for its timed share's end goes (QA-42).
+  useEffect(() => {
+    const paused = (circles ?? []).filter(
+      (circle) => circle.kind === 'pair' && circle.paused === true,
+    );
+    if (paused.length === 0) return;
+    void import('./share-ends')
+      .then(async (ends) => {
+        for (const circle of paused) await ends.cancelShareEnd(circle.id);
+      })
+      .catch(() => undefined);
+  }, [circles]);
+
   // Checked again on every return: the user may have changed it in the system settings. The same
   // goes for the location services and battery saver, which tell friends why a location is old.
   useEffect(() => {

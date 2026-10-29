@@ -7,7 +7,8 @@ import { onSignedOut } from '../auth/auth-store';
 import { onOnline, onServerEvents } from '../live/live-session';
 import { queryClient } from '../query-client';
 import { planKey } from './plan';
-import { PLUS_PRICES, priceText, renewalReminderAt, trialReminderAt } from './plan-model';
+import { renewalReminderAt, trialReminderAt } from './plan-model';
+import { plusPrice } from './store-prices';
 import { cancelTrialReminder, scheduleTrialReminder } from './trial-reminder';
 
 /**
@@ -23,6 +24,14 @@ onServerEvents((events) => {
   if (events.some((event) => event.type === 'plan.changed')) refresh();
 });
 onOnline(refresh);
+
+/** "… tarihinde ₺799,99 alınacak" with the store's price, else without it. */
+function renewalBody(date: string): string {
+  const price = plusPrice('plus_year');
+  return price === null
+    ? i18n.t('plus.renewalReminder.bodyPlain', { date })
+    : i18n.t('plus.renewalReminder.body', { date, price });
+}
 
 const PLAN_HASH = hashKey(planKey);
 let planned: number | null | undefined;
@@ -46,10 +55,8 @@ queryClient.getQueryCache().subscribe((event) => {
       ? { title: i18n.t('plus.reminder.title'), body: i18n.t('plus.reminder.body') }
       : {
           title: i18n.t('plus.renewalReminder.title'),
-          body: i18n.t('plus.renewalReminder.body', {
-            date: new Date(plan.expiresAt).toLocaleDateString(i18n.language),
-            price: priceText(PLUS_PRICES.plus_year, i18n.language),
-          }),
+          // The store's own price, or none (QA-42: never a guessed one).
+          body: renewalBody(new Date(plan.expiresAt).toLocaleDateString(i18n.language)),
         },
   ).catch(() => undefined);
 });

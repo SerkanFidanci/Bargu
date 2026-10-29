@@ -4,8 +4,10 @@ import { Linking } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ApiError } from '@/features/auth/api-client';
+import { useStorePrices } from '@/features/billing/store-prices';
 import { useTestBilling } from '@/features/billing/test-slot';
 import i18n from '@/i18n';
+import { useToasts } from '@/ui/toast';
 
 jest.mock('@/config/env', () => ({
   env: { apiUrl: 'https://api.test', mapUrl: 'https://api.test/map', appVersion: '0.0.0' },
@@ -195,16 +197,39 @@ describe('Bargu+, a shelf of the store (docs/ADR/0024 §9)', () => {
       expect(mockPurchase).not.toHaveBeenCalled();
     });
 
-    it("says what it costs and when it renews, and manages it on the store's page (N3)", async () => {
+    it("says what it costs, as the store says it, and manages it on the store's page (N3)", async () => {
       const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+      useStorePrices.setState({
+        plus: { plus_year: { formatted: '₺849,99', micros: 849_990_000 } },
+      });
       mockPlan = { ...yearly, source: 'play' };
       mockShelf = 'plus';
-      await show();
-      expect(await screen.findByText(/tarihinde ₺799,99 ile yenilenir/)).toBeTruthy();
+      const view = await show();
+      expect(await screen.findByText(/tarihinde ₺849,99 ile yenilenir/)).toBeTruthy();
       await fireEvent.press(screen.getByTestId('plus-manage'));
       expect(openURL).toHaveBeenCalledWith(
         'https://play.google.com/store/account/subscriptions?sku=plus_year&package=app.bargu',
       );
+      await view.unmount();
+      // No price from the store: none at all, never a guessed one (QA-42).
+      useStorePrices.setState({ plus: {} });
+      await show();
+      expect(await screen.findByText(/tarihinde yenilenir\./)).toBeTruthy();
+      expect(screen.queryByText(/₺/)).toBeNull();
+      openURL.mockRestore();
+    });
+
+    it('says so when the store page does not open (QA-42)', async () => {
+      const openURL = jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('no store'));
+      mockPlan = { ...yearly, source: 'play' };
+      mockShelf = 'plus';
+      await show();
+      await fireEvent.press(await screen.findByTestId('plus-manage'));
+      await waitFor(() => {
+        expect(useToasts.getState().current).toMatchObject({
+          message: 'Mağazanın abonelik sayfası açılamadı.',
+        });
+      });
       openURL.mockRestore();
     });
 

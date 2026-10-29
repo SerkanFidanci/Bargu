@@ -87,7 +87,7 @@ export function SafeSpotLayer() {
               { backgroundColor: colors.surfaceRaised },
             ]}
           >
-            <Text variant="caption" numberOfLines={1} style={styles.name}>
+            <Text variant="caption" numberOfLines={2} style={styles.name}>
               {`✓ ${spot.name}`}
             </Text>
           </View>

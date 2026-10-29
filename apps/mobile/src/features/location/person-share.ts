@@ -84,7 +84,9 @@ export function endedFriendShares(
 ): Circle[] {
   if (settings.ghost !== 'off') return [];
   return circles.filter((circle) => {
-    if (circle.kind !== 'pair' || circle.myStatus !== 'active') return false;
+    if (circle.kind !== 'pair' || circle.myStatus !== 'active' || circle.paused === true) {
+      return false;
+    }
     const sharing = circleSharing(settings, circle.id);
     return (
       sharing.sharing && sharing.until !== null && sharing.until > since && sharing.until <= now

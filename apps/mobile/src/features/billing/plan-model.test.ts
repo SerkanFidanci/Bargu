@@ -3,14 +3,12 @@ import type { Plan } from '@bargu/schemas';
 import {
   daysLeft,
   manageUrl,
-  PLUS_PRICES,
   priceText,
   RENEWAL_REMINDER_MS,
   renewalReminderAt,
   TRIAL_REMINDER_MS,
   trialEndingSoon,
   trialReminderAt,
-  yearlySaving,
 } from './plan-model';
 
 const NOW = 1_800_000_000_000;
@@ -79,9 +77,8 @@ describe('the plan as the app shows it (docs/ADR/0024)', () => {
     expect(daysLeft(NOW - DAY, NOW)).toBe(0);
   });
 
-  it('prices in lira, the yearly plan about a third off', () => {
-    expect(yearlySaving()).toBe(33);
-    expect(priceText(PLUS_PRICES.plus_month, 'tr')).toContain('99,99');
-    expect(priceText(PLUS_PRICES.plus_year, 'en')).toContain('799.99');
+  it('writes a price in lira as people read it', () => {
+    expect(priceText(99.99, 'tr')).toContain('99,99');
+    expect(priceText(799.99, 'en')).toContain('799.99');
   });
 });

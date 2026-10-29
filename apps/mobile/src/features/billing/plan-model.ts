@@ -1,19 +1,10 @@
-import type { Plan, PlusProduct } from '@bargu/schemas';
+import type { Plan } from '@bargu/schemas';
 
 const DAY_MS = 24 * 60 * 60_000;
 /** The trial reminder comes this long before it ends (docs/ADR/0024 §4). */
 export const TRIAL_REMINDER_MS = 3 * DAY_MS;
 
-/**
- * Bargu+ prices in lira (BARGU_PLAN Faz 9B, PM 2026-10-16; estimates, not validated). A store
- * gives its own, localised, once it is connected; test purchases show these.
- */
-export const PLUS_PRICES: Record<PlusProduct, number> = { plus_month: 99.99, plus_year: 799.99 };
-
-/** How much the yearly plan saves against twelve months, as a whole percentage. */
-export function yearlySaving(prices: Record<PlusProduct, number> = PLUS_PRICES): number {
-  return Math.round((1 - prices.plus_year / (prices.plus_month * 12)) * 100);
-}
+// Bargu+ prices are the store's own, localised (store-prices.ts): none is written here (QA-42).
 
 /** A price as the user reads it ("₺99,99"). */
 export function priceText(amount: number, language: string): string {
