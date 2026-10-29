@@ -505,6 +505,13 @@ Kurallar:
 **Sektör analizi kararları (PM, 2026-10-29).** Kaynak: [sektör analizi](docs/arastirma/sektor-analizi-2026-10-29.md). Sahip: "bizim daha iyi olmamız şart".
 - **Bulgu:** "Eve vardım / varmadı" Life360, Snap ve Google'da 12 ay içinde çıktı. Uygulamasız süreli link Life360 ve Google'da var. Artık bunlar beklenen özellik. Bargu'nun farkı: sunucu bunları da göremez.
 - **Yeni sıra:** B → C → D → E → F. Paket C (güvenlik) D'nin önüne alındı. C'nin ve E'deki Ö9'un ADR'leri B kodlanırken ayrı bir Opus oturumunda yazılır, PM onaylar. Kod sırayı bekler.
+  - **Güncelleme (PM, 2026-10-30):** ADR 0039 (Ö5 ve N1), 0040 (N4) ve 0041 (Ö9) taslaklarını QA-43 sürerken kod oturumu PM şartlarıyla yazar. PM taslakları Opus'ta inceleyip onaylar.
+  - Şartlar:
+    - sunucu emanetin yalnız var olduğunu, alıcılarını ve saatini görür;
+    - "pil bitiyor" bilgisi şifreli metnin içinde olur;
+    - yoklama cevabında konum yoktur;
+    - Ö9'da anahtar # kısmında kalır, sayfada CSP ve no-referrer olur, üçüncü taraf betik bulunmaz;
+    - 15–17 yaştakiler Ö9 linki oluşturamaz.
 - **Paket C'ye eklenenler:**
   - Ö5 için rakiplerden ders: tek seferlik ve tekrarlı seçenek; tek seferlik kontrol 24 saatte kendiliğinden kapanır; uyarıdan önce birkaç dakikalık ek süre.
   - N1 tazelik: her kişide "3 dk önce" gibi etiket ve eskiyince olası neden (var olan "Neden eski?" üzerine). Pil çok düşünce telefon şifreli son konumu bir kez gönderir, çemberde "pili bitmek üzereydi" yazar. Ö5, eski konumla "varmadı" demez.
