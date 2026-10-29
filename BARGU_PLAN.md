@@ -502,6 +502,22 @@ Kurallar:
 - Kapalı test paketleri beklemez. Play hesabı ve 12 test kullanıcısı hazır olunca o anki en son APK ile başlar; sonraki paketler test sırasında güncelleme olarak çıkar.
 - Her pakette Bargu'nun ilkeleri geçerli: sunucuya düz konum gitmez, yeni izin istemeden önce gerekçe, "her zaman konum" izni yok, 15–17 kuralları (ADR 0023) aynen.
 
+**Sektör analizi kararları (PM, 2026-10-29).** Kaynak: [sektör analizi](docs/arastirma/sektor-analizi-2026-10-29.md). Sahip: "bizim daha iyi olmamız şart".
+- **Bulgu:** "Eve vardım / varmadı" Life360, Snap ve Google'da 12 ay içinde çıktı. Uygulamasız süreli link Life360 ve Google'da var. Artık bunlar beklenen özellik. Bargu'nun farkı: sunucu bunları da göremez.
+- **Yeni sıra:** B → C → D → E → F. Paket C (güvenlik) D'nin önüne alındı. C'nin ve E'deki Ö9'un ADR'leri B kodlanırken ayrı bir Opus oturumunda yazılır, PM onaylar. Kod sırayı bekler.
+- **Paket C'ye eklenenler:**
+  - Ö5 için rakiplerden ders: tek seferlik ve tekrarlı seçenek; tek seferlik kontrol 24 saatte kendiliğinden kapanır; uyarıdan önce birkaç dakikalık ek süre.
+  - N1 tazelik: her kişide "3 dk önce" gibi etiket ve eskiyince olası neden (var olan "Neden eski?" üzerine). Pil çok düşünce telefon şifreli son konumu bir kez gönderir, çemberde "pili bitmek üzereydi" yazar. Ö5, eski konumla "varmadı" demez.
+  - N4 yoklama "Herkes yerinde mi?": etkinlik çemberinde yalnız sahip başlatır, üyeler tek dokunuşla "Buradayım" der, 10 dakikada kapanır. Şifreli küçük öğe. 15–17'de en çok 8 üyeli çemberlerde. Yeni ADR.
+- **Paket D'ye eklenenler:**
+  - N2 "Sunucu ne biliyor?" ekranı: görür (e-posta, çemberler, güncelleme sıklığı, bildirim jetonu) ve göremez (konum, mesaj, fotoğraf, yer adları, geçmiş). Metin THREAT_MODEL'deki "kabul edilen sızıntı" ile aynı. Test oturumu metni kodla karşılaştırır.
+  - N3 güvenli abonelik: Bargu+ ekranında fiyat ve yenileme tarihi, tek dokunuşla Play abonelik sayfası, yıllık planda yenilemeden 3 gün önce telefonda hatırlatma.
+- **Paket E:** Ö9 linki etkinlik çemberinde de olur. Süreler 1, 4, 8 saat ya da gün sonu.
+- **Sonraya:** N6 programlı gizlilik ("her gece 00–07 dondur") Faz 11'e. Grupta kişiye özel paylaşım v2'de kalır; kapalı testten sonra yeniden bakılır.
+- **Sahibin kararı gerekir:** N5 bağımsız güvenlik denetimi ve `packages/crypto`'nun açık kaynak olması (para ve lisans). Kapalı testten sonra, açık yayından önce.
+- **Kapalı testte ölçülecek:** deneme bitince "kim ödeyecek" sürtünmesi. Bump, whoo ve Snap ücretsiz.
+- **Mağaza metni (paket çıktıkça PM günceller):** yarışsız kazıma haritası; varış tahmini telefonda hesaplanır ve konum kimseye gitmez; harita kendi sunucumuzda; pil ölçümü kanıt olarak.
+
 **QA-39 (2026-10-29, `4f29fe7`):** Yüksek bulgu yok.
 - Doğrulananlar: pil ayarları, yer adlarının yalnız telefonda bulunması, DM kontrastı, K14 ve QA-38 düzeltmeleri.
 - Ek 1 şartları için açılan orta bulgu ve 1 düşük bulgu `f43919f` ile kapandı.
@@ -516,6 +532,12 @@ Kurallar:
 **Paket A: görünüm ve küçük kolaylıklar** (QA-39 düzeltmeleriyle birlikte)
 - **Durum (2026-10-29):** kodlandı (`2c5f9f8`..`3821598`) ve QA-39'un tamamıyla birlikte `e1c7e4a` APK'sı yayında. CI yeşil.
 - `e1c7e4a` için ayrı test turu yok (PM kararı, jeton tasarrufu). Bu APK'daki değişiklikler QA-41'de B APK'sıyla birlikte denenir.
+- Ara düzeltme `9b0abb9` (sahibin ekran görüntülerinden):
+  - ana düğmelerdeki geçiş düğmenin tamamını kaplıyor;
+  - ilk kullanım ipucu düğmelerin üstünde çiziliyor;
+  - QA-40 düşük 3 kapandı;
+  - Ö7 bayrakla kapalı.
+  - Bunun için de ayrı test turu yok, QA-41 kapsar.
 - Ö1 "Sorun bildir" kullanıcının kendi e-posta uygulamasıyla gider, sunucudan geçmez. Gizlilik politikasına "destek yazışmaları" satırı eklendi (en geç 12 ay saklanır). Play formunda ayrı veri türü değil.
 - Grup sohbetindeki ⋮ menüsünün iPhone bildirim eklentisi tarafı iOS dilimine kaldı.
 - **QA-40 (`3821598`):** yüksek bulgu yok.
@@ -555,6 +577,12 @@ Kurallar:
     - Süre dolunca arkadaş haritadan kaybolur, iki tarafa tek satırlık bilgi düşer.
   - Ö2 sahibin pil ölçümünü bekliyor.
   - Bu arada paket D (Ö7, Ö12) başladı.
+  - **Sahibin istekleri (2026-10-29), B APK'sına girer.** Sahip: "APK'yı en son çık", yani ara APK yok.
+    - Haritada kendi pin çerçevesi görünmüyor; neden aranıyor.
+    - Haritadaki Mağaza şeridi küçülür: yazısız, geçişli, yuvarlak düğme.
+    - Hayalet düğmesinin yanındaki yazı kalkar, yalnız ikon kalır. Bu, T5'teki "kısa etiket" maddesini sahibin kararıyla geri alır.
+    - PM şartı: ikon üç durumu (Kapalı, Dondur, Gizle) yalnız renkle değil, şekliyle de ayırt ettirir. Ekran okuyucu durumu söyler. Gizli olduğunu fark etmemek olmamalı.
+    - Genel ilke: haritada az yer kaplamak.
   - **Sıra (PM, 2026-10-29): B ve D ayrı APK.** Önce B (QA-40 bulguları, Ö8, Ö6), sonra D (Ö7, Ö12).
     - Ö7'nin kodu B'den önce main'e girdiği için B APK'sında Ö7'ye giriş gizli kalır. Kayıt kapalıdır, açılamaz, hiçbir şey yazılmaz.
     - QA-41 bunu da kontrol eder: ayarda ve haritada Ö7'ye giriş yok, telefonda geçmiş dosyası oluşmuyor.
@@ -629,6 +657,7 @@ Kurallar:
 - **Widget ve Live Activity (Android widget'ı Faz 9C paket F'ye alındı; iOS sonra):** Android ana ekran widget'ı; iOS kilit ekranında "Yoldayım, 4 dk" (varış tahmini). İçerik şifreli kalır (Bölüm 8'den taşındı).
 - **Yüz yüze ekleme (Faz 9C paket F, şartlı):** QR'a ek olarak telefonları sallayarak ekleme.
 - **Özel bitiş saati ve kişiye dondurma (Faz 9C paket B'ye alındı):** "21:30'a kadar" gibi süre; tek kişiye sessizce dondurma.
+- **Programlı gizlilik (sektör analizi N6, 2026-10-29):** "Her gün 00:00–07:00 çemberimde dondur" gibi tekrarlı kural. Telefon her güncellemede saate bakar; kesin alarm izni gerekmez. Yeni izleyici bildirimi ve "Beni kimler görüyor" bozulmaz; 15–17 için ADR 0023'e bakılır.
 - **Davet ödülü:** davet eden ve gelen birer ay Bargu+. Nakit ödül ve zorla davet yok.
 - **Etkinlik paketi:** Faz 8 etkinlik çemberinin, düzenleyenin ödediği süreli paketi (gezi, tur, kamp); katılımcı bedava. Fiyat denemesi.
 - **Kendi geçmişin (Bargu+, isteğe bağlı):**
