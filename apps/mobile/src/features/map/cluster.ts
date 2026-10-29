@@ -61,10 +61,10 @@ export function clusterPeople<T extends { id: string; lat: number; lng: number }
 }
 
 /**
- * Avatars in one shared frame at most (proje sahibi 2026-10-16: "2'si tek çerçevede toplansın, 2'den
- * fazla varsa sağ üstte yazsın"); more people show as a count on the frame (cluster-bubble.tsx).
+ * Faces in a group pin at most (the owner's picture, 2026-10-29): the first one's pin and two
+ * beside it; more people show as "+3" (cluster-bubble.tsx).
  */
-export const CAPSULE_MAX = 2;
+export const CAPSULE_MAX = 3;
 
 /** Who a capsule shows, in order, each with its index in the cluster, and how many more. */
 export interface Capsule<T> {
@@ -73,10 +73,10 @@ export interface Capsule<T> {
 }
 
 /**
- * The people of a cluster as their shared frame shows them: the others in the cluster's own
- * (stable) order, the user last, so their own avatar is always there and always in the same place
- * (the user's avatar sat on top of a friend's, proje sahibi 2026-10-16). Past CAPSULE_MAX the rest
- * are only counted.
+ * The people of a cluster as their group pin shows them: the user first, so their own pin leads,
+ * always there and always in the same place (the user's avatar sat on top of a friend's, proje
+ * sahibi 2026-10-16), then the others in the cluster's own (stable) order. Past CAPSULE_MAX the
+ * rest are only counted.
  */
 export function capsuleOf<T extends { id: string }>(
   members: readonly T[],
@@ -85,8 +85,6 @@ export function capsuleOf<T extends { id: string }>(
   const indexed = members.map((member, index) => ({ member, index }));
   const others = indexed.filter(({ member }) => member.id !== meId);
   const mine = indexed.filter(({ member }) => member.id === meId);
-  if (indexed.length <= CAPSULE_MAX) return { shown: [...others, ...mine], more: 0 };
-  const room = CAPSULE_MAX - mine.length;
-  const shown = [...others.slice(0, room), ...mine];
+  const shown = [...mine, ...others].slice(0, CAPSULE_MAX);
   return { shown, more: indexed.length - shown.length };
 }

@@ -54,6 +54,8 @@ Testler: mobil 1393+ test, şema ve kripto testleri yeşil.
 
 **APK (2026-10-29): `9b0abb9`**, sahibin ekran görüntülerinden düzeltme: ana düğmelerdeki geçiş düğmenin tamamını kaplıyor (Android yüzdeyle çizilen SVG'yi yarım çiziyordu), ilk kullanım ipucu yuvarlak düğmelerin üstünde, geçişli düğmede parlama yok (QA-40). https://api.46-62-162-70.sslip.io/apk/bargu-9b0abb9-4a766549daa16184.apk
 
+Sahibin 29.10 istekleri (B APK'sıyla gidecek): haritada Mağaza yalnız yuvarlak simge, hayalet düğmesinde yazı yok; birlikte duranların pininde herkes kendi süsüyle (`c571daf`). Grup pini sahibin çizimi gibi: senin pinin önde (kuyruğu konumda), yanında iki kişi küçük ve kendi halkası/süsüyle, kalanlar "+3", altında "6 kişi • 21 sa ›" hapı; hap ya da "+3" herkesi listeler, her yüz yine kendi kartını açar.
+
 Açık işler:
 
 - Ekran görüntüleri (PM istedi: harita, Mesajlar, Mağaza; açık ve koyu). Bu makinede emülatör yok;

@@ -757,7 +757,7 @@
       }
     },
     "meet": "{{name}} ile buluştunuz! 🎉",
-    "cluster": "{{count}} kişi bir arada: {{names}}. Kimler olduğunu görmek için dokun.",
+    "cluster": "{{count}} kişi bir arada: {{names}}. Hepsini görmek için dokun.",
     "meetUp": {
       "title": "{{name}} ile buluşma kurulsun mu?",
       "body": "Senin yönettiğin bir buluşma kurulur ve davet gider. Saati ve yeri hemen seçersin. 3 saat sonra kendiliğinden biter, bitince her şey silinir.",
@@ -771,7 +771,10 @@
       "me": "Sen",
       "live": "Şimdi burada",
       "stale": "{{minutes}} dk önce buradaydı",
-      "staleHours": "{{hours}} sa önce buradaydı"
+      "staleHours": "{{hours}} sa önce buradaydı",
+      "pill": "{{count}} kişi",
+      "pillAge": "{{count}} kişi • {{age}}",
+      "more": "+{{count}}"
     },
     "shortcuts": {
       "recenter": "Konumuma dön",

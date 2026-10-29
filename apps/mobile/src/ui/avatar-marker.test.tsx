@@ -17,13 +17,15 @@ describe('the line under someone on the map (proje sahibi 2026-10-16)', () => {
     expect(screen.getByLabelText('Ayşe, canlı konum, araçta, saatte 40 km')).toBeTruthy();
   });
 
-  it('shows the age of an old location instead, and nothing inside a shared frame', async () => {
+  it('shows the age of an old location instead, and nothing in a group pin', async () => {
     const { rerender } = await render(
       <AvatarMarker name="Ayşe" avatar={null} staleMinutes={12} detail={SPEED} />,
     );
     expect(screen.queryByTestId('marker-detail')).toBeNull();
     expect(screen.getByText('12 dk')).toBeTruthy();
-    await rerender(<AvatarMarker name="Ayşe" avatar={null} detail={SPEED} framed />);
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} detail={SPEED} group="lead" />);
+    expect(screen.queryByTestId('marker-detail')).toBeNull();
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} detail={SPEED} group="beside" />);
     expect(screen.queryByTestId('marker-detail')).toBeNull();
   });
 });
@@ -61,13 +63,13 @@ describe('a person as a pin (the owner, 2026-10-18)', () => {
     await i18n.changeLanguage('tr');
   });
 
-  it('wears the green live dot only while the location is fresh, also in a shared pin', async () => {
+  it('wears the green live dot only while the location is fresh, also in a group pin', async () => {
     const { rerender } = await render(<AvatarMarker name="Ayşe" avatar={null} />);
     expect(screen.getByTestId('marker-live')).toBeTruthy();
     await rerender(<AvatarMarker name="Ayşe" avatar={null} staleMinutes={90} />);
     expect(screen.queryByTestId('marker-live')).toBeNull();
     expect(screen.getByText('1 sa')).toBeTruthy();
-    await rerender(<AvatarMarker name="Ayşe" avatar={null} framed />);
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} group="beside" />);
     expect(screen.getByTestId('marker-live')).toBeTruthy();
   });
 });
@@ -98,10 +100,16 @@ describe('why an old location is old ("Neden eski?", docs/ADR/0028)', () => {
     expect(screen.getByLabelText('Ayşe, canlı konum')).toBeTruthy();
   });
 
-  it('keeps the pill to the age inside a shared frame, and still reads the reason out', async () => {
-    await render(<AvatarMarker name="Ayşe" avatar={null} staleMinutes={23} why="nofix" framed />);
-    expect(screen.getByText('23 dk')).toBeTruthy();
-    expect(screen.queryByText(/Konum alınamıyor/)).toBeNull();
+  it('writes nothing under a face in a group pin (its pill says how old), and still reads it out', async () => {
+    const { rerender } = await render(
+      <AvatarMarker name="Ayşe" avatar={null} staleMinutes={23} why="nofix" group="lead" />,
+    );
+    expect(screen.queryByTestId('marker-age')).toBeNull();
+    expect(screen.getByLabelText('Ayşe, 23 dakika önceki konum, Konum alınamıyor')).toBeTruthy();
+    await rerender(
+      <AvatarMarker name="Ayşe" avatar={null} staleMinutes={23} why="nofix" group="beside" />,
+    );
+    expect(screen.queryByTestId('marker-age')).toBeNull();
     expect(screen.getByLabelText('Ayşe, 23 dakika önceki konum, Konum alınamıyor')).toBeTruthy();
   });
 
@@ -125,13 +133,15 @@ describe('a story on the pin (docs/ADR/0035 §8)', () => {
     await i18n.changeLanguage('tr');
   });
 
-  it('wears a ring outside its own and says so, new or seen; none in a shared frame', async () => {
+  it('wears a ring outside its own and says so, new or seen; none beside the first in a group', async () => {
     const { rerender } = await render(<AvatarMarker name="Ayşe" avatar={null} story="new" />);
     expect(screen.getByTestId('marker-story')).toBeTruthy();
     expect(screen.getByLabelText('Ayşe, canlı konum, yeni hikayesi var')).toBeTruthy();
     await rerender(<AvatarMarker name="Ayşe" avatar={null} story="seen" />);
     expect(screen.getByLabelText('Ayşe, canlı konum, hikayesi var')).toBeTruthy();
-    await rerender(<AvatarMarker name="Ayşe" avatar={null} story="new" framed />);
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} story="new" group="lead" />);
+    expect(screen.getByTestId('marker-story')).toBeTruthy();
+    await rerender(<AvatarMarker name="Ayşe" avatar={null} story="new" group="beside" />);
     expect(screen.queryByTestId('marker-story')).toBeNull();
     await rerender(<AvatarMarker name="Ayşe" avatar={null} />);
     expect(screen.queryByTestId('marker-story')).toBeNull();

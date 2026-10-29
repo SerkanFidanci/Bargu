@@ -39,22 +39,25 @@ describe('a capsule of people together', () => {
   const ids = (capsule: ReturnType<typeof capsuleOf<{ id: string }>>) =>
     capsule.shown.map(({ member }) => member.id);
 
-  it('puts two people in one frame, the user last', () => {
-    const capsule = capsuleOf([{ id: 'me' }, { id: 'ayse' }], 'me');
-    expect(ids(capsule)).toEqual(['ayse', 'me']);
+  it('leads with the user, the others after in the order of the cluster', () => {
+    const capsule = capsuleOf([{ id: 'ayse' }, { id: 'me' }], 'me');
+    expect(ids(capsule)).toEqual(['me', 'ayse']);
     expect(capsule.more).toBe(0);
     // Each keeps its place in the cluster (where it flows in from).
     expect(capsule.shown.map(({ index }) => index)).toEqual([1, 0]);
-    expect(capsuleOf([{ id: 'ayse' }, { id: 'cem' }], 'me').more).toBe(0);
+    expect(ids(capsuleOf([{ id: 'ayse' }, { id: 'cem' }], 'me'))).toEqual(['ayse', 'cem']);
   });
 
-  it('shows two past that and counts the rest, never hiding the user', () => {
-    const capsule = capsuleOf([{ id: 'ayse' }, { id: 'me' }, { id: 'cem' }], 'me');
-    expect(ids(capsule)).toEqual(['ayse', 'me']);
+  it('shows three past that (the owner, 2026-10-29) and counts the rest, never hiding the user', () => {
+    const capsule = capsuleOf(
+      [{ id: 'ayse' }, { id: 'cem' }, { id: 'deniz' }, { id: 'me' }, { id: 'ece' }],
+      'me',
+    );
+    expect(ids(capsule)).toEqual(['me', 'ayse', 'cem']);
     expect(capsule.shown.length).toBe(CAPSULE_MAX);
-    expect(capsule.more).toBe(1);
-    const many = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id }));
-    expect(ids(capsuleOf(many, 'me'))).toEqual(['a', 'b']);
+    expect(capsule.more).toBe(2);
+    const many = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id }));
+    expect(ids(capsuleOf(many, 'me'))).toEqual(['a', 'b', 'c']);
     expect(capsuleOf(many, 'me').more).toBe(3);
   });
 });

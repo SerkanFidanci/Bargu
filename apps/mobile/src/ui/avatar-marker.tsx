@@ -56,10 +56,11 @@ export interface AvatarMarkerProps {
   /** m/s, when their location carries it: a vehicle's wheels and road go with it. */
   speed?: number | null | undefined;
   /**
-   * In a pin shared with others (features/map/cluster-bubble.tsx): only the avatar and its signs;
-   * the shared pin draws the ring, the tail and the dot on the position.
+   * In a group pin (features/map/cluster-bubble.tsx): "lead" is the pin as on its own, with
+   * nothing under it (the group's pill says how old); "beside" is one of the others next to it,
+   * the ring, the look and the signs around the face, no tail, dot or story ring.
    */
-  framed?: boolean | undefined;
+  group?: 'lead' | 'beside' | undefined;
   /** Their speed or how long they have stayed, on a line under the island (live locations only). */
   detail?: MarkerDetail | undefined;
   /** When their latest location came: at sade mod "reduced" each one plays the motion once. */
@@ -206,7 +207,7 @@ export function AvatarMarker({
   activity = 'still',
   heading,
   speed,
-  framed = false,
+  group,
   detail,
   news,
   look,
@@ -218,6 +219,7 @@ export function AvatarMarker({
   const { colors } = useTheme();
   const stale = staleMinutes !== undefined;
   const ring = stale ? colors.textMuted : colors.primary;
+  const beside = group === 'beside';
   const doing: MarkerActivity = stale ? 'still' : activity;
   const moving = doing !== 'still' && doing !== 'settled';
   const chosen = useEffects();
@@ -274,9 +276,8 @@ export function AvatarMarker({
     : hours === null
       ? t('ui.marker.stale', { name, minutes: staleMinutes })
       : t('ui.marker.staleHours', { name, hours });
-  // Only an old location has a reason to be: a fresh one needs none. In a shared frame the pill
-  // keeps to the age (no room beside a neighbour); the group's window lists the reason, and the
-  // spoken label has it.
+  // Only an old location has a reason to be: a fresh one needs none. In a group pin there is no
+  // pill under anyone; the group's window lists the reason, and the spoken label has it.
   const whyText = stale && why !== undefined ? t(`ui.marker.why.${why}`) : null;
   const battery = charging
     ? t('ui.marker.charging')
@@ -284,9 +285,9 @@ export function AvatarMarker({
       ? t('ui.marker.lowBattery')
       : null;
   const doingLabel = doing === 'still' ? null : t(`ui.marker.activity.${doing}`);
-  // An old location says its age instead: its speed or stay would no longer be true. In a shared
-  // frame there is no room under each one (the group's window lists it, together-sheet.tsx).
-  const line = stale || framed || detail === undefined ? null : detail;
+  // An old location says its age instead: its speed or stay would no longer be true. In a group
+  // pin there is no room under each one (the group's window lists it, together-sheet.tsx).
+  const line = stale || group !== undefined || detail === undefined ? null : detail;
   const label = [
     where,
     whyText,
@@ -297,19 +298,20 @@ export function AvatarMarker({
   ]
     .filter((part) => part !== null)
     .join(', ');
-  const ageText = stale
-    ? hours === null
-      ? t('ui.marker.age', { minutes: staleMinutes })
-      : t('ui.marker.ageHours', { hours })
-    : null;
+  const ageText =
+    stale && group === undefined
+      ? hours === null
+        ? t('ui.marker.age', { minutes: staleMinutes })
+        : t('ui.marker.ageHours', { hours })
+      : null;
   // Drawn figures face east by default; west-bound people get them mirrored.
   const facing: 1 | -1 = leanSide < -0.2 ? -1 : 1;
-  // Wheels, rails and wings get a wide badge, except in a shared pin (no room beside a neighbour).
-  const wide = !framed && doing !== 'still' && wideGlyph(doing);
+  // Wheels, rails and wings get a wide badge, except in a group pin (no room beside a neighbour).
+  const wide = group === undefined && doing !== 'still' && wideGlyph(doing);
 
   return (
-    <View accessible accessibilityLabel={label} style={styles.container}>
-      {framed ? null : (
+    <View accessible accessibilityLabel={label} style={beside ? styles.beside : styles.container}>
+      {beside ? null : (
         <View style={styles.dotSlot} pointerEvents="none">
           <Animated.View style={[styles.ripple, { borderColor: ring }, ripple]} />
           <View
@@ -322,21 +324,19 @@ export function AvatarMarker({
           <View
             style={[
               styles.circle,
-              framed
-                ? null
-                : {
-                    borderColor: ring,
-                    backgroundColor: colors.surfaceRaised,
-                    boxShadow: elevation.raised,
-                  },
+              {
+                borderColor: ring,
+                backgroundColor: colors.surfaceRaised,
+                boxShadow: elevation.raised,
+              },
             ]}
           >
             <Avatar avatar={avatar} name={name} size="md" muted={stale} userId={userId} />
-            {story === undefined || framed ? null : (
+            {story === undefined || beside ? null : (
               <StoryRing seen={story === 'seen'} id={userId ?? name} />
             )}
-            {/* In a shared pin too, each around their own face (the owner, 2026-10-29: "Benim
-                çerçeveler gözükmüyor"): the look reaches 11 px, the faces are 20 px apart. */}
+            {/* In a group pin too, each around their own face (the owner, 2026-10-29: "Benim
+                çerçeveler gözükmüyor", "Çerçeveler falan kaybolmasın"). */}
             {look === undefined ? null : (
               <PinLook
                 look={look}
@@ -390,15 +390,13 @@ export function AvatarMarker({
               />
             )}
           </View>
-          {framed ? null : <View style={[styles.tail, { borderTopColor: ring }]} />}
+          {beside ? null : <View style={[styles.tail, { borderTopColor: ring }]} />}
         </Animated.View>
       </Animated.View>
       {ageText !== null ? (
         <View testID="marker-age" style={[styles.age, { backgroundColor: colors.surfaceRaised }]}>
           <Text variant="caption" color="textMuted" allowFontScaling={false}>
-            {whyText === null || framed
-              ? ageText
-              : t('ui.marker.withWhy', { text: ageText, why: whyText })}
+            {whyText === null ? ageText : t('ui.marker.withWhy', { text: ageText, why: whyText })}
           </Text>
         </View>
       ) : line !== null ? (
@@ -421,6 +419,8 @@ export function AvatarMarker({
 const styles = StyleSheet.create({
   // Tall enough for the pin down to its dot; the age (or speed, or stay) hangs below it.
   container: { alignItems: 'center', minHeight: PIN_HEIGHT + pinFx.dot / 2 },
+  // Beside the first in a group pin: the circle alone, so it scales about its centre.
+  beside: { alignItems: 'center' },
   // Rotations and squash pivot on the tail's tip, the person's position.
   pin: { alignItems: 'center', transformOrigin: '50% 100%' },
   dotSlot: {

@@ -771,7 +771,10 @@
       "me": "You",
       "live": "Here now",
       "stale": "Here {{minutes}} min ago",
-      "staleHours": "Here {{hours}} h ago"
+      "staleHours": "Here {{hours}} h ago",
+      "pill": "{{count}} people",
+      "pillAge": "{{count}} people • {{age}}",
+      "more": "+{{count}}"
     },
     "shortcuts": {
       "recenter": "Back to my location",

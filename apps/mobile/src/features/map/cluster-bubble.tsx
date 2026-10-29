@@ -1,3 +1,4 @@
+import { ChevronRight, Users } from 'lucide-react-native';
 import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -10,13 +11,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { elevation, pinFx, radius, space, spring, timing, useTheme } from '@/theme';
+import { avatarSize, elevation, pinFx, radius, space, spring, timing, useTheme } from '@/theme';
 import { useEffects } from '@/theme/effects';
-import { GLYPH } from '@/ui/activity-glyph';
 import { AvatarMarker, type AvatarMarkerProps, PIN_CIRCLE, PIN_HEIGHT } from '@/ui/avatar-marker';
 import { Text } from '@/ui/text';
 
-import { CLUSTER_PX } from './cluster';
 import { MAP_AVATAR_BOX } from './map-avatar';
 import { MeetBurst } from './meet-burst';
 import type { ScreenPoint } from './person-focus';
@@ -25,48 +24,50 @@ import { type PersonHandlers, PersonGestures } from './person-gestures';
 /** Someone in a group standing together: their avatar as on their own, and what goes with it. */
 export interface TogetherPerson {
   id: string;
-  marker: Omit<AvatarMarkerProps, 'framed'>;
+  marker: Omit<AvatarMarkerProps, 'group'>;
   handlers?: PersonHandlers | undefined;
   pokedAt?: number | undefined;
   /** Drawn above their avatar (a status bubble). */
   above?: ReactNode;
 }
 
+/** The others beside the first: this wide, each partly behind the one before. */
+const BESIDE = PIN_CIRCLE * pinFx.together.beside;
+const COVER = BESIDE * pinFx.together.cover;
+/** "+3", as small as a small avatar. */
+const COUNT = avatarSize.sm;
+/** From the position (the tip of the first one's tail) up to the centre of the faces. */
+const RISE = PIN_HEIGHT - PIN_CIRCLE / 2;
+/** Each one's centre from the first one's, left to right. */
+const slotX = (index: number) =>
+  index === 0 ? 0 : PIN_CIRCLE / 2 - COVER + BESIDE / 2 + (index - 1) * (BESIDE - COVER);
+/** The count's centre, after `shown` faces. */
+const countX = (shown: number) =>
+  slotX(shown - 1) + (shown === 1 ? PIN_CIRCLE : BESIDE) / 2 - COVER + COUNT / 2;
 /**
- * One avatar to the next in the shared pin: room between them for the left one's activity badge on
- * its upper right (proje sahibi 2026-10-16: "iç içe girmemeli ama sağ üstlerinde durum şeyleri
- * çıkacak"); the last one's badge sits on the pin's corner, as on a pin of its own.
+ * The box is centred on the position (the map anchors it there): room on the right for the
+ * group's pill, and as much on the left.
  */
-const FRAME_SLOT = PIN_CIRCLE + GLYPH / 2 + pinFx.together.gap;
+const HALF = PIN_CIRCLE / 2 + pinFx.together.pillMax + space.lg;
+const CENTER = { x: HALF, y: MAP_AVATAR_BOX / 2 };
+
 /**
- * More than two: room on the pin's right for the count, a clear gap from the last avatar and its
- * badge (proje sahibi 2026-10-16: "3 bir şeyin üzerine binmesin").
+ * One face in the group pin, sliding from where its person was into its place; jumps when poked.
+ * The first is their pin as on its own; the others shrink as they join.
  */
-const COUNT_ROOM = GLYPH / 2 + space.lg + space.sm;
-
-/** The avatars' part of the pin, edge to edge. */
-const avatarsWidth = (count: number) => (count - 1) * FRAME_SLOT + PIN_CIRCLE;
-/** Where each avatar's centre sits from the pin's centre of avatars, left to right. */
-const slotX = (index: number, count: number) =>
-  index * FRAME_SLOT + PIN_CIRCLE / 2 - avatarsWidth(count) / 2;
-
-/** One avatar sliding from where its person was into its place in the pin; jumps when poked. */
 function Slot({
   person,
   index,
   from,
-  to,
   merge,
-  tappable,
 }: {
   person: TogetherPerson;
   index: number;
   from: { x: number; y: number };
-  to: number;
   merge: SharedValue<number>;
-  /** Their own tap and hold; off when a tap on the pin lists everyone instead. */
-  tappable: boolean;
 }) {
+  const lead = index === 0;
+  const to = slotX(index);
   const lift = useSharedValue(0);
   useEffect(() => {
     if (person.pokedAt === undefined) return;
@@ -78,10 +79,25 @@ function Slot({
       { translateY: from.y * (1 - merge.get()) + lift.get() },
     ],
   }));
-  const avatar = <AvatarMarker {...person.marker} framed />;
+  const shrinking = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - (1 - pinFx.together.beside) * merge.get() }],
+  }));
+  const marker = <AvatarMarker {...person.marker} group={lead ? 'lead' : 'beside'} />;
+  const avatar =
+    person.handlers === undefined ? (
+      marker
+    ) : (
+      <PersonGestures handlers={person.handlers}>
+        <View collapsable={false}>{marker}</View>
+      </PersonGestures>
+    );
   return (
     <Animated.View
-      style={[styles.slot, { left: index * FRAME_SLOT }, sliding]}
+      style={[
+        styles.slot,
+        { left: CENTER.x + to - PIN_CIRCLE / 2, top: CENTER.y - PIN_HEIGHT },
+        sliding,
+      ]}
       pointerEvents="box-none"
     >
       {person.above === undefined ? null : (
@@ -89,43 +105,41 @@ function Slot({
           {person.above}
         </View>
       )}
-      {!tappable || person.handlers === undefined ? (
-        avatar
-      ) : (
-        <PersonGestures handlers={person.handlers}>
-          <View collapsable={false}>{avatar}</View>
-        </PersonGestures>
-      )}
+      {lead ? avatar : <Animated.View style={shrinking}>{avatar}</Animated.View>}
     </Animated.View>
   );
 }
 
 /**
- * People standing together (proje sahibi 2026-10-16: "2'si tek çerçevede toplansın, 2'den fazla
- * varsa sağ üstte yazsın, tıklayınca oradaki kişiler bir pencerede gözüksün"), as one shared pin
- * (the owner, 2026-10-18): the avatars slide from where each was into one ring, with one tail down
- * to one dot on where they are. Two people: each avatar is still theirs to tap or hold. More: the
- * pin says how many in its upper right corner, and a tap lists everyone there.
+ * People standing together, as one group pin (the owner's picture, 2026-10-29: "1 den fazla kişi
+ * gruplandığında … Çerçeveler falan kaybolmasın"): the first one's pin as on its own, its tail
+ * down to the position; the others smaller beside it, each with its own ring and look, then "+3"
+ * for the rest; under them a pill with how many and, when every location here is old, how old.
+ * The faces slide from where each was into their places. Each face is still theirs to tap or
+ * hold; the pill and the count list everyone here.
  */
 export function ClusterBubble({
   people,
   more,
   offsets,
   everyone,
+  age,
   burst,
   onList,
 }: {
-  /** Who shows, in order (cluster.ts capsuleOf). */
+  /** Who shows, in order, the first one leading (cluster.ts capsuleOf). */
   people: readonly TogetherPerson[];
   /** How many more there are than shown. */
   more: number;
   /** Where each one shown was on screen relative to the centre (px). */
   offsets: readonly { x: number; y: number }[];
-  /** Everyone's names, for the pin's label. */
+  /** Everyone's names, for the pill's label. */
   everyone: readonly string[];
+  /** Minutes since the newest location here, when every one is old. */
+  age?: number | undefined;
   /** A meeting to celebrate here (the user is one of them). */
   burst?: { at: number; colors: readonly [string, string] } | null | undefined;
-  /** More than two: a tap on the pin, to list everyone here. */
+  /** A tap on the pill or the count, to list everyone here. */
   onList: (point: ScreenPoint) => void;
 }) {
   const { t } = useTranslation();
@@ -137,151 +151,132 @@ export function ClusterBubble({
     merge.set(withSpring(1, spring.gentle));
   }, [merge]);
 
-  const count = people.length;
-  const listed = more > 0;
-  const avatars = avatarsWidth(count);
-  const frameWidth = avatars + (listed ? COUNT_ROOM : 0);
-  // The avatars stay centred on the position; the count's room reaches out to the right.
-  const width = (avatars / 2 + (listed ? COUNT_ROOM + space.sm : 0) + CLUSTER_PX) * 2;
-  const center = { x: width / 2, y: MAP_AVATAR_BOX / 2 };
-  const fromOf = (index: number) => offsets[index] ?? { x: 0, y: 0 };
-  // Grey only when every location here is old.
-  const ring = people.every((person) => person.marker.staleMinutes !== undefined)
-    ? colors.textMuted
-    : colors.primary;
   const appear = useAnimatedStyle(() => ({ opacity: merge.get() }));
-
-  const row = (
-    <>
-      <Animated.View
-        style={[
-          styles.frame,
-          {
-            backgroundColor: colors.surfaceRaised,
-            borderColor: ring,
-            boxShadow: elevation.raised,
-          },
-          appear,
-        ]}
-        pointerEvents="none"
-      />
-      {people.map((person, index) => (
-        <Slot
-          key={person.id}
-          person={person}
-          index={index}
-          from={fromOf(index)}
-          to={slotX(index, count)}
-          merge={merge}
-          tappable={!listed}
-        />
-      ))}
-      {listed ? (
-        <Animated.View
-          style={[
-            styles.count,
-            { backgroundColor: colors.primary, borderColor: colors.surfaceRaised },
-            appear,
-          ]}
-          pointerEvents="none"
-        >
-          <Text variant="caption" allowFontScaling={false} style={{ color: colors.onPrimary }}>
-            {String(everyone.length)}
-          </Text>
-        </Animated.View>
-      ) : null}
-    </>
-  );
-  const placed = { left: center.x - avatars / 2, top: center.y - PIN_HEIGHT, width: frameWidth };
+  const fromOf = (index: number) => offsets[index] ?? { x: 0, y: 0 };
+  const ageText =
+    age === undefined
+      ? null
+      : age >= 60
+        ? t('ui.marker.ageHours', { hours: Math.floor(age / 60) })
+        : t('ui.marker.age', { minutes: age });
+  const list = (event: { nativeEvent: { pageX: number; pageY: number } }) => {
+    onList({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
+  };
+  const [lead, ...beside] = people;
 
   return (
-    <View style={[styles.box, { width }]} pointerEvents="box-none">
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.tail,
-          {
-            left: center.x - pinFx.tailWidth / 2,
-            top: center.y - pinFx.tail - pinFx.ring / 2,
-            borderTopColor: ring,
-          },
-          appear,
-        ]}
-      />
-      <View
-        pointerEvents="none"
-        style={[
-          styles.dot,
-          {
-            left: center.x - pinFx.dot / 2,
-            top: center.y - pinFx.dot / 2,
-            backgroundColor: ring,
-            borderColor: colors.surfaceRaised,
-          },
-        ]}
-      />
+    <View style={styles.box} pointerEvents="box-none">
       {burst === null || burst === undefined ? null : (
         <MeetBurst key={burst.at} at={burst.at} colors={burst.colors} />
       )}
-      {listed ? (
+      {more > 0 ? (
+        <Animated.View
+          style={[
+            styles.count,
+            {
+              left: CENTER.x + countX(people.length) - COUNT / 2,
+              top: CENTER.y - RISE - COUNT / 2,
+            },
+            appear,
+          ]}
+        >
+          <Pressable
+            testID="together-more"
+            onPress={list}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            hitSlop={space.sm}
+            style={[
+              styles.countFace,
+              {
+                backgroundColor: colors.primary,
+                borderColor: colors.surfaceRaised,
+                boxShadow: elevation.raised,
+              },
+            ]}
+          >
+            <Text variant="caption" allowFontScaling={false} style={{ color: colors.onPrimary }}>
+              {t('map.together.more', { count: more })}
+            </Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
+      {/* The first one in front, each one before the next. */}
+      {beside
+        .map((person, index) => (
+          <Slot
+            key={person.id}
+            person={person}
+            index={index + 1}
+            from={fromOf(index + 1)}
+            merge={merge}
+          />
+        ))
+        .reverse()}
+      <Animated.View
+        style={[
+          styles.pill,
+          { left: CENTER.x + PIN_CIRCLE / 2, top: CENTER.y - RISE + BESIDE / 2 + space.xs },
+          appear,
+        ]}
+      >
         <Pressable
-          onPress={(event) => {
-            onList({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY });
-          }}
+          testID="together-pill"
+          onPress={list}
           accessibilityRole="button"
           accessibilityLabel={t('map.cluster', {
             count: everyone.length,
             names: everyone.join(', '),
           })}
-          style={[styles.row, placed]}
+          hitSlop={space.sm}
+          style={[
+            styles.pillFace,
+            { backgroundColor: colors.primary, boxShadow: elevation.raised },
+          ]}
         >
-          {row}
+          <Users color={colors.onPrimary} size={space.md} strokeWidth={2.25} />
+          <Text
+            variant="caption"
+            allowFontScaling={false}
+            numberOfLines={1}
+            style={[styles.pillText, { color: colors.onPrimary }]}
+          >
+            {ageText === null
+              ? t('map.together.pill', { count: everyone.length })
+              : t('map.together.pillAge', { count: everyone.length, age: ageText })}
+          </Text>
+          <ChevronRight color={colors.onPrimary} size={space.md} strokeWidth={2.25} />
         </Pressable>
-      ) : (
-        <View style={[styles.row, placed]} pointerEvents="box-none">
-          {row}
-        </View>
+      </Animated.View>
+      {lead === undefined ? null : (
+        <Slot key={lead.id} person={lead} index={0} from={fromOf(0)} merge={merge} />
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  box: { height: MAP_AVATAR_BOX },
-  row: { position: 'absolute', height: PIN_CIRCLE },
-  frame: { ...StyleSheet.absoluteFill, borderRadius: radius.pill, borderWidth: pinFx.ring },
-  slot: { position: 'absolute', top: 0, width: PIN_CIRCLE, alignItems: 'center' },
-  // Whatever sits above an avatar ends where it begins.
-  above: { position: 'absolute', bottom: PIN_HEIGHT + space.xs, alignItems: 'center' },
-  // A downward triangle from the shared ring to the dot.
-  tail: {
-    position: 'absolute',
-    width: 0,
-    height: 0,
-    borderLeftWidth: pinFx.tailWidth / 2,
-    borderRightWidth: pinFx.tailWidth / 2,
-    borderTopWidth: pinFx.tail + pinFx.ring / 2,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-  },
-  dot: {
-    position: 'absolute',
-    width: pinFx.dot,
-    height: pinFx.dot,
-    borderRadius: radius.pill,
-    borderWidth: pinFx.ring / 2,
-  },
-  // How many stand here, on the pin's upper right corner.
-  count: {
-    position: 'absolute',
-    top: -space.sm,
-    right: -space.sm,
-    minWidth: space.xl,
-    height: space.xl,
-    paddingHorizontal: space.xs,
+  box: { width: HALF * 2, height: MAP_AVATAR_BOX },
+  slot: { position: 'absolute', width: PIN_CIRCLE, alignItems: 'center' },
+  // Whatever sits above a face ends where it begins.
+  above: { position: 'absolute', bottom: '100%', alignItems: 'center' },
+  count: { position: 'absolute', width: COUNT, height: COUNT },
+  countFace: {
+    width: COUNT,
+    height: COUNT,
     borderRadius: radius.pill,
     borderWidth: space.xxs,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pill: { position: 'absolute', maxWidth: pinFx.together.pillMax },
+  pillFace: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xxs,
+    borderRadius: radius.pill,
+  },
+  pillText: { flexShrink: 1 },
 });

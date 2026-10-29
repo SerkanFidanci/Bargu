@@ -243,8 +243,12 @@ export const pinFx = {
   live: 12,
   /** While live and still the pin floats up this far. */
   float: { lift: 2.5 },
-  /** Side by side in a shared pin: the gap between avatars. */
-  together: { gap: 6 },
+  /**
+   * A group pin (the owner's picture, 2026-10-29): the first one's pin as on its own, the others
+   * this much smaller beside it, each partly behind the one before (by this share of its width),
+   * and the group's pill at most this wide.
+   */
+  together: { beside: 0.72, cover: 0.2, pillMax: 168 },
 } as const;
 
 /**

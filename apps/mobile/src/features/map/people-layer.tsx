@@ -239,7 +239,7 @@ export function PeopleLayer({
   );
 }
 
-/** People standing together: one row of stickers above one island at their centre. */
+/** People standing together: one group pin at their centre (cluster-bubble.tsx). */
 function TogetherMarker({
   cluster,
   meId,
@@ -279,6 +279,9 @@ function TogetherMarker({
         detail: marker.detail,
       };
     });
+  // How old the newest location here is, when every one is old.
+  const ages = listed.map((member) => member.staleMinutes);
+  const age = ages.every((minutes) => minutes !== undefined) ? Math.min(...ages) : undefined;
   return (
     <GlidingMarker id={cluster.key} fix={fix}>
       <ClusterBubble
@@ -286,6 +289,7 @@ function TogetherMarker({
         more={capsule.more}
         offsets={capsule.shown.map(({ index }) => cluster.offsets[index] ?? { x: 0, y: 0 })}
         everyone={listed.map((member) => member.name)}
+        age={age}
         burst={withMe ? burst : null}
         onList={(from) => onGroup?.(listed, from)}
       />
