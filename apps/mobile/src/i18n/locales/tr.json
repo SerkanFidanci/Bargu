@@ -691,7 +691,33 @@
       "notification": "Konumunu kimlerin gördüğüne bir bak; istersen tek dokunuşla durdur."
     },
     "newViewers": "{{name}} ve {{count}} kişi daha artık {{circle}} çemberinde konumunu görebilir",
-    "newViewersBoth": "{{name}} ve {{count}} kişi daha artık {{circle}} çemberinde konumunu ve konum geçmişini görebilir"
+    "newViewersBoth": "{{name}} ve {{count}} kişi daha artık {{circle}} çemberinde konumunu ve konum geçmişini görebilir",
+    "personShare": {
+      "row": "Paylaşım",
+      "byCircle": "Bu kişiyi çemberin ayarı yönetir",
+      "lineGhost": "Hayalet modu açık",
+      "line": {
+        "always": "Süresiz gösteriliyor",
+        "frozen": "Dondurdun",
+        "off": "Gösterilmiyor"
+      },
+      "untilTime": "{{time}} saatine kadar",
+      "title": "Konum paylaşımı",
+      "intro": "Yalnız {{name}} için. Gruplarındaki ayarlar değişmez.",
+      "ghost": "Hayalet modu açık: şu an kimse yeni konumunu almıyor. Burada seçtiğin, hayalet kapanınca geçerli olur.",
+      "always": "Göster",
+      "alwaysDetail": "Sen kapatana kadar",
+      "until": "Bir saate kadar göster",
+      "untilDetail": "Süre bitince haritasından kaybolursun, ikinize de haber verilir",
+      "untilLabel": "Ne zamana kadar",
+      "frozen": "Dondur",
+      "frozenDetail": "Son konumun {{name}} için durur, yenisi gitmez. Ona ayrıca söylenmez.",
+      "off": "Gösterme",
+      "offDetail": "{{name}} haritasında seni görmez",
+      "ended": "{{name}} ile süreli paylaşım bitti. 1 saat daha paylaşmak için dokun.",
+      "endedMine": "{{name}} ile süreli paylaşım bitti",
+      "endedTheirs": "{{name}} ile süreli paylaşım bitti"
+    }
   },
   "map": {
     "actions": {

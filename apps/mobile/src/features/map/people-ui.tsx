@@ -12,6 +12,7 @@ import type { SheetRef } from '@/ui/sheet';
 
 import { useAuth } from '../auth/auth-store';
 import { useMyFix } from '../location/engine';
+import { type PersonShareTarget, PersonShareSheet } from '../location/person-share-sheet';
 import { useLocations } from '../location/receive';
 import { useMe } from '../profile/queries';
 import { writablePeople } from '../messages/names';
@@ -67,6 +68,8 @@ export function usePeopleUi(
     closeCard();
   });
   const [muting, setMuting] = useState<{ userId: string; name: string } | null>(null);
+  const shareSheet = useRef<SheetRef>(null);
+  const [sharingWith, setSharingWith] = useState<PersonShareTarget | null>(null);
   const groupSheet = useRef<SheetRef>(null);
   const [group, setGroup] = useState<{ people: GroupMember[]; from: ScreenPoint } | null>(null);
 
@@ -150,7 +153,10 @@ export function usePeopleUi(
   );
 
   const act = useCallback(
-    (userId: string, action: PersonAction | 'meet' | 'message' | 'story' | 'report' | 'block') => {
+    (
+      userId: string,
+      action: PersonAction | 'meet' | 'message' | 'story' | 'report' | 'block' | 'sharing',
+    ) => {
       const person = personView(userId, circles, useLocations.getState());
       if (person === null) return;
       // As in a conversation (docs/ADR/0035 §9): the reasons to report, or blocking with what it
@@ -165,6 +171,19 @@ export function usePeopleUi(
       }
       if (action === 'meet') {
         meet(person);
+        return;
+      }
+      // What this friend gets of the location (docs/ADR/0038); someone in a group only through
+      // the group's own setting, on its screen.
+      if (action === 'sharing') {
+        if (person.circleId === null) return;
+        if (person.circleKind === 'pair') {
+          setSharingWith({ circleId: person.circleId, name: person.name });
+          shareSheet.current?.present();
+          return;
+        }
+        closeCard();
+        router.push({ pathname: '/circle/[id]/sharing', params: { id: person.circleId } });
         return;
       }
       if (action === 'story') {
@@ -297,6 +316,7 @@ export function usePeopleUi(
         }}
       />
       <MuteSheet ref={muteSheet} person={muting} />
+      <PersonShareSheet ref={shareSheet} target={sharingWith} />
       {safety.sheet}
       <PokeSheet
         ref={pokeSheet}

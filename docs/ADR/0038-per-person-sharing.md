@@ -1,6 +1,6 @@
 # 0038. Kişiye süreli paylaşım ve tek kişiye sessiz dondurma
 
-- Durum: Kabul edildi (PM, 2026-10-29); önerildi (kodlama oturumu, 2026-10-29)
+- Durum: Kabul edildi (PM, 2026-10-29); önerildi (kodlama oturumu, 2026-10-29); uygulandı (paket B, Ek 1)
 - Tarih: 2026-10-29
 - İlgili: [ADR 0008](0008-design-system-and-map.md), [ADR 0019](0019-location-history.md),
   BARGU_PLAN §3.3 ve §4 (çember anahtarları), `docs/arastirma/urun-gelistirme-2026-10-29.md` Ö6,
@@ -82,3 +82,25 @@ satırın "çemberin ayarı" demesi; kişi kartı satırının mevcut durumu sö
    (seçenek 2) mi? Öneri: seçenek 1.
 2. **Süre dolunca** arkadaş haritadan kaybolsun mu (bugünkü çember davranışı) yoksa son konumda mı
    kalsın? Öneri: kaybolsun (bugünkü davranış, hafıza ve güven: "gösterme" demek göstermemektir).
+
+## Ek 1 — Uygulama (2026-10-29, paket B)
+
+- **Ayar:** çember ayarına isteğe bağlı `frozen` eklendi (yalnız telefonda, şifreli kasada). Dondurulmuş
+  çembere yeni konum gitmez, "Neden eski?" mesajı da gitmez; motor onu geri çekmez (`isFrozenFor`).
+  Süreli paylaşım dondurulmuşken de vaktinde biter ve konum geri çekilir. Hayalet her şeyin üstünde.
+- **Kişi kartı:** Daha fazla → "Paylaşım" satırı o an ne olduğunu yazar ("Süresiz gösteriliyor",
+  "21:30 saatine kadar", "Dondurdun", "Gösterilmiyor"). Arkadaşta pencere açılır: Göster, Bir saate
+  kadar göster (yarım saatlik adımlarla altı saat), Dondur, Gösterme; seçim anında uygulanır. Grup
+  üyesinde satır "Bu kişiyi çemberin ayarı yönetir" der ve çemberin paylaşım ekranını açar.
+- **Süre dolunca, gönderen:** uygulama açıksa "Ayşe ile süreli paylaşım bitti. 1 saat daha paylaşmak
+  için dokun." satırı (dokunuş bir saat daha paylaşır); kapalıysa saat seçilirken telefonun kendi
+  kurduğu bildirim aynı şeyi söyler ve arkadaşlığı açar. Sunucuya bir şey gitmez.
+- **Süre dolunca, arkadaş:** konum geri çekilmeden hemen önce arkadaşlığa bir kez `state` mesajı
+  gider: `why: none`, `end: 'timed'` (isteğe bağlı alan; eski uygulama atar, düz "neden bitti"
+  okur). Alan telefon "Ayşe ile süreli paylaşım bitti" der.
+- **Sınır:** sunucu konum geri çekilince nedeni de sildiği için (PROTOCOL "state") yalnız o an bağlı
+  olan arkadaş bu satırı görür; çevrim dışı olan, açtığında arkadaşını haritada göremez, satır
+  görmez. Yeni sunucu davranışı istemeden çözülemez; v2'de bakılır.
+- **Risk:** `frozen` alanı eski bir APK'ya geri dönülürse eski uygulamanın katı okuyucusu paylaşım
+  ayarlarını okuyamaz ve varsayılana döner (her çembere tam konum). Yalnız sürüm düşürmede olur;
+  QA ve test edenlere eski APK kurmamaları söylenmeli.

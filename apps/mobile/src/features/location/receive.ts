@@ -113,6 +113,8 @@ export interface ReceiverDeps {
   onArrived?: (circleId: string, userId: string, arrived: ArrivedPayload) => void;
   /** A member told the circle they are safe ("Güvendeyim", docs/ADR/0029). */
   onSafe?: (circleId: string, userId: string, safe: SafePayload) => void;
+  /** A member's timed share with this circle ran out (docs/ADR/0038 Ek 1). */
+  onShareEnded?: (circleId: string, userId: string, ts: number) => void;
   /** A moment for the screen between two slices of a batch (a frame); the default is a timer. */
   pause?: () => Promise<void>;
   now?: () => number;
@@ -157,6 +159,7 @@ export function createReceiver({
   onLate,
   onArrived,
   onSafe,
+  onShareEnded,
   pause = () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
   now = Date.now,
 }: ReceiverDeps) {
@@ -341,7 +344,10 @@ export function createReceiver({
         onSafe?.(circle.id, sender.userId, payload);
         return 'shown';
       }
-      if (payload.kind === 'state') return setReason(circle.id, sender.userId, payload);
+      if (payload.kind === 'state') {
+        if (payload.end === 'timed') onShareEnded?.(circle.id, sender.userId, payload.ts);
+        return setReason(circle.id, sender.userId, payload);
+      }
       return 'ignored';
     } catch (error) {
       if (error instanceof BarguCryptoError) {

@@ -24,6 +24,11 @@ const circleSharingSchema = z
      * circle is not consent to history (BARGU_PLAN).
      */
     history: z.boolean().optional(),
+    /**
+     * Frozen for this circle alone (docs/ADR/0038): its last location stays where it is, no new
+     * one goes, and it is not taken back. Absent: not frozen.
+     */
+    frozen: z.boolean().optional(),
   })
   .strict();
 export type CircleSharing = z.infer<typeof circleSharingSchema>;
@@ -197,7 +202,31 @@ export function seenThere(settings: SharingSettings, circleId: string, now: numb
 export function isSharingWith(settings: SharingSettings, circleId: string, now: number): boolean {
   if (settings.ghost !== 'off') return false;
   const sharing = circleSharing(settings, circleId);
-  return sharing.sharing && (sharing.until === null || sharing.until > now);
+  return (
+    sharing.sharing && sharing.frozen !== true && (sharing.until === null || sharing.until > now)
+  );
+}
+
+/**
+ * Whether a circle's timed share ran out (not turned off, not a ghost): the moment a friendship is
+ * told so (docs/ADR/0038 Ek 1).
+ */
+export function timedShareOver(settings: SharingSettings, circleId: string, now: number): boolean {
+  if (settings.ghost !== 'off') return false;
+  const sharing = circleSharing(settings, circleId);
+  return sharing.sharing && sharing.until !== null && sharing.until <= now;
+}
+
+/**
+ * Whether a circle keeps this phone's last location without new ones, frozen for it alone
+ * (docs/ADR/0038): so it is not taken back while its share lasts. A ghost is above it all.
+ */
+export function isFrozenFor(settings: SharingSettings, circleId: string, now: number): boolean {
+  if (settings.ghost !== 'off') return false;
+  const sharing = circleSharing(settings, circleId);
+  return (
+    sharing.sharing && sharing.frozen === true && (sharing.until === null || sharing.until > now)
+  );
 }
 
 /**

@@ -691,7 +691,33 @@
       "notification": "Have a look at who sees your location; stop it with one tap if you like."
     },
     "newViewers": "{{name}} and {{count}} more can now see your location in {{circle}}",
-    "newViewersBoth": "{{name}} and {{count}} more can now see your location and location history in {{circle}}"
+    "newViewersBoth": "{{name}} and {{count}} more can now see your location and location history in {{circle}}",
+    "personShare": {
+      "row": "Sharing",
+      "byCircle": "Set by the circle's sharing",
+      "lineGhost": "Ghost mode is on",
+      "line": {
+        "always": "Shown, no end",
+        "frozen": "Frozen",
+        "off": "Not shown"
+      },
+      "untilTime": "Until {{time}}",
+      "title": "Location sharing",
+      "intro": "For {{name}} only. Your groups keep their own settings.",
+      "ghost": "Ghost mode is on: nobody gets your new location now. What you choose here applies once it's off.",
+      "always": "Show",
+      "alwaysDetail": "Until you turn it off",
+      "until": "Show until a time",
+      "untilDetail": "When it ends you leave their map, and you're both told",
+      "untilLabel": "Until",
+      "frozen": "Freeze",
+      "frozenDetail": "Your last location stays for {{name}}, nothing new goes. They aren't told.",
+      "off": "Don't show",
+      "offDetail": "{{name}} won't see you on their map",
+      "ended": "Your timed sharing with {{name}} ended. Tap to share an hour more.",
+      "endedMine": "Your timed sharing with {{name}} ended",
+      "endedTheirs": "Timed sharing with {{name}} ended"
+    }
   },
   "map": {
     "actions": {

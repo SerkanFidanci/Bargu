@@ -67,6 +67,12 @@ export const statePayloadSchema = z.object({
   why: z.enum(STATE_WHY),
   since: timestamp,
   ts: timestamp,
+  /**
+   * A friendship's timed share is over (docs/ADR/0038 Ek 1): sent once, with `why: none`, as the
+   * location is taken back, so the friend's phone can say so. An older phone drops the field and
+   * reads a plain clear.
+   */
+  end: z.literal('timed').optional(),
 });
 export type StatePayload = z.infer<typeof statePayloadSchema>;
 

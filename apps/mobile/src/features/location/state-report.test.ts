@@ -174,6 +174,26 @@ describe('the reason a phone gives (state)', () => {
     t.reporter.reset();
   });
 
+  it("tells a friendship its timed share is over, once, and the friend's phone hears it (ADR 0038 Ek 1)", async () => {
+    const t = setup(1);
+    const heard: [string, string, number][] = [];
+    const friendsPhone = createReceiver({
+      keys: () => t.friend.keys,
+      circles: () => t.full,
+      store: () => t.friend.store,
+      onShareEnded: (circleId, userId, ts) => {
+        heard.push([circleId, userId, ts]);
+      },
+    });
+    await t.reporter.ended(nth(t.circles), START - MINUTE);
+    expect(t.states()).toEqual([
+      { kind: 'state', why: 'none', since: START - MINUTE, ts: START, end: 'timed' },
+    ]);
+    expect(friendsPhone.receive(nth(t.sent), 'state')).toBe('shown');
+    expect(heard).toEqual([[nth(t.circles).id, t.me.userId, START]]);
+    t.reporter.reset();
+  });
+
   it('repeats with the 5-minute heartbeat while it lasts, with the same start', async () => {
     const t = setup();
     await t.located();

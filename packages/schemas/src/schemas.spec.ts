@@ -74,6 +74,12 @@ describe('state payload (docs/ADR/0028, "Neden eski?")', () => {
     expect(payloadSchema.safeParse(payload).success).toBe(false);
   });
 
+  it("may say a friendship's timed share is over, and nothing else (docs/ADR/0038 Ek 1)", () => {
+    const ended = { ...state, why: 'none', end: 'timed' };
+    expect(payloadSchema.parse(ended)).toEqual(ended);
+    expect(payloadSchema.safeParse({ ...ended, end: 'manual' }).success).toBe(false);
+  });
+
   it('is read leniently: a field a newer phone adds is dropped, and a position never survives', () => {
     const read = payloadSchema.parse({ ...state, lat: 41.0082, lng: 28.9784, acc: 5, extra: true });
     expect(read).toEqual(state);

@@ -171,21 +171,21 @@ Zod ayrık birleşimi (`kind`), bilinmeyen alan reddedilir ([`packages/schemas`]
 `profile`, `look` ve `state` bilinmeyen alanı atar (ADR 0024 §10), bilinmeyen tür `MALFORMED` olur ve
 alıcı yok sayar:
 
-| `kind`        | Alanlar                                                                                   |
-| ------------- | ----------------------------------------------------------------------------------------- |
-| `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, since?, eta?, ts` (ADR 0018)                |
-| `bump`        | `ts`                                                                                      |
-| `poke`        | `to, style, say?, ts`: ifadeli dürtme; yalnız `to` gösterir (ADR 0031)                    |
-| `place_enter` | `placeId, ts`                                                                             |
-| `place_exit`  | `placeId, ts`                                                                             |
-| `share_stop`  | `ts`                                                                                      |
-| `status`      | `emoji? (≤16), text? (≤80), expiresAt, ts`                                                |
-| `profile`     | `photo` (`{ id, key }` ya da `null`), `ts` (ADR 0014)                                     |
-| `place`       | `id, name (≤40), emoji (≤16), lat, lng, radius (50–1000 m), ts` (ADR 0015)                |
-| `late`        | `meetAt, minutes (1–600), ts`: buluşmaya gecikme (ADR 0018)                               |
-| `look`        | `ring, frame` (kimlik ya da `null`), `pass` (geçiş belgesi ya da `null`), `ts` (ADR 0025) |
-| `safe`        | `id` (16 bayt, base64url), `lat, lng, acc, bat (0–100), ts`: Güvendeyim (ADR 0029)        |
-| `state`       | `why` (`saver`, `permission`, `nofix`, `none`), `since, ts`: konum neden eski (ADR 0028)  |
+| `kind`        | Alanlar                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------ |
+| `loc`         | `lat, lng, acc, spd?, hdg?, bat (0–100), chg, since?, eta?, ts` (ADR 0018)                       |
+| `bump`        | `ts`                                                                                             |
+| `poke`        | `to, style, say?, ts`: ifadeli dürtme; yalnız `to` gösterir (ADR 0031)                           |
+| `place_enter` | `placeId, ts`                                                                                    |
+| `place_exit`  | `placeId, ts`                                                                                    |
+| `share_stop`  | `ts`                                                                                             |
+| `status`      | `emoji? (≤16), text? (≤80), expiresAt, ts`                                                       |
+| `profile`     | `photo` (`{ id, key }` ya da `null`), `ts` (ADR 0014)                                            |
+| `place`       | `id, name (≤40), emoji (≤16), lat, lng, radius (50–1000 m), ts` (ADR 0015)                       |
+| `late`        | `meetAt, minutes (1–600), ts`: buluşmaya gecikme (ADR 0018)                                      |
+| `look`        | `ring, frame` (kimlik ya da `null`), `pass` (geçiş belgesi ya da `null`), `ts` (ADR 0025)        |
+| `safe`        | `id` (16 bayt, base64url), `lat, lng, acc, bat (0–100), ts`: Güvendeyim (ADR 0029)               |
+| `state`       | `why` (`saver`, `permission`, `nofix`, `none`), `since, ts`, `end?`: konum neden eski (ADR 0028) |
 
 **Güvendeyim (ADR 0029).** `safe`, sunucuda tutulmayan, tek seferlik bir mesajdır; dürtme gibi
 `POST /v1/safe` ile (canlı bağlantı yok, yalnızca HTTP) gider ve çevrimiçi üyelere canlı `safe` olayı
@@ -212,7 +212,10 @@ uygulamaların her konumu reddetmesi demekti; `state`'i tanımayan eski uygulama
 sessizce atar (`packages/crypto/test/legacy-app.spec.ts`). Neden başlayınca ya da değişince, sürdükçe
 5 dakikada bir ve bitince (`none`) gönderilir; hayalette, kaba ve tam hassasiyette de yalnızca bu
 (konumsuz) mesaj; konumun gitmediği çembere hiç gitmez (bunlar telefonun ayarlarıdır, sunucu bilmez).
-"Çevrim dışı" gönderilmez, alıcı sessizlikten çıkarır. **Taşıma, `look` gibi kendi yolu:** `POST
+"Çevrim dışı" gönderilmez, alıcı sessizlikten çıkarır. `end: 'timed'` (ADR 0038 Ek 1): bir
+arkadaşlığın süreli paylaşımı bittiğinde, konum geri çekilmeden hemen önce o arkadaşlığa bir kez
+`why: none` ile gider; alan telefon "… ile süreli paylaşım bitti" der. Eski uygulama alanı atar.
+Geri çekme nedeni de sildiği için yalnız o an bağlı olan arkadaş duyar. **Taşıma, `look` gibi kendi yolu:** `POST
 /v1/states` (canlı bağlantıda `state`), gövde `{ envelopes }`; sunucu üye ve çember başına yalnız en
 yeni zarfı 24 saat tutar, diğer üyelere canlı `state` olayı yollar, sonradan bağlanan `GET /v1/states`
 (ya da `states`) ile alır; üye çıkınca `state.gone`, konum geri çekilince nedeni de silinir. Üye

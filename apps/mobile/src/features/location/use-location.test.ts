@@ -48,6 +48,10 @@ jest.mock('./location-session', () => {
 // effect is imported here, for the watch requests this test does not cover.
 jest.mock('expo-router', () => ({ useFocusEffect: () => undefined }));
 jest.mock('../circles/queries', () => ({ useCircles: () => ({ data: [] }) }));
+// Who the user is, for a friend's name when a timed share ends (its own tests: person-share.test).
+jest.mock('../auth/auth-store', () => ({
+  useAuth: (select: (state: { userId: string | null }) => unknown) => select({ userId: null }),
+}));
 jest.mock('../live/live-session', () => ({
   liveRequest: () => null,
   useConnection: (select: (state: { online: boolean }) => unknown) => select({ online: true }),

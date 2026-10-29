@@ -5,10 +5,15 @@ import { AppState } from 'react-native';
 
 import i18n from '@/i18n';
 
+import { useAuth } from '../auth/auth-store';
+import { memberName, partnerOf } from '../circles/names';
 import { useCircles } from '../circles/queries';
+import { toast } from '@/ui/toast';
 import { liveRequest, useConnection } from '../live/live-session';
 import { useMyFix } from './engine';
-import { locationEngine, restoreLocations, useLiveUntil } from './location-session';
+import { locationEngine, restoreLocations, updateSharing, useLiveUntil } from './location-session';
+import { withPersonShare } from './person-share';
+import { endedFriendShares, SHARE_AGAIN_MS } from './share-ends';
 import { useSharing } from './sharing';
 import { useMapOpen } from './map-open';
 import { useSharingEnd } from './sharing-end';
@@ -45,6 +50,9 @@ function useAppActive(): boolean {
  * 1-second updates while someone watches and the app is open, or while this phone's own map is on
  * screen (its own pin follows the GPS; sending keeps its rules, send.ts).
  */
+/** Ends already told since this run began: a friendship's end is said once (docs/ADR/0038). */
+let endsToldUpTo = Date.now();
+
 export function useLocationSession(ready: boolean): void {
   const active = useAppActive();
   // Re-renders when the user's language changes (the texts the service and the restart notice hold).
@@ -55,8 +63,36 @@ export function useLocationSession(ready: boolean): void {
   const circles = useCircles().data;
   const liveUntil = useLiveUntil((state) => state.until);
   const mapOpen = useMapOpen((state) => state.open);
-  // The earliest timed share's end: the service stops and every screen says so at once.
-  const expiry = useSharingEnd(() => void locationEngine.changed());
+  const me = useAuth((state) => state.userId);
+  // The earliest timed share's end: the service stops and every screen says so at once. A friend's
+  // timed share says so in a line whose tap shares an hour more (the app closed, the phone's own
+  // notification set for that time says it instead).
+  const expiry = useSharingEnd(() => {
+    void locationEngine.changed();
+    const at = Date.now();
+    for (const circle of endedFriendShares(
+      useSharing.getState(),
+      circles ?? [],
+      endsToldUpTo,
+      at,
+    )) {
+      const partner = partnerOf(circle, me);
+      if (partner === undefined) continue;
+      toast.notice(
+        i18n.t('location.personShare.ended', { name: memberName(partner) }),
+        'info',
+        () => {
+          updateSharing((settings) =>
+            withPersonShare(settings, circle.id, {
+              mode: 'until',
+              until: Date.now() + SHARE_AGAIN_MS,
+            }),
+          );
+        },
+      );
+    }
+    endsToldUpTo = at;
+  });
 
   useEffect(() => {
     if (ready) restoreLocations();

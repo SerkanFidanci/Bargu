@@ -97,6 +97,7 @@ import {
   DEFAULT_SHARING,
   historyOn,
   isSharingWith,
+  timedShareOver,
   loadSharing,
   saveSharing,
   sharedCircles,
@@ -211,7 +212,26 @@ async function publishState(envelope: MessageEnvelope): Promise<PublishReply> {
   return publishReplySchema.parse(await api.authed('/v1/states', { method: 'POST', body }));
 }
 
+/**
+ * Takes the location back from circles. A friendship whose timed share ran out is told so first
+ * (docs/ADR/0038 Ek 1); a share turned off, a ghost or a pause says nothing of the kind.
+ */
 async function withdraw(circleIds: string[]): Promise<void> {
+  const settings = loadSharingSettings();
+  const at = Date.now();
+  for (const circle of sendCircles()) {
+    const until = settings.circles[circle.id]?.until;
+    if (
+      circle.kind !== 'pair' ||
+      until === null ||
+      until === undefined ||
+      !circleIds.includes(circle.id) ||
+      !timedShareOver(settings, circle.id, at)
+    ) {
+      continue;
+    }
+    await stateReporter.ended(circle, until).catch(() => undefined);
+  }
   for (let start = 0; start < circleIds.length; start += MAX_CIRCLES_PER_REQUEST) {
     const body = { circleIds: circleIds.slice(start, start + MAX_CIRCLES_PER_REQUEST) };
     const viaSocket = liveRequest('withdraw', body);
@@ -456,6 +476,11 @@ useDocs.subscribe(() => {
 
 /** An arrival or departure older than this when it arrives (it waited for a key) is not shown. */
 const PLACE_EVENT_FRESH_MS = 10 * 60_000;
+/**
+ * A friend's timed share that ended longer ago than this is not news any more. Only a phone online
+ * then hears it: the server deletes a state with the location it explains (PROTOCOL "state").
+ */
+const SHARE_ENDED_FRESH_MS = 10 * 60_000;
 
 // A reinstall or a new phone: earlier choices stayed on the old phone, so nothing is shared with
 // the circles the account is already in until the user chooses (before anything is sent).
@@ -771,6 +796,15 @@ const receiver = createReceiver({
   },
   // Someone says they are safe: a line with who and the battery, once (docs/ADR/0029).
   onSafe: receivedSafe,
+  // A friend's timed share ran out (docs/ADR/0038 Ek 1): they went from the map, and a line says
+  // why. Only from a friendship, and only while it is news.
+  onShareEnded: (circleId, userId, ts) => {
+    if (Date.now() - ts > SHARE_ENDED_FRESH_MS) return;
+    const circle = cachedCircles()?.find((candidate) => candidate.id === circleId);
+    const member = circle?.members.find((candidate) => candidate.userId === userId);
+    if (circle?.kind !== 'pair' || member === undefined) return;
+    toast.info(i18n.t('location.personShare.endedTheirs', { name: memberName(member) }));
+  },
   onBump: (circleId, userId, ts) => {
     const name = receivePoke(circleId, userId, ts);
     if (name === null || isMuted(loadMuteSettings(), { kind: 'bump' }, userId)) return;

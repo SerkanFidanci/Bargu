@@ -153,6 +153,36 @@ describe('location engine', () => {
     expect(t.engine.active()).toBe(false);
   });
 
+  it('frozen for one circle alone: nothing new to it, its last location left, the others go on (ADR 0038)', async () => {
+    const t = setup(2);
+    const [frozen, other] = [nth(t.circles), nth(t.circles, 1)];
+    await t.engine.fix(fixAt(0));
+    t.set({
+      ghost: 'off',
+      circles: { [frozen.id]: { sharing: true, precision: 'exact', until: null, frozen: true } },
+    });
+    await t.engine.changed();
+    t.at(SEND_RULES.heartbeatMs);
+    await t.engine.fix(fixAt(SEND_RULES.heartbeatMs, 100));
+    expect(t.withdrawn).toEqual([]);
+    expect(t.published.at(-1)?.map((envelope) => envelope.circleId)).toEqual([other.id]);
+    // A frozen timed share still ends on time: then its location goes.
+    t.set({
+      ghost: 'off',
+      circles: {
+        [frozen.id]: {
+          sharing: true,
+          precision: 'exact',
+          until: START + SEND_RULES.heartbeatMs + 1_000,
+          frozen: true,
+        },
+      },
+    });
+    t.at(SEND_RULES.heartbeatMs + 1_000);
+    await t.engine.changed();
+    expect(t.withdrawn).toEqual([[frozen.id]]);
+  });
+
   it('as a hidden ghost takes the location back everywhere', async () => {
     const t = setup();
     await t.engine.fix(fixAt(0));

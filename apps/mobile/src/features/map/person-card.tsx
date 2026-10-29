@@ -58,6 +58,8 @@ import { loadMuteSettings } from '../notifications/mute-session';
 import { personMutes, useMutes } from '../notifications/mutes';
 import { statusOf, useStatuses } from '../social/status';
 import { useMyFix } from '../location/engine';
+import { clockOf, personShareOf } from '../location/person-share';
+import { useSharing } from '../location/sharing';
 import { newestState, sinceTime, useStates, whyShown } from '../location/why';
 import { distanceBetween } from './glide';
 import { LOW_BATTERY, staleMinutes } from './people-layer';
@@ -263,7 +265,9 @@ export function PersonCard({
   from: ScreenPoint;
   /** Place name, once the map has it (null: none nearby, undefined: still looking). */
   place: string | null | undefined;
-  onAction: (action: PersonAction | 'meet' | 'message' | 'story' | 'report' | 'block') => void;
+  onAction: (
+    action: PersonAction | 'meet' | 'message' | 'story' | 'report' | 'block' | 'sharing',
+  ) => void;
   /** The card's height, so the map keeps the person visible above it. */
   onHeight: (height: number) => void;
   /**
@@ -282,6 +286,23 @@ export function PersonCard({
   const silenced = personMutes(useMutes(), person.userId);
   const quiet = silenced.places || silenced.pokes || silenced.messages;
   const circleLabel = circleActionLabel(person);
+  const sharing = useSharing();
+  const share =
+    person.circleKind === 'pair' && person.circleId !== null
+      ? personShareOf(sharing, person.circleId, now)
+      : null;
+  const sharingLine =
+    share === null
+      ? t('location.personShare.byCircle')
+      : sharing.ghost !== 'off'
+        ? t('location.personShare.lineGhost')
+        : share.mode === 'until' && share.until !== null
+          ? t('location.personShare.untilTime', { time: clockOf(share.until, i18n.language) })
+          : share.mode === 'frozen'
+            ? t('location.personShare.line.frozen')
+            : share.mode === 'off'
+              ? t('location.personShare.line.off')
+              : t('location.personShare.line.always');
   // Their stories (docs/ADR/0035 §8): the same ring as on the pin, around their face, opens them.
   const me = useAuth((state) => state.userId);
   const storyState = useMessages((state) => {
@@ -438,6 +459,14 @@ export function PersonCard({
               title: t('map.actions.history'),
               action: 'history' as const,
             },
+            // What they get of the location (docs/ADR/0038): a friend's own, or the group's.
+            {
+              key: 'sharing',
+              icon: MapPin,
+              title: t('location.personShare.row'),
+              subtitle: sharingLine,
+              action: 'sharing' as const,
+            },
             {
               key: 'notifications',
               icon: quiet ? BellOff : Bell,
@@ -469,6 +498,7 @@ export function PersonCard({
                   testID={`card-${row.key}`}
                   leading={<RowIcon icon={row.icon} />}
                   title={row.title}
+                  subtitle={'subtitle' in row ? row.subtitle : undefined}
                   onPress={() => {
                     onAction(row.action);
                   }}

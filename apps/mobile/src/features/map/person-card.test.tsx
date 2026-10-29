@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import i18n from '@/i18n';
 
+import { DEFAULT_SHARING, useSharing } from '../location/sharing';
 import { useStates } from '../location/why';
 import { EMPTY_MESSAGES, useMessages, withItem } from '../messages/messages';
 import { NO_MUTES, useMutes, withPersonMuted } from '../notifications/mutes';
@@ -121,6 +122,29 @@ describe("a person's card (UX düzeni)", () => {
     expect(onAction).toHaveBeenCalledWith('report');
     await fireEvent.press(screen.getByTestId('card-block'));
     expect(onAction).toHaveBeenCalledWith('block');
+  });
+
+  it("says what a friend gets of the location, and a group member's is the group's (ADR 0038)", async () => {
+    const circleId = person('pair').circleId ?? '';
+    useSharing.setState(
+      {
+        ...DEFAULT_SHARING,
+        circles: { [circleId]: { sharing: true, precision: 'exact', until: null, frozen: true } },
+      },
+      true,
+    );
+    const onAction = await renderCard('pair');
+    await fireEvent.press(screen.getByTestId('card-more'));
+    expect(screen.getByTestId('card-sharing').props.accessibilityLabel).toBe('Paylaşım, Dondurdun');
+    await fireEvent.press(screen.getByTestId('card-sharing'));
+    expect(onAction).toHaveBeenCalledWith('sharing');
+    await screen.unmount();
+    useSharing.setState(DEFAULT_SHARING, true);
+    await renderCard('group');
+    await fireEvent.press(screen.getByTestId('card-more'));
+    expect(screen.getByTestId('card-sharing').props.accessibilityLabel).toBe(
+      'Paylaşım, Bu kişiyi çemberin ayarı yönetir',
+    );
   });
 
   it('opens their notifications from "Daha fazla", not only from a long press', async () => {

@@ -14,7 +14,7 @@ import type { KeyValueStore } from '../storage/vault';
 import { filterFix, type FilterState, freshFilter } from './fix-filter';
 import { type FixSource, probe, timed } from './probe';
 import { type Battery, buildEnvelopes, type Fix, type LastSent, shouldSend } from './send';
-import { circleSharing, type SharingSettings, sharedCircles } from './sharing';
+import { circleSharing, isFrozenFor, type SharingSettings, sharedCircles } from './sharing';
 import { nextStay, type Stay } from './stay';
 
 /** What sending needs of a circle; kept in the vault so a background start has it too. */
@@ -120,11 +120,16 @@ export function createLocationEngine(deps: EngineDeps) {
     if (hadAny !== ids.size > 0) deps.settled?.();
   }
 
-  /** Circles holding this phone's location that should not any more (a frozen ghost keeps all). */
+  /**
+   * Circles holding this phone's location that should not any more: a frozen ghost keeps all, and
+   * a circle frozen alone keeps its own while its share lasts (docs/ADR/0038).
+   */
   function toWithdraw(): string[] {
-    if (deps.sharing().ghost === 'freeze') return [];
+    const settings = deps.sharing();
+    if (settings.ghost === 'freeze') return [];
     const current = new Set(shared().map((circle) => circle.id));
-    return [...published()].filter((id) => !current.has(id));
+    const at = now();
+    return [...published()].filter((id) => !current.has(id) && !isFrozenFor(settings, id, at));
   }
 
   async function settle(): Promise<void> {
