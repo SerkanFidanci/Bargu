@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { space, useTheme } from '@/theme';
 import { Appear } from '@/ui/appear';
 import { Text } from '@/ui/text';
+import { KEYBOARD_BEHAVIOR } from '@/ui/keyboard';
 
 export interface FormScreenProps {
   title: string;
@@ -24,10 +25,7 @@ export function FormScreen({ title, body, eyebrow, children, footer }: FormScree
   const { colors } = useTheme();
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={styles.screen} behavior={KEYBOARD_BEHAVIOR}>
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"

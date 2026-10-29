@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Trash2, X } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMyFix } from '@/features/location/engine';
@@ -25,6 +25,7 @@ import { Text } from '@/ui/text';
 import { TextField } from '@/ui/text-field';
 import { toast } from '@/ui/toast';
 import { Toggle } from '@/ui/toggle';
+import { KEYBOARD_BEHAVIOR } from '@/ui/keyboard';
 
 const EMOJIS = ['🏠', '🏫', '🏢', '🏋️', '☕', '🛒', '❤️', '📍'] as const;
 /** Zoom that shows a place of each size whole, with some room around it. */
@@ -137,7 +138,7 @@ export default function PlaceEditor() {
   return (
     <KeyboardAvoidingView
       style={[styles.screen, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={KEYBOARD_BEHAVIOR}
     >
       <View style={styles.map}>
         <BarguMap

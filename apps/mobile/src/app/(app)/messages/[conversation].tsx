@@ -20,15 +20,7 @@ import {
 } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/auth-store';
@@ -67,6 +59,7 @@ import {
 import { Avatar } from '@/ui/avatar';
 import { EmptyState } from '@/ui/empty-state';
 import { IconButton } from '@/ui/icon-button';
+import { KEYBOARD_BEHAVIOR } from '@/ui/keyboard';
 import { PressableScale } from '@/ui/pressable-scale';
 import { ListRow } from '@/ui/list-row';
 import { Sheet, type SheetRef } from '@/ui/sheet';
@@ -269,10 +262,7 @@ export default function ConversationScreen() {
       style={[styles.screen, { backgroundColor: colors.background }]}
       testID="conversation"
     >
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={styles.screen} behavior={KEYBOARD_BEHAVIOR}>
         <View style={[styles.bar, { borderColor: colors.border }]}>
           <IconButton
             icon={ChevronLeft}

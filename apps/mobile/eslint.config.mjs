@@ -70,6 +70,20 @@ config.push({
           'CallExpression[callee.property.name=/^(duration|delay|damping|dampingRatio|stiffness|mass)$/] > Literal',
         message: MOTION_ONLY,
       },
+      // Edge to edge on Android, the window does not shrink for the keyboard: a view with no
+      // behavior leaves the text field under it (the owner, 2026-10-30; src/ui/keyboard.ts).
+      {
+        selector:
+          "JSXOpeningElement[name.name='KeyboardAvoidingView'] JSXAttribute[name.name='behavior'] Identifier[name='undefined']",
+        message:
+          'Use KEYBOARD_BEHAVIOR from @/ui/keyboard: with no behavior Android hides the field.',
+      },
+      {
+        selector:
+          "JSXOpeningElement[name.name='KeyboardAvoidingView']:not(:has(JSXAttribute[name.name='behavior']))",
+        message:
+          'Use KEYBOARD_BEHAVIOR from @/ui/keyboard: with no behavior Android hides the field.',
+      },
     ],
   },
 });

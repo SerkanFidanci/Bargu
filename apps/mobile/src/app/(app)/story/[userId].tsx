@@ -9,7 +9,6 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   TextInput,
@@ -60,6 +59,7 @@ import { PressableScale } from '@/ui/pressable-scale';
 import { Sheet, type SheetRef } from '@/ui/sheet';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
+import { KEYBOARD_BEHAVIOR } from '@/ui/keyboard';
 
 /**
  * One person's stories (docs/ADR/0035 §1, §8, §12): each photo for five seconds, a tap on the left
@@ -361,114 +361,115 @@ export default function StoryScreen() {
           />
         ) : null}
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.bottom}
-          pointerEvents="box-none"
-        >
-          {notice ? (
-            <Text
-              testID="story-view-notice"
-              variant="footnote"
-              style={[styles.light, styles.shade, styles.caption]}
-            >
-              {t('messages.story.viewNotice', { name: nameOf(userId) })}
-            </Text>
-          ) : null}
-          {photo.caption === undefined ? null : (
-            <Text variant="body" style={[styles.light, styles.shade, styles.caption]}>
-              {photo.caption}
-            </Text>
-          )}
-          {shotBy.length === 0 ? null : (
-            <Text variant="footnote" style={[styles.light, styles.shade, styles.caption]}>
-              {t('messages.shotBy', { names: shotBy.map(nameOf).join(', ') })}
-            </Text>
-          )}
-          {mine ? (
-            <PressableScale
-              testID="story-seen"
-              haptic="select"
-              accessibilityRole="button"
-              accessibilityLabel={seenLabel}
-              onPress={() => {
-                setPaused(true);
-                seenSheet.current?.present();
-              }}
-              style={[styles.seen, styles.shade]}
-            >
-              <Eye color={mediaColors.onBackdrop} size={18} strokeWidth={2.25} />
-              <Text variant="subhead" style={styles.light}>
-                {seenLabel}
+        <KeyboardAvoidingView behavior={KEYBOARD_BEHAVIOR} pointerEvents="box-none">
+          {/* Its own padding inside: the keyboard's padding replaces the outer view's. */}
+          <View style={styles.bottom} pointerEvents="box-none">
+            {notice ? (
+              <Text
+                testID="story-view-notice"
+                variant="footnote"
+                style={[styles.light, styles.shade, styles.caption]}
+              >
+                {t('messages.story.viewNotice', { name: nameOf(userId) })}
               </Text>
-            </PressableScale>
-          ) : null}
-          {canReply && choosing ? (
-            <View style={[styles.choose, styles.shade]}>
-              <ReactionBar testID="story-reactions" current={myReaction} onReact={reactWith} />
-            </View>
-          ) : null}
-          {canReply ? (
-            <View style={[styles.reply, { borderColor: mediaColors.track }]}>
-              <TextInput
-                testID="story-reply"
-                value={reply}
-                onChangeText={(next) => {
-                  if (codePointsOf(next) <= CHAT_TEXT_MAX) setReply(next);
-                }}
-                onFocus={() => {
+            ) : null}
+            {photo.caption === undefined ? null : (
+              <Text variant="body" style={[styles.light, styles.shade, styles.caption]}>
+                {photo.caption}
+              </Text>
+            )}
+            {shotBy.length === 0 ? null : (
+              <Text variant="footnote" style={[styles.light, styles.shade, styles.caption]}>
+                {t('messages.shotBy', { names: shotBy.map(nameOf).join(', ') })}
+              </Text>
+            )}
+            {mine ? (
+              <PressableScale
+                testID="story-seen"
+                haptic="select"
+                accessibilityRole="button"
+                accessibilityLabel={seenLabel}
+                onPress={() => {
                   setPaused(true);
+                  seenSheet.current?.present();
                 }}
-                onBlur={() => {
-                  setPaused(false);
-                }}
-                placeholder={t('messages.story.reply', { name: nameOf(userId) })}
-                placeholderTextColor={mediaColors.track}
-                accessibilityLabel={t('messages.story.reply', { name: nameOf(userId) })}
-                style={[styles.replyInput, typography.body.style, styles.light]}
-              />
-              {reply.trim().length === 0 ? (
-                <PressableScale
-                  testID="story-heart"
-                  haptic="select"
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    myReaction === '❤️' ? t('messages.react.heartBack') : t('messages.react.heart')
-                  }
-                  accessibilityHint={t('messages.react.choose')}
-                  accessibilityState={{ selected: myReaction !== undefined }}
-                  onPress={() => {
-                    reactWith(myReaction === '❤️' ? null : '❤️');
+                style={[styles.seen, styles.shade]}
+              >
+                <Eye color={mediaColors.onBackdrop} size={18} strokeWidth={2.25} />
+                <Text variant="subhead" style={styles.light}>
+                  {seenLabel}
+                </Text>
+              </PressableScale>
+            ) : null}
+            {canReply && choosing ? (
+              <View style={[styles.choose, styles.shade]}>
+                <ReactionBar testID="story-reactions" current={myReaction} onReact={reactWith} />
+              </View>
+            ) : null}
+            {canReply ? (
+              <View style={[styles.reply, { borderColor: mediaColors.track }]}>
+                <TextInput
+                  testID="story-reply"
+                  value={reply}
+                  onChangeText={(next) => {
+                    if (codePointsOf(next) <= CHAT_TEXT_MAX) setReply(next);
                   }}
-                  onLongPress={() => {
+                  onFocus={() => {
                     setPaused(true);
-                    setChoosing(true);
                   }}
-                  style={styles.heart}
-                >
-                  {myReaction === undefined || myReaction === '❤️' ? (
-                    <Heart
-                      color={mediaColors.onBackdrop}
-                      fill={myReaction === '❤️' ? mediaColors.onBackdrop : 'transparent'}
-                      size={touchTarget * 0.5}
-                      strokeWidth={2.25}
-                    />
-                  ) : (
-                    <Text style={typography.title2.style} allowFontScaling={false}>
-                      {myReaction}
-                    </Text>
-                  )}
-                </PressableScale>
-              ) : null}
-              <IconButton
-                testID="story-reply-send"
-                icon={Send}
-                label={t('messages.send')}
-                tone={reply.trim().length === 0 ? 'raised' : 'primary'}
-                onPress={sendReply}
-              />
-            </View>
-          ) : null}
+                  onBlur={() => {
+                    setPaused(false);
+                  }}
+                  placeholder={t('messages.story.reply', { name: nameOf(userId) })}
+                  placeholderTextColor={mediaColors.track}
+                  accessibilityLabel={t('messages.story.reply', { name: nameOf(userId) })}
+                  style={[styles.replyInput, typography.body.style, styles.light]}
+                />
+                {reply.trim().length === 0 ? (
+                  <PressableScale
+                    testID="story-heart"
+                    haptic="select"
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      myReaction === '❤️'
+                        ? t('messages.react.heartBack')
+                        : t('messages.react.heart')
+                    }
+                    accessibilityHint={t('messages.react.choose')}
+                    accessibilityState={{ selected: myReaction !== undefined }}
+                    onPress={() => {
+                      reactWith(myReaction === '❤️' ? null : '❤️');
+                    }}
+                    onLongPress={() => {
+                      setPaused(true);
+                      setChoosing(true);
+                    }}
+                    style={styles.heart}
+                  >
+                    {myReaction === undefined || myReaction === '❤️' ? (
+                      <Heart
+                        color={mediaColors.onBackdrop}
+                        fill={myReaction === '❤️' ? mediaColors.onBackdrop : 'transparent'}
+                        size={touchTarget * 0.5}
+                        strokeWidth={2.25}
+                      />
+                    ) : (
+                      <Text style={typography.title2.style} allowFontScaling={false}>
+                        {myReaction}
+                      </Text>
+                    )}
+                  </PressableScale>
+                ) : null}
+                <IconButton
+                  testID="story-reply-send"
+                  icon={Send}
+                  label={t('messages.send')}
+                  tone={reply.trim().length === 0 ? 'raised' : 'primary'}
+                  onPress={sendReply}
+                />
+              </View>
+            ) : null}
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
       {mine ? (

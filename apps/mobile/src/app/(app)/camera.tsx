@@ -8,7 +8,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Linking,
-  Platform,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -35,6 +34,7 @@ import { PressableScale } from '@/ui/pressable-scale';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 import { Toggle } from '@/ui/toggle';
+import { KEYBOARD_BEHAVIOR } from '@/ui/keyboard';
 
 const CONVERSATION = /^[cp]:[0-9a-f-]{36}$/;
 const SHUTTER = touchTarget * 1.6;
@@ -237,10 +237,7 @@ export default function CameraScreen() {
       style={[styles.screen, { backgroundColor: colors.background }]}
       testID="camera-send"
     >
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={styles.screen} behavior={KEYBOARD_BEHAVIOR}>
         <View style={styles.previewBar}>
           <IconButton
             testID="camera-retake"

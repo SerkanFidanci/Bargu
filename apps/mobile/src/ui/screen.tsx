@@ -2,13 +2,14 @@ import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { space, useTheme } from '@/theme';
 
 import { Appear } from './appear';
 import { IconButton } from './icon-button';
+import { KEYBOARD_BEHAVIOR } from './keyboard';
 import { Text } from './text';
 
 export interface ScreenProps {
@@ -32,10 +33,7 @@ export function Screen({ title, subtitle, action, children, footer, testID }: Sc
   const { colors } = useTheme();
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} testID={testID}>
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={styles.screen} behavior={KEYBOARD_BEHAVIOR}>
         <View style={styles.bar}>
           <IconButton
             icon={ChevronLeft}
