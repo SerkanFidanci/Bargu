@@ -44,8 +44,6 @@ export function isMoving(look: Pick<Look, 'ring' | 'frame'>): boolean {
   );
 }
 
-/** One pack costs this much, in lira (PM, 2026-10-21: the same for both). */
-export const PACK_PRICE = 29.99;
 export const PACKS: readonly CosmeticPack[] = ['rings', 'frames'];
 /** Which part of a look each pack gives. */
 export const PACK_PART = { rings: 'ring', frames: 'frame' } as const satisfies Record<

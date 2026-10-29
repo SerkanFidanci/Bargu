@@ -24,7 +24,7 @@ import { toast } from '@/ui/toast';
 import { ageKey, fetchAge, isMinor } from '../account/age-api';
 import { testBillingOf, useTestBilling } from '../billing/test-slot';
 import { planKey, usePlan } from '../billing/plan';
-import { priceText } from '../billing/plan-model';
+import { purchasePrice, useStorePrices } from '../billing/store-prices';
 import { errorMessage, isApiError } from '../errors';
 import { useMe } from '../profile/queries';
 import { chooseLook, refreshPass, useMyLook } from './look-session';
@@ -35,7 +35,6 @@ import {
   type Look,
   type LookChoice,
   PACK_PART as PART,
-  PACK_PRICE,
   PACKS,
 } from './look-styles';
 import { stopTrying, tryStyle, useTrying } from './look-trying';
@@ -54,7 +53,7 @@ function previewOf(choice: LookChoice): Look | undefined {
  * parent's yes for 15-17) opens it. What is chosen from a pack the account has goes to circles.
  */
 export function PinLooks() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const queryClient = useQueryClient();
   const celebrate = useCelebration((state) => state.celebrate);
@@ -145,7 +144,7 @@ export function PinLooks() {
   const waiting = (pack: CosmeticPack) =>
     teen && plan.data?.pendingCosmetics?.includes(pack) === true;
 
-  const price = priceText(PACK_PRICE, i18n.language);
+  const storePrices = useStorePrices((state) => state.packs);
   const purchase = (pack: CosmeticPack) => {
     if (plan.data === undefined) return null;
     // 15-17: already asked of a parent; it waits until they answer, however often it is opened.
@@ -166,17 +165,33 @@ export function PinLooks() {
       );
     }
     const mutation = teen ? ask : buy;
+    // Its price as the store says it, or that it is a test; else none, and it cannot be bought.
+    const price = purchasePrice(storePrices[pack]?.formatted, testing, t('plus.testPrice'));
     return (
       <View style={styles.purchase}>
         <Button
           testID={`pack-buy-${pack}`}
-          label={teen ? t('cosmetics.ask', { price }) : t('cosmetics.buy', { price })}
+          label={
+            price === null
+              ? teen
+                ? t('cosmetics.askPlain')
+                : t('cosmetics.buyPlain')
+              : teen
+                ? t('cosmetics.ask', { price })
+                : t('cosmetics.buy', { price })
+          }
           icon={Sparkles}
+          disabled={price === null}
           loading={mutation.isPending && mutation.variables === pack}
           onPress={() => {
             mutation.mutate(pack);
           }}
         />
+        {price === null ? (
+          <Text variant="footnote" color="textMuted" testID={`pack-no-price-${pack}`}>
+            {t('plus.noPrice')}
+          </Text>
+        ) : null}
         <View style={styles.test} accessible accessibilityLabel={t('plus.testBand')}>
           <FlaskConical color={colors.textMuted} size={14} strokeWidth={2.25} />
           <Text variant="caption" color="textMuted">

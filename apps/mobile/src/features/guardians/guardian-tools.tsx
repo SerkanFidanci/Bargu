@@ -17,9 +17,10 @@ import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 import { Toggle } from '@/ui/toggle';
 
-import { priceText } from '../billing/plan-model';
-import { plusPrice } from '../billing/store-prices';
-import { PACK_PRICE, PACKS } from '../cosmetics/look-styles';
+import { usePlan } from '../billing/plan';
+import { useTestBilling } from '../billing/test-slot';
+import { packPrice, plusPrice, purchasePrice } from '../billing/store-prices';
+import { PACKS } from '../cosmetics/look-styles';
 import { errorMessage, isApiError } from '../errors';
 import { guardiansApi, guardiansKey, guardianViewKey } from './guardians-api';
 import { localDay } from './screen-time';
@@ -48,6 +49,10 @@ export function GuardianTools({ view }: { view: GuardianView }) {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
   const parent = view.link.role === 'guardian';
+  // A test server where nothing is paid, in a build that has test billing: its purchases are tests.
+  const tester = useTestBilling((state) => state.api);
+  const serverTesting = usePlan().data?.testBilling === true;
+  const testing = tester !== null && serverTesting;
   const linkId = view.link.id;
 
   const save = useMutation({
@@ -119,33 +124,49 @@ export function GuardianTools({ view }: { view: GuardianView }) {
         });
       case 'purchase': {
         // docs/ADR/0024 §5: the plan and its price, as on the child's Bargu+ screen; the price
-        // only as the store gives it (QA-42).
+        // only as the store gives it, or that it is a test (QA-42).
         const yearly = request.product === 'plus_year';
         const plan = yearly ? t('plus.yearly') : t('plus.monthly');
-        const price = plusPrice(yearly ? 'plus_year' : 'plus_month');
-        return price === null
-          ? t('guardians.tools.askPurchasePlain', { plan })
-          : t('guardians.tools.askPurchase', {
-              plan,
-              price: price + (yearly ? t('plus.perYear') : t('plus.perMonth')),
-            });
+        const store = plusPrice(yearly ? 'plus_year' : 'plus_month');
+        const price = priceOf(request);
+        if (price === null) return t('guardians.tools.askPurchasePlain', { plan });
+        return t('guardians.tools.askPurchase', {
+          plan,
+          price: store === null ? price : price + (yearly ? t('plus.perYear') : t('plus.perMonth')),
+        });
       }
       case 'cosmetic': {
         // docs/ADR/0025 §6: the pack by its name, as on the child's look screen. A pack this app
         // does not know yet is worded in general, without a price it cannot know.
         const pack = PACKS.find((known) => known === request.pack);
-        return pack === undefined
-          ? t('guardians.tools.askCosmeticOther')
-          : t('guardians.tools.askCosmetic', {
-              pack: t(`cosmetics.packs.${pack}.name`),
-              price: priceText(PACK_PRICE, i18n.language),
-            });
+        const price = priceOf(request);
+        if (pack === undefined) return t('guardians.tools.askCosmeticOther');
+        return price === null
+          ? t('guardians.tools.askCosmeticPlain', { pack: t(`cosmetics.packs.${pack}.name`) })
+          : t('guardians.tools.askCosmetic', { pack: t(`cosmetics.packs.${pack}.name`), price });
       }
       case 'gone':
         return t('guardians.tools.askGone');
     }
   };
   const settings = view.settings;
+  /**
+   * What a purchase asked for costs, as the parent sees it: the store's price, or on a test server
+   * that nothing is paid; else null, and it cannot be approved (the PM, 2026-10-30).
+   */
+  function priceOf(request: GuardianRequest): string | null {
+    let store: string | null = null;
+    if (request.kind === 'purchase') {
+      store = plusPrice(request.product === 'plus_year' ? 'plus_year' : 'plus_month');
+    } else if (request.kind === 'cosmetic') {
+      const pack = PACKS.find((known) => known === request.pack);
+      store = pack === undefined ? null : packPrice(pack);
+    }
+    return purchasePrice(store, testing, t('plus.testPrice'));
+  }
+  /** Anything but a purchase can be approved; a purchase only with its price seen. */
+  const approvable = (request: GuardianRequest) =>
+    (request.kind !== 'purchase' && request.kind !== 'cosmetic') || priceOf(request) !== null;
 
   return (
     <>
@@ -163,11 +184,21 @@ export function GuardianTools({ view }: { view: GuardianView }) {
                 <Button
                   testID={`guardian-approve-${request.id}`}
                   label={t('guardians.tools.approve')}
+                  disabled={!approvable(request)}
                   loading={answer.isPending}
                   onPress={() => {
                     answer.mutate({ request, yes: true });
                   }}
                 />
+                {approvable(request) ? null : (
+                  <Text
+                    variant="footnote"
+                    color="textMuted"
+                    testID={`guardian-no-price-${request.id}`}
+                  >
+                    {t('plus.noPrice')}
+                  </Text>
+                )}
                 <Button
                   testID={`guardian-decline-${request.id}`}
                   label={t('guardians.tools.decline')}

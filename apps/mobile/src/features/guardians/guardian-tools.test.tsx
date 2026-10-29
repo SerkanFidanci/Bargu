@@ -22,6 +22,15 @@ jest.mock('./guardians-api', () => ({
   },
 }));
 
+// The server's billing: a test server here (nothing is paid), unless a test says otherwise.
+const mockServer = { testBilling: true };
+jest.mock('../billing/plan', () => ({
+  usePlan: () => ({ data: { testBilling: mockServer.testBilling } }),
+  planKey: ['plan'],
+}));
+
+import { useStorePrices } from '../billing/store-prices';
+import { useTestBilling } from '../billing/test-slot';
 import { GuardianTools } from './guardian-tools';
 
 const LINK = '0190f7a4-5b6c-7d8e-9f01-23456789abcd';
@@ -99,6 +108,13 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   jest.clearAllMocks();
+  mockServer.testBilling = true;
+  // A build with test billing in its slot (features/billing/test-billing.ts).
+  useTestBilling.setState({ api: {} as never });
+  useStorePrices.setState({ plus: {}, packs: {} });
+});
+afterEach(() => {
+  useTestBilling.setState({ api: null });
 });
 
 describe('guardian tools on the shared view (docs/ADR/0023 §5)', () => {
@@ -106,9 +122,8 @@ describe('guardian tools on the shared view (docs/ADR/0023 §5)', () => {
     await show('guardian');
     expect(screen.getByText('Grup: Kulüp (4 kişi), davet eden Fikret')).toBeTruthy();
     expect(screen.getByText('42 dk')).toBeTruthy();
-    // The child asks for Bargu+ (docs/ADR/0024 §5): the plan; its price only as the store gives
-    // it, none before (QA-42).
-    expect(screen.getByText('Bargu+ yıllık almak istiyor')).toBeTruthy();
+    // The child asks for Bargu+ (docs/ADR/0024 §5): the plan and what it costs, here a test.
+    expect(screen.getByText('Bargu+ yıllık almak istiyor (test, ödeme yok)')).toBeTruthy();
     await fireEvent.press(screen.getByTestId(`guardian-approve-${REQUEST}`));
     await waitFor(() => {
       expect(mockAnswer).toHaveBeenCalledWith(LINK, REQUEST, true);
@@ -119,7 +134,9 @@ describe('guardian tools on the shared view (docs/ADR/0023 §5)', () => {
     await show('guardian');
     // Both are there, apart: the plan and its price, the pack and its price.
     expect(screen.getByText(/^Bargu\+ yıllık almak istiyor/)).toBeTruthy();
-    expect(screen.getByText('“Halka desenleri” süs paketini almak istiyor (₺29,99)')).toBeTruthy();
+    expect(
+      screen.getByText('“Halka desenleri” süs paketini almak istiyor (test, ödeme yok)'),
+    ).toBeTruthy();
     // A pack this app does not know is worded in general, with no price it cannot know.
     expect(screen.getByText('Yeni bir süs paketi almak istiyor')).toBeTruthy();
     await fireEvent.press(screen.getByTestId(`guardian-approve-${COSMETIC}`));
@@ -136,7 +153,9 @@ describe('guardian tools on the shared view (docs/ADR/0023 §5)', () => {
     await i18n.changeLanguage('en');
     const view = await show('guardian');
     try {
-      expect(screen.getByText('Wants the “Ring patterns” look pack (TRY 29.99)')).toBeTruthy();
+      expect(
+        screen.getByText('Wants the “Ring patterns” look pack (a test, no payment)'),
+      ).toBeTruthy();
       expect(screen.getByText('Wants a new look pack')).toBeTruthy();
       expect(screen.getByText(/^Wants Bargu\+ yearly/)).toBeTruthy();
     } finally {
@@ -146,10 +165,52 @@ describe('guardian tools on the shared view (docs/ADR/0023 §5)', () => {
     }
   });
 
+  it('let no parent approve what they have not seen the price of (the PM, 2026-10-30)', async () => {
+    // No store price, and no test server: the price cannot be had.
+    mockServer.testBilling = false;
+    await show('guardian');
+    expect(screen.getByText('Bargu+ yıllık almak istiyor')).toBeTruthy();
+    expect(screen.getByText('“Halka desenleri” süs paketini almak istiyor')).toBeTruthy();
+    for (const id of [PURCHASE, COSMETIC]) {
+      expect(screen.getByTestId(`guardian-approve-${id}`).props.accessibilityState).toMatchObject({
+        disabled: true,
+      });
+      expect(screen.getByTestId(`guardian-no-price-${id}`)).toBeTruthy();
+    }
+    // A group needs no price, and saying no needs none either.
+    expect(
+      screen.getByTestId(`guardian-approve-${REQUEST}`).props.accessibilityState,
+    ).toMatchObject({ disabled: false });
+    expect(screen.queryByTestId(`guardian-no-price-${REQUEST}`)).toBeNull();
+    await fireEvent.press(screen.getByTestId(`guardian-decline-${PURCHASE}`));
+    await waitFor(() => {
+      expect(mockAnswer).toHaveBeenCalledWith(LINK, PURCHASE, false);
+    });
+  });
+
+  it("show the store's own price when there is one", async () => {
+    mockServer.testBilling = false;
+    useStorePrices.setState({
+      plus: { plus_year: { formatted: '₺849,99', micros: 849_990_000 } },
+      packs: { rings: { formatted: '₺34,99', micros: 34_990_000 } },
+    });
+    await show('guardian');
+    expect(screen.getByText('Bargu+ yıllık almak istiyor (₺849,99 / yıl)')).toBeTruthy();
+    expect(screen.getByText('“Halka desenleri” süs paketini almak istiyor (₺34,99)')).toBeTruthy();
+    for (const id of [PURCHASE, COSMETIC]) {
+      expect(screen.getByTestId(`guardian-approve-${id}`).props.accessibilityState).toMatchObject({
+        disabled: false,
+      });
+      expect(screen.queryByTestId(`guardian-no-price-${id}`)).toBeNull();
+    }
+  });
+
   it("show the child the same, without the parent's buttons", async () => {
     await show('child');
     expect(screen.getByText('Grup: Kulüp (4 kişi), davet eden Fikret')).toBeTruthy();
-    expect(screen.getByText('“Halka desenleri” süs paketini almak istiyor (₺29,99)')).toBeTruthy();
+    expect(
+      screen.getByText('“Halka desenleri” süs paketini almak istiyor (test, ödeme yok)'),
+    ).toBeTruthy();
     expect(screen.getAllByText('Ebeveyninin onayını bekliyor.')).toHaveLength(4);
     expect(screen.queryByTestId(`guardian-approve-${COSMETIC}`)).toBeNull();
     expect(screen.queryByTestId(`guardian-approve-${REQUEST}`)).toBeNull();

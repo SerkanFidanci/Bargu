@@ -10,7 +10,7 @@ import { ageKey, fetchAge, isMinor } from '@/features/account/age-api';
 import { testBillingOf, useTestBilling } from '@/features/billing/test-slot';
 import { planKey, usePlan } from '@/features/billing/plan';
 import { daysLeft, manageUrl } from '@/features/billing/plan-model';
-import { useStorePrices, yearlySaving } from '@/features/billing/store-prices';
+import { purchasePrice, useStorePrices, yearlySaving } from '@/features/billing/store-prices';
 import { errorMessage, isApiError } from '@/features/errors';
 import { useNow } from '@/features/location/clock';
 import { radius, space, useTheme } from '@/theme';
@@ -131,15 +131,28 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
   const pending = current?.pendingPurchase ?? null;
   const planName = (product: PlusProduct) =>
     product === 'plus_year' ? t('plus.yearly') : t('plus.monthly');
-  /** "Bargu+'ya geç · ₺799,99 / yıl" with the store's price, else without one. */
+  /**
+   * What the chosen plan costs as shown: the store's price, or that it is a test; else none, and it
+   * cannot be bought or asked for (the PM, 2026-10-30).
+   */
+  const priceOf = (product: PlusProduct) =>
+    purchasePrice(prices[product]?.formatted, testing, t('plus.testPrice'));
+  /** "Bargu+'ya geç · ₺799,99 / yıl" with its price, else the words alone. */
   const withPrice = (key: 'buy' | 'ask', product: PlusProduct) => {
-    const price = prices[product]?.formatted;
-    if (price === undefined) return key === 'buy' ? t('plus.buyPlain') : t('plus.askPlain');
-    const per = product === 'plus_year' ? t('plus.perYear') : t('plus.perMonth');
+    const price = priceOf(product);
+    if (price === null) return key === 'buy' ? t('plus.buyPlain') : t('plus.askPlain');
+    const per =
+      prices[product] === undefined
+        ? ''
+        : product === 'plus_year'
+          ? t('plus.perYear')
+          : t('plus.perMonth');
     return key === 'buy' ? t('plus.buy', { price, per }) : t('plus.ask', { price, per });
   };
   // The build has test billing and the server has it on; a production build never does.
   const testing = tester !== null && current?.testBilling === true;
+  // No price for the chosen plan: it cannot be bought or asked for (the PM, 2026-10-30).
+  const noPrice = priceOf(choice) === null;
   const cancellable =
     tester !== null && subscribed && current.autoRenew && current.source === 'test';
   // The store's own page for it, one tap away (N3).
@@ -209,26 +222,32 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
           }
           icon={Sparkles}
           variant={pending === null ? 'primary' : 'secondary'}
+          disabled={noPrice}
           loading={ask.isPending}
           onPress={() => {
             ask.mutate(choice);
           }}
         />
       )}
+      {noPrice ? <NoPrice /> : null}
     </View>
   );
   const footer = subscribed ? undefined : teen ? (
     teenFooter
   ) : testing ? (
-    <Button
-      testID="plus-buy"
-      label={withPrice('buy', choice)}
-      icon={Sparkles}
-      loading={buy.isPending}
-      onPress={() => {
-        buy.mutate(choice);
-      }}
-    />
+    <View style={styles.footer}>
+      <Button
+        testID="plus-buy"
+        label={withPrice('buy', choice)}
+        icon={Sparkles}
+        disabled={noPrice}
+        loading={buy.isPending}
+        onPress={() => {
+          buy.mutate(choice);
+        }}
+      />
+      {noPrice ? <NoPrice /> : null}
+    </View>
   ) : (
     <Text variant="footnote" color="textMuted" align="center">
       {t('plus.soon')}
@@ -332,6 +351,16 @@ export function usePlusShelf(): { content: ReactNode; footer: ReactNode } {
     </>
   );
   return { content, footer };
+}
+
+/** Under a purchase that has no price: why it cannot be bought now. */
+function NoPrice() {
+  const { t } = useTranslation();
+  return (
+    <Text variant="footnote" color="textMuted" align="center" testID="plus-no-price">
+      {t('plus.noPrice')}
+    </Text>
+  );
 }
 
 const styles = StyleSheet.create({

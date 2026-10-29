@@ -1294,7 +1294,8 @@
       "askPurchase": "Wants Bargu+ {{plan}} ({{price}})",
       "askCosmetic": "Wants the “{{pack}}” look pack ({{price}})",
       "askCosmeticOther": "Wants a new look pack",
-      "askPurchasePlain": "Wants Bargu+ {{plan}}"
+      "askPurchasePlain": "Wants Bargu+ {{plan}}",
+      "askCosmeticPlain": "Wants the “{{pack}}” look pack"
     },
     "unnamed": "Someone without a name",
     "newMember": "{{name}} (new)"
@@ -1358,7 +1359,9 @@
     "buyPlain": "Get Bargu+",
     "askPlain": "Ask my parent",
     "renewsPlain": "Bargu+ {{plan}}: renews on {{date}}.",
-    "manageFailed": "The store's subscription page could not open."
+    "manageFailed": "The store's subscription page could not open.",
+    "testPrice": "a test, no payment",
+    "noPrice": "The price could not be fetched right now"
   },
   "cosmetics": {
     "intro": "This is how your pin looks on the map. A look is only looks: your friends see the one you chose only if you bought it.",
@@ -1394,7 +1397,9 @@
     "asked": "You asked your parent. Once they say yes, the pack opens and you'll hear about it.",
     "approved": "Your parent said yes: {{pack}}",
     "waiting": "Waiting for a yes",
-    "pending": "Waiting for your parent's yes. Once they say yes, the pack opens and you'll hear about it."
+    "pending": "Waiting for your parent's yes. Once they say yes, the pack opens and you'll hear about it.",
+    "buyPlain": "Get the pack",
+    "askPlain": "Ask my parent"
   },
   "upgrade": {
     "title": "A new version is needed",

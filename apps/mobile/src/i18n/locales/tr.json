@@ -1294,7 +1294,8 @@
       "askPurchase": "Bargu+ {{plan}} almak istiyor ({{price}})",
       "askCosmetic": "“{{pack}}” süs paketini almak istiyor ({{price}})",
       "askCosmeticOther": "Yeni bir süs paketi almak istiyor",
-      "askPurchasePlain": "Bargu+ {{plan}} almak istiyor"
+      "askPurchasePlain": "Bargu+ {{plan}} almak istiyor",
+      "askCosmeticPlain": "“{{pack}}” süs paketini almak istiyor"
     },
     "unnamed": "Adı yazılmamış biri",
     "newMember": "{{name}} (yeni)"
@@ -1358,7 +1359,9 @@
     "buyPlain": "Bargu+’ya geç",
     "askPlain": "Ebeveynime sor",
     "renewsPlain": "Bargu+ {{plan}}: {{date}} tarihinde yenilenir.",
-    "manageFailed": "Mağazanın abonelik sayfası açılamadı."
+    "manageFailed": "Mağazanın abonelik sayfası açılamadı.",
+    "testPrice": "test, ödeme yok",
+    "noPrice": "Fiyat şu an alınamadı"
   },
   "cosmetics": {
     "intro": "Pinin haritada böyle görünür. Süs yalnızca görünüştür: arkadaşların seçtiğin süsü ancak satın aldıysan görür.",
@@ -1394,7 +1397,9 @@
     "asked": "Ebeveynine sordun. Onaylayınca paket açılır ve haber alırsın.",
     "approved": "Ebeveynin onayladı: {{pack}}",
     "waiting": "Onay bekliyor",
-    "pending": "Ebeveyninin onayı bekleniyor. Onaylayınca paket açılır ve haber alırsın."
+    "pending": "Ebeveyninin onayı bekleniyor. Onaylayınca paket açılır ve haber alırsın.",
+    "buyPlain": "Paketi al",
+    "askPlain": "Ebeveynime sor"
   },
   "upgrade": {
     "title": "Yeni sürüm gerekiyor",

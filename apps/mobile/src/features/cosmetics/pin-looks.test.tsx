@@ -201,7 +201,9 @@ describe('"Pin süsleri", a shelf of the store (docs/ADR/0025, the pin addendum,
     expect(
       within(screen.getByTestId('pack-rings')).getByText('TEST — gerçek ödeme yok'),
     ).toBeTruthy();
-    expect(within(screen.getByTestId('pack-rings')).getByText('Paketi al · ₺29,99')).toBeTruthy();
+    expect(
+      within(screen.getByTestId('pack-rings')).getByText('Paketi al · test, ödeme yok'),
+    ).toBeTruthy();
     await fireEvent.press(screen.getByTestId('pack-buy-rings'));
     await waitFor(() => {
       expect(mockPurchase).toHaveBeenCalledWith('cosmetic:rings');
@@ -249,8 +251,8 @@ describe('"Pin süsleri", a shelf of the store (docs/ADR/0025, the pin addendum,
     await waitFor(() => {
       expect(screen.getByTestId('pack-buy-rings')).toBeTruthy();
     });
-    expect(screen.getAllByText('Ebeveynime sor · ₺29,99')).toHaveLength(2);
-    expect(screen.queryByText('Paketi al · ₺29,99')).toBeNull();
+    expect(screen.getAllByText('Ebeveynime sor · test, ödeme yok')).toHaveLength(2);
+    expect(screen.queryByText('Paketi al · test, ödeme yok')).toBeNull();
     expect(screen.queryByTestId('pack-pending-rings')).toBeNull();
     await fireEvent.press(screen.getByTestId('pack-buy-rings'));
     await waitFor(() => {

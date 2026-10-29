@@ -144,6 +144,9 @@ describe('Bargu+, a shelf of the store (docs/ADR/0024 §9)', () => {
     expect(screen.getByTestId('plus-plus_year').props.accessibilityState).toMatchObject({
       selected: true,
     });
+    // With no store price, what it costs is that it is a test (the PM, 2026-10-30).
+    expect(screen.getByText(/test, ödeme yok/)).toBeTruthy();
+    expect(screen.queryByTestId('plus-no-price')).toBeNull();
     await fireEvent.press(screen.getByTestId('plus-buy'));
     await waitFor(() => {
       expect(mockPurchase).toHaveBeenCalledWith('plus_year');
