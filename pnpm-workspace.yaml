@@ -83,5 +83,8 @@ audit:
     # links (bargu:// and https invite links) in the app. The fix (0.5.1) is ESM-only and
     # query-string 7 require()s it, so forcing it would break link parsing; expo-router 57 has no
     # newer query-string. Worst case a crafted link hangs the app of whoever opens it until it is
-    # closed: no data leaves, nothing is stored. Remove when Expo SDK 58 ships a fixed query-string.
+    # closed: no data leaves, nothing is stored. Links from outside are already cut short before
+    # expo-router parses them (+native-intent, incoming-link.ts: over 256 characters or any
+    # percent-encoding opens the map). Until Expo SDK 58 or 2026-12-31, whichever comes first (the
+    # PM): apps/api/src/common/audit-exceptions.spec.ts fails CI past that date.
     - GHSA-qr28-fpjm-wq7f
