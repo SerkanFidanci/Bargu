@@ -599,6 +599,21 @@ Kurallar:
   - **PM, 2026-10-30, fiyat kuralı:** Bargu+ ve süs paketlerinin fiyatı yalnız Play'in yerelleştirilmiş fiyatından gelir; koddaki sabit fiyatlar kaldırıldı.
     - Fiyat bilinmiyorsa satın alma düğmesi ve 15–17 ebeveyn onayı kapalıdır, yanında "Fiyat şu an alınamadı" yazar.
     - Play Billing bağlanana kadar uygulamada fiyat görünmez. Bölüm 5'teki TL fiyatları Play Console'a girilecek fiyatlardır.
+- **QA-43 (`60563a5`, 2026-10-30):** yüksek ve orta bulgu yok.
+  - Doğrulananlar:
+    - hikaye düzenleyicinin PM şartlarının hepsi;
+    - Ö7'nin bütün maddeleri;
+    - QA-42 düzeltmeleri;
+    - fiyat kuralı.
+  - Mobil 1523, API 176 birim ve 361 entegrasyon testi geçti.
+  - **Düşük 7, PM kararlarıyla (hepsi C APK'sına girer):**
+    1. EXIF silme okuyamadığı JPEG'i olduğu gibi bırakıyor. Karar: okunamayan dosya gönderilmez ("Fotoğraf hazırlanamadı, yeniden çek"). APP1 dışındaki üst veri blokları, yorumlar ve dosya sonundaki artık da silinir; QA'nın bozuk örnekleriyle test edilir. Düzenleyicide yazı uzunluğu, öğe sayısı ve çizgi sayısı sınırlanır.
+    2. Ö7 anahtarı kaybolursa eski dosyalar okunamaz halde sessizce kalıyor. Karar: telefon bu dosyaları siler ve bir kez "Konum geçmişin bu telefonda okunamadı ve silindi" der.
+    3. "Dışa aktar" seçilince geçmişin açık kaldığı söylenmiyor. Karar: dışa aktarma bitince aynı soru "Sil ve kapat / Vazgeç" olarak yeniden sorulur.
+    4. N2 ekranında "kim kime bakıyor", abonelik ve çember açıklığı, yaş grubu, rıza kayıtları ve IP eksik. Karar: ekleniyor. Test THREAT_MODEL'deki her satırın N2'de olduğunu denetler; yeni satır eklenince test kırılır. Politikanın "Kullanım olayları" satırı PM tarafından düzeltildi, /gizlilik de ona eşitlenir.
+    5. N2 ve politika "Yakındayım olaylarının zamanı" diyordu, oysa sunucu Yakındayım'ı ayırt edemez. Politikadan çıkarıldı, N2'den de çıkar.
+    6. Duraklatma kaldırılınca "süreli paylaşım bitti" bildirimi yeniden kurulmuyor; arkadaşlık bitince de iptal edilmiyor. İkisi düzeltilir ve testlenir.
+    7. Kullanılmayan `priceText` silinir.
 - Ö2 pil modu: Canlı / Dengeli / Pil dostu, "bugün GPS şu kadar çalıştı" bilgisiyle (ADR 0036 eki). Sahibin pil ölçümünden sonra.
 - Ö6 kişiye süreli paylaşım ve tek kişiye sessiz dondurma: "21:30'a kadar" (Faz 11'den öne alındı).
 - Ö8 "Yakındayım, gelir misin?": tek dokunuş, seçilen çembere. Mesafeyi alan telefon hesaplar; yeni şifreli tür.
