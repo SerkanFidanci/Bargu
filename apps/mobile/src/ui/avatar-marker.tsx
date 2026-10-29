@@ -335,7 +335,9 @@ export function AvatarMarker({
             {story === undefined || framed ? null : (
               <StoryRing seen={story === 'seen'} id={userId ?? name} />
             )}
-            {look === undefined || framed ? null : (
+            {/* In a shared pin too, each around their own face (the owner, 2026-10-29: "Benim
+                çerçeveler gözükmüyor"): the look reaches 11 px, the faces are 20 px apart. */}
+            {look === undefined ? null : (
               <PinLook
                 look={look}
                 size={PIN_CIRCLE}

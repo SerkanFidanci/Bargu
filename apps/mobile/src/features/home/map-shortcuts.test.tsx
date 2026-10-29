@@ -85,16 +85,14 @@ beforeEach(() => {
   useMyFix.setState({ fix: null });
 });
 
-/** The tag beside the ghost: hidden from screen readers, the button says it all. */
-const tag = () => screen.getByTestId('ghost-tag', { includeHiddenElements: true });
-
 describe('the map shortcuts (docs/ADR/0026 §8)', () => {
-  it('offer the three ghost choices of Me, by the same names, and a tag (PM report T5)', async () => {
+  it('offer the three ghost choices of Me, by the same names, the icon alone on the map', async () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
     await render(shortcuts());
     const ghost = screen.getByTestId('shortcut-ghost');
     expect(ghost.props.accessibilityLabel).toBe('Hayalet modu: Kapalı. Değiştirmek için dokun.');
-    expect(tag()).toHaveTextContent('Hayalet');
+    // No words beside it (the owner, 2026-10-29): the button itself says it.
+    expect(screen.queryByText('Hayalet')).toBeNull();
     await fireEvent.press(ghost);
     expect(
       ['off', 'freeze', 'hide'].map(
@@ -111,14 +109,15 @@ describe('the map shortcuts (docs/ADR/0026 §8)', () => {
     expect(screen.getByTestId('shortcut-ghost').props.accessibilityLabel).toBe(
       'Hayalet modu: Gizle. Değiştirmek için dokun.',
     );
-    expect(tag()).toHaveTextContent('Gizle');
     expect(screen.getByTestId('shortcut-ghost').props.accessibilityState).toEqual({
       selected: true,
     });
     // "Dondur": the last location stays.
     await fireEvent.press(screen.getByTestId('ghost-freeze'));
     expect(useSharing.getState().ghost).toBe('freeze');
-    expect(tag()).toHaveTextContent('Dondur');
+    expect(screen.getByTestId('shortcut-ghost').props.accessibilityLabel).toBe(
+      'Hayalet modu: Dondur. Değiştirmek için dokun.',
+    );
 
     // "Kapalı": asked first, with how many circles get the location again; nothing until "Share".
     await fireEvent.press(screen.getByTestId('ghost-off'));

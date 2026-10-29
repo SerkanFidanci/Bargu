@@ -30,7 +30,6 @@ import { type EffectLevel, repeatFinite, timesAt, useEffects } from '@/theme/eff
 import { useMotion } from '@/theme/use-motion';
 import { PressableScale } from '@/ui/pressable-scale';
 import type { SheetRef } from '@/ui/sheet';
-import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
 
 import { useMyFix } from '../location/engine';
@@ -195,9 +194,9 @@ function RecenterButton({
 
 /**
  * Ghost mode from the map: a tap offers the three choices of Me, "Kapalı / Dondur / Gizle" (the PM
- * report T5, 2026-10-29; GhostSheet), and a short tag beside the button names the one on. Turned
- * on, the ghost floats a few times, then rests; off, a little "pof". Its state shows in colour, in
- * the tag, in the button's state and in what a screen reader says.
+ * report T5, 2026-10-29; GhostSheet). Only the icon on the map (the owner, 2026-10-29: "Hayalet
+ * yazmasın sadece iconu gözüksün"). Turned on, the ghost floats a few times, then rests; off, a
+ * little "pof". Its state shows in colour, in the button's state and in what a screen reader says.
  */
 function GhostButton({
   circles,
@@ -247,17 +246,7 @@ function GhostButton({
   const popping = useAnimatedStyle(() => ({ transform: [{ scale: size.get() }] }));
   const name = t(`location.ghost.${mode}`);
   return (
-    <View style={styles.labelled} pointerEvents="box-none">
-      <View
-        testID="ghost-tag"
-        importantForAccessibility="no-hide-descendants"
-        accessibilityElementsHidden
-        style={[styles.tag, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-      >
-        <Text variant="caption" color={on ? 'text' : 'textMuted'}>
-          {on ? name : t('map.shortcuts.ghostTag')}
-        </Text>
-      </View>
+    <View pointerEvents="box-none">
       <Animated.View style={popping}>
         <RoundButton
           testID="shortcut-ghost"
@@ -424,16 +413,9 @@ export function RoundButton({
 }
 
 const styles = StyleSheet.create({
-  // Right-aligned: the round buttons are all one width, the store's wider band ends with them.
+  // Right-aligned: the round buttons, the store's among them, are all one width.
   column: { position: 'absolute', right: space.lg, alignItems: 'flex-end', gap: space.sm },
   slot: { width: touchTarget, height: touchTarget },
-  labelled: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  tag: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xxs,
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-  },
   button: {
     width: touchTarget,
     height: touchTarget,

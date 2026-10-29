@@ -783,7 +783,6 @@
       "here": "I'm here ({{place}})",
       "shared": "Your location is being shared.",
       "safe": "I'm safe: tell the circles you pick that you are okay",
-      "ghostTag": "Ghost",
       "ghostState": "Ghost mode: {{mode}}. Tap to change.",
       "ghostFreezeToast": "Your location is frozen: your last location stays on the map, no new one goes out.",
       "ghostChosen": "Selected"
@@ -1458,7 +1457,6 @@
     "shelf_looks": "Pin looks",
     "looksHere": "Ring patterns and frames are in the Store now",
     "button": {
-      "label": "Store",
       "free": "Get Bargu+",
       "trial": "Trial · {{days}} days",
       "plus": "New pin looks",

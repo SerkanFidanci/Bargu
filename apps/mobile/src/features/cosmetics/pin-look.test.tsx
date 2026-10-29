@@ -59,11 +59,12 @@ describe('a look drawn on the map pin (docs/ADR/0025, the pin addendum)', () => 
     expect(screen.getByTestId('pin-look-frame-dashed')).toBeTruthy();
   });
 
-  it('draws nothing in a pin shared with others (the shared ring belongs to nobody)', async () => {
+  it('draws it in a pin shared with others too, around their own face (the owner, 2026-10-29)', async () => {
     await render(
       <AvatarMarker name="Ayşe" avatar={null} look={lookOf('stripes', 'neon')} framed />,
     );
-    expect(screen.queryByTestId('pin-look')).toBeNull();
+    expect(screen.getByTestId('pin-look-ring-stripes')).toBeTruthy();
+    expect(screen.getByTestId('pin-look-frame-neon')).toBeTruthy();
   });
 
   it('is laid over the pin without taking room, touches or the screen reader', async () => {

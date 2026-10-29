@@ -43,39 +43,28 @@ describe('the store button on the map (docs/ADR/0025 Ek 2)', () => {
   it('invites to Bargu+ without it and opens the store', async () => {
     mockPlan = plan({});
     await render(<StoreButton level="full" />);
-    expect(screen.getByText('Mağaza')).toBeTruthy();
-    expect(screen.getByText('Bargu+’a geç')).toBeTruthy();
     expect(screen.getByLabelText('Mağaza: Bargu+’a geç')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('shortcut-store'));
     expect(mockPush).toHaveBeenLastCalledWith('/store');
   });
 
-  it('counts the trial down, and shows the pin looks to those who have Bargu+', async () => {
+  it('counts the trial down, and offers the pin looks to those who have Bargu+, read out', async () => {
     mockPlan = plan({ plan: 'trial', product: 'trial', trialEndsAt: mockNow + 5 * DAY });
     const trial = await render(<StoreButton level="reduced" />);
-    expect(screen.getByText('Deneme: 5 gün')).toBeTruthy();
+    expect(screen.getByLabelText('Mağaza: Deneme: 5 gün')).toBeTruthy();
     await trial.unmount();
     mockPlan = plan({ plan: 'plus', product: 'plus_year', expiresAt: mockNow + 300 * DAY });
     await render(<StoreButton level="off" />);
-    expect(screen.getByText('Yeni pin süsleri')).toBeTruthy();
+    expect(screen.getByLabelText('Mağaza: Yeni pin süsleri')).toBeTruthy();
   });
 });
 
-describe('its band (the owner, 2026-10-28)', () => {
-  it('is as large as the pill is now, also after its line made it wider', async () => {
+describe('its size (the owner, 2026-10-29: "Mağaza ekranda çok yer kaplıyor")', () => {
+  it('is a round button as large as the shortcuts, its sweep drawn at that size, no words on it', async () => {
     mockPlan = plan({});
     await render(<StoreButton level="off" />);
-    const pill = screen.getByTestId('shortcut-store');
-    const layout = (width: number, height: number) =>
-      fireEvent(pill, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width, height } } });
-    const bandProps = () => {
-      const props = screen.getByTestId('store-band').props as Record<string, unknown>;
-      return props;
-    };
-    await layout(150, 48);
-    expect(bandProps()).toMatchObject({ width: 150, height: 48 });
-    // The plan arrives, the line grows: the band grows with it.
-    await layout(190, 52);
-    expect(bandProps()).toMatchObject({ width: 190, height: 52 });
+    expect(screen.getByTestId('store-band').props).toMatchObject({ width: 48, height: 48 });
+    expect(screen.queryByText('Mağaza')).toBeNull();
+    expect(screen.queryByText('Bargu+’a geç')).toBeNull();
   });
 });

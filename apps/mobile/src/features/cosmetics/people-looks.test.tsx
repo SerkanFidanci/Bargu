@@ -147,8 +147,9 @@ describe('looks on the pins of the map, the user’s own and friends’ (docs/AD
     expect(screen.getByTestId('pin-look-frame-dashed')).toBeTruthy();
   });
 
-  it('draws no look in a pin shared by people standing together', async () => {
-    // Bob stands where the user is: one shared pin, whose ring belongs to nobody.
+  it('draws the look of each around their own face in a pin shared by people standing together', async () => {
+    // Bob stands where the user is: one shared pin; the owner wants their frame seen there too
+    // (2026-10-29).
     useMyFix.setState({
       fix: { lat: 41.0, lng: 28.97, acc: 8, ts: NOW, spd: 0, hdg: null },
       since: null,
@@ -161,6 +162,8 @@ describe('looks on the pins of the map, the user’s own and friends’ (docs/AD
         <PeopleLayer me={ME} circles={[CIRCLE]} />
       </EffectsPaused.Provider>,
     );
-    expect(screen.queryByTestId('pin-look')).toBeNull();
+    expect(screen.getAllByTestId('pin-look')).toHaveLength(2);
+    expect(screen.getByTestId('pin-look-ring-stripes')).toBeTruthy();
+    expect(screen.getByTestId('pin-look-frame-neon')).toBeTruthy();
   });
 });

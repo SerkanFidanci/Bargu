@@ -783,7 +783,6 @@
       "here": "Geldim ({{place}})",
       "shared": "Konumun paylaşılıyor.",
       "safe": "Güvendeyim: seçtiğin çemberlere iyi olduğunu söyle",
-      "ghostTag": "Hayalet",
       "ghostState": "Hayalet modu: {{mode}}. Değiştirmek için dokun.",
       "ghostFreezeToast": "Konumun donduruldu: son konumun haritada kalır, yenisi gitmez.",
       "ghostChosen": "Seçili"
@@ -1458,7 +1457,6 @@
     "shelf_looks": "Pin süsleri",
     "looksHere": "Halka desenleri ve çerçeveler artık Mağaza’da",
     "button": {
-      "label": "Mağaza",
       "free": "Bargu+’a geç",
       "trial": "Deneme: {{days}} gün",
       "plus": "Yeni pin süsleri",
