@@ -91,6 +91,8 @@ jest.mock('@/features/messages/rules', () => ({
 jest.mock('@/features/circles/circles-sheet', () => ({ CirclesSheet: () => null }));
 jest.mock('@/features/social/status-sheet', () => ({ StatusSheet: () => null }));
 jest.mock('@/features/social/safe-sheet', () => ({ SafeSheet: () => null }));
+// "Yakındayım" (docs/ADR/0037): its sheet sends with the outbox, whose photo module is native.
+jest.mock('@/features/messages/near-sheet', () => ({ NearSheet: () => null }));
 jest.mock('@/features/home/safe-button', () => ({ SafeButton: () => null }));
 jest.mock('@/features/social/safe-spot-layer', () => ({ SafeSpotLayer: () => null }));
 jest.mock('@/features/location/location-banner', () => ({ LocationBanner: () => null }));
