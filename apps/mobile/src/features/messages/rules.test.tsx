@@ -107,6 +107,21 @@ jest.mock('expo-camera', () => {
   };
 });
 
+// The story editor draws with Skia (native): here it hands the photo straight on.
+jest.mock('@/features/story-editor/story-editor', () => {
+  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  const { Pressable } = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    StoryEditor: ({ photo, onDone }: { photo: unknown; onDone: (photo: unknown) => void }) =>
+      createElement(Pressable, {
+        testID: 'story-editor-next',
+        onPress: () => {
+          onDone(photo);
+        },
+      }),
+  };
+});
+
 import CameraScreen from '@/app/(app)/camera';
 import MessagesScreen from '@/app/(app)/messages';
 import ConversationScreen from '@/app/(app)/messages/[conversation]';
@@ -368,6 +383,7 @@ describe('the rules before any content and any sending (K14, QA-38b)', () => {
     await shown(<CameraScreen />);
     await settle();
     await fireEvent.press(screen.getByTestId('camera-take'));
+    await fireEvent.press(await screen.findByTestId('story-editor-next'));
     await screen.findByTestId('camera-send');
     await fireEvent.press(screen.getByTestId('camera-pick-person'));
     await fireEvent.press(screen.getByTestId(`camera-person-${ALI}`));

@@ -1,7 +1,7 @@
 import { CHAT_CAPTION_MAX, codePointsOf } from '@bargu/schemas';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Camera, ChevronLeft, RefreshCcw, Send, Users, X } from 'lucide-react-native';
+import { Camera, ChevronLeft, RefreshCcw, Send, Users, X, Zap, ZapOff } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,6 +24,7 @@ import { type SendResult, sendPhoto, shareStory } from '@/features/messages/outb
 import { jpegUri, preparePhoto, sealPhoto, type TakenPhoto } from '@/features/messages/photo';
 import { useRulesGate } from '@/features/messages/rules';
 import { storyCircles } from '@/features/messages/stories';
+import { StoryEditor } from '@/features/story-editor/story-editor';
 import { mediaColors, radius, space, touchTarget, typography, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
@@ -42,7 +43,9 @@ const SHUTTER = touchTarget * 1.6;
  * "Fotoğraf" (docs/ADR/0035 §1, §4): only the app's camera, that moment; no gallery. Opened from a
  * conversation, the photo goes there. Opened alone, one screen offers the three ways: "Hikaye
  * (bütün çemberlerim)" (every circle but events), "Çember seç" (events too), "Bir kişi". The photo
- * is made small and sealed on the phone; the camera's file does not stay.
+ * is made small and sealed on the phone; the camera's file does not stay. Between the two, the
+ * story editor (the owner, 2026-10-29: "Instagram gibi"; docs/ADR/0035 Ek 3): filters, words, a pen
+ * and stickers, drawn into the photo on this phone before it is sealed.
  */
 export default function CameraScreen() {
   const { t } = useTranslation();
@@ -54,7 +57,10 @@ export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
   const [facing, setFacing] = useState<'back' | 'front'>('back');
+  const [flash, setFlash] = useState<'off' | 'on' | 'auto'>('off');
   const [taking, setTaking] = useState(false);
+  // Taken, being edited; then edited (or not), being sent.
+  const [raw, setRaw] = useState<TakenPhoto | null>(null);
   const [taken, setTaken] = useState<{ photo: TakenPhoto; preview: string } | null>(null);
   const [caption, setCaption] = useState('');
   const [step, setStep] = useState<'choose' | 'circles' | 'person'>('choose');
@@ -66,8 +72,7 @@ export default function CameraScreen() {
     setTaking(true);
     try {
       const picture = await camera.current.takePictureAsync({ quality: 1, exif: false });
-      const photo = await preparePhoto(picture.uri, picture.width, picture.height);
-      setTaken({ photo, preview: jpegUri(photo.jpeg) });
+      setRaw(await preparePhoto(picture.uri, picture.width, picture.height));
     } catch {
       toast.error(t('messages.camera.failed'));
     } finally {
@@ -86,6 +91,7 @@ export default function CameraScreen() {
     const file = sealPhoto(taken.photo);
     const words = caption.trim() === '' ? undefined : caption.trim();
     setTaken(null);
+    setRaw(null);
     router.back();
     if ('conversation' in target) {
       void sendPhoto(target.conversation, file, words).then((result) => {
@@ -142,10 +148,24 @@ export default function CameraScreen() {
     );
   }
 
+  if (raw !== null && taken === null) {
+    return (
+      <StoryEditor
+        photo={raw}
+        onCancel={() => {
+          setRaw(null);
+        }}
+        onDone={(photo) => {
+          setTaken({ photo, preview: jpegUri(photo.jpeg) });
+        }}
+      />
+    );
+  }
+
   if (taken === null) {
     return (
       <View style={[styles.screen, styles.dark]} testID="camera">
-        <CameraView ref={camera} style={StyleSheet.absoluteFill} facing={facing} />
+        <CameraView ref={camera} style={StyleSheet.absoluteFill} facing={facing} flash={flash} />
         <SafeAreaView style={styles.overlay} pointerEvents="box-none">
           <View style={styles.topBar}>
             <IconButton
@@ -157,15 +177,28 @@ export default function CameraScreen() {
                 router.back();
               }}
             />
-            <IconButton
-              testID="camera-flip"
-              icon={RefreshCcw}
-              label={t('messages.camera.flip')}
-              tone="raised"
-              onPress={() => {
-                setFacing((side) => (side === 'back' ? 'front' : 'back'));
-              }}
-            />
+            <View style={styles.topRight}>
+              <IconButton
+                testID="camera-flash"
+                icon={flash === 'off' ? ZapOff : Zap}
+                label={t('messages.camera.flash', {
+                  mode: t(`messages.camera.flashModes.${flash}`),
+                })}
+                tone="raised"
+                onPress={() => {
+                  setFlash((mode) => (mode === 'off' ? 'on' : mode === 'on' ? 'auto' : 'off'));
+                }}
+              />
+              <IconButton
+                testID="camera-flip"
+                icon={RefreshCcw}
+                label={t('messages.camera.flip')}
+                tone="raised"
+                onPress={() => {
+                  setFacing((side) => (side === 'back' ? 'front' : 'back'));
+                }}
+              />
+            </View>
           </View>
           <View style={styles.shutterRow}>
             <PressableScale
@@ -208,8 +241,13 @@ export default function CameraScreen() {
             label={step === 'choose' ? t('messages.camera.retake') : t('common.back')}
             tone="plain"
             onPress={() => {
-              if (step === 'choose') setTaken(null);
-              else setStep('choose');
+              if (step === 'choose') {
+                // A new photo: the camera again.
+                setTaken(null);
+                setRaw(null);
+              } else {
+                setStep('choose');
+              }
             }}
           />
         </View>
@@ -355,6 +393,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', padding: space.xl },
   overlay: { flex: 1, justifyContent: 'space-between' },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', padding: space.md },
+  topRight: { flexDirection: 'row', gap: space.sm },
   shutterRow: { alignItems: 'center', paddingBottom: space.xxl },
   shutter: {
     width: SHUTTER,

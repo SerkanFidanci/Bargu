@@ -23,7 +23,7 @@ import { messagesApi } from './messages-api';
 /** The JPEG's limit before sealing (the sealed file may be 600 KB, §10). */
 export const PHOTO_JPEG_MAX_BYTES = 500 * 1024;
 /** JPEG qualities tried in turn until the photo fits. */
-const QUALITIES = [0.8, 0.65, 0.5, 0.35] as const;
+export const PHOTO_QUALITIES = [0.8, 0.65, 0.5, 0.35] as const;
 /** Sealed files kept in memory (sent or opened lately): the viewer and a report reuse them. */
 const KEPT_FILES = 12;
 
@@ -69,7 +69,7 @@ export async function preparePhoto(
           })
         : ImageManipulator.manipulate(uri);
     const image = await context.renderAsync();
-    for (const compress of QUALITIES) {
+    for (const compress of PHOTO_QUALITIES) {
       const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress, base64: true });
       discardFile(saved.uri);
       if (saved.base64 === undefined) continue;

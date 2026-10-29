@@ -75,6 +75,32 @@ const mockShareStory = jest.fn<Promise<string>, [string[], unknown, string?]>(()
 );
 const mockTakeBack = jest.fn<Promise<string>, [string]>(() => Promise.resolve('sent'));
 const mockTellScreenshot = jest.fn<Promise<void>, [{ id: string }]>(() => Promise.resolve());
+// The editor between the shot and the sending has its own tests (story-editor.test.tsx): here it
+// hands back an edited photo, or goes back to the camera.
+const mockEdited = { jpeg: new Uint8Array([7]), w: 1600, h: 1200 };
+jest.mock('@/features/story-editor/story-editor', () => {
+  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  const { Pressable, View } = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    StoryEditor: ({
+      onDone,
+      onCancel,
+    }: {
+      onDone: (photo: typeof mockEdited) => void;
+      onCancel: () => void;
+    }) =>
+      createElement(View, { testID: 'story-editor' }, [
+        createElement(Pressable, {
+          key: 'next',
+          testID: 'story-editor-next',
+          onPress: () => {
+            onDone(mockEdited);
+          },
+        }),
+        createElement(Pressable, { key: 'close', testID: 'story-editor-close', onPress: onCancel }),
+      ]),
+  };
+});
 jest.mock('@/features/messages/outbox', () => ({
   sendPhoto: (conversation: string, file: unknown, caption?: string) =>
     mockSendPhoto(conversation, file, caption),
@@ -210,8 +236,27 @@ describe('the camera', () => {
   const takeOne = async () => {
     await render(<CameraScreen />);
     await fireEvent.press(screen.getByTestId('camera-take'));
+    await fireEvent.press(await screen.findByTestId('story-editor-next'));
     await screen.findByTestId('camera-send');
   };
+
+  it('edits the photo between the shot and the sending, and goes back to the camera from it', async () => {
+    await render(<CameraScreen />);
+    await fireEvent.press(screen.getByTestId('camera-take'));
+    expect(await screen.findByTestId('story-editor')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('story-editor-close'));
+    expect(screen.getByTestId('camera')).toBeTruthy();
+  });
+
+  it('turns the flash off, on and to auto', async () => {
+    await render(<CameraScreen />);
+    const flash = () => screen.getByTestId('camera-flash').props.accessibilityLabel as string;
+    expect(flash()).toBe('Flaş: kapalı');
+    await fireEvent.press(screen.getByTestId('camera-flash'));
+    expect(flash()).toBe('Flaş: açık');
+    await fireEvent.press(screen.getByTestId('camera-flash'));
+    expect(flash()).toBe('Flaş: otomatik');
+  });
 
   it('asks for the camera first, saying it never looks at the gallery', async () => {
     mockPermission.current = { granted: false, canAskAgain: true };

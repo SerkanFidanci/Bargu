@@ -1582,7 +1582,13 @@
       "shared": "Story shared",
       "full": "The space for photos is full right now; try again a little later. Texts still go.",
       "notSent": "Could not send. Tap it in the conversation to try again.",
-      "partly": "It did not reach {{count}} of them. Tap it in those conversations to try again."
+      "partly": "It did not reach {{count}} of them. Tap it in those conversations to try again.",
+      "flash": "Flash: {{mode}}",
+      "flashModes": {
+        "off": "off",
+        "on": "on",
+        "auto": "auto"
+      }
     },
     "openPhoto": "Opens the photo",
     "opening": "Opening",
@@ -1735,5 +1741,33 @@
     },
     "verify": "To check a friend's key really is theirs: tap them in a circle, then Safety number.",
     "open": "What does the server know?"
+  },
+  "storyEditor": {
+    "close": "Close",
+    "text": "Text",
+    "draw": "Draw",
+    "sticker": "Sticker",
+    "done": "Done",
+    "undo": "Undo",
+    "next": "Next",
+    "placeholder": "Type something",
+    "boxed": "Text on a box",
+    "bin": "Drop here to delete",
+    "swipe": "Swipe left or right for a filter",
+    "failed": "The edit could not be put on the photo. Try again.",
+    "color": "Colour {{number}}",
+    "widths": {
+      "thin": "Thin",
+      "medium": "Medium",
+      "thick": "Thick"
+    },
+    "filters": {
+      "none": "Normal",
+      "warm": "Warm",
+      "cool": "Cool",
+      "mono": "Black and white",
+      "vivid": "Vivid",
+      "fade": "Faded"
+    }
   }
 }

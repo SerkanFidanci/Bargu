@@ -371,3 +371,9 @@ export const press = { scale: 0.96, opacity: 0.85 } as const;
 
 /** Debounce for live checks while typing (username availability). */
 export const typingDebounceMs = 350;
+
+/**
+ * The story editor (docs/ADR/0035 Ek 3): how long a filter's name shows after a swipe, and how far a
+ * swipe goes before it changes the filter (px).
+ */
+export const editorFx = { filterNameMs: 1200, swipeM: 60, swipeStart: 24 } as const;

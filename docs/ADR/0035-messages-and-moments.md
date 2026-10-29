@@ -556,3 +556,28 @@ bilgisi yine yok.
 - **Eski uygulama:** `react` türünü tanımaz ve öğeyi bütünüyle atar; çökme olmaz.
 - **Üst veri:** sunucu "A, çembere ya da B'ye bir öğe yolladı" bilgisini görür; ne olduğunu görmez.
   Bu, §Sonuçlar'daki sınırın içindedir.
+
+## Ek 3 (2026-10-29): Hikaye düzenleyici
+
+Sahip: "Kamera ekranı daha düzgün yap, Instagram gibi düzenleme seçeneğini getir hikayelerde."
+
+- **Akış:** kamera (flaş kapalı/açık/otomatik, ön/arka) → çekim → **düzenleyici** → "İleri" → bugünkü
+  gönderme ekranı (hikaye, çember seç, bir kişi). Galeri yok: "yalnız uygulamanın kamerası, o an"
+  kuralı aynen.
+- **Düzenleyicide:** sağa sola kaydırarak filtre (Normal, Sıcak, Soğuk, Siyah beyaz, Canlı, Solgun;
+  renk matrisi); "Aa" ile yazı (9 renk, düz ya da renkli kutu üstünde); kalem (9 renk, 3 kalınlık,
+  geri al); emoji çıkartma. Yazı ve çıkartma tek parmakla sürüklenir, iki parmakla büyür ve döner,
+  çöp kutusuna bırakılınca silinir; yazıya dokununca yeniden düzenlenir.
+- **Konum ya da saat çıkartması yok:** Instagram'daki "konum" çıkartması fotoğrafla yer sızdırır;
+  koymuyoruz. Çıkartma listesinde iğne de yok (testli).
+- **Fotoğrafa işleme telefonda:** düzenleme, fotoğrafın kendi boyutunda Skia ile çizilir (filtre,
+  çizgiler, sonra yazılar ve çıkartmalar) ve yeniden düz JPEG olarak yazılır (EXIF yok, 500 KB sınırı
+  aynı); sonra bugünkü gibi tek kullanımlık anahtarla şifrelenir. Sunucu yine yalnız şifreli dosyayı
+  görür; yeni veri, yeni izin, yeni bağımlılık yok (Skia zaten vardı). Hiçbir şey yapılmadıysa
+  fotoğraf çekildiği gibi gider.
+- **Ekranda ve dosyada aynı:** yazının kaydırma genişliği (fotoğraf genişliğinin %85'i), kutu
+  dolgusu ve köşeleri iki yerde aynı sabitten gelir; yazı tipi sistemin kalın yazısıdır (emoji
+  dahil).
+- **Testler:** model (sığdırma, ekleme, taşıma, silme, geri alma, filtre matrisleri), düzenleyici
+  ekran (Skia taklit edilerek: yazı, renk, kutu, çıkartma, kalem, hiç düzenlenmeyen fotoğraf) ve
+  kamera akışı. Fotoğrafa gerçek çizim (compose.ts) telefonda denenir (QA).

@@ -23,6 +23,7 @@ export {
   cosmeticFx,
   crowdFx,
   duration,
+  editorFx,
   glide,
   haptic,
   meetFx,

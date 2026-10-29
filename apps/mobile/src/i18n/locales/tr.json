@@ -1582,7 +1582,13 @@
       "shared": "Hikaye paylaşıldı",
       "full": "Fotoğraf alanı şu an dolu; biraz sonra yeniden dene. Yazı gönderebilirsin.",
       "notSent": "Gönderilemedi. Sohbette dokunup yeniden deneyebilirsin.",
-      "partly": "{{count}} yere gitmedi. O sohbetlerde dokunup yeniden dene."
+      "partly": "{{count}} yere gitmedi. O sohbetlerde dokunup yeniden dene.",
+      "flash": "Flaş: {{mode}}",
+      "flashModes": {
+        "off": "kapalı",
+        "on": "açık",
+        "auto": "otomatik"
+      }
     },
     "openPhoto": "Fotoğrafı açar",
     "opening": "Açılıyor",
@@ -1735,5 +1741,33 @@
     },
     "verify": "Arkadaşının anahtarının gerçekten ona ait olduğunu görmek için: çemberde kişiye dokun, sonra Güvenlik numarası.",
     "open": "Sunucu ne biliyor?"
+  },
+  "storyEditor": {
+    "close": "Kapat",
+    "text": "Yazı",
+    "draw": "Çiz",
+    "sticker": "Çıkartma",
+    "done": "Bitti",
+    "undo": "Geri al",
+    "next": "İleri",
+    "placeholder": "Bir şey yaz",
+    "boxed": "Arka planlı yazı",
+    "bin": "Silmek için buraya bırak",
+    "swipe": "Filtre için sağa sola kaydır",
+    "failed": "Düzenleme fotoğrafa işlenemedi. Tekrar dene.",
+    "color": "Renk {{number}}",
+    "widths": {
+      "thin": "İnce",
+      "medium": "Orta",
+      "thick": "Kalın"
+    },
+    "filters": {
+      "none": "Normal",
+      "warm": "Sıcak",
+      "cool": "Soğuk",
+      "mono": "Siyah beyaz",
+      "vivid": "Canlı",
+      "fade": "Solgun"
+    }
   }
 }
