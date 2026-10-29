@@ -146,7 +146,10 @@
       "meeting": "Meet up",
       "meetingHint": "Suggest a place and time in a circle",
       "safe": "I'm safe",
-      "safeHint": "Tell the circles you choose that you're fine"
+      "safeHint": "Tell the circles you choose that you're fine",
+      "near": "I'm nearby",
+      "nearHint": "Ask who can come",
+      "nearOff": "Can't be sent now, tap to see why"
     },
     "cardsWaiting": "{{count}} more waiting",
     "invite": {
@@ -587,7 +590,11 @@
       "photoAlone": "Sent a photo"
     },
     "moment": "{{name}} shared a story",
-    "shot": "{{name}} took a screenshot of your photo"
+    "shot": "{{name}} took a screenshot of your photo",
+    "near": {
+      "alone": "Nearby, can you come?",
+      "inCircle": "{{name}}: nearby, can you come?"
+    }
   },
   "location": {
     "service": {
@@ -1612,7 +1619,14 @@
     "circleOpen": "Open the circle",
     "circleMute": "Mute",
     "circleUnmute": "Unmute",
-    "circleMuteNote": "This circle's message and story notifications go quiet. Messages still arrive."
+    "circleMuteNote": "This circle's message and story notifications go quiet. Messages still arrive.",
+    "near": {
+      "said": "I'm nearby, can you come?",
+      "distance": "About {{distance}} away",
+      "nearby": "Nearby",
+      "coming": "On my way",
+      "notNow": "Not now"
+    }
   },
   "tips": {
     "ok": "Got it",
@@ -1645,5 +1659,18 @@
       "count": "{{count}}/{{max}}",
       "more": "If you want to write more, add it in the e-mail once it opens."
     }
+  },
+  "near": {
+    "title": "I'm nearby",
+    "intro": "Tells who you choose \"I'm nearby, can you come?\". Your location isn't sent with it: their phones work out how far from the location you already share.",
+    "ghost": "You can't send it while you're a ghost.",
+    "none": "You aren't sharing your location with a friend or a circle of up to 8 right now.",
+    "wait": "Again in {{minutes}} min",
+    "send": "Let them know",
+    "sendCount": "Let them know ({{count}})",
+    "sent": "Sent to {{name}}",
+    "sentMore": "Sent to {{name}} and {{count}} more",
+    "failed": "Couldn't send, try again in a bit.",
+    "limited": "You've sent a lot for now, try again in a bit."
   }
 }

@@ -365,6 +365,7 @@ export {
   codePointsOf,
   chatDeleteSchema,
   chatEnvelopeSchema,
+  chatNearSchema,
   chatPayloadSchema,
   chatPhotoSchema,
   chatReactSchema,

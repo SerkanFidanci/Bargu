@@ -307,7 +307,12 @@ function ConversationRow({
   const author = memberIn(circles, last.from);
   const sender =
     last.from === me ? t('messages.you') : author === undefined ? '?' : memberName(author);
-  const words = last.kind === 'photo' ? t('messages.photo') : (last.text ?? '');
+  const words =
+    last.kind === 'photo'
+      ? t('messages.photo')
+      : last.kind === 'near'
+        ? t('messages.near.said')
+        : (last.text ?? '');
   const preview = conversation.startsWith('c:') || last.from === me ? `${sender}: ${words}` : words;
   const since = ago(last.at, now);
   const when = since.key === 'now' ? t('messages.ago.now') : t(`messages.ago.${since.key}`, since);

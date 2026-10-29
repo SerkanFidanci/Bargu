@@ -6,13 +6,16 @@ import { AppState, Platform } from 'react-native';
 import i18n, { resolveLanguage } from '@/i18n';
 
 import { api } from '../auth/auth-store';
+import { sendText } from '../messages/outbox';
 import { pokeFromTap } from '../social/poke';
 import { openSpot } from '../social/safe-spot';
 import { isVaultOpen, vault } from '../storage/vault';
 import { registerPushTask } from './background-push';
+import { NEAR_CATEGORY, NEAR_REPLIES, type NearReply } from './channels';
 import {
   circleOfResponse,
   enablePush,
+  nearReplyOfResponse,
   pokeOfResponse,
   type PushState,
   routeOfResponse,
@@ -31,7 +34,28 @@ async function register(token: string): Promise<void> {
   });
 }
 
+/** A quick answer's words, in this phone's language: they go as a plain text message. */
+function replyWords(reply: NearReply): string {
+  return reply === 'coming' ? i18n.t('messages.near.coming') : i18n.t('messages.near.notNow');
+}
+
+/** "Yakındayım" comes with two buttons (docs/ADR/0037); each opens the app and answers. */
+function registerNearReplies(): Promise<unknown> {
+  return Notifications.setNotificationCategoryAsync(
+    NEAR_CATEGORY,
+    NEAR_REPLIES.map((reply) => ({ identifier: reply, buttonTitle: replyWords(reply) })),
+  );
+}
+
 function open(response: Notifications.NotificationResponse): void {
+  // "Geliyorum" or "Şimdi olmaz": sent as a text, and the conversation opens with it in place (a
+  // failure shows there, to be tried again).
+  const near = nearReplyOfResponse(response);
+  if (near !== null) {
+    void sendText(near.conversation, replyWords(near.reply));
+    router.push(`/messages/${near.conversation}`);
+    return;
+  }
   const route = routeOfResponse(response);
   if (route !== null) {
     router.push(route);
@@ -81,6 +105,7 @@ export function usePushNotifications(ready: boolean): void {
     void enable(false);
     // Notifications arrive sealed and data-only (docs/ADR/0016): this task opens and shows them.
     if (Platform.OS === 'android') void registerPushTask().catch(() => undefined);
+    void registerNearReplies().catch(() => undefined);
     const tokens = Notifications.addPushTokenListener((token) => {
       const data: unknown = token.data;
       if (typeof data === 'string') void register(data).catch(() => undefined);

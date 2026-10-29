@@ -51,6 +51,8 @@ import { takeReturn } from '@/features/home/sheet-return';
 import { clearSpot, spotBounds, useSafeSpot } from '@/features/social/safe-spot';
 import { SafeSpotLayer } from '@/features/social/safe-spot-layer';
 import { SafeSheet } from '@/features/social/safe-sheet';
+import { NearSheet } from '@/features/messages/near-sheet';
+import { nearTargets } from '@/features/messages/near';
 import { StatusSheet } from '@/features/social/status-sheet';
 import { BarguMap, type BarguMapHandle } from '@/features/map/bargu-map';
 import { usePeopleUi } from '@/features/map/people-ui';
@@ -85,6 +87,7 @@ export default function HomeScreen() {
   const meSheet = useRef<SheetRef>(null);
   const statusSheet = useRef<SheetRef>(null);
   const safeSheet = useRef<SheetRef>(null);
+  const nearSheet = useRef<SheetRef>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [meOpen, setMeOpen] = useState(false);
   const motion = useMotion();
@@ -103,6 +106,8 @@ export default function HomeScreen() {
   const people = usePeopleUi(map, circleList.data ?? [], insets.top, () => {
     statusSheet.current?.present();
   });
+  // "Yakındayım" has somewhere to go now (docs/ADR/0037 §3); its 10 minutes are the sheet's.
+  const nearReady = nearTargets(circleList.data ?? [], sharing, myUserId, [], now).length > 0;
   const weather = useWeatherHere();
   // Meetings: their own look and screen, never a saved place's (the project owner's request,
   // docs/ADR/0026). An event's places are its meeting's, so none of them is drawn as a place.
@@ -377,6 +382,13 @@ export default function HomeScreen() {
             quick.current?.dismiss();
             safeSheet.current?.present();
           }}
+          nearReady={nearReady}
+          onNear={() => {
+            quick.current?.dismiss();
+            rules.ensure(() => {
+              nearSheet.current?.present();
+            });
+          }}
         />
         <AddSheet ref={add} onDismiss={() => undefined} onClose={() => add.current?.dismiss()} />
         <MeSheet
@@ -397,6 +409,7 @@ export default function HomeScreen() {
         />
         <StatusSheet ref={statusSheet} onClose={() => statusSheet.current?.dismiss()} />
         <SafeSheet ref={safeSheet} onClose={() => safeSheet.current?.dismiss()} />
+        <NearSheet ref={nearSheet} onClose={() => nearSheet.current?.dismiss()} />
         {rules.sheet}
         {celebrating ? <Confetti onDone={celebrated} /> : null}
       </View>

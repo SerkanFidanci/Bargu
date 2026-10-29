@@ -62,8 +62,8 @@ function deviceOf(
 
 /**
  * What a closed app is told of an item (docs/ADR/0035 §11), never what it says: a text or a photo,
- * a story, a screenshot of one's photo. Taking an item back, opening a story or reacting tells
- * nobody.
+ * a story, a screenshot of one's photo, "Yakındayım" (docs/ADR/0037 §5). Taking an item back,
+ * opening a story or reacting tells nobody.
  */
 export function pushOf(payload: ChatPayload, circleId: string | undefined): PushBody | null {
   switch (payload.kind) {
@@ -80,6 +80,8 @@ export function pushOf(payload: ChatPayload, circleId: string | undefined): Push
       };
     case 'shot':
       return { kind: 'shot', ts: payload.ts };
+    case 'near':
+      return { kind: 'near', ...(circleId === undefined ? {} : { circleId }), ts: payload.ts };
     case 'del':
     case 'view':
     case 'react':
@@ -156,6 +158,7 @@ function payloadOf(item: ChatItem): ChatPayload | null {
   if (item.kind === 'photo' && item.photo !== undefined) {
     return { kind: 'photo', id: item.id, ...item.photo, ts: item.at };
   }
+  if (item.kind === 'near') return { kind: 'near', id: item.id, ts: item.at };
   return null;
 }
 
@@ -225,6 +228,23 @@ export function sendText(
     text,
     state: 'sending',
     ...(replyTo === undefined ? {} : { replyTo }),
+  });
+}
+
+/**
+ * "Yakındayım, gelir misin?" (docs/ADR/0037): an item with nothing in it but when; how far is
+ * worked out by the phones it reaches. Where it may go is near.ts nearTargets.
+ */
+export function sendNear(conversation: Conversation): Promise<SendResult> {
+  const me = useAuth.getState().userId;
+  if (me === null) return Promise.resolve('failed');
+  return sendItem({
+    id: randomUuid(),
+    conversation,
+    from: me,
+    at: Date.now(),
+    kind: 'near',
+    state: 'sending',
   });
 }
 

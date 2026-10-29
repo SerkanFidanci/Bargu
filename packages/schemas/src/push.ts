@@ -157,6 +157,9 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
   // A story: "Ayşe bir hikaye paylaştı". To a circle, or to a friend alone (a friendship talks as
   // the two people, docs/ADR/0035 §1), then without a circle.
   z.object({ kind: z.literal('moment'), circleId: z.uuid().optional(), ts: timestamp }).strict(),
+  // "Yakındayım, gelir misin?" (docs/ADR/0037): to a circle, or to a friend alone (then without a
+  // circle). The receiving phone writes it, with how far from what it already has.
+  z.object({ kind: z.literal('near'), circleId: z.uuid().optional(), ts: timestamp }).strict(),
   // Someone took a screenshot of this phone's photo (Android 14+, §12); sealed to its sender only.
   z.object({ kind: z.literal('shot'), ts: timestamp }).strict(),
   z

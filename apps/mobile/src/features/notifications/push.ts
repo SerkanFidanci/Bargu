@@ -17,6 +17,8 @@ import {
   SOCIAL_CHANNEL,
   ACCOUNT_CHANNEL,
   SAFE_QUIET_CHANNEL,
+  NEAR_REPLIES,
+  type NearReply,
 } from './channels';
 
 /**
@@ -141,6 +143,23 @@ export function routeOfResponse(
   // The trial's reminder (features/billing/trial-reminder.ts): Bargu+ is a shelf of the store.
   if (route === 'plus') return '/store?shelf=plus';
   return null;
+}
+
+/**
+ * "Geliyorum" or "Şimdi olmaz" under a "Yakındayım" (docs/ADR/0037): which, and the conversation it
+ * answers. A tap on the notification itself is none of them.
+ */
+export function nearReplyOfResponse(
+  response: Notifications.NotificationResponse,
+): { reply: NearReply; conversation: `c:${string}` | `p:${string}` } | null {
+  const reply = NEAR_REPLIES.find((candidate) => candidate === response.actionIdentifier);
+  if (reply === undefined) return null;
+  const route = routeOfResponse(response);
+  if (!route?.startsWith('/messages/')) return null;
+  const conversation = route.slice('/messages/'.length);
+  return conversation.startsWith('c:') || conversation.startsWith('p:')
+    ? { reply, conversation: conversation as `c:${string}` | `p:${string}` }
+    : null;
 }
 
 /**

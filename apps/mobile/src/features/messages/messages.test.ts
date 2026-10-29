@@ -217,6 +217,20 @@ describe('what an opened item does', () => {
     expect(state.seen[id]).toBe(NOW);
   });
 
+  it('adds "Yakındayım" with nothing in it but who and when (docs/ADR/0037)', () => {
+    const id = randomUuid();
+    const state = applyPayload(
+      EMPTY_MESSAGES,
+      { kind: 'near', id, ts: NOW },
+      ALI,
+      group,
+      undefined,
+    );
+    expect(state.items).toEqual([
+      { id, conversation: group, from: ALI, at: NOW, kind: 'near', state: 'sent' },
+    ]);
+  });
+
   it('adds a photo with its key and caption', () => {
     const id = randomUuid();
     const blobId = randomUuid();

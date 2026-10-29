@@ -215,7 +215,10 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
   // a notification got here (docs/ADR/0035 §6, QA-38 O1).
   if (
     shown.fromUserId !== null &&
-    (body.kind === 'chat' || body.kind === 'moment' || body.kind === 'shot') &&
+    (body.kind === 'chat' ||
+      body.kind === 'moment' ||
+      body.kind === 'shot' ||
+      body.kind === 'near') &&
     loadBlocked(store).includes(shown.fromUserId)
   ) {
     return 'muted';
@@ -237,11 +240,15 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
               body.kind === 'meetingAnswer' ||
               body.kind === 'meetingMoved'
                 ? 'late'
-                : body.kind === 'chat' || body.kind === 'moment' || body.kind === 'shot'
+                : body.kind === 'chat' ||
+                    body.kind === 'moment' ||
+                    body.kind === 'shot' ||
+                    body.kind === 'near'
                   ? 'message'
                   : 'bump',
-            // A circle's conversation can be muted as a whole (QA-39).
-            ...((body.kind === 'chat' || body.kind === 'moment') && body.circleId !== undefined
+            // A circle's conversation can be muted as a whole (QA-39), "Yakındayım" with it.
+            ...((body.kind === 'chat' || body.kind === 'moment' || body.kind === 'near') &&
+            body.circleId !== undefined
               ? { circleId: body.circleId }
               : {}),
           },
@@ -271,6 +278,7 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
     content: {
       title: shown.title,
       body: shown.body,
+      ...(shown.category === undefined ? {} : { categoryIdentifier: shown.category }),
       // The data names the message, never the place: that stays in the vault, not in the
       // system's notification store.
       data:

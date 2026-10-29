@@ -46,7 +46,8 @@ const itemSchema = z
     from: z.uuid(),
     /** When it was sent (the sender's clock, checked within 24 hours and 5 minutes on arrival). */
     at: z.number(),
-    kind: z.enum(['text', 'photo']),
+    /** `near`: "Yakındayım, gelir misin?" (docs/ADR/0037), with nothing in it but when. */
+    kind: z.enum(['text', 'photo', 'near']),
     text: z.string().optional(),
     replyTo: z.uuid().optional(),
     photo: chatPhotoSchema.omit({ kind: true, id: true, ts: true }).optional(),
@@ -286,23 +287,25 @@ export function applyPayload<T extends Saved>(
     kind: payload.kind,
     state: 'sent',
     ...(envelope === undefined ? {} : { envelope }),
-    ...(payload.kind === 'text'
-      ? {
-          text: payload.text,
-          ...(payload.replyTo === undefined ? {} : { replyTo: payload.replyTo }),
-        }
-      : {
-          photo: {
-            blobId: payload.blobId,
-            key: payload.key,
-            size: payload.size,
-            hash: payload.hash,
-            w: payload.w,
-            h: payload.h,
-            story: payload.story,
-            ...(payload.caption === undefined ? {} : { caption: payload.caption }),
-          },
-        }),
+    ...(payload.kind === 'near'
+      ? {}
+      : payload.kind === 'text'
+        ? {
+            text: payload.text,
+            ...(payload.replyTo === undefined ? {} : { replyTo: payload.replyTo }),
+          }
+        : {
+            photo: {
+              blobId: payload.blobId,
+              key: payload.key,
+              size: payload.size,
+              hash: payload.hash,
+              w: payload.w,
+              h: payload.h,
+              story: payload.story,
+              ...(payload.caption === undefined ? {} : { caption: payload.caption }),
+            },
+          }),
   };
   return { ...withItem(saved, item), seen };
 }

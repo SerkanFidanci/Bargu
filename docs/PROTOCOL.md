@@ -287,8 +287,12 @@ dosya      = head ‖ ChaCha20-Poly1305(blobKey, nonce, aad = "bargu/v1/blob\0" 
   `view` (`id, target, ts`; `view` hikayeyi açanın gönderene haberi, ADR 0035 Ek 1; gönderen onu
   yalnız o öğeyi gönderdiği kişilerden kabul eder) ve `react` (`id, target, emoji | null, ts`;
   altı tepkiden biri ya da geri alma, ADR 0035 Ek 2; mesaja verilen tepki yalnız mesajın sohbetinden,
-  hikayeye verilen yalnız hikayenin gönderildiği kişiden sayılır). İçerikteki `id` başlıktaki `id`
-  olmalıdır.
+  hikayeye verilen yalnız hikayenin gönderildiği kişiden sayılır) ve `near` (`id, ts`; "Yakındayım,
+  gelir misin?", ADR 0037: içinde yer ya da mesafe yoktur; mesafeyi alan telefon, göndericinin o
+  çemberde zaten paylaştığı son konumdan ve kendi konumundan hesaplar, 50 m'ye yuvarlar; konum kaba
+  hücreden geldiyse yalnız "yakınlarda" der). İçerikteki `id` başlıktaki `id` olmalıdır. Bildirim
+  gövdesi `near` (`circleId?, ts`) yalnız kimden geldiğini söyler; "Geliyorum" ve "Şimdi olmaz"
+  düğmeleri sıradan `text` öğesi gönderir.
 - **Anahtar bağlılığı (`commit`):** ChaCha20-Poly1305 bir şifreli metni tek bir anahtara bağlamaz;
   imzanın kapsadığı bu özet bağlar. Anahtar bağlılığı içermeyen temel başlıktan türetilir (yoksa
   döngü olurdu). Alıcı çözmeden önce denetler; uymayan öğe gösterilmez. Bildirimde (`revealChatItem`,

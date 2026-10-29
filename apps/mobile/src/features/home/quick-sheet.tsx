@@ -1,4 +1,4 @@
-import { Camera, Flag, type LucideIcon, ShieldCheck, UserPlus } from 'lucide-react-native';
+import { Camera, Flag, type LucideIcon, MapPin, ShieldCheck, UserPlus } from 'lucide-react-native';
 import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -14,16 +14,21 @@ export interface QuickSheetProps {
   onAddFriend: () => void;
   onMeeting: () => void;
   onSafe: () => void;
+  /** "Yakındayım" (docs/ADR/0037): its sheet says where it can go, or why nowhere now. */
+  onNear: () => void;
+  /** Somewhere it can go now; otherwise its tile is faint. */
+  nearReady: boolean;
   onDismiss: () => void;
 }
 
 /**
  * The "+" in the middle of the dock (the PM's product report T2, 2026-10-29: "Ortadaki en büyük
- * düğme en sık işi açmalı"): four quick things, each one tap: a photo now, a friend, a meeting,
- * "Güvendeyim". Adding a friend opens its own sheet (a username, a QR code, a link, a new circle).
+ * düğme en sık işi açmalı"): quick things, each one tap: a photo now, a friend, a meeting,
+ * "Güvendeyim", and "Yakındayım" (docs/ADR/0037 §6). Adding a friend opens its own sheet (a
+ * username, a QR code, a link, a new circle).
  */
 export const QuickSheet = forwardRef<SheetRef, QuickSheetProps>(function QuickSheet(
-  { onPhoto, onAddFriend, onMeeting, onSafe, onDismiss },
+  { onPhoto, onAddFriend, onMeeting, onSafe, onNear, nearReady, onDismiss },
   ref,
 ) {
   const { t } = useTranslation();
@@ -33,6 +38,7 @@ export const QuickSheet = forwardRef<SheetRef, QuickSheetProps>(function QuickSh
     label: string;
     hint: string;
     onPress: () => void;
+    faint?: boolean;
   }[] = [
     {
       key: 'photo',
@@ -62,6 +68,14 @@ export const QuickSheet = forwardRef<SheetRef, QuickSheetProps>(function QuickSh
       hint: t('main.quick.safeHint'),
       onPress: onSafe,
     },
+    {
+      key: 'near',
+      icon: MapPin,
+      label: t('main.quick.near'),
+      hint: nearReady ? t('main.quick.nearHint') : t('main.quick.nearOff'),
+      onPress: onNear,
+      faint: !nearReady,
+    },
   ];
   return (
     <Sheet ref={ref} title={t('main.quick.title')} testID="quick-sheet" onDismiss={onDismiss}>
@@ -74,6 +88,7 @@ export const QuickSheet = forwardRef<SheetRef, QuickSheetProps>(function QuickSh
               label={action.label}
               hint={action.hint}
               onPress={action.onPress}
+              faint={action.faint === true}
             />
           </Appear>
         ))}
@@ -88,12 +103,15 @@ function Tile({
   label,
   hint,
   onPress,
+  faint,
 }: {
   testID: string;
   icon: LucideIcon;
   label: string;
   hint: string;
   onPress: () => void;
+  /** Nothing to do with it now: faint, still a tap away from why. */
+  faint: boolean;
 }) {
   const { colors } = useTheme();
   return (
@@ -104,7 +122,7 @@ function Tile({
       accessibilityLabel={label}
       accessibilityHint={hint}
       onPress={onPress}
-      style={[styles.tile, { backgroundColor: colors.surface }]}
+      style={[styles.tile, { backgroundColor: colors.surface }, faint ? styles.faint : null]}
     >
       <View style={[styles.icon, { backgroundColor: colors.primarySoft }]}>
         <Icon color={colors.primary} size={26} strokeWidth={2.25} />
@@ -127,6 +145,7 @@ const styles = StyleSheet.create({
     padding: space.md,
     borderRadius: radius.lg,
   },
+  faint: { opacity: 0.5 },
   icon: {
     width: touchTarget,
     height: touchTarget,

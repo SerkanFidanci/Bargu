@@ -117,6 +117,12 @@ describe('what a closed app is told of an item', () => {
       ),
     ).toBeNull();
   });
+
+  it('"Yakındayım" as itself, to a circle or a friend alone, with nothing of where (ADR 0037)', () => {
+    const near = { kind: 'near' as const, id: randomUuid(), ts: NOW };
+    expect(pushOf(near, circleId)).toEqual({ kind: 'near', circleId, ts: NOW });
+    expect(pushOf(near, undefined)).toEqual({ kind: 'near', ts: NOW });
+  });
 });
 
 describe('where a story goes (QA-38 Y1)', () => {

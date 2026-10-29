@@ -14,3 +14,11 @@ export const SAFE_QUIET_CHANNEL = 'safe-quiet';
 export const PRIVACY_CHANNEL = 'privacy';
 /** The account's plan: the trial about to end (docs/ADR/0024 §4). */
 export const ACCOUNT_CHANNEL = 'account';
+
+/**
+ * Notification buttons (categories): "Yakındayım" comes with "Geliyorum" and "Şimdi olmaz"
+ * (docs/ADR/0037, the PM's decision 4). Each sends a plain text message.
+ */
+export const NEAR_CATEGORY = 'near';
+export const NEAR_REPLIES = ['coming', 'notNow'] as const;
+export type NearReply = (typeof NEAR_REPLIES)[number];

@@ -65,6 +65,15 @@ Açık işler:
   yok (şifreli öğe).
 - QA-39 bulguları gelince düzeltilir.
 
+## Faz 9C — Paket B (sürüyor)
+
+Sıra PM'den: QA-40 ve düşük bulgular, Ö8, Ö6; APK en sonda (sahip: "apk yı en son çık").
+
+| Madde         | Ne yapıldı                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| QA-40         | Kişi kartında Bildir ve Engelle (etkinlikte tanışılan kişi için de), düşük bulgular (`c2a7e5c`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Ö8 Yakındayım | + menüsünde beşinci iş. Yalnız arkadaşlıklara ve en çok 8 kişilik kalıcı çemberlere, konumun o an gerçekten gidiyorsa (hayalet, kapalı ya da süresi biten paylaşım, duraklayan çember olmaz). Aynı yere 10 dk'da bir. Tek yer uygunsa seçili gelir, birden çoksa kullanıcı seçer. Şifreli `near` öğesi: içinde yer ya da mesafe yok; alan telefon mesafeyi zaten gördüğü konumdan 50 m'ye yuvarlayıp yazar, kaba konumda ya da eski konumda yalnız "Yakınlarda". Bildirimde ve sohbette "Geliyorum" / "Şimdi olmaz" (sıradan yazı mesajı), kalp de durur. Kişi ya da çember sessizse susar, engelliden gelmez. ADR 0037 |
+
 ## Ortamlar
 
 | Ne                      | Nerede                                                                                                                                                                                                                                                                                                                                                                               |

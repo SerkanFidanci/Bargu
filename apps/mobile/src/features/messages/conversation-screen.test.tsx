@@ -84,6 +84,8 @@ jest.mock('@/features/messages/rules', () => ({
 import MessagesScreen from '@/app/(app)/messages';
 import ConversationScreen from '@/app/(app)/messages/[conversation]';
 import { useAuth } from '@/features/auth/auth-store';
+import { useMyFix } from '@/features/location/engine';
+import { useLocations } from '@/features/location/receive';
 import { useMutes } from '@/features/notifications/mutes';
 import { type ChatItem, EMPTY_MESSAGES, useMessages, withItem } from '@/features/messages/messages';
 
@@ -313,6 +315,80 @@ describe('a conversation', () => {
     await render(<ConversationScreen />);
     expect(screen.queryByTestId('conversation-input')).toBeNull();
     expect(screen.getByText('Bu sohbet artık açık değil: ortak çemberiniz kalmadı.')).toBeTruthy();
+  });
+});
+
+describe('"Yakındayım" in a conversation (docs/ADR/0037)', () => {
+  const NEAR = '0190f7a4-3333-7333-8333-000000000009';
+  // Ali about 350 m north of this phone, both fresh.
+  const here = (acc: number, ts = Date.now()) => {
+    useMyFix.setState({
+      fix: { lat: 41.0, lng: 29.0, acc: 5, ts, spd: 0, hdg: null },
+      since: null,
+    });
+    useLocations.setState(
+      {
+        [`${CIRCLE}:${ALI}`]: {
+          circleId: CIRCLE,
+          userId: ALI,
+          loc: { kind: 'loc', lat: 41.00315, lng: 29.0, acc, bat: 60, chg: false, ts },
+          receivedAt: ts,
+        },
+      },
+      true,
+    );
+  };
+  const near = (from: string, at: number) =>
+    ({ id: NEAR, conversation: `c:${CIRCLE}`, from, at, kind: 'near', state: 'sent' }) as ChatItem;
+  const withNear = (from: string, extra: ChatItem[] = []) => {
+    useMessages.setState(
+      [near(from, NOW), ...extra].reduce((state, next) => withItem(state, next), {
+        ...EMPTY_MESSAGES,
+        loaded: true,
+      }),
+      true,
+    );
+  };
+  afterEach(() => {
+    useLocations.setState({}, true);
+    useMyFix.setState({ fix: null, since: null });
+  });
+
+  it('shows how far they are, to 50 m, worked out here, and answers with a plain text', async () => {
+    here(8);
+    withNear(ALI);
+    await render(<ConversationScreen />);
+    expect(await screen.findByText('Yakındayım, gelir misin?')).toBeTruthy();
+    expect(screen.getByTestId(`near-far-${NEAR}`)).toHaveTextContent('Yaklaşık 350 m uzakta');
+    await fireEvent.press(screen.getByTestId(`near-coming-${NEAR}`));
+    expect(mockSendText).toHaveBeenCalledWith(`c:${CIRCLE}`, 'Geliyorum');
+    await fireEvent.press(screen.getByTestId(`near-notNow-${NEAR}`));
+    expect(mockSendText).toHaveBeenLastCalledWith(`c:${CIRCLE}`, 'Şimdi olmaz');
+  });
+
+  it('says only "Yakınlarda" for a coarse or old location', async () => {
+    here(708);
+    withNear(ALI);
+    const view = await render(<ConversationScreen />);
+    expect(await screen.findByTestId(`near-far-${NEAR}`)).toHaveTextContent('Yakınlarda');
+    await view.unmount();
+    here(8, Date.now() - 3 * 60_000);
+    await render(<ConversationScreen />);
+    expect(await screen.findByTestId(`near-far-${NEAR}`)).toHaveTextContent('Yakınlarda');
+  });
+
+  it("offers no answers once answered, nor under one's own, which says no distance", async () => {
+    here(8);
+    withNear(ALI, [item(ITEM_MINE, ME, 'Geliyorum', NOW + 1000)]);
+    const view = await render(<ConversationScreen />);
+    expect(await screen.findByText('Yakındayım, gelir misin?')).toBeTruthy();
+    expect(screen.queryByTestId(`near-coming-${NEAR}`)).toBeNull();
+    await view.unmount();
+    withNear(ME);
+    await render(<ConversationScreen />);
+    expect(await screen.findByText('Yakındayım, gelir misin?')).toBeTruthy();
+    expect(screen.queryByTestId(`near-far-${NEAR}`)).toBeNull();
+    expect(screen.queryByTestId(`near-coming-${NEAR}`)).toBeNull();
   });
 });
 

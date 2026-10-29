@@ -61,6 +61,15 @@ describe('items of messages and moments (docs/ADR/0035 §5)', () => {
     expect(chatPayloadSchema.safeParse({ kind: 'loc', id, ts }).success).toBe(false);
   });
 
+  it('takes a nearby invite with nothing in it but when (ADR 0037)', () => {
+    expect(chatPayloadSchema.safeParse({ kind: 'near', id, ts }).success).toBe(true);
+    // No place or distance can ride along.
+    expect(chatPayloadSchema.safeParse({ kind: 'near', id, ts, lat: 41, lng: 29 }).success).toBe(
+      false,
+    );
+    expect(chatPayloadSchema.safeParse({ kind: 'near', id, ts, meters: 300 }).success).toBe(false);
+  });
+
   it('takes one of six reactions, or none to take it back, and nothing else (Ek 2)', () => {
     expect(CHAT_REACTIONS).toHaveLength(6);
     for (const emoji of [...CHAT_REACTIONS, null]) {

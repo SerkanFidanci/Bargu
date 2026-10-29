@@ -146,7 +146,10 @@
       "meeting": "Buluşma",
       "meetingHint": "Bir çemberde buluşma yeri ve saati öner",
       "safe": "Güvendeyim",
-      "safeHint": "Seçtiğin çemberlere iyi olduğunu söyle"
+      "safeHint": "Seçtiğin çemberlere iyi olduğunu söyle",
+      "near": "Yakındayım",
+      "nearHint": "Gelir misin diye haber ver",
+      "nearOff": "Şu an gönderilemez, nedenini görmek için dokun"
     },
     "cardsWaiting": "{{count}} kart daha sırada",
     "invite": {
@@ -587,7 +590,11 @@
       "photoAlone": "Fotoğraf gönderdi"
     },
     "moment": "{{name}} bir hikaye paylaştı",
-    "shot": "{{name}} fotoğrafının ekran görüntüsünü aldı"
+    "shot": "{{name}} fotoğrafının ekran görüntüsünü aldı",
+    "near": {
+      "alone": "Yakında, gelir misin?",
+      "inCircle": "{{name}}: yakında, gelir misin?"
+    }
   },
   "location": {
     "service": {
@@ -1612,7 +1619,14 @@
     "circleOpen": "Çemberi aç",
     "circleMute": "Sessize al",
     "circleUnmute": "Sesini aç",
-    "circleMuteNote": "Bu çemberin mesaj ve hikaye bildirimleri susar. Mesajlar yine gelir."
+    "circleMuteNote": "Bu çemberin mesaj ve hikaye bildirimleri susar. Mesajlar yine gelir.",
+    "near": {
+      "said": "Yakındayım, gelir misin?",
+      "distance": "Yaklaşık {{distance}} uzakta",
+      "nearby": "Yakınlarda",
+      "coming": "Geliyorum",
+      "notNow": "Şimdi olmaz"
+    }
   },
   "tips": {
     "ok": "Tamam",
@@ -1645,5 +1659,18 @@
       "count": "{{count}}/{{max}}",
       "more": "Daha uzun yazmak istersen e-posta açıldığında oraya ekleyebilirsin."
     }
+  },
+  "near": {
+    "title": "Yakındayım",
+    "intro": "Seçtiğin yere \"Yakındayım, gelir misin?\" der. Konumun ayrıca gitmez: ne kadar uzakta olduğunu onların telefonu, zaten paylaştığın konumdan hesaplar.",
+    "ghost": "Hayalet modundayken gönderilemez.",
+    "none": "Konumunu şu an paylaştığın bir arkadaşın ya da en çok 8 kişilik bir çemberin yok.",
+    "wait": "{{minutes}} dk sonra tekrar",
+    "send": "Haber ver",
+    "sendCount": "Haber ver ({{count}})",
+    "sent": "Haber verildi: {{name}}",
+    "sentMore": "Haber verildi: {{name}} ve {{count}} kişi",
+    "failed": "Gönderilemedi, biraz sonra tekrar dene.",
+    "limited": "Şimdilik çok fazla gönderdin, biraz sonra tekrar dene."
   }
 }

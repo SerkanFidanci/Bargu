@@ -119,6 +119,25 @@ describe('notification texts', () => {
     ).toBeNull();
   });
 
+  it('word "Yakındayım" by who, never how far, with its two answers (docs/ADR/0037 §5)', () => {
+    expect(
+      pushText({ kind: 'near', circleId: circle.id, ts: 5 }, ada.device.deviceId, contacts),
+    ).toMatchObject({
+      title: 'Aile',
+      body: 'Test: yakında, gelir misin?',
+      channel: 'social',
+      route: 'messages',
+      conversation: `c:${circle.id}`,
+      category: 'near',
+    });
+    expect(pushText({ kind: 'near', ts: 5 }, ada.device.deviceId, contacts)).toMatchObject({
+      title: 'Test',
+      body: 'Yakında, gelir misin?',
+      conversation: `p:${ada.userId}`,
+      category: 'near',
+    });
+  });
+
   it('word a story and a screenshot of this phone photo by who, and open the messages', () => {
     expect(
       pushText({ kind: 'moment', circleId: circle.id, ts: 5 }, ada.device.deviceId, contacts),

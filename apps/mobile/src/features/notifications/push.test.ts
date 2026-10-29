@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { enablePush, routeOfResponse, usePushState } from './push';
+import { enablePush, nearReplyOfResponse, routeOfResponse, usePushState } from './push';
 
 interface Permission {
   granted: boolean;
@@ -114,5 +114,25 @@ describe('routeOfResponse', () => {
     expect(tapped({ route: 'messages' })).toBe('/messages');
     expect(tapped({ route: 'guardians' })).toBe('/guardians');
     expect(tapped({ route: 'elsewhere' })).toBeNull();
+  });
+
+  it('tells "Geliyorum" and "Şimdi olmaz" from a tap, and their conversation (ADR 0037)', () => {
+    const conversation = 'p:0190f7a4-2222-7222-8222-000000000001';
+    const answered = (actionIdentifier: string, data: Record<string, unknown>) =>
+      nearReplyOfResponse({
+        actionIdentifier,
+        notification: { request: { content: { data } } },
+      } as unknown as Notifications.NotificationResponse);
+    expect(answered('coming', { route: 'messages', conversation })).toEqual({
+      reply: 'coming',
+      conversation,
+    });
+    expect(answered('notNow', { route: 'messages', conversation })?.reply).toBe('notNow');
+    expect(
+      answered('expo.modules.notifications.actions.DEFAULT', { route: 'messages', conversation }),
+    ).toBeNull();
+    // No conversation of its own: nothing to answer.
+    expect(answered('coming', { route: 'messages' })).toBeNull();
+    expect(answered('coming', { route: 'messages', conversation: '../store' })).toBeNull();
   });
 });

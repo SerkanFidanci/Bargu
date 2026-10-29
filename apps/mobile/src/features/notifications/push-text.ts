@@ -6,7 +6,7 @@ import type { SeenThere } from '../location/sharing';
 import { safeWords } from '../social/safe';
 import type { SafeSpot } from '../social/safe-spot';
 
-import { MEETINGS_CHANNEL, PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
+import { MEETINGS_CHANNEL, NEAR_CATEGORY, PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
 import type { PushContacts } from './push-contacts';
 
 export interface ShownPush {
@@ -30,6 +30,8 @@ export interface ShownPush {
   spot?: SafeSpot;
   /** A poke with a feeling or a question (docs/ADR/0031): tapping plays it on screen. */
   poke?: { style: PokeStyle; say?: PokeSaying | undefined; ts: number };
+  /** Buttons under it: "Geliyorum" and "Şimdi olmaz" for "Yakındayım" (docs/ADR/0037). */
+  category?: typeof NEAR_CATEGORY;
 }
 
 const GUARDIAN_NOTICES: ReadonlySet<string> = new Set([
@@ -133,6 +135,24 @@ export function pushText(
       fromUserId: sender.userId,
       route: 'messages',
       conversation: body.circleId === undefined ? `p:${sender.userId}` : `c:${body.circleId}`,
+    };
+  }
+  if (body.kind === 'near') {
+    // "Ali: yakında, gelir misin?" (docs/ADR/0037 §5), under the circle's name; never how far (the
+    // conversation works that out when opened), with the two quick answers.
+    const circle = body.circleId === undefined ? undefined : contacts.circles[body.circleId]?.name;
+    return {
+      title: circle ?? sender.name,
+      body:
+        circle === undefined
+          ? i18n.t('notifications.near.alone')
+          : i18n.t('notifications.near.inCircle', { name: sender.name }),
+      circleId: body.circleId ?? '',
+      channel: SOCIAL_CHANNEL,
+      fromUserId: sender.userId,
+      route: 'messages',
+      conversation: body.circleId === undefined ? `p:${sender.userId}` : `c:${body.circleId}`,
+      category: NEAR_CATEGORY,
     };
   }
   if (body.kind === 'moment' || body.kind === 'shot') {

@@ -89,6 +89,18 @@ describe('push bodies', () => {
     }
   });
 
+  it('has "Yakındayım" with a circle or none, and nothing of where (docs/ADR/0037 §5)', () => {
+    for (const body of [
+      { kind: 'near', circleId: uuid, ts: 1 },
+      { kind: 'near', ts: 1 },
+    ]) {
+      expect(pushBodySchema.parse(body)).toEqual(body);
+    }
+    for (const extra of [{ lat: 41 }, { meters: 300 }, { name: 'Ali' }]) {
+      expect(pushBodySchema.safeParse({ kind: 'near', ts: 1, ...extra }).success).toBe(false);
+    }
+  });
+
   it('has a watch notice that names the circle and nobody else (docs/ADR/0028 step 3)', () => {
     const body = { kind: 'notice', notice: 'watch', circleId: uuid, ts: 1 };
     expect(pushBodySchema.parse(body)).toEqual(body);

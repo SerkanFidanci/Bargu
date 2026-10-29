@@ -428,6 +428,7 @@ describe('Güvendeyim from a member (docs/ADR/0029)', () => {
     expect(await showPush(fromAyse(chat), NOW)).toBe('muted');
     expect(await showPush(fromAyse({ kind: 'moment', circleId, ts: NOW }), NOW)).toBe('muted');
     expect(await showPush(fromAyse({ kind: 'shot', ts: NOW }), NOW)).toBe('muted');
+    expect(await showPush(fromAyse({ kind: 'near', circleId, ts: NOW }), NOW)).toBe('muted');
     // Her "I'm safe" is not a message: it still shows.
     expect(await showPush(fromAyse(safe()), NOW)).toBe('shown');
     saveBlocked(mockStore, []);
@@ -438,9 +439,31 @@ describe('Güvendeyim from a member (docs/ADR/0029)', () => {
     const chat: PushBody = { kind: 'chat', circleId, photo: false, ts: NOW };
     expect(await showPush(fromAyse(chat), NOW)).toBe('muted');
     expect(await showPush(fromAyse({ kind: 'moment', circleId, ts: NOW }), NOW)).toBe('muted');
+    expect(await showPush(fromAyse({ kind: 'near', circleId, ts: NOW }), NOW)).toBe('muted');
     // Written to alone, not in the circle: still heard. So is her "I'm safe".
     expect(await showPush(fromAyse({ kind: 'chat', photo: false, ts: NOW }), NOW)).toBe('shown');
     expect(await showPush(fromAyse(safe()), NOW)).toBe('shown');
+    saveMutes(mockStore, { people: {}, places: {} });
+  });
+
+  it('"Yakındayım" comes with its two answers, and is muted with her messages (ADR 0037 §5)', async () => {
+    expect(await showPush(fromAyse({ kind: 'near', circleId, ts: NOW }), NOW)).toBe('shown');
+    expect(scheduled).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        identifier: `chat:c:${circleId}`,
+        content: expect.objectContaining({
+          body: 'Ayşe: yakında, gelir misin?',
+          categoryIdentifier: 'near',
+        }) as unknown,
+      }),
+    );
+    // Nothing of where: no place, no distance in what the system keeps.
+    expect(JSON.stringify(scheduled.mock.calls.at(-1))).not.toMatch(/lat|lng|\d+ m\b/);
+    saveMutes(mockStore, {
+      people: { [ayseUserId]: { places: false, pokes: false, messages: true } },
+      places: {},
+    });
+    expect(await showPush(fromAyse({ kind: 'near', circleId, ts: NOW + 1 }), NOW)).toBe('muted');
     saveMutes(mockStore, { people: {}, places: {} });
   });
 

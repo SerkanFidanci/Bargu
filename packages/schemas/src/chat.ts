@@ -141,6 +141,15 @@ export const chatReactSchema = z
   })
   .strict();
 
+/**
+ * "Yakındayım, gelir misin?" (docs/ADR/0037): no place, no distance, nothing but that it was said;
+ * the receiving phone works out how far from the location it already has. An older app does not
+ * know the kind and drops it whole.
+ */
+export const chatNearSchema = z
+  .object({ kind: z.literal('near'), id: itemId, ts: timestamp })
+  .strict();
+
 export const chatPayloadSchema = z.discriminatedUnion('kind', [
   chatTextSchema,
   chatPhotoSchema,
@@ -148,6 +157,7 @@ export const chatPayloadSchema = z.discriminatedUnion('kind', [
   chatShotSchema,
   chatViewSchema,
   chatReactSchema,
+  chatNearSchema,
 ]);
 export type ChatPayload = z.infer<typeof chatPayloadSchema>;
 export type ChatPhoto = z.infer<typeof chatPhotoSchema>;

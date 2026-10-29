@@ -1,6 +1,6 @@
 # 0037. "Yakındayım, gelir misin?": tek dokunuşluk davet, koordinatsız
 
-- Durum: Kabul edildi (PM, 2026-10-29); önerildi (kodlama oturumu, 2026-10-29)
+- Durum: Kabul edildi (PM, 2026-10-29); önerildi (kodlama oturumu, 2026-10-29); uygulandı (paket B)
 - Tarih: 2026-10-29
 - İlgili: [ADR 0035](0035-messages-and-moments.md) (şifreli öğeler, bildirimin içeriği taşımaması),
   [ADR 0026](0026-meetings-in-any-circle.md) (buluşma, varış tahmini), [ADR 0023](0023-age-15-plus.md)

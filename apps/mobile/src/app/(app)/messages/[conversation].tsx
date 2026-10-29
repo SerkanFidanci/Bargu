@@ -48,6 +48,7 @@ import { loadMuteSettings, updateMutes } from '@/features/notifications/mute-ses
 import { circleMuted, useMutes, withCircleMuted } from '@/features/notifications/mutes';
 import { conversationName, isOpen, memberIn } from '@/features/messages/names';
 import { ItemSheet } from '@/features/messages/item-sheet';
+import { NearBody, NearReplies } from '@/features/messages/near-item';
 import { react, retry, sendText, takeBack } from '@/features/messages/outbox';
 import { useRulesGate } from '@/features/messages/rules';
 import { canResend } from '@/features/messages/photo';
@@ -344,6 +345,12 @@ export default function ConversationScreen() {
             }
             renderItem={({ item, index }) => {
               const mine = item.from === me;
+              // Someone's "Yakındayım" not answered yet: two ready answers under it (ADR 0037).
+              const answerable =
+                open &&
+                !mine &&
+                item.kind === 'near' &&
+                !shown.slice(0, index).some((newer) => newer.from === me);
               const place = placeIn(item, shown[index + 1], shown[index - 1]);
               const author = memberIn(circles, item.from);
               return (
@@ -387,6 +394,17 @@ export default function ConversationScreen() {
                     onReact={(emoji) => {
                       reactTo(item, emoji);
                     }}
+                    onNearReply={
+                      answerable
+                        ? (words) => {
+                            rules.ensure(() => {
+                              void sendText(conversation, words).then((result) => {
+                                if (result === 'limited') toast.info(t('messages.limited'));
+                              });
+                            });
+                          }
+                        : undefined
+                    }
                     nameOf={(userId) => (userId === me ? t('messages.you') : memberNameOf(userId))}
                   />
                 </View>
@@ -561,6 +579,7 @@ function Bubble({
   onRetake,
   onLongPress,
   onReact,
+  onNearReply,
   nameOf,
 }: {
   item: ChatItem;
@@ -579,6 +598,8 @@ function Bubble({
   onLongPress: () => void;
   /** This user's reaction, or none any more (docs/ADR/0035 Ek 2). */
   onReact: (emoji: ChatReaction | null) => void;
+  /** Someone's "Yakındayım" to answer: "Geliyorum" or "Şimdi olmaz" (docs/ADR/0037). */
+  onNearReply?: ((words: string) => void) | undefined;
   nameOf: (userId: string) => string;
 }) {
   const { t } = useTranslation();
@@ -718,6 +739,8 @@ function Bubble({
                 ) : null}
               </View>
             </View>
+          ) : item.kind === 'near' ? (
+            <NearBody item={item} mine={mine} />
           ) : (
             <Text variant="body" color={ink} selectable>
               {item.text ?? ''}
@@ -742,6 +765,7 @@ function Bubble({
             </Text>
           </View>
         )}
+        {onNearReply === undefined ? null : <NearReplies itemId={item.id} onReply={onNearReply} />}
         {meta === null ? null : (
           <Text variant="caption" color={failed ? 'danger' : 'textMuted'} style={styles.label}>
             {meta}
