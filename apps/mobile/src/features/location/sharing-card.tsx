@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { CirclePause, Eye, EyeOff, Ghost, History } from 'lucide-react-native';
+import { Eye, EyeOff, History, MapPin, Snowflake } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
@@ -262,7 +262,8 @@ function HistoryControl({
   );
 }
 
-const GHOST_ICONS = { off: Ghost, freeze: CirclePause, hide: EyeOff } as const;
+// The same drawings as on the map's ghost button and its sheet (the PM, 2026-10-29).
+const GHOST_ICONS = { off: MapPin, freeze: Snowflake, hide: EyeOff } as const;
 
 /**
  * Ghost mode for every circle at once (BARGU_PLAN §2): "freeze" leaves the last location where it

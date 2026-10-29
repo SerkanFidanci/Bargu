@@ -112,12 +112,18 @@ describe('the map shortcuts (docs/ADR/0026 §8)', () => {
     expect(screen.getByTestId('shortcut-ghost').props.accessibilityState).toEqual({
       selected: true,
     });
+    // Not by colour alone (the PM, 2026-10-29): a crossed-out eye for "Gizle".
+    expect(screen.getByTestId('ghost-badge-hide', { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.queryByTestId('ghost-badge-freeze', { includeHiddenElements: true })).toBeNull();
     // "Dondur": the last location stays.
     await fireEvent.press(screen.getByTestId('ghost-freeze'));
     expect(useSharing.getState().ghost).toBe('freeze');
     expect(screen.getByTestId('shortcut-ghost').props.accessibilityLabel).toBe(
       'Hayalet modu: Dondur. Değiştirmek için dokun.',
     );
+    // A snowflake for "Dondur".
+    expect(screen.getByTestId('ghost-badge-freeze', { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.queryByTestId('ghost-badge-hide', { includeHiddenElements: true })).toBeNull();
 
     // "Kapalı": asked first, with how many circles get the location again; nothing until "Share".
     await fireEvent.press(screen.getByTestId('ghost-off'));
@@ -132,6 +138,8 @@ describe('the map shortcuts (docs/ADR/0026 §8)', () => {
       buttons.find((button) => button.style !== 'cancel')?.onPress?.();
     });
     expect(useSharing.getState().ghost).toBe('off');
+    // Off: no badge of a ghost at all.
+    expect(screen.queryByTestId(/^ghost-badge-/, { includeHiddenElements: true })).toBeNull();
     alert.mockRestore();
   });
 

@@ -1,6 +1,14 @@
 import type { Circle } from '@bargu/schemas';
 import { router } from 'expo-router';
-import { CircleCheck, Flag, Ghost, LocateFixed, type LucideIcon } from 'lucide-react-native';
+import {
+  CircleCheck,
+  EyeOff,
+  Flag,
+  Ghost,
+  LocateFixed,
+  type LucideIcon,
+  Snowflake,
+} from 'lucide-react-native';
 import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -196,8 +204,14 @@ function RecenterButton({
  * Ghost mode from the map: a tap offers the three choices of Me, "Kapalı / Dondur / Gizle" (the PM
  * report T5, 2026-10-29; GhostSheet). Only the icon on the map (the owner, 2026-10-29: "Hayalet
  * yazmasın sadece iconu gözüksün"). Turned on, the ghost floats a few times, then rests; off, a
- * little "pof". Its state shows in colour, in the button's state and in what a screen reader says.
+ * little "pof". Its state shows in colour, in a badge of its own shape (a snowflake for "Dondur",
+ * a crossed-out eye for "Gizle": the PM, 2026-10-29, not by colour alone, so no one stays hidden
+ * without noticing), in the button's state and in what a screen reader says.
  */
+/** The ghost's badge, and the drawing in it. */
+const MODE_BADGE = space.lg + space.xs;
+const MODE_ICON = space.md;
+
 function GhostButton({
   circles,
   now,
@@ -261,7 +275,24 @@ function GhostButton({
             .join(' ')}
           iconStyle={floating}
           badge={
-            shared ? (
+            on ? (
+              <View
+                testID={`ghost-badge-${mode}`}
+                pointerEvents="none"
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={[
+                  styles.modeBadge,
+                  { backgroundColor: colors.surfaceRaised, borderColor: colors.primary },
+                ]}
+              >
+                {mode === 'freeze' ? (
+                  <Snowflake color={colors.primary} size={MODE_ICON} strokeWidth={2.5} />
+                ) : (
+                  <EyeOff color={colors.primary} size={MODE_ICON} strokeWidth={2.5} />
+                )}
+              </View>
+            ) : shared ? (
               <View
                 testID="ghost-shared-dot"
                 pointerEvents="none"
@@ -432,6 +463,18 @@ const styles = StyleSheet.create({
     height: space.md,
     borderRadius: radius.pill,
     borderWidth: space.xxs,
+  },
+  // Which ghost it is, on the button's upper right corner.
+  modeBadge: {
+    position: 'absolute',
+    top: -space.xxs,
+    right: -space.xxs,
+    width: MODE_BADGE,
+    height: MODE_BADGE,
+    borderRadius: radius.pill,
+    borderWidth: space.xxs / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ring: {
     position: 'absolute',

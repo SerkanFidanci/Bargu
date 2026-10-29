@@ -1,5 +1,5 @@
 import type { Circle } from '@bargu/schemas';
-import { Check, Ghost, MapPin, Snowflake, type LucideIcon } from 'lucide-react-native';
+import { Check, EyeOff, MapPin, Snowflake, type LucideIcon } from 'lucide-react-native';
 import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
@@ -16,7 +16,7 @@ import { type GhostMode, sharedCircles, useSharing } from '../location/sharing';
 const MODES: readonly { mode: GhostMode; icon: LucideIcon }[] = [
   { mode: 'off', icon: MapPin },
   { mode: 'freeze', icon: Snowflake },
-  { mode: 'hide', icon: Ghost },
+  { mode: 'hide', icon: EyeOff },
 ];
 
 /**
