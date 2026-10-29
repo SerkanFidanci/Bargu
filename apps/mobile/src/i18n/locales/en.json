@@ -717,6 +717,11 @@
       "ended": "Your timed sharing with {{name}} ended. Tap to share an hour more.",
       "endedMine": "Your timed sharing with {{name}} ended",
       "endedTheirs": "Timed sharing with {{name}} ended"
+    },
+    "unreadable": {
+      "title": "Your sharing settings couldn't be read",
+      "body": "To be safe, your location isn't going to anyone for now. Check who should see it and turn it back on.",
+      "check": "Check"
     }
   },
   "map": {

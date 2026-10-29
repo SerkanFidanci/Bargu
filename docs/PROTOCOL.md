@@ -213,9 +213,10 @@ sessizce atar (`packages/crypto/test/legacy-app.spec.ts`). Neden başlayınca ya
 5 dakikada bir ve bitince (`none`) gönderilir; hayalette, kaba ve tam hassasiyette de yalnızca bu
 (konumsuz) mesaj; konumun gitmediği çembere hiç gitmez (bunlar telefonun ayarlarıdır, sunucu bilmez).
 "Çevrim dışı" gönderilmez, alıcı sessizlikten çıkarır. `end: 'timed'` (ADR 0038 Ek 1): bir
-arkadaşlığın süreli paylaşımı bittiğinde, konum geri çekilmeden hemen önce o arkadaşlığa bir kez
-`why: none` ile gider; alan telefon "… ile süreli paylaşım bitti" der. Eski uygulama alanı atar.
-Geri çekme nedeni de sildiği için yalnız o an bağlı olan arkadaş duyar. **Taşıma, `look` gibi kendi yolu:** `POST
+arkadaşlığın süreli paylaşımı bittiğinde, konum geri çekildikten hemen sonra o arkadaşlığa bir
+kez `why: none` ile gider (Ek 2: geri çekme önceki nedeni sildiği için sonra gönderilir, sunucu onu
+24 saat tutar ve sonradan bağlanan arkadaş da duyar); alan telefon "… ile süreli paylaşım bitti"
+der. Eski uygulama alanı atar. **Taşıma, `look` gibi kendi yolu:** `POST
 /v1/states` (canlı bağlantıda `state`), gövde `{ envelopes }`; sunucu üye ve çember başına yalnız en
 yeni zarfı 24 saat tutar, diğer üyelere canlı `state` olayı yollar, sonradan bağlanan `GET /v1/states`
 (ya da `states`) ile alır; üye çıkınca `state.gone`, konum geri çekilince nedeni de silinir. Üye

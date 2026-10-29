@@ -717,6 +717,11 @@
       "ended": "{{name}} ile süreli paylaşım bitti. 1 saat daha paylaşmak için dokun.",
       "endedMine": "{{name}} ile süreli paylaşım bitti",
       "endedTheirs": "{{name}} ile süreli paylaşım bitti"
+    },
+    "unreadable": {
+      "title": "Paylaşım ayarların okunamadı",
+      "body": "Güvenli olsun diye konumun şimdilik kimseye gitmiyor. Kimin göreceğini kontrol et ve yeniden aç.",
+      "check": "Kontrol et"
     }
   },
   "map": {

@@ -1,6 +1,6 @@
 # 0038. Kişiye süreli paylaşım ve tek kişiye sessiz dondurma
 
-- Durum: Kabul edildi (PM, 2026-10-29); önerildi (kodlama oturumu, 2026-10-29); uygulandı (paket B, Ek 1)
+- Durum: Kabul edildi (PM, 2026-10-29); önerildi (kodlama oturumu, 2026-10-29); uygulandı (paket B, Ek 1; Ek 2)
 - Tarih: 2026-10-29
 - İlgili: [ADR 0008](0008-design-system-and-map.md), [ADR 0019](0019-location-history.md),
   BARGU_PLAN §3.3 ve §4 (çember anahtarları), `docs/arastirma/urun-gelistirme-2026-10-29.md` Ö6,
@@ -104,3 +104,17 @@ satırın "çemberin ayarı" demesi; kişi kartı satırının mevcut durumu sö
 - **Risk:** `frozen` alanı eski bir APK'ya geri dönülürse eski uygulamanın katı okuyucusu paylaşım
   ayarlarını okuyamaz ve varsayılana döner (her çembere tam konum). Yalnız sürüm düşürmede olur;
   QA ve test edenlere eski APK kurmamaları söylenmeli.
+
+## Ek 2 — PM kararları sonrası (2026-10-29)
+
+- **Bitiş iki tarafa da düşer:** Ek 1'deki sınır kalktı. Bitiş mesajı artık konum geri çekildikten
+  hemen sonra gider. Geri çekme önceki nedeni siler; sonra gelen bu mesajı sunucu her durum mesajı
+  gibi 24 saat tutar. O an çevrim dışı olan arkadaş da bağlanınca duyar (24 saate kadar). Protokol,
+  kripto ve sunucu değişmedi: aynı `state` yolu ve aynı `end: 'timed'` alanı, yalnız sıra değişti.
+  Sunucu yine yalnız bir durum mesajının geldiğini ve zamanını görür.
+- **Okunamayan ayar, tam konum demek değildir (PM kuralı):** paylaşım ayarları artık esnek okunur:
+  bilinmeyen alan atılır, gerisi okunur. Bir çemberin seçimi okunamazsa o çembere konum gitmez;
+  ayarların hiçbiri okunamazsa hiçbir çembere (sonradan katılınanlar dahil) gitmez ve haritada
+  "Paylaşım ayarların okunamadı" kartı çıkar, "Kontrol et" ayarları açar. Ek 1'deki risk bundan
+  sonraki sürümler için kapandı; bu APK'dan önceki bir APK'ya dönülürse eski davranış sürer (PM
+  kabul etti: Play sürüm düşürmeye izin vermez, test edenlere eski APK kurmamaları söylenir).

@@ -4,13 +4,16 @@ import { Linking } from 'react-native';
 import i18n from '@/i18n';
 
 import { LocationBanner } from './location-banner';
-import { DEFAULT_SHARING, useSharing } from './sharing';
+import { router } from 'expo-router';
+
+import { DEFAULT_SHARING, useSharing, useSharingUnreadable } from './sharing';
 import { useLocationPermission, useLocationServices } from './tracker';
 import { useMyWhy } from './why';
 
 // What friends see when the permission or the location services go off, and the quiet way to hide
 // instead (QA-33 N-2, docs/ADR/0028).
 
+jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('../live/live-session', () => ({
   useConnection: (select: (state: { online: boolean; drops: number }) => unknown) =>
     select({ online: true, drops: 0 }),
@@ -61,6 +64,21 @@ beforeEach(() => {
   useLocationPermission.setState({ state: 'granted' });
   useLocationServices.setState({ state: 'on' });
   useMyWhy.setState({ current: null }, true);
+  useSharingUnreadable.setState({ unreadable: false });
+});
+
+describe('sharing settings that could not be read (the PM, 2026-10-29)', () => {
+  it('says the location goes to nobody for now, first, and opens the settings to check', async () => {
+    useLocationPermission.setState({ state: 'blocked' });
+    useSharingUnreadable.setState({ unreadable: true });
+    await render(<LocationBanner />);
+    expect(screen.getByText('Paylaşım ayarların okunamadı')).toBeTruthy();
+    expect(screen.queryByTestId('location-permission')).toBeNull();
+    await fireEvent.press(screen.getByTestId('sharing-unreadable-check'));
+    expect(router.push).toHaveBeenCalledWith('/settings/location');
+    expect(useSharingUnreadable.getState().unreadable).toBe(false);
+    expect(screen.queryByTestId('sharing-unreadable')).toBeNull();
+  });
 });
 
 describe('the permission card says what friends see, and offers the quiet way', () => {

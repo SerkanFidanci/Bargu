@@ -80,7 +80,17 @@ Sıra PM'den: QA-40 ve düşük bulgular, Ö8, Ö6; APK en sonda (sahip: "apk y�
 
 N1 tazelik (C'de) için: "Neden eski?" 10 dakikadan eski konumda yaşı ve nedeni zaten söylüyor (haritada gri pin ve "12 dk · Pil tasarrufu", kartta "12 dk önce" ve neden; nedenler pil tasarrufu, izin kapalı, konum alınamıyor, çevrim dışı). Eksik olan: 10 dakikadan taze konumda yaş yok (kartta "şimdi", haritada yeşil nokta); "3 dk önce" C'de eklenecek.
 
-## Ortamlar
+## Faz 9C — Paket D (sürüyor)
+
+PM sırası (2026-10-29): B → C → D → E → F; C'nin ADR'leri ayrı oturumda. Beklerken D'nin ADR
+gerektirmeyen işleri ve PM'in B sonrası iki kararı. Ö7 bayrakla kapalı; D APK'sında Ö12 ile açılır.
+
+| Madde                   | Ne yapıldı                                                                                                                                                                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Okunamayan ayar (PM a)  | Paylaşım ayarları esnek okunuyor: bilinmeyen alan atılır. Okunamayan çembere konum gitmez; hiçbiri okunamazsa hiçbir yere (yeni çemberler dahil) gitmez, haritada "Paylaşım ayarların okunamadı" kartı ve "Kontrol et". Testli. ADR 0038 Ek 2 |
+| Bitiş iki tarafa (PM b) | "Süreli paylaşım bitti" mesajı artık konum geri çekildikten sonra gidiyor; sunucu 24 saat tutuyor, çevrim dışı arkadaş da sonra duyuyor. Protokol, kripto, sunucu değişmedi (yalnız sıra). ADR 0038 Ek 2                                      |
+| Güvendeyim etiketi      | Sahibin ekran görüntüsü: arkadaşın pininin üstünde boş, koyu bir hap. "Güvendeyim" yerinin adı noktanın kutusuna sıkışıp görünmüyordu; artık noktanın sağında ve tam görünüyor (testli)                                                       |
+| /gizlilik               | PM'in B satırları (kişiye özel paylaşım, "Yakındayım") sayfaya eklendi; aydınlatma sürümü aynı                                                                                                                                                |
 
 | Ne                      | Nerede                                                                                                                                                                                                                                                                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

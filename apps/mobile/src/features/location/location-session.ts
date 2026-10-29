@@ -98,7 +98,8 @@ import {
   historyOn,
   isSharingWith,
   timedShareOver,
-  loadSharing,
+  readSharing,
+  useSharingUnreadable,
   saveSharing,
   sharedCircles,
   SHARING_REVIEW_KEY,
@@ -164,7 +165,9 @@ let sharingLoaded = false;
 /** The sharing settings from the vault, once per run (the screens then change them in memory). */
 export function loadSharingSettings(): SharingSettings {
   if (!sharingLoaded && isVaultOpen()) {
-    useSharing.setState(loadSharing(vault()), true);
+    const read = readSharing(vault());
+    useSharing.setState(read.settings, true);
+    useSharingUnreadable.setState({ unreadable: read.unreadable });
     sharingLoaded = true;
   }
   return useSharing.getState();
@@ -213,12 +216,21 @@ async function publishState(envelope: MessageEnvelope): Promise<PublishReply> {
 }
 
 /**
- * Takes the location back from circles. A friendship whose timed share ran out is told so first
- * (docs/ADR/0038 Ek 1); a share turned off, a ghost or a pause says nothing of the kind.
+ * Takes the location back from circles. A friendship whose timed share ran out is then told so
+ * (docs/ADR/0038 Ek 1, Ek 2): after the location went, since taking it back also deletes the
+ * last reason; told afterwards, the relay keeps it a day, so a friend who was away hears it too. A
+ * share turned off, a ghost or a pause says nothing of the kind.
  */
 async function withdraw(circleIds: string[]): Promise<void> {
   const settings = loadSharingSettings();
   const at = Date.now();
+  for (let start = 0; start < circleIds.length; start += MAX_CIRCLES_PER_REQUEST) {
+    const body = { circleIds: circleIds.slice(start, start + MAX_CIRCLES_PER_REQUEST) };
+    const viaSocket = liveRequest('withdraw', body);
+    const reply: unknown = viaSocket === null ? null : await viaSocket.catch(() => null);
+    if (typeof reply === 'object' && reply !== null && 'ok' in reply) continue;
+    await api.authed('/v1/locations/withdraw', { method: 'POST', body });
+  }
   for (const circle of sendCircles()) {
     const until = settings.circles[circle.id]?.until;
     if (
@@ -231,13 +243,6 @@ async function withdraw(circleIds: string[]): Promise<void> {
       continue;
     }
     await stateReporter.ended(circle, until).catch(() => undefined);
-  }
-  for (let start = 0; start < circleIds.length; start += MAX_CIRCLES_PER_REQUEST) {
-    const body = { circleIds: circleIds.slice(start, start + MAX_CIRCLES_PER_REQUEST) };
-    const viaSocket = liveRequest('withdraw', body);
-    const reply: unknown = viaSocket === null ? null : await viaSocket.catch(() => null);
-    if (typeof reply === 'object' && reply !== null && 'ok' in reply) continue;
-    await api.authed('/v1/locations/withdraw', { method: 'POST', body });
   }
 }
 
@@ -477,10 +482,11 @@ useDocs.subscribe(() => {
 /** An arrival or departure older than this when it arrives (it waited for a key) is not shown. */
 const PLACE_EVENT_FRESH_MS = 10 * 60_000;
 /**
- * A friend's timed share that ended longer ago than this is not news any more. Only a phone online
- * then hears it: the server deletes a state with the location it explains (PROTOCOL "state").
+ * A friend's timed share that ended longer ago than this is not news any more: the relay keeps the
+ * message a day (it comes after the location went, ADR 0038 Ek 2), so a phone that was away hears
+ * it when it comes back.
  */
-const SHARE_ENDED_FRESH_MS = 10 * 60_000;
+const SHARE_ENDED_FRESH_MS = 24 * 3600_000;
 
 // A reinstall or a new phone: earlier choices stayed on the old phone, so nothing is shared with
 // the circles the account is already in until the user chooses (before anything is sent).

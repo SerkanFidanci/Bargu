@@ -80,12 +80,60 @@ export const DEFAULT_SHARING: SharingSettings = { ghost: 'off', circles: {} };
 /** Kept on this phone only (encrypted vault): the server never learns these choices. */
 const SHARING_KEY = 'sharing:v1';
 
-export function loadSharing(store: KeyValueStore): SharingSettings {
+/** Read leniently: a field a newer version wrote is dropped, not a reason to refuse the rest. */
+const circleSharingReadSchema = z.object(circleSharingSchema.shape);
+const sharingReadSchema = z.object({
+  ...sharingSchema.shape,
+  circles: z.record(z.string(), z.unknown()),
+});
+
+/**
+ * Settings that cannot be read send nothing anywhere: every circle unshared, a new one too, until
+ * the user chooses again (the PM, 2026-10-29: "okunamayan ayar, tam konum demek değildir").
+ */
+const NOTHING_READ: SharingSettings = { ghost: 'off', circles: {}, newCircles: 'off' };
+
+/**
+ * The saved settings and whether some of them could not be read. A circle whose choice cannot be
+ * read gets nothing; settings that cannot be read at all share with nobody. Either way the user is
+ * told (`useSharingUnreadable`, LocationBanner).
+ */
+export function readSharing(store: KeyValueStore): {
+  settings: SharingSettings;
+  unreadable: boolean;
+} {
   const raw = store.get(SHARING_KEY);
-  if (raw === undefined) return DEFAULT_SHARING;
-  const parsed = sharingSchema.safeParse(JSON.parse(raw));
-  return parsed.success ? parsed.data : DEFAULT_SHARING;
+  if (raw === undefined) return { settings: DEFAULT_SHARING, unreadable: false };
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    return { settings: NOTHING_READ, unreadable: true };
+  }
+  const read = sharingReadSchema.safeParse(json);
+  if (!read.success) return { settings: NOTHING_READ, unreadable: true };
+  let unreadable = false;
+  const circles: Record<string, CircleSharing> = {};
+  for (const [circleId, entry] of Object.entries(read.data.circles)) {
+    const circle = circleSharingReadSchema.safeParse(entry);
+    if (circle.success) {
+      circles[circleId] = circle.data;
+    } else {
+      circles[circleId] = NOT_SHARED;
+      unreadable = true;
+    }
+  }
+  return { settings: { ...read.data, circles }, unreadable };
 }
+
+export function loadSharing(store: KeyValueStore): SharingSettings {
+  return readSharing(store).settings;
+}
+
+/** Some of the saved settings could not be read this run: the map says so until looked at. */
+export const useSharingUnreadable = create<{ unreadable: boolean }>(() => ({
+  unreadable: false,
+}));
 
 export function saveSharing(store: KeyValueStore, settings: SharingSettings): void {
   store.set(SHARING_KEY, JSON.stringify(settings));

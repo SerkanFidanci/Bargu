@@ -258,9 +258,9 @@ export function createStateReporter(deps: ReporterDeps) {
 
   return {
     /**
-     * A friendship's timed share is over (docs/ADR/0038 Ek 1): one clear that says so, as its
-     * location is taken back, so the friend's phone can say "… ile süreli paylaşım bitti". Once: a
-     * failure is not tried again (the location still goes from their map).
+     * A friendship's timed share is over (docs/ADR/0038 Ek 1, Ek 2): one clear that says so, right
+     * after its location was taken back, so the friend's phone can say "… ile süreli paylaşım
+     * bitti". Once: a failure is not tried again (the location still went from their map).
      */
     async ended(circle: SendCircle, until: number): Promise<void> {
       const device = deps.device();

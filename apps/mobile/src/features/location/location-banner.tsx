@@ -1,4 +1,5 @@
-import { Ghost, MapPinOff, WifiOff } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { Ghost, MapPinOff, ShieldAlert, WifiOff } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, StyleSheet, View } from 'react-native';
@@ -13,7 +14,7 @@ import { Text } from '@/ui/text';
 import { useConnection } from '../live/live-session';
 import { turnGhostOn } from './ghost-now';
 import { useMapCardTurn } from './map-cards';
-import { useSharing } from './sharing';
+import { useSharing, useSharingUnreadable } from './sharing';
 import { requestLocationPermission, useLocationPermission, useLocationServices } from './tracker';
 import { useMyWhy, type Why } from './why';
 
@@ -83,8 +84,42 @@ export function LocationBanner() {
   const servicesOff = useLocationServices((state) => state.state) === 'off';
   // The services are off and the circles hear of it; with no permission that card comes first.
   const services = !asking && permission === 'granted' && servicesOff && told?.why === 'nofix';
+  // Settings that could not be read share with nobody (the PM, 2026-10-29): said first.
+  const unreadable = useSharingUnreadable((state) => state.unreadable);
   // The first card on the map: the others wait for it (map-cards.ts).
-  const turn = useMapCardTurn('locationPermission', asking || services);
+  const turn = useMapCardTurn('locationPermission', unreadable || asking || services);
+
+  if (unreadable) {
+    if (!turn) return null;
+    return (
+      <Animated.View
+        entering={motion.enterDown}
+        testID="sharing-unreadable"
+        style={[
+          styles.card,
+          { backgroundColor: colors.surfaceRaised, boxShadow: elevation.floating },
+        ]}
+      >
+        <View style={styles.head}>
+          <ShieldAlert color={colors.danger} size={22} strokeWidth={2.25} />
+          <View style={styles.text}>
+            <Text variant="bodyStrong">{t('location.unreadable.title')}</Text>
+            <Text variant="footnote" color="textMuted">
+              {t('location.unreadable.body')}
+            </Text>
+          </View>
+        </View>
+        <Button
+          testID="sharing-unreadable-check"
+          label={t('location.unreadable.check')}
+          onPress={() => {
+            useSharingUnreadable.setState({ unreadable: false });
+            router.push('/settings/location');
+          }}
+        />
+      </Animated.View>
+    );
+  }
 
   if (services) {
     if (!turn) return null;
