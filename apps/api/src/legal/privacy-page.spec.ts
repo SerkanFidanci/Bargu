@@ -25,6 +25,12 @@ describe('the privacy page (/gizlilik, docs/play-store/GIZLILIK-POLITIKASI.md)',
       'Who sees you and for how long (per-person sharing) stays only on your phone',
       '"Yakındayım" daveti de bir mesajdır',
       `An "I'm nearby" invite is a message too`,
+      // Ö7 (the PM, 30.10.2026): one's own history, only on the phone, asked before it goes.
+      'Kendi konum geçmişin (isteğe bağlı, kapalı başlar, Bargu+)',
+      'Kapatırken sorulur ve onaylayınca telefondan hemen silinir',
+      'Your own location history (optional, off by default, Bargu+)',
+      'When you turn it off you are asked first',
+      'yalnızca telefonunda, seçtiğin kadar: 30 gün ya da 1 yıl',
     ]) {
       expect(PRIVACY_PAGE_HTML).toContain(words);
     }

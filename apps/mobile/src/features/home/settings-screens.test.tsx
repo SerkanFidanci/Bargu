@@ -62,8 +62,9 @@ describe('the screens behind the Me rows (the owner, 2026-10-21)', () => {
     expect(screen.getByTestId('ghost-mode')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('location-seers'));
     expect(mockPush).toHaveBeenLastCalledWith('/seers');
+    // One's own history (Ö7), on since package G; the circles' history is one row away there.
     await fireEvent.press(screen.getByTestId('location-history'));
-    expect(mockPush).toHaveBeenLastCalledWith('/history/viewers');
+    expect(mockPush).toHaveBeenLastCalledWith('/history/mine');
   });
 
   it('"Görünüm ve harita": the map look and the effects; the pin looks are in the store now', async () => {

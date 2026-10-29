@@ -145,7 +145,27 @@ function MyHistory() {
 
   const turn = (on: boolean) => {
     if (!on) {
-      change({ ...settings, on: false });
+      // Turned off it goes, after asking, with a way to take it out first (the PM, 2026-10-30;
+      // docs/ADR/0030 Ek 1). Nothing kept: nothing to ask.
+      if (recorded.length === 0) {
+        change({ ...settings, on: false });
+        return;
+      }
+      Alert.alert(t('history.mine.offTitle'), t('history.mine.offBody'), [
+        { text: t('history.mine.offExport'), onPress: takeOut },
+        {
+          text: t('history.mine.offDelete'),
+          style: 'destructive',
+          onPress: () => {
+            ownTrail.clear();
+            change({ ...settings, on: false });
+            setView(load(today));
+            setVersion((count) => count + 1);
+            toast.success(t('history.mine.deleted'));
+          },
+        },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]);
       return;
     }
     if (!entitled) {

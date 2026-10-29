@@ -1,6 +1,6 @@
 /**
- * One's own location history (docs/ADR/0030) ships with package D (the PM, 2026-10-29: "B APK'sında
- * Ö7'ye giriş gizli kalsın"): until then it records nothing, makes no key or file, and nothing on
- * screen leads to it. Turned on in package D's APK, with the privacy texts that describe it.
+ * One's own location history (docs/ADR/0030), on since package G (the PM, 2026-10-30: "Ö7, G
+ * APK'sında açılabilir"), with the privacy texts that describe it. Off, it records nothing, makes no
+ * key or file, nothing on screen leads to it, and a link to it goes back to the map.
  */
-export const OWN_HISTORY_ENABLED = false as boolean;
+export const OWN_HISTORY_ENABLED = true as boolean;

@@ -164,3 +164,20 @@ yüzden:
   2. Ekran, harita, durak adları.
 - Her dilim QA turu ve telefon denemesi ister. Sahip seviye 5 APK'sını telefonda denemeden
   kodlanmaz (sahip, 2026-10-22).
+
+## Ek 1 (2026-10-30): Kapatınca silinir, açılış G APK'sında
+
+PM kararları:
+
+- **Kapatırken sorulur:** "Konum geçmişin kapatılsın mı? Kapatınca bu telefondaki geçmişin hemen
+  silinir. İstersen önce dışa aktar." Seçenekler: Dışa aktar (kayıt açık kalır), Sil ve kapat (hemen
+  silinir, kayıt durur), Vazgeç. Kayıtlı gün yoksa sormadan kapanır.
+- **Bargu+ biterse** kayıt durur; eski günler seçilen süre (30 gün ya da 1 yıl) dolunca silinir;
+  kullanıcı istediği an silebilir. Günlük temizlik Bargu+'ya bağlı değildir.
+- **Açılış:** bayrak G APK'sında (hikaye düzenleyiciyle) açıldı. Bayrak kapalı bir derlemede kayıt,
+  anahtar ve dosya yok, ekranda giriş yok, derin bağlantı haritaya döner (testli).
+- **Yedek:** Android yedeği tamamen kapalı (`allowBackup` false; Android 11 ve öncesi ile 12+ kuralları
+  bütün depolama alanlarını dışarıda bırakır); geçmişin MMKV dosyaları da içinde. QA-42/43
+  doğrular.
+- Gizlilik politikası ve /gizlilik bu metinle güncellendi; aydınlatma sürümü aynı (veri yalnız
+  telefonda, Bargu işlemiyor).

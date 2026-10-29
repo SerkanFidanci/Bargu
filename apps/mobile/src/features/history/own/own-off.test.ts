@@ -79,6 +79,9 @@ jest.mock('./own-files', () => ({
   trailKeyReady: () => mockKey.ready,
 }));
 
+// Off, as the switch that keeps it from a build (on since package G): nothing of it then.
+jest.mock('./own-flag', () => ({ OWN_HISTORY_ENABLED: false }));
+
 import { OWN_HISTORY_ENABLED } from './own-flag';
 import { ownEntitled, ownTrailForExport, ownTrailTick, rememberEntitlement } from './own-session';
 
@@ -105,8 +108,8 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-describe('before package D (the PM, 2026-10-29: Ö7 hidden and off in the B APK)', () => {
-  it('is off in this build', () => {
+describe('switched off (the PM, 2026-10-29: Ö7 hidden and off until it is turned on)', () => {
+  it('is off here', () => {
     expect(OWN_HISTORY_ENABLED).toBe(false);
   });
 

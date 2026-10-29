@@ -1048,7 +1048,11 @@
       "deleted": "Konum geçmişin silindi",
       "locked": "Telefonun kilidi açıkken dene: geçmiş anahtarı kilitliyken okunamaz.",
       "lockAdvice": "Telefonunun kilidi açıkken geçmişini başkası da görebilir. Uygulama kilidini açmanı öneririz.",
-      "note": "Geçmişin yalnız bu telefonda durur. Telefon değişince ya da Bargu'yu silince gider; istersen önce dışa aktar. Kilitli telefonda geçmiş günler açılmaz."
+      "note": "Geçmişin yalnız bu telefonda durur. Telefon değişince ya da Bargu'yu silince gider; istersen önce dışa aktar. Kilitli telefonda geçmiş günler açılmaz.",
+      "offTitle": "Konum geçmişin kapatılsın mı?",
+      "offBody": "Kapatınca bu telefondaki geçmişin hemen silinir. İstersen önce dışa aktar.",
+      "offExport": "Dışa aktar",
+      "offDelete": "Sil ve kapat"
     }
   },
   "security": {

@@ -1048,7 +1048,11 @@
       "deleted": "Your location history was deleted",
       "locked": "Try with the phone unlocked: the history key cannot be read while it is locked.",
       "lockAdvice": "With your phone unlocked, someone else could see your history. We suggest turning on the app lock.",
-      "note": "Your history stays on this phone only. It is gone when you change phones or delete Bargu; export it first if you want. Past days cannot be opened on a locked phone."
+      "note": "Your history stays on this phone only. It is gone when you change phones or delete Bargu; export it first if you want. Past days cannot be opened on a locked phone.",
+      "offTitle": "Turn your location history off?",
+      "offBody": "Turned off, your history on this phone is deleted at once. Export it first if you like.",
+      "offExport": "Export",
+      "offDelete": "Delete and turn off"
     }
   },
   "security": {

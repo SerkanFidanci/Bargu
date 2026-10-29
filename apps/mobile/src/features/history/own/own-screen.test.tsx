@@ -228,6 +228,37 @@ describe('"Konum geçmişim" (docs/ADR/0030 §4)', () => {
     expect(ownTrail.settings().on).toBe(true);
   });
 
+  it('turned off, asks first and deletes on yes, with a way to take it out (the PM, 2026-10-30)', async () => {
+    mockPlan.current = plan({ plan: 'plus' });
+    ownTrail.setSettings({ on: true, keep: 30 });
+    const today = new Date();
+    today.setHours(9, 0, 0, 0);
+    for (let step = 0; step <= 12; step++) {
+      ownTrail.record(
+        { lat: 41.0256, lng: 28.9742, acc: 10, ts: today.getTime() + step * 5 * 60_000 },
+        { entitled: true, ghost: 'off', sharing: true },
+      );
+    }
+    await render(<MyHistoryScreen />);
+    expect(await screen.findByTestId('history-stay')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('mine-on'));
+    const asked = alerts.at(-1);
+    expect(asked?.title).toBe('Konum geçmişin kapatılsın mı?');
+    expect(asked?.buttons.map((button) => button.text)).toEqual([
+      'Dışa aktar',
+      'Sil ve kapat',
+      'Vazgeç',
+    ]);
+    // Nothing happens until a choice: it is still on, and kept.
+    expect(ownTrail.settings().on).toBe(true);
+    await act(() => {
+      asked?.buttons.find((button) => button.style === 'destructive')?.onPress?.();
+    });
+    expect(ownTrail.settings().on).toBe(false);
+    expect(ownTrail.days()).toEqual([]);
+    expect(screen.queryByTestId('history-stay')).toBeNull();
+  });
+
   it('keeps for a year on a tap, and asks before going back down to 30 days with days to lose', async () => {
     mockPlan.current = plan({ plan: 'plus' });
     await render(<MyHistoryScreen />);
