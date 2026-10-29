@@ -604,6 +604,31 @@ Kurallar:
     - QA-41 bunu da kontrol eder: ayarda ve haritada Ö7'ye giriş yok, telefonda geçmiş dosyası oluşmuyor.
     - Ö7, D APK'sında Ö12 ile birlikte açılır. Açılmadan önce gizlilik politikası, /gizlilik ve veri güvenliği formu Ö7'yi anlatır (yalnız telefonda, Bargu+).
 
+**Paket G: hikaye kamerası ve düzenleyici** (sahibin isteği, 2026-10-29)
+- Sahip: "Kamera ekranı daha düzgün yap, Instagram gibi düzenleme seçeneklerini getir hikayelerde."
+- Kamera: flaş ve daha iyi bir deklanşör.
+- Çekimden sonra tam ekran düzenleyici:
+  - yazı (renk, arka planlı ya da düz);
+  - kalemle çizim (renk, kalınlık, geri al);
+  - emoji çıkartma;
+  - kaydırarak filtre: Normal, Sıcak, Soğuk, S/B, Canlı, Solgun.
+- Yazı ve çıkartma sürüklenir, iki parmakla büyür ve döner, çöpe sürüklenince silinir. Yeni bağımlılık yok; Skia zaten var. ADR 0035 Ek 3.
+- Düzenleme telefonda fotoğrafa işlenir, sonra bugünkü gibi şifrelenir. Sunucuya yeni veri gitmez.
+- PM şartları:
+  - son dosyada EXIF yok ve testli;
+  - konum, kişi etiketi, saat ya da hava durumu çıkartması yok;
+  - galeri yok;
+  - yüz filtresi, yapay zekâ ve ağdan inen içerik yok;
+  - Reanimated worklet, motion tokenları ve sade mod;
+  - ekran okuyucu etiketleri;
+  - boyut sınırı;
+  - ön kamerada ayna görüntüsü önizlemeyle aynı;
+  - "Bildir" düzenlenmiş son görüntüyü gönderir.
+- **Sıra (PM, 2026-10-29):** elindeki APK (Ö12, N2, N3, QA-41 düzeltmeleri; QA-42) → G (QA-43) → C → D (Ö7'nin açılması) → E → F.
+  - **Güncelleme:** o APK `c8896be` olarak yayında, QA-42 açıldı.
+  - Ö7'nin gizlilik metinleri yazıldı, bu yüzden Ö7 D'yi beklemeden G APK'sında açılır.
+  - Şart: QA-42'de Ö7 dosyalarının Android yedeğine girmediği doğrulanır.
+
 **Paket C: güvenlik**
 - Ö5 eve vardım kontrolü (Faz 11'den öne alındı). Yeni ADR gerekir, tasarım Opus'ta.
 - Önerilen yol "mühürlü emanet":
@@ -617,6 +642,10 @@ Kurallar:
 **Paket D: kendi dünyan**
 - Ö7 kendi konum geçmişin ve kazıma haritası (ADR 0030, onaylı): gün gün iz, duraklar, gezilen yerlerin açılması. Hepsi telefonda.
 - Ö12 varış tahmini: "eve 12 dk", "4 dk'ya orada". Telefonda, mesafe ve hızdan hesaplanır ve "yaklaşık" yazar. Yol tarifi motoru eklenmez.
+  - Kodlandı (`d4ad547`): buluşmada "Yaklaşık 4 dk"; duran kişi için "Henüz yola çıkmadı"; kişi kartında eve doğru giderken "Bizim ev: yaklaşık 12 dk".
+- Güvenlik notu (2026-10-29): `pnpm audit` decode-uri-component'te yüksek bir DoS bulgusu verdi (GHSA-qr28-fpjm-wq7f; expo-router > query-string 7).
+  - Gerekçeli istisna `1d270a1`'de. Kötü niyetli bir bağlantı uygulamayı dondurabilir; veri gitmez.
+  - PM şartı: istisna Expo SDK 58'e ya da en geç 2026-12-31'e kadar geçerli. Mümkünse bağlantılar yönlendirilmeden önce uzunluk ve biçim kontrolünden geçer.
 
 **Paket E: dışarıya açılan**
 - Ö9 uygulamasız şifreli konum linki (Faz 11'den). Yeni ADR ve THREAT_MODEL gerekir.
