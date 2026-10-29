@@ -109,9 +109,11 @@ gerektirmeyen işleri ve PM'in B sonrası iki kararı. Ö7 bayrakla kapalı; D A
 
 **APK (2026-10-30): `60563a5`**, paket G: hikaye düzenleyici (PM'in 6 şartıyla), Ö7 "Konum geçmişim" açık, QA-42 düzeltmeleri, fiyat kuralı. Linux CI (1523 test), GitHub CI ve güvenlik yeşil. https://api.46-62-162-70.sslip.io/apk/bargu-60563a5-b0487380353b2082.apk. Sıradaki: PM'in QA-43 turu; sahip düzenleyiciyi gerçek telefonda denemeli (çizim, filtre, ön kamera aynası, dosya boyutu).
 
-**QA-43 (`60563a5`):** yüksek ve orta bulgu yok; 7 düşük bulgu C APK'sına girer (PM kararları 1–7).
+**QA-43 (`60563a5`):** Yüksek/Orta yok; Düşük 7 (EXIF yalnız APP1 ve açık başarısızlık, anahtar kaybı, dışa aktarda açık kalır, İzle/abonelik N2'de yok, Yakındayım ifadesi, bildirim yeniden kurulmaz, ölü priceText). Rapor: QA-RAPOR-43-paket-g.md (PM oturumunun notları). Hepsi C APK'sına girer (PM kararları 1–7).
 
 **Klavye (sahip, 2026-10-30):** "Yazı yazma kısımları sıkıntılı, ne yazdığımızı göremiyoruz." Android'de uygulama ekranın tamamına çiziliyor, bu yüzden klavye açılınca pencere küçülmüyor ve sohbetteki yazı kutusu klavyenin altında kalıyordu. Sohbet, hikaye cevabı, kamera notu, yer ve form ekranları artık klavye kadar yukarı kayıyor (`src/ui/keyboard.ts`). Davranışı olmayan bir klavye görünümü lint'ten geçmez.
+
+**ADR taslakları (PM, 2026-10-30):** 0039 (Ö5 eve vardım kontrolü ve N1 pil), 0040 (N4 yoklama) ve 0041 (Ö9 konum linki) PM şartlarıyla yazıldı; her birinin sonunda PM soruları var. Kod PM onayından sonra, sıra değişmedi (C → D → E → F).
 
 | Ne                      | Nerede                                                                                                                                                                                                                                                                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
