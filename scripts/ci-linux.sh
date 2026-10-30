@@ -45,10 +45,11 @@ lock_script="$(dirname "${BASH_SOURCE[0]}")/with-test-lock.sh"
     pnpm check:migrations > /tmp/migrations.log 2>&1 || { tail -20 /tmp/migrations.log; echo "ci-linux: check:migrations failed"; failed=1; }
     # The tests after the rest, not beside it: jest (a worker per core) and the typed lint at once
     # ran out of memory in a 16 GB Docker (exit 137), though each passes alone.
-    # One package at a time as well (2026-10-30): mobile jest beside the API and crypto suites
-    # took the Docker engine down mid-run ("error waiting for container: unexpected EOF").
+    # One task at a time, both turbo runs (2026-10-30): the Docker VM ran out of memory (its log:
+    # oom-killer, global_oom) with typed lint, typecheck and build side by side, and the engine
+    # dropped the container ("error waiting for container: unexpected EOF").
     turbo_ok=1
-    pnpm exec turbo run typecheck lint build --continue --ui=stream > /tmp/turbo.log 2>&1 || turbo_ok=0
+    pnpm exec turbo run typecheck lint build --continue --concurrency=1 --ui=stream > /tmp/turbo.log 2>&1 || turbo_ok=0
     pnpm exec turbo run test --continue --concurrency=1 --ui=stream >> /tmp/turbo.log 2>&1 || turbo_ok=0
     if [ "$turbo_ok" = 0 ]; then
       grep -nE "ERROR|FAIL|error TS|✖|●" /tmp/turbo.log | head -80
