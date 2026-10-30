@@ -149,7 +149,9 @@
       "safeHint": "Tell the circles you choose that you're fine",
       "near": "I'm nearby",
       "nearHint": "Ask who can come",
-      "nearOff": "Can't be sent now, tap to see why"
+      "nearOff": "Can't be sent now, tap to see why",
+      "checkin": "Arrival check",
+      "checkinHint": "If you do not arrive, the people you choose are told"
     },
     "cardsWaiting": "{{count}} more waiting",
     "invite": {
@@ -258,7 +260,8 @@
         "saver": "Battery saver",
         "permission": "Location permission off",
         "nofix": "Can't get a location",
-        "offline": "Offline"
+        "offline": "Offline",
+        "lowBattery": "Battery was about to run out"
       },
       "withWhy": "{{text}} · {{why}}",
       "charging": "charging",
@@ -595,7 +598,8 @@
       "alone": "Nearby, can you come?",
       "inCircle": "{{name}}: nearby, can you come?"
     },
-    "rollcall": "{{name}}: Is everyone here? Say you are here."
+    "rollcall": "{{name}}: Is everyone here? Say you are here.",
+    "safetyChannel": "Safety alerts"
   },
   "location": {
     "service": {
@@ -1745,7 +1749,7 @@
       "account": "Your account: a keyed hash of your email (the address only passes by while a sign-in code goes), your display name, username, avatar colour and emoji, and from your id roughly when your account was made.",
       "circles": "Your circles and memberships: which circles you are in, their names, who runs them, how many places a circle has and who saved them, when invite links are opened.",
       "messages": "Message metadata: who wrote to whom or to which circle and when, whether short or long, a photo file’s size. Not what it says.",
-      "events": "When things happen: I'm safe, arriving at or leaving a place, running late, and when a circle changes. Not what was said or where.",
+      "events": "When things happen: I'm safe, arriving at or leaving a place, running late, when a circle changes, and arrival checks: whose, for whom, for what time, when cancelled or handed over. Not what was said, where someone was going, or where they are.",
       "votes": "Events, votes and roll calls: that there is a meeting or a poll, who voted in which poll, who said \"I'm here\" to a roll call and when. Not for what, or where they are.",
       "sharing": "Location envelopes: which circles get your location, when and how often, when sharing stops, when the reason your location is old changes, and with history on, which hours you have a trail. Not what is inside.",
       "watch": "Who is looking at whom: who looks at whom on the map. Looking makes your friend's location update live; not where they look.",
@@ -1820,5 +1824,82 @@
     },
     "setting": "Event roll calls",
     "settingHint": "When off, \"Is everyone here?\" does not come to you at events. In events of more than 8 people it is off for under-18s."
+  },
+  "checkin": {
+    "title": "Arrival check",
+    "intro": "If you do not arrive and do not answer, the people you choose are told. Your phone seals the alert; the server cannot see inside.",
+    "where": "Where",
+    "noPlace": "No place: I will tap \"I have arrived\"",
+    "due": "By",
+    "grace": "Extra time",
+    "graceOption": "{{count}} min",
+    "who": "Who to tell",
+    "whoHint": "Up to 5 people who share a circle with you.",
+    "note": "Note (optional)",
+    "notePlaceholder": "For example the taxi plate",
+    "repeat": "Repeat every weekday",
+    "summary": "If you have not arrived by {{time}} and do not answer, {{names}} will be told. If they are, they see your last location, battery and note.",
+    "notEmergency": "Bargu is not an emergency service. In an emergency, call 112.",
+    "call112": "Call 112",
+    "kades": "KADES",
+    "start": "Start the check",
+    "started": "The check is on. It ends by itself when you arrive.",
+    "active": "Your open checks",
+    "activeLine": "{{place}} · by {{time}} · {{names}}",
+    "activeLinePlan": "{{place}} · weekdays {{time}} · {{names}}",
+    "firedLine": "The alert went · {{names}}",
+    "noneActive": "You have no open check.",
+    "arrived": "I have arrived",
+    "ok": "I am OK",
+    "extend": "15 min more",
+    "firedOk": "I am OK, tell them",
+    "skipToday": "Skip today",
+    "stopPlan": "Stop repeating",
+    "arrivedToast": "You arrived; they were told.",
+    "okToast": "The check is closed.",
+    "okLateToast": "They were told you are OK.",
+    "extended": "The check is 15 minutes longer.",
+    "planMissed": "Yesterday’s repeated check could not be set: your phone was off all day.",
+    "needsPhone": "A repeated check needs your phone to be on at least once that day.",
+    "noPermission": "Location is off: tap \"I have arrived\" when you are there.",
+    "ghostNote": "Your arrival check is on: your circles do not see you; if the alert goes, the people you chose do.",
+    "service": "Arrival check on · {{time}}",
+    "dueTitle": "Time to be there ({{place}}). Are you OK?",
+    "dueBody": "If you do not answer in {{minutes}} min, the people you chose are told.",
+    "noRecipients": "Choose someone first.",
+    "refused": {
+      "TIME": "The time must be at least 5 minutes and at most 23 hours from now.",
+      "TOO_MANY": "At most 3 checks can be open at once.",
+      "DAILY_LIMIT": "No more checks can be set today.",
+      "RECIPIENT": "An alert cannot be sent to this person.",
+      "EXTENDS": "This check cannot be extended any more.",
+      "failed": "That did not work. Check your connection."
+    },
+    "lines": {
+      "set": "Added you to an arrival check · by {{time}}",
+      "setPlan": "Added you to a repeated arrival check · weekdays {{time}}",
+      "ok": "Arrived ✓",
+      "okLate": "Arrived; the news came late ✓"
+    },
+    "alert": {
+      "pushTitle": "Safety alert",
+      "pushBody": "An arrival check went unanswered. Tap to see.",
+      "title": "Safety alerts",
+      "headline": "{{name}} did not answer the arrival check due at {{time}}.",
+      "place": "Was going to: {{place}}",
+      "last": "Last location {{minutes}} min ago",
+      "lastNow": "Last location just now",
+      "noLast": "No last location",
+      "battery": "Battery {{level}}%",
+      "charging": "charging",
+      "notCharging": "not charging",
+      "early": "This alert came earlier than expected (due at {{time}}).",
+      "unreadable": "A safety alert about {{name}} came but could not be opened. Reach them.",
+      "message": "Write a message",
+      "seen": "Seen",
+      "none": "You have no open safety alert.",
+      "arrivedBefore": "{{name}} had arrived in this check.",
+      "onMap": "Show on the map"
+    }
   }
 }

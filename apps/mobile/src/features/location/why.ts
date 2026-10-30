@@ -39,9 +39,12 @@ export const useMyWhy = create<{ current: { why: Why; since: number } | null }>(
 
 /** What the screens say next to an old location. */
 export interface WhyShown {
-  kind: Why | 'offline';
+  kind: Why | 'offline' | 'lowBattery';
   since: number;
 }
+
+/** N1 (docs/ADR/0039 §9): an old location sent at this battery or less, not charging. */
+export const LOW_BATTERY_LAST = 5;
 
 /** A person's newest `state` over the circles they are in (every shared circle hears the same). */
 export function newestState(
@@ -68,12 +71,17 @@ export function newestState(
  * - old, but they said "none" a moment ago: they are back, a fresh location is on its way.
  */
 export function whyShown(input: {
-  loc: { ts: number };
+  loc: { ts: number; bat?: number; chg?: boolean };
   state: ReceivedState | undefined;
   now: number;
 }): WhyShown | null {
   const { loc, state, now } = input;
   if (now - loc.ts < STALE_AFTER_MS) return null;
+  // Their last location came with the battery nearly gone (N1, docs/ADR/0039 §9): that says why,
+  // worked out here from the battery inside the sealed message; nothing new was sent for it.
+  if (loc.bat !== undefined && loc.bat <= LOW_BATTERY_LAST && loc.chg === false) {
+    return { kind: 'lowBattery', since: loc.ts };
+  }
   if (state !== undefined && state.why !== 'none' && now - state.ts < STALE_AFTER_MS) {
     return { kind: state.why, since: state.since };
   }

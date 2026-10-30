@@ -16,6 +16,7 @@ import { RedisModule } from './infra/redis/redis.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { MessagesModule } from './messages/messages.module.js';
 import { RollcallsModule } from './rollcalls/rollcalls.module.js';
+import { CheckinsModule } from './checkins/checkins.module.js';
 import { PhotosModule } from './photos/photos.module.js';
 import { PlacesModule } from './places/places.module.js';
 import { PushModule } from './push/push.module.js';
@@ -50,6 +51,7 @@ export class AppModule {
         HistoryModule,
         MessagesModule,
         RollcallsModule,
+        CheckinsModule,
         AccountModule,
         GuardiansModule,
         BillingModule,

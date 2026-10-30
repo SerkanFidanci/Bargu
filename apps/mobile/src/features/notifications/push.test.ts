@@ -30,6 +30,7 @@ const run = (ask = true) =>
     privacyChannelName: 'Gizlilik hatırlatmaları',
     accountChannelName: 'Hesap ve Bargu+',
     safeQuietChannelName: 'Güvendeyim (sessiz özet)',
+    safetyChannelName: 'Güvenlik uyarıları',
     ask,
   });
 

@@ -307,13 +307,15 @@ export function createCircleSync({
       const work = new Map<string, { fetch: boolean; keys: boolean; gone: boolean }>();
       let reloadAll = false;
       for (const event of events) {
-        // Places, event documents, guardian links and the plan have their own sync (features/places,
-        // features/plan, features/guardians, features/billing); the circle itself did not change.
+        // Places, event documents, guardian links, the plan and arrival checks have their own sync
+        // (features/places, features/plan, features/guardians, features/billing, features/checkin);
+        // the circle itself did not change.
         if (
           event.type === 'places.changed' ||
           event.type === 'docs.changed' ||
           event.type === 'guardians.changed' ||
-          event.type === 'plan.changed'
+          event.type === 'plan.changed' ||
+          event.type === 'checkin.fired'
         ) {
           continue;
         }

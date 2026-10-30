@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { AEAD_TAG_BYTES, base64urlOf, u32 } from './envelope.js';
-import { timestamp } from './payload.js';
+import { placeEmojiSchema, placeNameSchema, timestamp } from './payload.js';
 
 /**
  * Messages and moments (docs/ADR/0035): what a circle or one person is sent, gone 24 hours later.
@@ -163,6 +163,86 @@ export const chatHereSchema = z
   .object({ kind: z.literal('here'), id: itemId, rollcallId: z.uuid(), ts: timestamp })
   .strict();
 
+/**
+ * "Eve vardım kontrolü" (docs/ADR/0039): the numbers both sides keep. A check opens at most
+ * `maxAheadMs` after it is set (so a one-shot check is over within a day), and a fired alert can be
+ * opened for `openForMs` after its own due time and grace, however late the server or the phone.
+ */
+export const CHECKIN = {
+  minAheadMs: 5 * 60_000,
+  maxAheadMs: 23 * 3_600_000,
+  openForMs: CHAT_LIFETIME_MS,
+  graceMinutes: [5, 10, 15],
+  noteMax: 140,
+  maxRecipients: 5,
+} as const;
+
+/**
+ * The sealed alert of an arrival check (docs/ADR/0039 §3), for one recipient's device: who it is
+ * about comes from the signature. `due` and `grace` are signed, so a recipient can tell an alert
+ * that came early. The place is its name only; the last location as the phone last had it.
+ */
+export const chatCheckinSchema = z
+  .object({
+    kind: z.literal('checkin'),
+    id: itemId,
+    due: timestamp,
+    grace: z.union(CHECKIN.graceMinutes.map((minutes) => z.literal(minutes))),
+    place: z.object({ name: placeNameSchema, emoji: placeEmojiSchema }).strict().nullable(),
+    last: z
+      .object({
+        lat: z.number().min(-90).max(90),
+        lng: z.number().min(-180).max(180),
+        acc: z.number().nonnegative().max(1_000_000),
+        ts: timestamp,
+      })
+      .strict()
+      .nullable(),
+    bat: z.number().int().min(0).max(100).nullable(),
+    chg: z.boolean().nullable(),
+    note: textOf(CHECKIN.noteMax).optional(),
+    /** Which refresh of the check this is: a recipient keeps the newest. */
+    seq: z.number().int().nonnegative().max(1_000_000),
+    ts: timestamp,
+  })
+  .strict();
+
+/**
+ * "Ali seni eve vardım kontrolüne ekledi · en geç 23:30" (docs/ADR/0039 §8): to each recipient when
+ * a check is set, or for a repeated one when its plan is set or changed (`plan`: the days of the
+ * week, 0 Sunday, and the time of day, as the owner's phone keeps it). No place, no location.
+ */
+export const chatCheckinSetSchema = z
+  .object({
+    kind: z.literal('checkinSet'),
+    id: itemId,
+    checkinId: z.uuid().nullable(),
+    due: timestamp.nullable(),
+    plan: z
+      .object({
+        days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+        at: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+      })
+      .strict()
+      .optional(),
+    ts: timestamp,
+  })
+  .strict();
+
+/**
+ * "Ali vardı ✓" (docs/ADR/0039 §6, §8): a check ended well. Silent: it updates the recipient's
+ * phone, no sound and no notification. `late`: the alert had already gone ("haber geç ulaştı").
+ */
+export const chatCheckinOkSchema = z
+  .object({
+    kind: z.literal('checkinOk'),
+    id: itemId,
+    checkinId: z.uuid(),
+    late: z.boolean(),
+    ts: timestamp,
+  })
+  .strict();
+
 export const chatPayloadSchema = z.discriminatedUnion('kind', [
   chatTextSchema,
   chatPhotoSchema,
@@ -173,6 +253,9 @@ export const chatPayloadSchema = z.discriminatedUnion('kind', [
   chatNearSchema,
   chatRollcallSchema,
   chatHereSchema,
+  chatCheckinSchema,
+  chatCheckinSetSchema,
+  chatCheckinOkSchema,
 ]);
 export type ChatPayload = z.infer<typeof chatPayloadSchema>;
 export type ChatPhoto = z.infer<typeof chatPhotoSchema>;

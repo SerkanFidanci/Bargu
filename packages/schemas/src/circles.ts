@@ -194,6 +194,12 @@ export const serverEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('guardians.changed') }).strict(),
   /** The user's own plan changed (bought, renewed, ran out; docs/ADR/0024): fetch it again. */
   z.object({ type: z.literal('plan.changed') }).strict(),
+  /**
+   * An arrival check fired (docs/ADR/0039): to its recipients (fetch the alert) and its owner (it
+   * went). Kept in the stream, so a phone that was off hears it when it is back. Nothing in it but
+   * which check and whose.
+   */
+  z.object({ type: z.literal('checkin.fired'), checkinId: z.uuid(), ownerId: z.uuid() }).strict(),
 ]);
 export type ServerEvent = z.infer<typeof serverEventSchema>;
 

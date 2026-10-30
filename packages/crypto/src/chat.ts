@@ -1,5 +1,6 @@
 import {
   CHAT_LIFETIME_MS,
+  CHECKIN,
   CHAT_PADDED_SIZES,
   CHAT_PHOTO_MAX_BYTES,
   chatEnvelopeSchema,
@@ -144,8 +145,24 @@ function openItem(
   return payload.data;
 }
 
-/** Items live 24 hours (docs/ADR/0035 §2, §7): an older one, or one dated ahead, is dropped. */
+/**
+ * Items live 24 hours (docs/ADR/0035 §2, §7): an older one, or one dated ahead, is dropped. An arrival
+ * check's alert (docs/ADR/0039 §3, the PM's first condition) counts from its own signed due time and
+ * grace instead: it opens until a day after them, however late it was delivered, and it may have
+ * been sealed at most 23 hours before its due time (so the same day's clock still holds).
+ */
 function fresh(payload: ChatPayload, now: number): ChatPayload {
+  if (payload.kind === 'checkin') {
+    const fired = payload.due + payload.grace * 60_000;
+    if (
+      payload.ts < payload.due - CHECKIN.maxAheadMs ||
+      payload.ts > now + CHAT_MAX_FUTURE_MS ||
+      now > fired + CHECKIN.openForMs
+    ) {
+      throw new BarguCryptoError('REPLAY', 'arrival check alert is out of its time');
+    }
+    return payload;
+  }
   if (payload.ts < now - CHAT_LIFETIME_MS || payload.ts > now + CHAT_MAX_FUTURE_MS) {
     throw new BarguCryptoError('REPLAY', 'item is older than 24 hours or dated ahead');
   }

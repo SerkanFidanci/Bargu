@@ -383,6 +383,10 @@ export default function HomeScreen() {
             safeSheet.current?.present();
           }}
           nearReady={nearReady}
+          onCheckin={() => {
+            quick.current?.dismiss();
+            router.push('/checkin');
+          }}
           onNear={() => {
             quick.current?.dismiss();
             rules.ensure(() => {

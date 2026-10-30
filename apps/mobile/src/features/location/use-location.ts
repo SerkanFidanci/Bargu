@@ -17,6 +17,7 @@ import { useSharing } from './sharing';
 import { useMapOpen } from './map-open';
 import { useSharingEnd } from './sharing-end';
 import { refreshWhy, watchWhy } from './state-signals';
+import { serviceLine, useOwnChecks } from '../checkin/checkin-session';
 import {
   checkLocationPermission,
   lastKnownFix,
@@ -63,6 +64,8 @@ export function useLocationSession(ready: boolean): void {
   const liveUntil = useLiveUntil((state) => state.until);
   const mapOpen = useMapOpen((state) => state.open);
   const me = useAuth((state) => state.userId);
+  // Open arrival checks keep the service on (docs/ADR/0039 §4).
+  const checks = useOwnChecks((state) => state.checks);
   // The earliest timed share's end: the service stops and every screen says so at once. A friend's
   // timed share says so in a line whose tap shares an hour more (the app closed, the phone's own
   // notification set for that time says it instead).
@@ -140,14 +143,15 @@ export function useLocationSession(ready: boolean): void {
     void startTracking({
       gps: locationEngine.gps(),
       title: i18n.t('location.service.title'),
-      body: i18n.t('location.service.body'),
+      // An open arrival check says so where the service is seen (docs/ADR/0039 §1): none is hidden.
+      body: serviceLine(language) ?? i18n.t('location.service.body'),
       restart: {
         title: i18n.t('location.service.stoppedTitle'),
         body: i18n.t('location.service.stoppedBody'),
       },
     }).catch(() => undefined);
     // The language is a dependency so the restart notice is rewritten when it changes.
-  }, [ready, active, permission, circles, sharing, expiry, language]);
+  }, [ready, active, permission, circles, sharing, expiry, language, checks]);
 
   useEffect(() => {
     const remaining = liveUntil - Date.now();

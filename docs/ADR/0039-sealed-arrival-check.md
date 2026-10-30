@@ -327,3 +327,29 @@ dediği an. Gidilen yer, konum, pil, not ve tekrar planı **gitmez**.
 5. Alıcıya **kurulunca ve varınca** kısa haber gitsin mi (öneri: evet; hem beklenti hem eski emanetin
    tekrarına karşı koruma)? Hayırsa 10'daki "iptal edileni iletme" önlemi zayıflar.
 6. **Hep bedava** ve duraklamış çemberde de çalışsın mı (öneri: evet)?
+
+## Uygulama notları (kodlama oturumu, 2026-10-30)
+
+Kod bu ADR'yi ve PM şartlarını izler. Metinden ayrıldığı ya da metni netleştirdiği yerler:
+
+1. **İletim bir akış olayıdır.** İşçi, kontrol ateşlenince alıcılara ve sahibe kalıcı `checkin.fired`
+   olayı yayınlar (yalnız kontrolün ve sahibin kimliği). Böylece telefonu kapalı olan da geri
+   gelince duyar. Canlı `checkin.fired` mesajı yerine bu seçildi: işçi canlı mesaj yollayamıyor.
+2. **Kurallar veritabanında.** Migration 0045'teki `SECURITY DEFINER` işlevleri kuralları uygular:
+   `create_checkin`, `refresh_checkin`, `extend_checkin`, `cancel_checkin`, `ack_checkin`,
+   `fire_checkin`. Kutuyu yalnız alıcısı, yalnız ateşlendikten sonra okur. Sahip kutuları okuyamaz;
+   alıcılarını ayrı bir işlevle görür.
+3. **Kaçırılan iş.** İşçi kapalıyken zamanı geçen kontrolleri her dakika yoklayıp ateşler. Alıcı
+   uyarıyı ateşlenmeden itibaren 24 saat açabilir (PM şartı 1).
+4. **Eski uygulama.** Sunucu üyelerin uygulama sürümünü saklamıyor (ADR 0040 notu gibi). Bu yüzden
+   §8'deki "uygulaması bu türü biliyor" şartı kurulumda denetlenemez. Seviyesi 8'den eski uygulama
+   gelen kutusunu çekemez (426); onun telefonu uyarıyı gösteremez. C APK'sından sonra kapalı test
+   grubunun hepsi seviye 8'de olacak.
+5. **Alıcının ekranı.** Bildirim, "Güvenlik uyarıları" kanalında yüksek öncelikli gelir ve
+   dokununca uyarı ekranı açılır (tam ekran izni yok, PM şartı 4). Son konum, Güvendeyim'in harita
+   noktasıyla gösterilir. Açılamayan uyarı için "açılamadı, kendisine ulaş" yazar.
+6. **KADES kısayolu.** Uygulamanın paket adı tahmin edilmedi; Play'de KADES araması açılır.
+7. **N1.** Pil %5 ve altına inip şarjda değilken son konum bir kez gider. Kısa bir şarj tekrar
+   kurmaz; yalnız %15'in üstü kurar. Alan telefon "Pili bitmek üzereydi" yazar.
+8. **Tekrarlı kontrol.** Hafta içi her gün, seçilen saat. "Dünkü kontrol kurulamadı" uyarısı bu
+   pakette yok (sonraki adım).

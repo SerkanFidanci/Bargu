@@ -19,6 +19,7 @@ import { ListRow } from '@/ui/list-row';
 import { Screen, SectionTitle } from '@/ui/screen';
 import { Text } from '@/ui/text';
 import { toast } from '@/ui/toast';
+import { OpenChecksNote } from '@/features/checkin/open-checks-note';
 
 /**
  * "Seni görenler" (BARGU_PLAN §2, Faz 9): who sees this phone's location right now, circle by
@@ -73,6 +74,7 @@ export default function SeersScreen() {
 
   return (
     <Screen title={t('seers.title')} testID="seers-screen">
+      <OpenChecksNote />
       {stopped ? (
         <View style={[styles.card, { backgroundColor: colors.primarySoft }]}>
           <View style={styles.head}>

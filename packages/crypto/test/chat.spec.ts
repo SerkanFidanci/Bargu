@@ -504,3 +504,42 @@ describe('photo files (docs/ADR/0035 §4)', () => {
     expect(openSealed(version)).toBe('MALFORMED');
   });
 });
+
+describe('an arrival check alert keeps its own time (docs/ADR/0039 §3, the PM)', () => {
+  const HOUR = 3_600_000;
+  const MINUTE = 60_000;
+  const alert = (due: number, ts: number): ChatPayload => ({
+    kind: 'checkin',
+    id: itemIds.a,
+    due,
+    grace: 10,
+    place: { name: 'Ev', emoji: '🏠' },
+    last: { lat: 41.0256, lng: 28.9742, acc: 12, ts: ts - MINUTE },
+    bat: 3,
+    chg: false,
+    seq: 0,
+    ts,
+  });
+
+  it('opens for a day after its due time and grace, however late it comes', () => {
+    // Set 23 hours ahead and the phone switched off at once: sealed then, delivered at due + grace.
+    const due = NOW + 23 * HOUR;
+    const envelope = sealFor(alert(due, NOW));
+    const fired = due + 10 * MINUTE;
+    expect(openAsBob(envelope, fired).kind).toBe('checkin');
+    // The recipient's phone was off for most of a day: it still opens.
+    expect(openAsBob(envelope, fired + 24 * HOUR - 1).kind).toBe('checkin');
+    // A day after its time, it is over.
+    expect(codeOf(() => openAsBob(envelope, fired + 24 * HOUR + 1))).toBe('REPLAY');
+  });
+
+  it('is refused when sealed more than 23 hours before its due time', () => {
+    const due = NOW + 23 * HOUR + MINUTE;
+    expect(codeOf(() => openAsBob(sealFor(alert(due, NOW)), due))).toBe('REPLAY');
+  });
+
+  it('leaves every other item at its 24 hours from when it was sent', () => {
+    const envelope = sealFor(text());
+    expect(codeOf(() => openAsBob(envelope, NOW + 24 * HOUR + 1))).toBe('REPLAY');
+  });
+});

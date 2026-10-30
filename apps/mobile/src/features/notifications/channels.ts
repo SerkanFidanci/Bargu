@@ -12,6 +12,12 @@ export const MEETINGS_CHANNEL = 'meetings';
 export const SAFE_QUIET_CHANNEL = 'safe-quiet';
 /** The weekly "who sees you" reminder (BARGU_PLAN Faz 9): not to be muted with the social news. */
 export const PRIVACY_CHANNEL = 'privacy';
+/**
+ * Arrival check alerts (docs/ADR/0039, the PM's fourth condition): high importance, with sound;
+ * never muted by Bargu. No full-screen intent and no "Do not disturb" bypass: the system's own
+ * rules stay, and the full screen opens on a tap.
+ */
+export const SAFETY_CHANNEL = 'safety';
 /** The account's plan: the trial about to end (docs/ADR/0024 §4). */
 export const ACCOUNT_CHANNEL = 'account';
 

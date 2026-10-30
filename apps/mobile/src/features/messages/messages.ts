@@ -46,11 +46,28 @@ const itemSchema = z
     from: z.uuid(),
     /** When it was sent (the sender's clock, checked within 24 hours and 5 minutes on arrival). */
     at: z.number(),
-    /** `near`: "Yakındayım, gelir misin?" (docs/ADR/0037), with nothing in it but when. */
-    kind: z.enum(['text', 'photo', 'near']),
+    /**
+     * `near`: "Yakındayım, gelir misin?" (docs/ADR/0037), with nothing in it but when.
+     * `checkinSet`, `checkinOk`: an arrival check's lines (docs/ADR/0039 §8): the person added
+     * this phone's user to one, and arrived; the second never counts as unread.
+     */
+    kind: z.enum(['text', 'photo', 'near', 'checkinSet', 'checkinOk']),
     text: z.string().optional(),
     replyTo: z.uuid().optional(),
     photo: chatPhotoSchema.omit({ kind: true, id: true, ts: true }).optional(),
+    /** An arrival check's line: which check, its due time or plan, whether the news came late. */
+    check: z
+      .object({
+        checkinId: z.uuid().nullable(),
+        due: z.number().nullable().optional(),
+        plan: z
+          .object({ days: z.array(z.number().int().min(0).max(6)), at: z.string() })
+          .strict()
+          .optional(),
+        late: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
     /** This phone's own items while they go out, and when they could not. */
     state: z.enum(['sending', 'sent', 'failed']),
     /**
@@ -279,8 +296,31 @@ export function applyPayload<T extends Saved>(
     );
     return { ...saved, items, seen };
   }
-  // Roll calls go their own way (docs/ADR/0040): one that came as a chat item is not shown.
-  if (payload.kind === 'rollcall' || payload.kind === 'here') return { ...saved, seen };
+  // Roll calls go their own way (docs/ADR/0040), and so does an arrival check's sealed alert
+  // (docs/ADR/0039): one that came as a chat item is not shown.
+  if (payload.kind === 'rollcall' || payload.kind === 'here' || payload.kind === 'checkin') {
+    return { ...saved, seen };
+  }
+  if (payload.kind === 'checkinSet' || payload.kind === 'checkinOk') {
+    const line: ChatItem = {
+      id: payload.id,
+      conversation,
+      from,
+      at: payload.ts,
+      kind: payload.kind,
+      state: 'sent',
+      check:
+        payload.kind === 'checkinSet'
+          ? {
+              checkinId: payload.checkinId,
+              due: payload.due,
+              ...(payload.plan === undefined ? {} : { plan: payload.plan }),
+            }
+          : { checkinId: payload.checkinId, late: payload.late },
+      ...(envelope === undefined ? {} : { envelope }),
+    };
+    return { ...withItem(saved, line), seen };
+  }
   const item: ChatItem = {
     id: payload.id,
     conversation,
@@ -362,20 +402,30 @@ export function withoutConversation<T extends Saved>(saved: T, conversation: Con
 
 /** A story is not an item of its conversation: it is a ring on its sender's pin (§8). */
 const isStory = (item: ChatItem) => item.photo?.story === true;
+/** "Vardı ✓" only updates what this phone shows (the PM, docs/ADR/0039): never unread. */
+const isQuiet = (item: ChatItem) => item.kind === 'checkinOk';
 
 /** Items of others in a conversation after it was last read. */
 export function unreadIn(saved: Saved, conversation: Conversation, me: string): number {
   const read = saved.read[conversation] ?? 0;
   return saved.items.filter(
     (item) =>
-      item.conversation === conversation && item.from !== me && item.at > read && !isStory(item),
+      item.conversation === conversation &&
+      item.from !== me &&
+      item.at > read &&
+      !isStory(item) &&
+      !isQuiet(item),
   ).length;
 }
 
 /** Every unread item of others, in all conversations (the dock's count). */
 export function unreadTotal(saved: Saved, me: string): number {
   return saved.items.filter(
-    (item) => item.from !== me && item.at > (saved.read[item.conversation] ?? 0) && !isStory(item),
+    (item) =>
+      item.from !== me &&
+      item.at > (saved.read[item.conversation] ?? 0) &&
+      !isStory(item) &&
+      !isQuiet(item),
   ).length;
 }
 

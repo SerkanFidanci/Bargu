@@ -132,6 +132,8 @@ import {
 } from './sharing-reminder';
 import { cancelSharingReminder, scheduleSharingReminder } from './sharing-reminder-notification';
 import { stopTracking } from './tracker';
+import { lastCallDue } from './last-call';
+import { checkinFix, checkinLowBattery, wantsLocation } from '../checkin/checkin-session';
 
 /** Circles as sending needs them, kept for a background start (no circle list in memory then). */
 const CIRCLES_KEY = 'loc:circles:v1';
@@ -445,9 +447,19 @@ export const locationEngine = createLocationEngine({
     // Meetings first: they note this position at once, before the location goes out with it.
     const meeting = meetings.fix(fix).catch(() => undefined);
     const trail = history.fix(fix).catch(() => undefined);
+    // An open arrival check: arrived, or time to refresh its sealed alerts (docs/ADR/0039 §4, §6).
+    const check = checkinFix(fix).catch(() => undefined);
     recordOwnTrail(fix);
     await presence.fix(fix);
-    await Promise.all([meeting, trail]);
+    await Promise.all([meeting, trail, check]);
+  },
+  // The service runs while an arrival check is open, even as a ghost to every circle.
+  alsoWanted: wantsLocation,
+  // N1: the last location before the battery dies, once; open checks are refreshed with it.
+  lastCall: (power) => {
+    if (!isVaultOpen() || !lastCallDue(vault(), power)) return false;
+    void checkinLowBattery().catch(() => undefined);
+    return true;
   },
   eta: (circleId, fix, now) => meetings.eta(circleId, fix, now),
   background: () => AppState.currentState !== 'active',

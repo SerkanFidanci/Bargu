@@ -17,6 +17,7 @@ import {
   SOCIAL_CHANNEL,
   ACCOUNT_CHANNEL,
   SAFE_QUIET_CHANNEL,
+  SAFETY_CHANNEL,
   NEAR_REPLIES,
   type NearReply,
 } from './channels';
@@ -53,6 +54,8 @@ export interface PushRegistration {
   accountChannelName: string;
   /** The quiet summary of "Güvendeyim" messages past the hourly limit (docs/ADR/0029 §5). */
   safeQuietChannelName: string;
+  /** Arrival check alerts (docs/ADR/0039). */
+  safetyChannelName: string;
   /** Show the system question now (the user tapped "Bildirimleri aç"); else only check. */
   ask: boolean;
 }
@@ -70,6 +73,7 @@ export async function enablePush({
   privacyChannelName,
   accountChannelName,
   safeQuietChannelName,
+  safetyChannelName,
   ask,
 }: PushRegistration): Promise<PushState> {
   if (Platform.OS === 'android') {
@@ -83,6 +87,10 @@ export async function enablePush({
     });
     await Notifications.setNotificationChannelAsync(MEETINGS_CHANNEL, {
       name: meetingsChannelName,
+      importance: Notifications.AndroidImportance.HIGH,
+    });
+    await Notifications.setNotificationChannelAsync(SAFETY_CHANNEL, {
+      name: safetyChannelName,
       importance: Notifications.AndroidImportance.HIGH,
     });
     await Notifications.setNotificationChannelAsync(PRIVACY_CHANNEL, {
@@ -127,7 +135,14 @@ function set(state: PushState): PushState {
 /** A screen a tapped notification opens instead of a circle (the weekly reminder: who sees you). */
 export function routeOfResponse(
   response: Notifications.NotificationResponse,
-): '/seers' | '/guardians' | '/store?shelf=plus' | '/messages' | `/messages/${string}` | null {
+):
+  | '/seers'
+  | '/guardians'
+  | '/store?shelf=plus'
+  | '/checkin/alerts'
+  | '/messages'
+  | `/messages/${string}`
+  | null {
   const data: unknown = response.notification.request.content.data;
   if (typeof data !== 'object' || data === null) return null;
   const { route } = data as Record<string, unknown>;
@@ -142,6 +157,8 @@ export function routeOfResponse(
   }
   // The trial's reminder (features/billing/trial-reminder.ts): Bargu+ is a shelf of the store.
   if (route === 'plus') return '/store?shelf=plus';
+  // An arrival check's alert (docs/ADR/0039): the screen that opens and shows it.
+  if (route === 'checkin') return '/checkin/alerts';
   return null;
 }
 

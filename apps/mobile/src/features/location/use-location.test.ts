@@ -31,6 +31,11 @@ jest.mock('./state-signals', () => ({
   watchWhy: () => undefined,
   refreshWhy: () => Promise.resolve(),
 }));
+// Arrival checks keep the service on (docs/ADR/0039 §4): none open in these tests.
+jest.mock('../checkin/checkin-session', () => ({
+  serviceLine: () => null,
+  useOwnChecks: (select: (state: { checks: [] }) => unknown) => select({ checks: [] }),
+}));
 jest.mock('./location-session', () => {
   const { create } = jest.requireActual<typeof import('zustand')>('zustand');
   return {

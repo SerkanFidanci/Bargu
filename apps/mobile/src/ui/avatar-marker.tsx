@@ -94,7 +94,7 @@ export type MarkerActivity =
  * What an old location says besides its age ("Neden eski?", docs/ADR/0028): the phone's own reason,
  * or "offline" when nothing has been heard from it for a while.
  */
-export type MarkerWhy = 'saver' | 'permission' | 'nofix' | 'offline';
+export type MarkerWhy = 'saver' | 'permission' | 'nofix' | 'offline' | 'lowBattery';
 
 /** The line under someone (features/map/motion-detail.ts decides). */
 export type MarkerDetail =

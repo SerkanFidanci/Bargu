@@ -297,6 +297,14 @@ dosya      = head ‖ ChaCha20-Poly1305(blobKey, nonce, aad = "bargu/v1/blob\0" 
   hücreden geldiyse yalnız "yakınlarda" der). İçerikteki `id` başlıktaki `id` olmalıdır. Bildirim
   gövdesi `near` (`circleId?, ts`) yalnız kimden geldiğini söyler; "Geliyorum" ve "Şimdi olmaz"
   düğmeleri sıradan `text` öğesi gönderir.
+- **Eve vardım kontrolü (ADR 0039):** `checkin` (`id, due, grace, place {name, emoji} | null, last
+{lat, lng, acc, ts} | null, bat, chg, note?, seq, ts`) kişisel öğe yoluyla (`sealDirect`) her
+  alıcının güncel cihazına ayrı mühürlenir; sohbete girmez, sunucu onu kutu olarak saklar ve açılma
+  saatinde iletir. Hedefin koordinatı hiçbir yere gitmez. Bu öğenin yaşı `ts`'den değil imzalı
+  `due + grace`'ten sayılır: o andan 24 saat sonrasına kadar açılır; `ts` `due`'dan en çok 23 saat
+  önce olabilir (PM şartı 1). `checkinSet` (`id, checkinId | null, due | null, plan?, ts`) ve
+  `checkinOk` (`id, checkinId, late, ts`) sıradan kişisel öğedir; `checkinOk` bildirimsiz ve
+  okunmamış sayılmaz. Sunucu haberi `notice: checkin` yalnız kontrolün kimliğini taşır.
 - **Etkinlik yoklaması (ADR 0040):** `rollcall` (`id, closesAt, ts`; `id` yoklamanın kimliği) ve
   `here` (`id, rollcallId, ts`; "Buradayım", **konum yok**, şema katı) aynı çember sohbet anahtarıyla
   mühürlenir ama sohbete girmez: kendi uçlarından gider (`/v1/circles/:id/rollcalls`), sunucu türü

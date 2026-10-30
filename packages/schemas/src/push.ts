@@ -13,6 +13,9 @@ import { MAX_CIRCLE_MEMBERS } from './circles.js';
 
 /** News the server itself announces (it knows them anyway); the app words them in its language. */
 export const PUSH_NOTICES = [
+  // An arrival check's alert was handed over (docs/ADR/0039): the "circle" it names is the check.
+  // Never muted; the phone fetches its own sealed box and writes the text.
+  'checkin',
   'friendRequest',
   'friendAccepted',
   'friendAdded',

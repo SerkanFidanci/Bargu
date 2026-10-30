@@ -149,7 +149,9 @@
       "safeHint": "Seçtiğin çemberlere iyi olduğunu söyle",
       "near": "Yakındayım",
       "nearHint": "Gelir misin diye haber ver",
-      "nearOff": "Şu an gönderilemez, nedenini görmek için dokun"
+      "nearOff": "Şu an gönderilemez, nedenini görmek için dokun",
+      "checkin": "Eve vardım",
+      "checkinHint": "Varmazsan seçtiğin kişilere haber gitsin"
     },
     "cardsWaiting": "{{count}} kart daha sırada",
     "invite": {
@@ -258,7 +260,8 @@
         "saver": "Pil tasarrufu",
         "permission": "Konum izni kapalı",
         "nofix": "Konum alınamıyor",
-        "offline": "Çevrim dışı"
+        "offline": "Çevrim dışı",
+        "lowBattery": "Pili bitmek üzereydi"
       },
       "withWhy": "{{text}} · {{why}}",
       "charging": "şarj oluyor",
@@ -595,7 +598,8 @@
       "alone": "Yakında, gelir misin?",
       "inCircle": "{{name}}: yakında, gelir misin?"
     },
-    "rollcall": "{{name}}: Herkes yerinde mi? Buradayım de."
+    "rollcall": "{{name}}: Herkes yerinde mi? Buradayım de.",
+    "safetyChannel": "Güvenlik uyarıları"
   },
   "location": {
     "service": {
@@ -1745,7 +1749,7 @@
       "account": "Hesabın: e-postanın anahtarlı özeti (adres yalnız giriş kodu giderken bir an geçer), görünen adın, kullanıcı adın, avatar rengin ve emojin, kimliğinden hesabının yaklaşık ne zaman açıldığı.",
       "circles": "Çemberlerin ve üyelikler: hangi çemberlerde olduğun, çemberlerin adları, kimin yönetici olduğu, bir çemberde kaç yer kayıtlı olduğu ve kimin kaydettiği, davet bağlantılarının ne zaman açıldığı.",
       "messages": "Mesajların üst verisi: kim kime ya da hangi çembere ne zaman yazdı, kısa mı uzun mu, fotoğraf dosyasının boyutu. İçeriği değil.",
-      "events": "Olayların zamanı: Güvendeyim, bir yere varış ya da ayrılış, geç kalacağım ve çemberdeki değişikliklerin ne zaman olduğu. Ne yazdığı ya da nerede olduğu değil.",
+      "events": "Olayların zamanı: Güvendeyim, bir yere varış ya da ayrılış, geç kalacağım, çemberdeki değişiklikler ve eve vardım kontrollerinin kimden kime, hangi saate kurulduğu, ne zaman iptal edildiği ya da iletildiği. Ne yazdığı, nereye gidildiği ya da nerede olunduğu değil.",
       "votes": "Etkinlik, oylar ve yoklamalar: buluşma ya da oylama olduğu, kimin hangi oylamada oy verdiği, yoklamada kimin ne zaman \"Buradayım\" dediği. Neye oy verdiği ya da nerede olduğu değil.",
       "sharing": "Konum zarfları: hangi çembere ne zaman ve ne sıklıkta konum gittiği, paylaşımın ne zaman durduğu, konumunun neden eski olduğunun ne zaman değiştiği ve geçmiş açıksa hangi saatlerde izin olduğu. Zarfın içi değil.",
       "watch": "Kim kime bakıyor: haritada birinin kime baktığı. Bakınca arkadaşının konumu canlı güncellenir; nereye baktığı değil.",
@@ -1820,5 +1824,82 @@
     },
     "setting": "Etkinlik yoklamaları",
     "settingHint": "Kapalıyken etkinliklerde \"Herkes yerinde mi?\" sorusu sana gelmez. 8 kişiden büyük etkinliklerde 18 yaşından küçükler için kapalıdır."
+  },
+  "checkin": {
+    "title": "Eve vardım kontrolü",
+    "intro": "Varmazsan ve cevap vermezsen seçtiğin kişilere haber gider. Uyarıyı telefonun şifreleyip bırakır; sunucu içini göremez.",
+    "where": "Nereye",
+    "noPlace": "Yer seçme: varınca \"Vardım\"a dokunurum",
+    "due": "En geç",
+    "grace": "Ek süre",
+    "graceOption": "{{count}} dk",
+    "who": "Kime haber gitsin",
+    "whoHint": "En çok 5 kişi; seninle ortak bir çemberde olmalı.",
+    "note": "Not (isteğe bağlı)",
+    "notePlaceholder": "Örneğin taksinin plakası",
+    "repeat": "Hafta içi her gün tekrarla",
+    "summary": "Saat {{time}} olunca varmamışsan ve cevap vermezsen {{names}} haber alır. Haber giderse son konumunu, pilini ve notunu görürler.",
+    "notEmergency": "Bargu acil servis değildir. Acil durumda 112’yi ara.",
+    "call112": "112’yi ara",
+    "kades": "KADES",
+    "start": "Kontrolü başlat",
+    "started": "Kontrol açık. Varınca kendiliğinden kapanır.",
+    "active": "Açık kontrollerin",
+    "activeLine": "{{place}} · en geç {{time}} · {{names}}",
+    "activeLinePlan": "{{place}} · hafta içi {{time}} · {{names}}",
+    "firedLine": "Uyarı gitti · {{names}}",
+    "noneActive": "Açık kontrolün yok.",
+    "arrived": "Vardım",
+    "ok": "İyiyim",
+    "extend": "15 dk uzat",
+    "firedOk": "İyiyim, haber ver",
+    "skipToday": "Bugün atla",
+    "stopPlan": "Tekrarı kapat",
+    "arrivedToast": "Vardın; haber verildi.",
+    "okToast": "Kontrol kapandı.",
+    "okLateToast": "Haber verildi: iyisin.",
+    "extended": "Kontrol 15 dakika uzadı.",
+    "planMissed": "Dünkü tekrarlı kontrol kurulamadı: telefonun gün boyu kapalıydı.",
+    "needsPhone": "Tekrarlı kontrol, telefonunun o gün en az bir kez açık olmasını ister.",
+    "noPermission": "Konum izni kapalı: varınca \"Vardım\"a dokun.",
+    "ghostNote": "Eve vardım kontrolün açık: çemberlerin seni görmez; uyarı giderse seçtiğin kişiler görür.",
+    "service": "Eve vardım kontrolü açık · {{time}}",
+    "dueTitle": "Varış saatin geldi ({{place}}). İyi misin?",
+    "dueBody": "{{minutes}} dk içinde cevap vermezsen seçtiğin kişiler haber alır.",
+    "noRecipients": "Önce bir kişi seç.",
+    "refused": {
+      "TIME": "Saat en az 5 dakika, en çok 23 saat sonrası olmalı.",
+      "TOO_MANY": "Aynı anda en çok 3 kontrol açık olabilir.",
+      "DAILY_LIMIT": "Bugün daha fazla kontrol kurulamaz.",
+      "RECIPIENT": "Bu kişiye uyarı gönderilemiyor.",
+      "EXTENDS": "Bu kontrol daha fazla uzatılamaz.",
+      "failed": "Olmadı. Bağlantını kontrol et."
+    },
+    "lines": {
+      "set": "Seni eve vardım kontrolüne ekledi · en geç {{time}}",
+      "setPlan": "Seni tekrarlı eve vardım kontrolüne ekledi · hafta içi {{time}}",
+      "ok": "Vardı ✓",
+      "okLate": "Vardı, haber geç ulaştı ✓"
+    },
+    "alert": {
+      "pushTitle": "Güvenlik uyarısı",
+      "pushBody": "Bir eve vardım kontrolü cevapsız kaldı. Dokun ve gör.",
+      "title": "Güvenlik uyarıları",
+      "headline": "{{name}}, saat {{time}} için kurduğu eve vardım kontrolüne cevap vermedi.",
+      "place": "Gidiyordu: {{place}}",
+      "last": "Son konum {{minutes}} dk önce",
+      "lastNow": "Son konum az önce",
+      "noLast": "Son konumu yok",
+      "battery": "Pil %{{level}}",
+      "charging": "şarjda",
+      "notCharging": "şarjda değil",
+      "early": "Bu uyarı beklenenden erken geldi (saat {{time}} bekleniyordu).",
+      "unreadable": "{{name}} için bir güvenlik uyarısı geldi ama açılamadı. Kendisine ulaş.",
+      "message": "Mesaj yaz",
+      "seen": "Gördüm",
+      "none": "Açık bir güvenlik uyarın yok.",
+      "arrivedBefore": "{{name}} bu kontrolde varmıştı.",
+      "onMap": "Haritada gör"
+    }
   }
 }

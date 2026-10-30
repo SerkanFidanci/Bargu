@@ -9,6 +9,13 @@ import { toast } from '@/ui/toast';
 import { api } from '../auth/auth-store';
 import { sendText } from '../messages/outbox';
 import { answerCurrent } from '../rollcall/rollcall-session';
+import {
+  CHECKIN_EXTEND,
+  CHECKIN_OK,
+  checkinOfResponse,
+  registerCheckinButtons,
+} from '../checkin/checkin-reminders';
+import { extendCheck, imOk } from '../checkin/checkin-session';
 import { pokeFromTap } from '../social/poke';
 import { openSpot } from '../social/safe-spot';
 import { isVaultOpen, vault } from '../storage/vault';
@@ -63,6 +70,24 @@ function registerRollcallHere(): Promise<unknown> {
 }
 
 function open(response: Notifications.NotificationResponse): void {
+  // "İyi misin?" at an arrival check's time (docs/ADR/0039 §7): "İyiyim" ends it, "15 dk uzat"
+  // moves it; a tap opens the checks.
+  const checkinId = checkinOfResponse(response);
+  if (checkinId !== null) {
+    if (response.actionIdentifier === CHECKIN_OK) {
+      void imOk(checkinId).then((result) => {
+        if (result === 'ok') toast.success(i18n.t('checkin.okToast'));
+        else toast.error(i18n.t('checkin.refused.failed'));
+      });
+    } else if (response.actionIdentifier === CHECKIN_EXTEND) {
+      void extendCheck(checkinId).then((result) => {
+        if (result === 'ok') toast.success(i18n.t('checkin.extended'));
+        else toast.error(i18n.t('checkin.refused.failed'));
+      });
+    }
+    router.push('/checkin');
+    return;
+  }
   // "Buradayım" under a roll call: answered if it is still open, then its circle opens.
   if (response.actionIdentifier === ROLLCALL_HERE) {
     const circleId = circleOfResponse(response);
@@ -114,6 +139,7 @@ function enable(ask: boolean): Promise<PushState> {
     privacyChannelName: i18n.t('notifications.privacyChannel'),
     accountChannelName: i18n.t('notifications.accountChannel'),
     safeQuietChannelName: i18n.t('notifications.safeQuietChannel'),
+    safetyChannelName: i18n.t('notifications.safetyChannel'),
     ask,
   });
 }
@@ -136,6 +162,10 @@ export function usePushNotifications(ready: boolean): void {
     if (Platform.OS === 'android') void registerPushTask().catch(() => undefined);
     void registerNearReplies().catch(() => undefined);
     void registerRollcallHere().catch(() => undefined);
+    void registerCheckinButtons({
+      ok: i18n.t('checkin.ok'),
+      extend: i18n.t('checkin.extend'),
+    }).catch(() => undefined);
     const tokens = Notifications.addPushTokenListener((token) => {
       const data: unknown = token.data;
       if (typeof data === 'string') void register(data).catch(() => undefined);

@@ -11,6 +11,7 @@ import {
   NEAR_CATEGORY,
   PLACES_CHANNEL,
   ROLLCALL_CATEGORY,
+  SAFETY_CHANNEL,
   SOCIAL_CHANNEL,
 } from './channels';
 import type { PushContacts } from './push-contacts';
@@ -20,13 +21,14 @@ export interface ShownPush {
   body: string;
   /** Tapping opens this circle. */
   circleId: string;
-  channel: typeof SOCIAL_CHANNEL | typeof PLACES_CHANNEL | typeof MEETINGS_CHANNEL;
+  channel:
+    typeof SOCIAL_CHANNEL | typeof PLACES_CHANNEL | typeof MEETINGS_CHANNEL | typeof SAFETY_CHANNEL;
   /** Who it is about (for muting); null for the server's notices. */
   fromUserId: string | null;
   /** Their name as this phone knows it ("Güvendeyim" counts and sums up messages by person). */
   fromName?: string;
   /** Tapping opens this screen instead of the circle (guardian notices name a link). */
-  route?: 'guardians' | 'messages';
+  route?: 'guardians' | 'messages' | 'checkin';
   /** For messages: the conversation tapping opens (`c:<circleId>` or `p:<userId>`). */
   conversation?: string;
   /**
@@ -70,6 +72,18 @@ export function pushText(
   if (body.kind === 'notice') {
     // The silent signal of background live mode (docs/ADR/0028 step 3) has no words, ever.
     if (body.notice === 'watch') return null;
+    // An arrival check's alert was handed over (docs/ADR/0039): who and what is in the sealed box
+    // this phone fetches; tapping opens it. Never muted (it names no sender to mute).
+    if (body.notice === 'checkin') {
+      return {
+        title: i18n.t('checkin.alert.pushTitle'),
+        body: i18n.t('checkin.alert.pushBody'),
+        circleId: body.circleId,
+        channel: SAFETY_CHANNEL,
+        fromUserId: null,
+        route: 'checkin',
+      };
+    }
     if (GUARDIAN_NOTICES.has(body.notice)) {
       // docs/ADR/0023 §4: the "circle" is the link; the guardian screen shows who and what.
       // Someone new near the child: named after the child when this phone knows the link.

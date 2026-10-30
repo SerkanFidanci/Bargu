@@ -79,6 +79,16 @@ export interface EngineDeps {
    * location went to a circle / the last was taken back. The reason for an old location follows it.
    */
   settled?: () => void;
+  /**
+   * Something besides the circles needs this phone's position now: an open arrival check (docs/ADR/
+   * 0039 §4). The service runs, with GPS, even with nothing to send (a ghost to every circle).
+   */
+  alsoWanted?: () => boolean;
+  /**
+   * The battery is about to run out (N1, docs/ADR/0039 §9): the newest position goes once to every
+   * circle that gets it, whatever the frequency table says. Its own battery level tells why.
+   */
+  lastCall?: (battery: Battery) => boolean;
   now?: () => number;
 }
 
@@ -217,6 +227,7 @@ export function createLocationEngine(deps: EngineDeps) {
    * city cells (1 and 10 km) are well served by Wi-Fi and cell positioning.
    */
   function gps(): boolean {
+    if (deps.alsoWanted?.() === true) return true;
     const settings = deps.sharing();
     return shared().some((circle) => circleSharing(settings, circle.id).precision === 'exact');
   }
@@ -230,6 +241,14 @@ export function createLocationEngine(deps: EngineDeps) {
     if (shouldSend(last, next, now(), live(), deps.background?.() === true)) {
       pending = next;
       return pump();
+    }
+    if (deps.lastCall !== undefined && shared().length > 0) {
+      const lastCall = deps.lastCall;
+      return deps.battery().then((battery) => {
+        if (!lastCall(battery)) return running ?? Promise.resolve();
+        pending = next;
+        return pump();
+      });
     }
     // Nothing to send, but a timed share may just have ended: take it back without waiting.
     if (toWithdraw().length > 0) return pump();
@@ -263,7 +282,7 @@ export function createLocationEngine(deps: EngineDeps) {
 
     /** Whether any circle gets this phone's location now (else the location service can stop). */
     active(): boolean {
-      return shared().length > 0;
+      return shared().length > 0 || deps.alsoWanted?.() === true;
     },
 
     /** The circles this phone's location goes to now (sharing on, not ghost, not over, not paused). */

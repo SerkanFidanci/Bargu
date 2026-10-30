@@ -81,6 +81,7 @@ export const WHY_ICONS: Record<MarkerWhy, LucideIcon> = {
   permission: MapPinOff,
   nofix: LocateOff,
   offline: WifiOff,
+  lowBattery: BatteryLow,
 };
 const MARKER = avatarSize.md;
 

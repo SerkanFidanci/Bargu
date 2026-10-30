@@ -82,12 +82,23 @@ export function pushOf(payload: ChatPayload, circleId: string | undefined): Push
       return { kind: 'shot', ts: payload.ts };
     case 'near':
       return { kind: 'near', ...(circleId === undefined ? {} : { circleId }), ts: payload.ts };
-    // A roll call's notification is made where it is asked (features/rollcall), never here.
+    // "Seni eve vardım kontrolüne ekledi" is told like a message (docs/ADR/0039 §8).
+    case 'checkinSet':
+      return {
+        kind: 'chat',
+        ...(circleId === undefined ? {} : { circleId }),
+        photo: false,
+        ts: payload.ts,
+      };
+    // A roll call's notification is made where it is asked (features/rollcall), never here; "Vardı ✓"
+    // is silent and an arrival check's alert goes its own way.
     case 'del':
     case 'view':
     case 'react':
     case 'rollcall':
     case 'here':
+    case 'checkin':
+    case 'checkinOk':
       return null;
   }
 }
@@ -162,6 +173,29 @@ function payloadOf(item: ChatItem): ChatPayload | null {
     return { kind: 'photo', id: item.id, ...item.photo, ts: item.at };
   }
   if (item.kind === 'near') return { kind: 'near', id: item.id, ts: item.at };
+  if (item.kind === 'checkinSet' && item.check !== undefined) {
+    return {
+      kind: 'checkinSet',
+      id: item.id,
+      checkinId: item.check.checkinId,
+      due: item.check.due ?? null,
+      ...(item.check.plan === undefined ? {} : { plan: item.check.plan }),
+      ts: item.at,
+    };
+  }
+  if (
+    item.kind === 'checkinOk' &&
+    item.check?.checkinId !== undefined &&
+    item.check.checkinId !== null
+  ) {
+    return {
+      kind: 'checkinOk',
+      id: item.id,
+      checkinId: item.check.checkinId,
+      late: item.check.late === true,
+      ts: item.at,
+    };
+  }
   return null;
 }
 
@@ -212,6 +246,41 @@ async function upload(blobId: string): Promise<SendResult> {
     if (error.code === 'MEDIA_FULL') return 'full';
     return error.code === 'RATE_LIMITED' ? 'limited' : 'failed';
   }
+}
+
+/**
+ * An arrival check's line to one person (docs/ADR/0039 §8): that they were added to a check (or a
+ * repeated one's plan), or that its owner arrived. Sealed to them like any item for a person.
+ */
+export function sendCheckinLine(
+  userId: string,
+  line:
+    | {
+        kind: 'checkinSet';
+        checkinId: string | null;
+        due: number | null;
+        plan?: { days: number[]; at: string };
+      }
+    | { kind: 'checkinOk'; checkinId: string; late: boolean },
+): Promise<SendResult> {
+  const me = useAuth.getState().userId;
+  if (me === null) return Promise.resolve('failed');
+  return sendItem({
+    id: randomUuid(),
+    conversation: `p:${userId}`,
+    from: me,
+    at: Date.now(),
+    kind: line.kind,
+    state: 'sending',
+    check:
+      line.kind === 'checkinSet'
+        ? {
+            checkinId: line.checkinId,
+            due: line.due,
+            ...(line.plan === undefined ? {} : { plan: line.plan }),
+          }
+        : { checkinId: line.checkinId, late: line.late },
+  });
 }
 
 /** A text for a conversation (1–1000 characters, docs/ADR/0035 §5). */

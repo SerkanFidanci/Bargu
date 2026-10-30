@@ -22,6 +22,8 @@ import { GuardianSweeper } from './guardians/guardian-sweeper.js';
 import { PlanEvents } from './billing/plan-events.js';
 import { MeetingSweeper } from './docs/meeting-sweeper.js';
 import { PlanSweeper } from './billing/plan-sweeper.js';
+import { CheckinWorker } from './checkins/checkin-worker.js';
+import { Notifier } from './push/notifier.js';
 
 /** The background worker process: runs jobs and maintains the queues. No HTTP. */
 @Module({})
@@ -53,6 +55,8 @@ export class WorkerModule {
         PlanEvents,
         PlanSweeper,
         MeetingSweeper,
+        Notifier,
+        CheckinWorker,
       ],
     };
   }

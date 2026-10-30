@@ -24,6 +24,7 @@ import { Alert, FlatList, KeyboardAvoidingView, StyleSheet, TextInput, View } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/auth-store';
+import { CheckinLine } from '@/features/checkin/checkin-line';
 import { memberName } from '@/features/circles/names';
 import { useCircleActions, useCircles } from '@/features/circles/queries';
 import { useNow } from '@/features/location/clock';
@@ -731,6 +732,8 @@ function Bubble({
             </View>
           ) : item.kind === 'near' ? (
             <NearBody item={item} mine={mine} />
+          ) : item.kind === 'checkinSet' || item.kind === 'checkinOk' ? (
+            <CheckinLine item={item} ink={ink} />
           ) : (
             <Text variant="body" color={ink} selectable>
               {item.text ?? ''}

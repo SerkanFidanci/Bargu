@@ -16,20 +16,29 @@ describe('the "+" quick things (the PM report T2, 2026-10-29)', () => {
       onMeeting: jest.fn(),
       onSafe: jest.fn(),
       onNear: jest.fn(),
+      onCheckin: jest.fn(),
     };
     await render(<QuickSheet {...handlers} nearReady onDismiss={jest.fn()} />);
     expect(screen.getByText('Hızlı işler')).toBeTruthy();
     expect(
-      ['photo', 'friend', 'meeting', 'safe', 'near'].map(
+      ['photo', 'friend', 'meeting', 'safe', 'near', 'checkin'].map(
         (key) => screen.getByTestId(`quick-${key}`).props.accessibilityLabel as string,
       ),
-    ).toEqual(['Fotoğraf çek', 'Arkadaş ekle', 'Buluşma', 'Güvendeyim', 'Yakındayım']);
+    ).toEqual([
+      'Fotoğraf çek',
+      'Arkadaş ekle',
+      'Buluşma',
+      'Güvendeyim',
+      'Yakındayım',
+      'Eve vardım',
+    ]);
 
     await fireEvent.press(screen.getByTestId('quick-photo'));
     await fireEvent.press(screen.getByTestId('quick-friend'));
     await fireEvent.press(screen.getByTestId('quick-meeting'));
     await fireEvent.press(screen.getByTestId('quick-safe'));
     await fireEvent.press(screen.getByTestId('quick-near'));
+    await fireEvent.press(screen.getByTestId('quick-checkin'));
     for (const handler of Object.values(handlers)) expect(handler).toHaveBeenCalledTimes(1);
   });
 
@@ -40,6 +49,7 @@ describe('the "+" quick things (the PM report T2, 2026-10-29)', () => {
         onPhoto={jest.fn()}
         onAddFriend={jest.fn()}
         onMeeting={jest.fn()}
+        onCheckin={jest.fn()}
         onSafe={jest.fn()}
         onNear={onNear}
         nearReady={false}

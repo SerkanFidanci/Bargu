@@ -336,6 +336,28 @@ export const rollcallAnswers = app.table(
   (table) => [primaryKey({ columns: [table.rollcallId, table.userId] })],
 );
 
+/** Arrival checks (docs/ADR/0039, migration 0045): written only through app.*_checkin(). */
+export const checkins = app.table('checkins', {
+  id: uuid('id').primaryKey(),
+  ownerId: uuid('owner_id').notNull(),
+  openAt: timestamptz('open_at').notNull(),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
+  updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+  extends: smallint('extends').notNull().default(0),
+  firedAt: timestamptz('fired_at'),
+});
+
+export const checkinBoxes = app.table(
+  'checkin_boxes',
+  {
+    checkinId: uuid('checkin_id').notNull(),
+    recipientId: uuid('recipient_id').notNull(),
+    deviceId: uuid('device_id').notNull(),
+    box: jsonb('box').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.checkinId, table.recipientId] })],
+);
+
 export const schema = {
   users,
   devices,
@@ -358,4 +380,6 @@ export const schema = {
   reports,
   rollcalls,
   rollcallAnswers,
+  checkins,
+  checkinBoxes,
 };

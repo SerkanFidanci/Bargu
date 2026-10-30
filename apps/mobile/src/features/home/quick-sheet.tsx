@@ -1,4 +1,12 @@
-import { Camera, Flag, type LucideIcon, MapPin, ShieldCheck, UserPlus } from 'lucide-react-native';
+import {
+  Camera,
+  Flag,
+  House,
+  type LucideIcon,
+  MapPin,
+  ShieldCheck,
+  UserPlus,
+} from 'lucide-react-native';
 import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -18,6 +26,8 @@ export interface QuickSheetProps {
   onNear: () => void;
   /** Somewhere it can go now; otherwise its tile is faint. */
   nearReady: boolean;
+  /** "Eve vardım kontrolü" (docs/ADR/0039 §1). */
+  onCheckin: () => void;
   onDismiss: () => void;
 }
 
@@ -28,7 +38,7 @@ export interface QuickSheetProps {
  * username, a QR code, a link, a new circle).
  */
 export const QuickSheet = forwardRef<SheetRef, QuickSheetProps>(function QuickSheet(
-  { onPhoto, onAddFriend, onMeeting, onSafe, onNear, nearReady, onDismiss },
+  { onPhoto, onAddFriend, onMeeting, onSafe, onNear, nearReady, onCheckin, onDismiss },
   ref,
 ) {
   const { t } = useTranslation();
@@ -75,6 +85,13 @@ export const QuickSheet = forwardRef<SheetRef, QuickSheetProps>(function QuickSh
       hint: nearReady ? t('main.quick.nearHint') : t('main.quick.nearOff'),
       onPress: onNear,
       faint: !nearReady,
+    },
+    {
+      key: 'checkin',
+      icon: House,
+      label: t('main.quick.checkin'),
+      hint: t('main.quick.checkinHint'),
+      onPress: onCheckin,
     },
   ];
   return (

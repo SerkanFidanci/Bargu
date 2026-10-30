@@ -10,6 +10,9 @@ export const QUEUES = {
   /** Push notifications (docs/ADR/0010). Payload: user id, kind, circle id; no token, no text. */
   push: 'push.send',
   pushDead: 'push.send.dead',
+  /** Arrival checks (docs/ADR/0039): fires one at its time. Payload: the check's id, nothing else. */
+  checkinFire: 'checkin.fire',
+  checkinFireDead: 'checkin.fire.dead',
 } as const;
 
 type QueueOptions = Omit<Queue, 'name'>;
@@ -49,6 +52,22 @@ export const QUEUE_DEFINITIONS: readonly (readonly [string, QueueOptions])[] = [
       retentionSeconds: 3600,
       deleteAfterSeconds: 3600,
       deadLetter: QUEUES.pushDead,
+      notify: true,
+    },
+  ],
+  [QUEUES.checkinFireDead, { retentionSeconds: 7 * 24 * 3600, deleteAfterSeconds: 7 * 24 * 3600 }],
+  [
+    QUEUES.checkinFire,
+    {
+      retryLimit: 10,
+      retryDelay: 5,
+      retryBackoff: true,
+      retryDelayMax: 120,
+      expireInSeconds: 60,
+      // Waits up to a day for its time (a check opens at most 23 hours after it is set).
+      retentionSeconds: 2 * 24 * 3600,
+      deleteAfterSeconds: 24 * 3600,
+      deadLetter: QUEUES.checkinFireDead,
       notify: true,
     },
   ],

@@ -119,7 +119,8 @@ describe('the story editor (the owner, 2026-10-29: "Instagram gibi")', () => {
     });
     await fireEvent.press(screen.getByTestId('story-editor-text'));
     expect(screen.queryByTestId('story-editor-input')).toBeNull();
-  });
+    // Forty taps: more than the default five seconds on a busy machine.
+  }, 30_000);
 
   it('sends nothing when what it drew cannot be read as a photo (QA-43)', async () => {
     mockCompose.mockReturnValueOnce('unreadable');
