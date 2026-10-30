@@ -249,12 +249,12 @@ GRANT EXECUTE ON FUNCTION app.extend_checkin(uuid, timestamptz, interval, intege
 CREATE FUNCTION app.checkin_recipients(p_id uuid) RETURNS SETOF uuid
   LANGUAGE sql STABLE SECURITY DEFINER
   SET search_path = pg_catalog
-  AS $
+  AS $$
     SELECT b.recipient_id FROM app.checkin_boxes b
       JOIN app.checkins c ON c.id = b.checkin_id
      WHERE b.checkin_id = p_id AND c.owner_id = app.current_user_id()
      ORDER BY b.recipient_id
-  $;
+  $$;
 REVOKE ALL ON FUNCTION app.checkin_recipients(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION app.checkin_recipients(uuid) TO bargu_app;
 
