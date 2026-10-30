@@ -113,13 +113,98 @@ describe('no EXIF in what is sealed (the PM, 2026-10-29), edited or not', () => 
     const gps = segment(0xe1, [...exif, 0, 0, 9, 9, 9]);
     const xmp = segment(0xe1, [104, 116, 116, 112]);
     const table = segment(0xdb, [0, 1, 2]);
-    expect([...withoutExif(jpeg(app0, gps, table, xmp))]).toEqual([...jpeg(app0, table)]);
+    expect([...(withoutExif(jpeg(app0, gps, table, xmp)) ?? [])]).toEqual([...jpeg(app0, table)]);
   });
 
-  it('leaves alone what it cannot read as JPEG segments', () => {
-    const odd = new Uint8Array([1, 2, 3, 4, 5]);
-    expect(withoutExif(odd)).toBe(odd);
-    const cut = new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0x10, 0x00, 1]);
-    expect(withoutExif(cut)).toBe(cut);
+  it('takes out every other note too: APP2–APP15 (APP13 with it) and comments', () => {
+    const app0 = segment(0xe0, [74, 70, 73, 70, 0]);
+    const icc = segment(0xe2, [1, 2, 3]);
+    const photoshop = segment(0xed, [56, 66, 73, 77]); // APP13, "8BIM"
+    const app15 = segment(0xef, [9]);
+    const comment = segment(0xfe, [104, 105]);
+    const table = segment(0xdb, [0, 1, 2]);
+    expect([...(withoutExif(jpeg(app0, icc, photoshop, table, app15, comment)) ?? [])]).toEqual([
+      ...jpeg(app0, table),
+    ]);
+  });
+
+  it('reads fill bytes before a marker as JPEG allows, and still takes out EXIF', () => {
+    const gps = segment(0xe1, [...exif, 0, 0, 9, 9, 9]);
+    const table = segment(0xdb, [0, 1, 2]);
+    // 0xFF 0xFF 0xFF 0xE1: two fill bytes before the APP1 marker (QA-43).
+    const filled = new Uint8Array([
+      0xff,
+      0xd8,
+      0xff,
+      0xff,
+      ...gps,
+      ...table,
+      0xff,
+      0xda,
+      0,
+      2,
+      1,
+      2,
+      3,
+      0xff,
+      0xd9,
+    ]);
+    expect([...(withoutExif(filled) ?? [])]).toEqual([...jpeg(table)]);
+  });
+
+  it('keeps the picture data whole, its stuffed bytes and restart markers with it', () => {
+    const data = [1, 0xff, 0x00, 2, 0xff, 0xd3, 3];
+    const picture = new Uint8Array([0xff, 0xd8, 0xff, 0xda, 0, 2, ...data, 0xff, 0xd9]);
+    expect([...(withoutExif(picture) ?? [])]).toEqual([...picture]);
+  });
+
+  it('takes out a note between two scans of a progressive picture', () => {
+    const scan = [0xff, 0xda, 0, 2, 1, 2];
+    const note = segment(0xe1, [...exif, 7]);
+    const table = segment(0xc4, [0, 5]);
+    const progressive = new Uint8Array([
+      0xff,
+      0xd8,
+      ...scan,
+      ...note,
+      ...table,
+      ...scan,
+      0xff,
+      0xd9,
+    ]);
+    expect([...(withoutExif(progressive) ?? [])]).toEqual([
+      0xff,
+      0xd8,
+      ...scan,
+      ...table,
+      ...scan,
+      0xff,
+      0xd9,
+    ]);
+  });
+
+  it('drops whatever comes after the end of the image', () => {
+    const tail = [0x45, 0x78, 0x69, 0x66, 1, 2, 3];
+    const trailing = new Uint8Array([...jpeg(), ...tail]);
+    expect([...(withoutExif(trailing) ?? [])]).toEqual([...jpeg()]);
+  });
+
+  it('never passes on what it cannot read: null, and it is not sent (QA-43)', () => {
+    // Not a JPEG at all.
+    expect(withoutExif(new Uint8Array([1, 2, 3, 4, 5]))).toBeNull();
+    // A length running past the end of the file.
+    expect(withoutExif(new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0x10, 0x00, 1]))).toBeNull();
+    // A length shorter than the length field itself.
+    expect(
+      withoutExif(new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0x00, 0x01, ...jpeg().slice(2)])),
+    ).toBeNull();
+    // Garbage where a marker should be.
+    expect(withoutExif(new Uint8Array([0xff, 0xd8, 0x12, 0x34, ...jpeg().slice(2)]))).toBeNull();
+    // No end of image.
+    expect(withoutExif(jpeg().slice(0, -2))).toBeNull();
+    // An end of image before any picture.
+    expect(withoutExif(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]))).toBeNull();
+    // Cut off in the middle of fill bytes.
+    expect(withoutExif(new Uint8Array([0xff, 0xd8, 0xff, 0xff]))).toBeNull();
   });
 });

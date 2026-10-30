@@ -1,4 +1,10 @@
-import { endedFriendShares, personShareOf, untilChoices, withPersonShare } from './person-share';
+import {
+  endedFriendShares,
+  personShareOf,
+  shareEndsDue,
+  untilChoices,
+  withPersonShare,
+} from './person-share';
 import {
   DEFAULT_SHARING,
   isFrozenFor,
@@ -121,5 +127,23 @@ describe("one friend's sharing (docs/ADR/0038)", () => {
       [],
     );
     expect(endedFriendShares({ ...both, ghost: 'freeze' }, circles, NOW - 60_000, NOW)).toEqual([]);
+  });
+
+  it("keeps the phone's own end line only where the end is still to come (QA-43)", () => {
+    const timed = set({ mode: 'until', until: NOW + HOUR });
+    const due = (settings: SharingSettings, circles = [pair, group]) =>
+      shareEndsDue(settings, circles, NOW).map(({ circle, at }) => [circle.id, at]);
+    expect(due(timed)).toEqual([[pair.id, NOW + HOUR]]);
+    // Paused: no line. The pause lifted with time left: the line again.
+    expect(due(timed, [{ ...pair, paused: true }, group])).toEqual([]);
+    expect(due(timed, [{ ...pair, paused: false }, group])).toEqual([[pair.id, NOW + HOUR]]);
+    // The friendship ended: gone from the circles, or no longer active.
+    expect(due(timed, [group])).toEqual([]);
+    expect(due(timed, [{ ...pair, myStatus: 'invited' }, group])).toEqual([]);
+    // Over, frozen, shown with no end, a ghost: no line.
+    expect(due(set({ mode: 'until', until: NOW - 1 }))).toEqual([]);
+    expect(due(set({ mode: 'frozen' }, timed))).toEqual([]);
+    expect(due(set({ mode: 'always' }, timed))).toEqual([]);
+    expect(due({ ...timed, ghost: 'hide' })).toEqual([]);
   });
 });

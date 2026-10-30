@@ -4,15 +4,8 @@ const DAY_MS = 24 * 60 * 60_000;
 /** The trial reminder comes this long before it ends (docs/ADR/0024 §4). */
 export const TRIAL_REMINDER_MS = 3 * DAY_MS;
 
-// Bargu+ prices are the store's own, localised (store-prices.ts): none is written here (QA-42).
-
-/** A price as the user reads it ("₺99,99"). */
-export function priceText(amount: number, language: string): string {
-  return new Intl.NumberFormat(language === 'tr' ? 'tr-TR' : 'en-GB', {
-    style: 'currency',
-    currency: 'TRY',
-  }).format(amount);
-}
+// Prices are the store's own, localised (store-prices.ts): none is written or formatted here
+// (QA-42, QA-43).
 
 /** A yearly plan's renewal is told this long before (N3, the PM 2026-10-29). */
 export const RENEWAL_REMINDER_MS = 3 * DAY_MS;

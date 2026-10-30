@@ -1052,7 +1052,8 @@
       "offTitle": "Turn your location history off?",
       "offBody": "Turned off, your history is deleted from this phone. Export it first?",
       "offExport": "Export",
-      "offDelete": "Delete and turn off"
+      "offDelete": "Delete and turn off",
+      "lost": "Your location history could not be read on this phone and was deleted."
     }
   },
   "security": {
@@ -1603,7 +1604,8 @@
         "off": "off",
         "on": "on",
         "auto": "auto"
-      }
+      },
+      "unreadable": "The photo could not be prepared. Take it again."
     },
     "openPhoto": "Opens the photo",
     "opening": "Opening",
@@ -1739,14 +1741,19 @@
     "seesTitle": "The server sees",
     "cannotTitle": "The server cannot see",
     "sees": {
-      "account": "Your account: a keyed hash of your email (the address only passes by while a sign-in code goes), your display name, username, avatar colour and emoji.",
-      "circles": "Your circles and memberships: which circles you are in, their names, who runs them.",
+      "account": "Your account: a keyed hash of your email (the address only passes by while a sign-in code goes), your display name, username, avatar colour and emoji, and from your id roughly when your account was made.",
+      "circles": "Your circles and memberships: which circles you are in, their names, who runs them, how many places a circle has and who saved them, when invite links are opened.",
       "messages": "Message metadata: who wrote to whom or to which circle and when, whether short or long, a photo file’s size. Not what it says.",
-      "events": "When things happen: I'm safe, I'm nearby, arriving at or leaving a place, running late. Not what was said or where.",
+      "events": "When things happen: I'm safe, arriving at or leaving a place, running late, and when a circle changes. Not what was said or where.",
       "votes": "Events and votes: that there is a meeting or a poll, who voted in which poll. Not for what.",
-      "sharing": "Location envelopes: which circles get your location, when and how often, and when sharing stops. Not what is inside.",
+      "sharing": "Location envelopes: which circles get your location, when and how often, when sharing stops, when the reason your location is old changes, and with history on, which hours you have a trail. Not what is inside.",
+      "watch": "Who is looking at whom: who looks at whom on the map. Looking makes your friend's location update live; not where they look.",
+      "plan": "Your plan: who has Bargu+ or a trial, which cosmetics were bought and which circles are unlocked. Your card stays with the store.",
+      "age": "Your age group: \"15–17\" or \"18+\" and how it was learned. Not your birth date; never shown to others.",
+      "consent": "Notice and consent records: when you read the privacy notice and gave or withdrew consent to history.",
       "guardian": "For ages 15 to 17: the parent link and how many minutes a day the app was open.",
-      "push": "Your notification token and when notifications go. Not what they say or who sends them."
+      "push": "Your notification token and when notifications go. Not what they say or who sends them.",
+      "ip": "Your IP address: seen while you connect, and it can tell your rough area. Not logged."
     },
     "cannot": {
       "location": "Where you are: your location is encrypted on your phone.",
@@ -1785,6 +1792,8 @@
       "mono": "Black and white",
       "vivid": "Vivid",
       "fade": "Faded"
-    }
+    },
+    "full": "At most {{count}} texts and stickers.",
+    "linesFull": "At most {{count}} lines."
   }
 }

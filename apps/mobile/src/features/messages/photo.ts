@@ -41,39 +41,89 @@ export type PhotoFile = Pick<ChatPhoto, 'blobId' | 'key' | 'size' | 'hash' | 'w'
 const toUrl = (b64: string) => b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 const SOI = 0xd8;
+const EOI = 0xd9;
 const SOS = 0xda;
-/** APP1: where EXIF (with any GPS) and XMP live. */
+/** RST0–RST7: restart markers inside the picture data, two bytes and no length. */
+const RST0 = 0xd0;
+const RST7 = 0xd7;
+/** APP1–APP15 (EXIF with any GPS, XMP, ICC, Photoshop's APP13 and the rest) and COM: notes, not picture. */
 const APP1 = 0xe1;
+const APP15 = 0xef;
+const COM = 0xfe;
+
+/** Thrown when a photo's file cannot be read as a JPEG: it is not sent, the user takes it again. */
+export class UnreadablePhotoError extends Error {
+  constructor() {
+    super('unreadable photo');
+    this.name = 'UnreadablePhotoError';
+  }
+}
 
 /**
- * The JPEG without any APP1 segment (EXIF, with any place in it, and XMP), checked before a photo
- * is sealed (the PM, 2026-10-29): the encoders used here write none, and this makes sure of it,
- * edited or not. A file it cannot read as JPEG segments is left as it is.
+ * The JPEG with nothing but the picture (the PM, 2026-10-29 and QA-43): every APP1–APP15 segment
+ * (EXIF with any place in it, XMP, APP13 and the like) and every comment goes, wherever it stands,
+ * and so does anything after the end of the image. APP0 (JFIF) and the picture's own tables stay.
+ * Fill bytes (0xFF before a marker) are read as JPEG allows. Checked before every photo is sealed,
+ * edited or not: the encoders used here write none of these, and this makes sure of it. A file it
+ * cannot read as JPEG segments is null and must not be sent: never passed on as it came.
  */
-export function withoutExif(jpeg: Uint8Array): Uint8Array {
-  const byte = (at: number) => jpeg[at] ?? 0;
-  if (jpeg.length < 4 || byte(0) !== 0xff || byte(1) !== SOI) return jpeg;
+export function withoutExif(jpeg: Uint8Array): Uint8Array | null {
+  const byte = (at: number) => jpeg[at] ?? -1;
+  if (byte(0) !== 0xff || byte(1) !== SOI) return null;
   const kept: Uint8Array[] = [jpeg.subarray(0, 2)];
   let at = 2;
-  while (at + 4 <= jpeg.length) {
-    if (byte(at) !== 0xff) return jpeg;
+  let scanned = false;
+  for (;;) {
+    // A marker: 0xFF, any fill bytes, then its code.
+    if (byte(at) !== 0xff) return null;
+    while (byte(at + 1) === 0xff) at += 1;
     const marker = byte(at + 1);
-    if (marker === SOS) {
-      kept.push(jpeg.subarray(at));
-      const out = new Uint8Array(kept.reduce((sum, part) => sum + part.length, 0));
-      let offset = 0;
-      for (const part of kept) {
-        out.set(part, offset);
-        offset += part.length;
-      }
-      return out;
+    if (marker < 0) return null;
+    if (marker === EOI) {
+      if (!scanned) return null;
+      kept.push(jpeg.subarray(at, at + 2));
+      break;
     }
+    if (marker === SOI || marker === 0x00 || (marker >= RST0 && marker <= RST7)) return null;
     const length = (byte(at + 2) << 8) | byte(at + 3);
-    if (length < 2 || at + 2 + length > jpeg.length) return jpeg;
-    if (marker !== APP1) kept.push(jpeg.subarray(at, at + 2 + length));
-    at += 2 + length;
+    if (byte(at + 3) < 0 || length < 2 || at + 2 + length > jpeg.length) return null;
+    const segmentEnd = at + 2 + length;
+    const note = (marker >= APP1 && marker <= APP15) || marker === COM;
+    if (marker !== SOS) {
+      if (!note) kept.push(jpeg.subarray(at, segmentEnd));
+      at = segmentEnd;
+      continue;
+    }
+    // A scan: its header, then picture data up to the next marker. In the data 0xFF is followed
+    // by 0x00 (a data byte), a restart marker or more fill bytes; anything else is a marker.
+    scanned = true;
+    let data = segmentEnd;
+    for (;;) {
+      if (data >= jpeg.length) return null;
+      if (byte(data) !== 0xff) {
+        data += 1;
+        continue;
+      }
+      let next = data + 1;
+      while (byte(next) === 0xff) next += 1;
+      const code = byte(next);
+      if (code < 0) return null;
+      if (code === 0x00 || (code >= RST0 && code <= RST7)) {
+        data = next + 1;
+        continue;
+      }
+      break;
+    }
+    kept.push(jpeg.subarray(at, data));
+    at = data;
   }
-  return jpeg;
+  const out = new Uint8Array(kept.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  for (const part of kept) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
 }
 
 /** An unencrypted picture written by the camera or the image tools: it does not stay on disk. */
@@ -110,6 +160,7 @@ export async function preparePhoto(
       discardFile(saved.uri);
       if (saved.base64 === undefined) continue;
       const jpeg = withoutExif(fromBase64url(toUrl(saved.base64)));
+      if (jpeg === null) throw new UnreadablePhotoError();
       if (jpeg.length <= PHOTO_JPEG_MAX_BYTES) {
         return {
           jpeg,

@@ -76,6 +76,7 @@ jest.mock('./own-files', () => ({
     mockKey.ready = false;
   },
   prepareTrailKey: (create: boolean) => mockPrepare(create),
+  takeKeyLost: () => false,
   trailKeyReady: () => mockKey.ready,
 }));
 

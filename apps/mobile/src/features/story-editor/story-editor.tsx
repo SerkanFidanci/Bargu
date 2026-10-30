@@ -42,7 +42,10 @@ import { toast } from '@/ui/toast';
 import type { TakenPhoto } from '../messages/photo';
 import { composeEdit, TEXT_WIDTH } from './compose';
 import {
+  canAddOverlay,
+  canAddStroke,
   type Edit,
+  EDIT_LIMITS,
   fit,
   INK,
   inkOn,
@@ -109,6 +112,13 @@ export function StoryEditor({
   const [busy, setBusy] = useState(false);
   const made = useRef(0);
   const live = useSharedValue(Skia.Path.Make());
+  const points = useSharedValue(0);
+  /** Says so when no more texts and stickers fit; true when one does. */
+  const roomForOverlay = () => {
+    if (canAddOverlay(edit)) return true;
+    toast.info(t('storyEditor.full', { count: EDIT_LIMITS.overlays }));
+    return false;
+  };
 
   const image = useMemo(
     () => Skia.Image.MakeImageFromEncoded(Skia.Data.fromBytes(photo.jpeg)),
@@ -142,6 +152,10 @@ export function StoryEditor({
   };
   const addStroke = (path: string) => {
     if (path === '') return;
+    if (!canAddStroke(edit)) {
+      toast.info(t('storyEditor.linesFull', { count: EDIT_LIMITS.strokes }));
+      return;
+    }
     setEdit((current) => withStroke(current, { path, color: pen.color, width: pen.width }));
   };
 
@@ -150,10 +164,14 @@ export function StoryEditor({
     .enabled(mode === 'draw')
     .minDistance(0)
     .onStart((event) => {
+      points.set(1);
       live.get().moveTo(event.x, event.y);
       notifyChange(live);
     })
     .onUpdate((event) => {
+      // One line has at most so many points; past them the pen stops (QA-43).
+      if (points.get() >= EDIT_LIMITS.strokePoints) return;
+      points.set(points.get() + 1);
       live.get().lineTo(event.x, event.y);
       notifyChange(live);
     })
@@ -228,6 +246,10 @@ export function StoryEditor({
       setBusy(false);
       if (edited === null) {
         toast.error(t('storyEditor.failed'));
+        return;
+      }
+      if (edited === 'unreadable') {
+        toast.error(t('messages.camera.unreadable'));
         return;
       }
       onDone(edited);
@@ -344,7 +366,7 @@ export function StoryEditor({
                 icon={Type}
                 label={t('storyEditor.text')}
                 onPress={() => {
-                  openText();
+                  if (roomForOverlay()) openText();
                 }}
               />
               <Tool
@@ -360,7 +382,7 @@ export function StoryEditor({
                 icon={Smile}
                 label={t('storyEditor.sticker')}
                 onPress={() => {
-                  setMode('sticker');
+                  if (roomForOverlay()) setMode('sticker');
                 }}
               />
             </View>
@@ -491,6 +513,7 @@ export function StoryEditor({
               <TextInput
                 testID="story-editor-input"
                 value={draft.text}
+                maxLength={EDIT_LIMITS.textChars}
                 onChangeText={(text) => {
                   setDraft((current) => ({ ...current, text }));
                 }}
@@ -537,7 +560,7 @@ export function StoryEditor({
                 accessibilityRole="button"
                 accessibilityLabel={emoji}
                 onPress={() => {
-                  addSticker(emoji);
+                  if (roomForOverlay()) addSticker(emoji);
                 }}
                 style={styles.stickerCell}
               >

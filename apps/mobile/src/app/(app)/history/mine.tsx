@@ -17,7 +17,7 @@ import {
   type OwnSettings,
 } from '@/features/history/own/own-model';
 import { OWN_HISTORY_ENABLED } from '@/features/history/own/own-flag';
-import { ownTrail, ownTrailTick } from '@/features/history/own/own-session';
+import { ownTrail, ownTrailTick, tellIfTrailLost } from '@/features/history/own/own-session';
 import { prepareTrailKey } from '@/features/history/own/own-files';
 import { nameStays } from '@/features/history/stay-names';
 import { segments, type TracePoint } from '@/features/history/trail-model';
@@ -151,19 +151,33 @@ function MyHistory() {
         change({ ...settings, on: false });
         return;
       }
+      const deleteAndOff = {
+        text: t('history.mine.offDelete'),
+        style: 'destructive' as const,
+        onPress: () => {
+          ownTrail.clear();
+          change({ ...settings, on: false });
+          setView(load(today));
+          setVersion((count) => count + 1);
+          toast.success(t('history.mine.deleted'));
+        },
+      };
+      // Taken out, it is still on: the same question again, without taking out (the PM, QA-43), so
+      // it is plain that the history stays on until it is deleted.
+      const askAgain = () => {
+        Alert.alert(t('history.mine.offTitle'), t('history.mine.offBody'), [
+          deleteAndOff,
+          { text: t('common.cancel'), style: 'cancel' },
+        ]);
+      };
       Alert.alert(t('history.mine.offTitle'), t('history.mine.offBody'), [
-        { text: t('history.mine.offExport'), onPress: takeOut },
         {
-          text: t('history.mine.offDelete'),
-          style: 'destructive',
+          text: t('history.mine.offExport'),
           onPress: () => {
-            ownTrail.clear();
-            change({ ...settings, on: false });
-            setView(load(today));
-            setVersion((count) => count + 1);
-            toast.success(t('history.mine.deleted'));
+            takeOut(askAgain);
           },
         },
+        deleteAndOff,
         { text: t('common.cancel'), style: 'cancel' },
       ]);
       return;
@@ -174,6 +188,7 @@ function MyHistory() {
       return;
     }
     void prepareTrailKey(true).then((ready) => {
+      tellIfTrailLost();
       if (!ready) {
         toast.error(t('history.mine.locked'));
         return;
@@ -215,7 +230,8 @@ function MyHistory() {
     ]);
   };
 
-  const takeOut = () => {
+  /** Writes the history to a file the person chooses; `then` runs once that is over, saved or not. */
+  const takeOut = (then?: () => void) => {
     void (async () => {
       await prepareTrailKey(false);
       const file = {
@@ -237,9 +253,13 @@ function MyHistory() {
         JSON.stringify(file, null, 2),
       );
       if (saved) toast.success(t('privacy.exported'));
-    })().catch(() => {
-      toast.error(t('history.mine.exportFailed'));
-    });
+    })()
+      .catch(() => {
+        toast.error(t('history.mine.exportFailed'));
+      })
+      .finally(() => {
+        then?.();
+      });
   };
 
   const dayLabel = (key: string) => {
@@ -370,7 +390,9 @@ function MyHistory() {
               variant="secondary"
               icon={Upload}
               label={t('history.mine.export')}
-              onPress={takeOut}
+              onPress={() => {
+                takeOut();
+              }}
             />
             <Button
               testID="mine-delete"

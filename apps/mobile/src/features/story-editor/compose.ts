@@ -66,13 +66,14 @@ function drawOverlay(canvas: SkCanvas, overlay: Overlay, k: number, displayWidth
  * The photo with what was put on it, drawn at its own size on this phone (docs/ADR/0035 Ek 3): the
  * filter, then the lines, then the words and stickers (the last moved on top), then written again
  * as a plain JPEG within the photo's limit (no EXIF; nothing of it leaves before it is sealed).
- * `display` is the size the photo was shown at while it was edited. Null if it cannot be drawn.
+ * `display` is the size the photo was shown at while it was edited. Null if it cannot be drawn or
+ * made small enough; 'unreadable' if what the encoder wrote cannot be read as a JPEG (not sent).
  */
 export function composeEdit(
   photo: TakenPhoto,
   edit: Edit,
   display: { width: number; height: number },
-): TakenPhoto | null {
+): TakenPhoto | 'unreadable' | null {
   const image = Skia.Image.MakeImageFromEncoded(Skia.Data.fromBytes(photo.jpeg));
   const surface = Skia.Surface.Make(photo.w, photo.h);
   if (image === null || surface === null) return null;
@@ -111,6 +112,7 @@ export function composeEdit(
   const drawn = surface.makeImageSnapshot();
   for (const quality of PHOTO_QUALITIES) {
     const jpeg = withoutExif(drawn.encodeToBytes(ImageFormat.JPEG, Math.round(quality * 100)));
+    if (jpeg === null) return 'unreadable';
     if (jpeg.length > 0 && jpeg.length <= PHOTO_JPEG_MAX_BYTES) {
       return { jpeg, w: photo.w, h: photo.h };
     }

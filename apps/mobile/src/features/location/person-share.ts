@@ -93,3 +93,26 @@ export function endedFriendShares(
     );
   });
 }
+
+/**
+ * The friendships whose timed share should have the phone's own "it ended" line (QA-42, QA-43):
+ * active, not paused, shown until a time still to come, not frozen, no ghost. Every other line
+ * goes: a pause takes it, lifting the pause with time left sets it again, and a friendship that
+ * ends takes its line with it.
+ */
+export function shareEndsDue(
+  settings: SharingSettings,
+  circles: readonly Circle[],
+  now: number,
+): { circle: Circle; at: number }[] {
+  if (settings.ghost !== 'off') return [];
+  const due: { circle: Circle; at: number }[] = [];
+  for (const circle of circles) {
+    if (circle.kind !== 'pair' || circle.myStatus !== 'active' || circle.paused === true) continue;
+    const sharing = circleSharing(settings, circle.id);
+    if (!sharing.sharing || sharing.frozen === true) continue;
+    if (sharing.until === null || sharing.until <= now) continue;
+    due.push({ circle, at: sharing.until });
+  }
+  return due;
+}

@@ -3,7 +3,6 @@ import type { Plan } from '@bargu/schemas';
 import {
   daysLeft,
   manageUrl,
-  priceText,
   RENEWAL_REMINDER_MS,
   renewalReminderAt,
   TRIAL_REMINDER_MS,
@@ -75,10 +74,5 @@ describe('the plan as the app shows it (docs/ADR/0024)', () => {
     expect(trialEndingSoon(trial(-DAY), NOW)).toBe(false);
     expect(daysLeft(NOW + 2 * DAY + 1, NOW)).toBe(3);
     expect(daysLeft(NOW - DAY, NOW)).toBe(0);
-  });
-
-  it('writes a price in lira as people read it', () => {
-    expect(priceText(99.99, 'tr')).toContain('99,99');
-    expect(priceText(799.99, 'en')).toContain('799.99');
   });
 });

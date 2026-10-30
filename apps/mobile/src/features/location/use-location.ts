@@ -12,7 +12,7 @@ import { toast } from '@/ui/toast';
 import { liveRequest, useConnection } from '../live/live-session';
 import { useMyFix } from './engine';
 import { locationEngine, restoreLocations, updateSharing, useLiveUntil } from './location-session';
-import { endedFriendShares, SHARE_AGAIN_MS, withPersonShare } from './person-share';
+import { endedFriendShares, SHARE_AGAIN_MS, shareEndsDue, withPersonShare } from './person-share';
 import { useSharing } from './sharing';
 import { useMapOpen } from './map-open';
 import { useSharingEnd } from './sharing-end';
@@ -97,18 +97,18 @@ export function useLocationSession(ready: boolean): void {
     if (ready) restoreLocations();
   }, [ready]);
 
-  // A paused friendship sends nothing: the line set for its timed share's end goes (QA-42).
+  // The lines set for timed shares' ends follow the friendships (QA-42, QA-43): a pause takes its
+  // line away, lifting it with time left sets it again, and a friendship that ends takes its line.
   useEffect(() => {
-    const paused = (circles ?? []).filter(
-      (circle) => circle.kind === 'pair' && circle.paused === true,
-    );
-    if (paused.length === 0) return;
-    void import('./share-ends')
-      .then(async (ends) => {
-        for (const circle of paused) await ends.cancelShareEnd(circle.id);
-      })
-      .catch(() => undefined);
-  }, [circles]);
+    if (circles === undefined) return;
+    const due = shareEndsDue(sharing, circles, Date.now()).flatMap(({ circle, at }) => {
+      const partner = partnerOf(circle, me);
+      if (partner === undefined) return [];
+      const body = i18n.t('location.personShare.endedMine', { name: memberName(partner) });
+      return [{ circleId: circle.id, at, text: { title: 'Bargu', body } }];
+    });
+    void import('./share-ends').then((ends) => ends.reconcileShareEnds(due)).catch(() => undefined);
+  }, [circles, sharing, me, language]);
 
   // Checked again on every return: the user may have changed it in the system settings. The same
   // goes for the location services and battery saver, which tell friends why a location is old.

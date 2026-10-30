@@ -1,11 +1,19 @@
 import type { Plan } from '@bargu/schemas';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
+
+import i18n from '@/i18n';
 
 import { onSignedOut } from '../../auth/auth-store';
 import { planKey } from '../../billing/plan';
 import { queryClient } from '../../query-client';
 import { isVaultOpen, vault } from '../../storage/vault';
-import { createMonthFiles, forgetTrailKey, prepareTrailKey, trailKeyReady } from './own-files';
+import {
+  createMonthFiles,
+  forgetTrailKey,
+  prepareTrailKey,
+  takeKeyLost,
+  trailKeyReady,
+} from './own-files';
 import { OWN_HISTORY_ENABLED } from './own-flag';
 import { entitledUntil } from './own-model';
 import { createOwnTrail } from './own-trail';
@@ -57,6 +65,15 @@ export async function ownTrailForExport(): Promise<ReturnType<typeof ownTrail.ex
   return ownTrail.exported();
 }
 
+/**
+ * Says once that the history could not be read on this phone and was deleted (QA-43: its key was
+ * lost, so its files were). An alert, not a toast: it is data gone, and it is said only once.
+ */
+export function tellIfTrailLost(): void {
+  if (!isVaultOpen() || !takeKeyLost(vault())) return;
+  Alert.alert(i18n.t('history.mine.title'), i18n.t('history.mine.lost'));
+}
+
 const LAST_TICK_KEY = 'own:tick:v1';
 
 /**
@@ -68,7 +85,9 @@ export async function ownTrailTick(now = Date.now()): Promise<void> {
   if (!OWN_HISTORY_ENABLED || !isVaultOpen()) return;
   const on = ownTrail.settings().on;
   if (!on && ownTrail.days().length === 0) return;
-  if (!(await prepareTrailKey(on))) return;
+  const ready = await prepareTrailKey(on);
+  tellIfTrailLost();
+  if (!ready) return;
   ownTrail.compact();
   const last = Number(vault().get(LAST_TICK_KEY) ?? 0);
   if (now - last >= DAY_MS) {

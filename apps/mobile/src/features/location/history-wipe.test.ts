@@ -37,6 +37,7 @@ jest.mock('../history/own/own-files', () => ({
   }),
   forgetTrailKey: () => undefined,
   prepareTrailKey: () => Promise.resolve(false),
+  takeKeyLost: () => false,
   trailKeyReady: () => false,
 }));
 jest.mock('../storage/vault', () => ({ isVaultOpen: () => true, vault: () => mockVault }));

@@ -25,7 +25,9 @@ function acceptedLeaks(): Set<string> {
     section
       .split('\n')
       .filter((line) => line.startsWith('| '))
-      .map((line) => line.split('|')[1]?.trim() ?? ''),
+      .map((line) => line.split('|')[1]?.trim() ?? '')
+      // The header and the line under it.
+      .filter((row) => row !== 'Sızıntı' && !row.startsWith('-')),
   );
 }
 
@@ -42,6 +44,12 @@ describe('"Sunucu ne biliyor?" (N2, QA-42)', () => {
         expect([group, leaks.has(row) ? row : `missing: ${row}`]).toEqual([group, row]);
       }
     }
+  });
+
+  it('shows every accepted leak of THREAT_MODEL: a row added there fails here until the screen says it (QA-43)', () => {
+    const shown = new Set<string>(Object.values(SERVER_SEES).flat());
+    const missing = [...acceptedLeaks()].filter((row) => !shown.has(row));
+    expect(missing).toEqual([]);
   });
 
   it('lists the groups and what it cannot see, every line in both languages', async () => {
@@ -65,6 +73,14 @@ describe('"Sunucu ne biliyor?" (N2, QA-42)', () => {
     expect(screen.queryByText(/Hepsi burada/)).toBeNull();
     expect(screen.queryByText(/Kime, ne kadar süre/)).toBeNull();
     expect(screen.queryByText(/hayalet modun/)).toBeNull();
+    // QA-43: who looks at whom, the plan, the age group, consent and IP are said; "Yakındayım" is not
+    // (the server cannot tell it from a message).
+    expect(screen.getByText(/haritada birinin kime baktığı/)).toBeTruthy();
+    expect(screen.getByText(/kimde Bargu\+ ya da deneme olduğu/)).toBeTruthy();
+    expect(screen.getByText(/Yaş grubun/)).toBeTruthy();
+    expect(screen.getByText(/rızasını verip geri çektiğin an/)).toBeTruthy();
+    expect(screen.getByText(/IP adresin.*Log'lanmaz/)).toBeTruthy();
+    expect(screen.queryByText(/Yakındayım/)).toBeNull();
     await fireEvent.press(screen.getByTestId('server-knows-policy'));
     expect(open).toHaveBeenCalledWith('https://api.test/gizlilik');
     open.mockRestore();

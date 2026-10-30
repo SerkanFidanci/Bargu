@@ -133,9 +133,37 @@ export function inkOn(color: string): '#000000' | '#FFFFFF' {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 150 ? '#000000' : '#FFFFFF';
 }
 
+/**
+ * How much one photo carries (QA-43): the characters of a text, texts and stickers together, lines,
+ * and the points of one line. Enough for any story; a huge paste or endless scribbling cannot make
+ * drawing the photo slow on the phone.
+ */
+export const EDIT_LIMITS = {
+  textChars: 200,
+  overlays: 20,
+  strokes: 100,
+  strokePoints: 1000,
+} as const;
+
+/** Whether one more text or sticker fits. */
+export function canAddOverlay(edit: Edit): boolean {
+  return edit.overlays.length < EDIT_LIMITS.overlays;
+}
+
+/** Whether one more line fits. */
+export function canAddStroke(edit: Edit): boolean {
+  return edit.strokes.length < EDIT_LIMITS.strokes;
+}
+
+/** A text or sticker put on, or changed; a new one past the limit is not, and a text is cut to its. */
 export function withOverlay(edit: Edit, overlay: Overlay): Edit {
   const others = edit.overlays.filter((each) => each.id !== overlay.id);
-  return { ...edit, overlays: [...others, overlay] };
+  if (others.length === edit.overlays.length && !canAddOverlay(edit)) return edit;
+  // Code points, as the limit counts them (codePointsOf in @bargu/schemas).
+  const text = Array.from(overlay.text.matchAll(/./gsu), (match) => match[0])
+    .slice(0, EDIT_LIMITS.textChars)
+    .join('');
+  return { ...edit, overlays: [...others, { ...overlay, text }] };
 }
 
 export function withoutOverlay(edit: Edit, id: string): Edit {
@@ -152,7 +180,9 @@ export function withPlaced(
   return found === undefined ? edit : withOverlay(edit, { ...found, ...place });
 }
 
+/** A line drawn; past the limit it is not. */
 export function withStroke(edit: Edit, stroke: Stroke): Edit {
+  if (!canAddStroke(edit)) return edit;
   return { ...edit, strokes: [...edit.strokes, stroke] };
 }
 

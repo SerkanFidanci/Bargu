@@ -19,8 +19,12 @@ const KEY_CHARS = 32;
 /** Which months have a file (MMKV cannot list its files): in the vault, as a JSON list. */
 const MONTHS_KEY = 'own:months:v1';
 const idOf = (month: string) => `bargu-trail-${month}`;
+/** Set when the files' key was gone while month files were listed: they were deleted (QA-43). */
+const LOST_KEY = 'own:lost:v1';
 
 let key: string | null = null;
+/** Deletes the month files that can no longer be read (set by createMonthFiles, which has the vault). */
+let whenKeyLost: (() => void) | null = null;
 
 /** Whether the key was read: the files can be opened (the phone was unlocked). */
 export function trailKeyReady(): boolean {
@@ -37,6 +41,10 @@ export async function prepareTrailKey(create: boolean): Promise<boolean> {
   try {
     let found = await SecureStore.getItemAsync(KEY_ENTRY, OPTIONS);
     if (found?.length !== KEY_CHARS) {
+      // No key, yet month files may be listed: the key was lost (the lock screen taken away, a
+      // broken keystore). Those files can never be read again; they go before a new key is made
+      // and the person is told once (QA-43). A locked phone throws instead and changes nothing.
+      whenKeyLost?.();
       if (!create) return false;
       found = generateToken().slice(0, KEY_CHARS);
       await SecureStore.setItemAsync(KEY_ENTRY, found, OPTIONS);
@@ -76,7 +84,23 @@ function months(vault: KeyValueStore): string[] {
   }
 }
 
+/** True once after the month files were deleted for a lost key: the person is told, then not again. */
+export function takeKeyLost(vault: KeyValueStore): boolean {
+  if (vault.get(LOST_KEY) === undefined) return false;
+  vault.delete(LOST_KEY);
+  return true;
+}
+
 export function createMonthFiles(vault: () => KeyValueStore): MonthFiles {
+  whenKeyLost = () => {
+    const listed = months(vault());
+    if (listed.length === 0) return;
+    for (const month of new Set([...listed, ...recentMonths(Date.now())])) {
+      deleteMMKV(idOf(month));
+    }
+    vault().delete(MONTHS_KEY);
+    vault().set(LOST_KEY, '1');
+  };
   return {
     months: () => months(vault()),
     open: (month) => {

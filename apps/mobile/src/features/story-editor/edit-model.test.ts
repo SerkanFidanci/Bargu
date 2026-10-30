@@ -1,4 +1,8 @@
 import {
+  canAddOverlay,
+  canAddStroke,
+  type Edit,
+  EDIT_LIMITS,
   fit,
   inkOn,
   isEdited,
@@ -69,6 +73,34 @@ describe('the story editor, its model (docs/ADR/0035 Ek 3)', () => {
   it('has no sticker that tells where a photo was taken', () => {
     expect(STICKERS).not.toContain('📍');
     expect(new Set(STICKERS).size).toBe(STICKERS.length);
+  });
+
+  it('carries at most so many texts and stickers, lines and characters (QA-43)', () => {
+    expect(EDIT_LIMITS).toEqual({ textChars: 200, overlays: 20, strokes: 100, strokePoints: 1000 });
+    let full: Edit = NO_EDIT;
+    for (let i = 0; i < 25; i += 1) full = withOverlay(full, { ...words, id: `o${String(i)}` });
+    expect(full.overlays).toHaveLength(EDIT_LIMITS.overlays);
+    expect(canAddOverlay(full)).toBe(false);
+    // One already there can still be changed and moved.
+    const changed = withOverlay(full, { ...words, id: 'o3', text: 'yeni' });
+    expect(changed.overlays).toHaveLength(EDIT_LIMITS.overlays);
+    expect(changed.overlays.at(-1)?.text).toBe('yeni');
+    // Taking one away makes room again.
+    expect(canAddOverlay(withoutOverlay(full, 'o0'))).toBe(true);
+
+    let lines: Edit = NO_EDIT;
+    for (let i = 0; i < 120; i += 1)
+      lines = withStroke(lines, { path: 'M0 0L1 1', color: '#FFFFFF', width: 4 });
+    expect(lines.strokes).toHaveLength(EDIT_LIMITS.strokes);
+    expect(canAddStroke(lines)).toBe(false);
+    expect(canAddStroke(withoutLastStroke(lines))).toBe(true);
+
+    // A pasted text is cut to its characters, counted as people count them: an emoji is one.
+    const long = withOverlay(NO_EDIT, { ...words, text: '🔥'.repeat(250) });
+    const text = long.overlays[0]?.text ?? '';
+    expect(Array.from(text.matchAll(/./gsu))).toHaveLength(EDIT_LIMITS.textChars);
+    expect(text.startsWith('🔥')).toBe(true);
+    expect(text.endsWith('🔥')).toBe(true);
   });
 });
 

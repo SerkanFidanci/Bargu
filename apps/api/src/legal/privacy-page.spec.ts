@@ -34,9 +34,19 @@ describe('the privacy page (/gizlilik, docs/play-store/GIZLILIK-POLITIKASI.md)',
       // The metadata the server sees, as the PM listed it (QA-42).
       'kısa mı uzun mu ve fotoğrafın boyutu',
       'whether short or long and a photo',
+      // QA-43, the PM's text of 30.10.2026: who looks at whom, the plan, the age group, consent.
+      'haritada kimin kime baktığı',
+      'who is looking at whom on the map',
+      'kimde Bargu+ ya da deneme olduğu',
+      'aydınlatmayı okuduğun ve rıza verip geri çektiğin an',
+      'yaş grubu, rıza ve abonelik kayıtları hesabınla birlikte silinir',
+      'age group, consent and subscription records are deleted with your account',
     ]) {
       expect(PRIVACY_PAGE_HTML).toContain(words);
     }
+    // The server cannot tell an I'm-nearby invite from a message: no such event is listed (QA-43).
+    expect(PRIVACY_PAGE_HTML).not.toContain('Güvendeyim, Yakındayım ve varış');
+    expect(PRIVACY_PAGE_HTML).not.toContain("I'm nearby and arrival events");
   });
 
   it('has nothing left for the owner to fill in, and loads nothing from elsewhere', () => {

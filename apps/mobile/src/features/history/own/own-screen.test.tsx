@@ -1,5 +1,5 @@
 import type { Plan } from '@bargu/schemas';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { Alert, type AlertButton } from 'react-native';
 
@@ -115,10 +115,11 @@ jest.mock('@/features/history/own/own-session', () => {
     },
     unlocked: () => true,
   });
-  return { ownTrail: trail, ownTrailTick: () => Promise.resolve() };
+  return { ownTrail: trail, ownTrailTick: () => Promise.resolve(), tellIfTrailLost: jest.fn() };
 });
 
 import MyHistoryScreen from '@/app/(app)/history/mine';
+import { saveExport } from '@/features/account/export';
 import { ownTrail } from '@/features/history/own/own-session';
 
 const NOW = Date.now();
@@ -257,6 +258,51 @@ describe('"Konum geçmişim" (docs/ADR/0030 §4)', () => {
     expect(ownTrail.settings().on).toBe(false);
     expect(ownTrail.days()).toEqual([]);
     expect(screen.queryByTestId('history-stay')).toBeNull();
+  });
+
+  it('taken out first, asks again, now only to delete or not: it is still on (QA-43)', async () => {
+    mockPlan.current = plan({ plan: 'plus' });
+    ownTrail.setSettings({ on: true, keep: 30 });
+    const today = new Date();
+    today.setHours(9, 0, 0, 0);
+    for (let step = 0; step <= 12; step++) {
+      ownTrail.record(
+        { lat: 41.0256, lng: 28.9742, acc: 10, ts: today.getTime() + step * 5 * 60_000 },
+        { entitled: true, ghost: 'off', sharing: true },
+      );
+    }
+    await render(<MyHistoryScreen />);
+    expect(await screen.findByTestId('history-stay')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('mine-on'));
+    const first = alerts.at(-1);
+    await act(async () => {
+      first?.buttons.find((button) => button.text === 'Dışa aktar')?.onPress?.();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(alerts).toHaveLength(2);
+    });
+    expect(saveExport).toHaveBeenCalledTimes(1);
+    const again = alerts.at(-1);
+    expect(again?.title).toBe('Konum geçmişin kapatılsın mı?');
+    expect(again?.buttons.map((button) => button.text)).toEqual(['Sil ve kapat', 'Vazgeç']);
+    // Still on and kept until the choice.
+    expect(ownTrail.settings().on).toBe(true);
+    await act(() => {
+      again?.buttons.find((button) => button.style === 'destructive')?.onPress?.();
+    });
+    expect(ownTrail.settings().on).toBe(false);
+    expect(ownTrail.days()).toEqual([]);
+  });
+
+  it('takes it out from its own button without asking anything after', async () => {
+    mockPlan.current = plan({ plan: 'plus' });
+    await render(<MyHistoryScreen />);
+    await fireEvent.press(screen.getByTestId('mine-export'));
+    await waitFor(() => {
+      expect(saveExport).toHaveBeenCalledTimes(1);
+    });
+    expect(alerts).toHaveLength(0);
   });
 
   it('keeps for a year on a tap, and asks before going back down to 30 days with days to lose', async () => {

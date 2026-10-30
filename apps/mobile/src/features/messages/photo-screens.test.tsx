@@ -62,6 +62,7 @@ const mockPrepare = jest.fn(() =>
   Promise.resolve({ jpeg: new Uint8Array([1, 2, 3]), w: 1600, h: 1200 }),
 );
 jest.mock('@/features/messages/photo', () => ({
+  UnreadablePhotoError: class UnreadablePhotoError extends Error {},
   preparePhoto: () => mockPrepare(),
   sealPhoto: () => mockFile,
   jpegUri: () => 'data:image/jpeg;base64,AQID',
@@ -129,6 +130,8 @@ import CameraScreen from '@/app/(app)/camera';
 import PhotoScreen from '@/app/(app)/photo/[item]';
 import { useAuth } from '@/features/auth/auth-store';
 import { type ChatItem, EMPTY_MESSAGES, useMessages, withItem } from '@/features/messages/messages';
+import { UnreadablePhotoError } from '@/features/messages/photo';
+import { useToasts } from '@/ui/toast';
 
 const ME = '0190f7a4-1111-7111-8111-000000000001';
 const ALI = '0190f7a4-1111-7111-8111-000000000002';
@@ -245,6 +248,17 @@ describe('the camera', () => {
     await fireEvent.press(screen.getByTestId('camera-take'));
     expect(await screen.findByTestId('story-editor')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('story-editor-close'));
+    expect(screen.getByTestId('camera')).toBeTruthy();
+  });
+
+  it('sends nothing of a photo it cannot read, and asks for another (QA-43)', async () => {
+    mockPrepare.mockImplementationOnce(() => Promise.reject(new UnreadablePhotoError()));
+    await render(<CameraScreen />);
+    await fireEvent.press(screen.getByTestId('camera-take'));
+    expect(useToasts.getState().current).toMatchObject({
+      message: 'Fotoğraf hazırlanamadı, yeniden çek.',
+    });
+    expect(screen.queryByTestId('story-editor')).toBeNull();
     expect(screen.getByTestId('camera')).toBeTruthy();
   });
 

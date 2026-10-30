@@ -20,7 +20,13 @@ import { useCircles } from '@/features/circles/queries';
 import { type Conversation, personConversation } from '@/features/messages/messages';
 import { conversationName, writablePeople } from '@/features/messages/names';
 import { type SendResult, sendPhoto, shareStory } from '@/features/messages/outbox';
-import { jpegUri, preparePhoto, sealPhoto, type TakenPhoto } from '@/features/messages/photo';
+import {
+  jpegUri,
+  preparePhoto,
+  sealPhoto,
+  type TakenPhoto,
+  UnreadablePhotoError,
+} from '@/features/messages/photo';
 import { useRulesGate } from '@/features/messages/rules';
 import { storyCircles } from '@/features/messages/stories';
 import { StoryEditor } from '@/features/story-editor/story-editor';
@@ -73,8 +79,15 @@ export default function CameraScreen() {
     try {
       const picture = await camera.current.takePictureAsync({ quality: 1, exif: false });
       setRaw(await preparePhoto(picture.uri, picture.width, picture.height));
-    } catch {
-      toast.error(t('messages.camera.failed'));
+    } catch (error) {
+      // A file that cannot be read as a JPEG is never sent as it came (QA-43): take it again.
+      toast.error(
+        t(
+          error instanceof UnreadablePhotoError
+            ? 'messages.camera.unreadable'
+            : 'messages.camera.failed',
+        ),
+      );
     } finally {
       setTaking(false);
     }

@@ -1052,7 +1052,8 @@
       "offTitle": "Konum geçmişin kapatılsın mı?",
       "offBody": "Kapatınca geçmişin bu telefondan silinir. Önce dışa aktarmak ister misin?",
       "offExport": "Dışa aktar",
-      "offDelete": "Sil ve kapat"
+      "offDelete": "Sil ve kapat",
+      "lost": "Konum geçmişin bu telefonda okunamadı ve silindi."
     }
   },
   "security": {
@@ -1603,7 +1604,8 @@
         "off": "kapalı",
         "on": "açık",
         "auto": "otomatik"
-      }
+      },
+      "unreadable": "Fotoğraf hazırlanamadı, yeniden çek."
     },
     "openPhoto": "Fotoğrafı açar",
     "opening": "Açılıyor",
@@ -1739,14 +1741,19 @@
     "seesTitle": "Sunucu görür",
     "cannotTitle": "Sunucu göremez",
     "sees": {
-      "account": "Hesabın: e-postanın anahtarlı özeti (adres yalnız giriş kodu giderken bir an geçer), görünen adın, kullanıcı adın, avatar rengin ve emojin.",
-      "circles": "Çemberlerin ve üyelikler: hangi çemberlerde olduğun, çemberlerin adları, kimin yönetici olduğu.",
+      "account": "Hesabın: e-postanın anahtarlı özeti (adres yalnız giriş kodu giderken bir an geçer), görünen adın, kullanıcı adın, avatar rengin ve emojin, kimliğinden hesabının yaklaşık ne zaman açıldığı.",
+      "circles": "Çemberlerin ve üyelikler: hangi çemberlerde olduğun, çemberlerin adları, kimin yönetici olduğu, bir çemberde kaç yer kayıtlı olduğu ve kimin kaydettiği, davet bağlantılarının ne zaman açıldığı.",
       "messages": "Mesajların üst verisi: kim kime ya da hangi çembere ne zaman yazdı, kısa mı uzun mu, fotoğraf dosyasının boyutu. İçeriği değil.",
-      "events": "Olayların zamanı: Güvendeyim, Yakındayım, bir yere varış ya da ayrılış, geç kalacağım. Ne yazdığı ya da nerede olduğu değil.",
+      "events": "Olayların zamanı: Güvendeyim, bir yere varış ya da ayrılış, geç kalacağım ve çemberdeki değişikliklerin ne zaman olduğu. Ne yazdığı ya da nerede olduğu değil.",
       "votes": "Etkinlik ve oylar: buluşma ya da oylama olduğu, kimin hangi oylamada oy verdiği. Neye verdiği değil.",
-      "sharing": "Konum zarfları: hangi çembere ne zaman ve ne sıklıkta konum gittiği, paylaşımın ne zaman durduğu. Zarfın içi değil.",
+      "sharing": "Konum zarfları: hangi çembere ne zaman ve ne sıklıkta konum gittiği, paylaşımın ne zaman durduğu, konumunun neden eski olduğunun ne zaman değiştiği ve geçmiş açıksa hangi saatlerde izin olduğu. Zarfın içi değil.",
+      "watch": "Kim kime bakıyor: haritada birinin kime baktığı. Bakınca arkadaşının konumu canlı güncellenir; nereye baktığı değil.",
+      "plan": "Abonelik: kimde Bargu+ ya da deneme olduğu, hangi süslerin alındığı ve hangi çemberin açık olduğu. Kart bilgin mağazada kalır.",
+      "age": "Yaş grubun: \"15–17\" ya da \"18+\" ve nasıl öğrenildiği. Doğum tarihin değil; başkalarına gösterilmez.",
+      "consent": "Aydınlatma ve rıza kayıtları: gizlilik metnini okuduğun ve geçmiş rızasını verip geri çektiğin an.",
       "guardian": "15–17 yaşta: ebeveyn bağlantısı ve uygulamanın günde kaç dakika açık kaldığı.",
-      "push": "Bildirim jetonun ve bildirimlerin ne zaman gittiği. İçerikleri ve kimden geldikleri değil."
+      "push": "Bildirim jetonun ve bildirimlerin ne zaman gittiği. İçerikleri ve kimden geldikleri değil.",
+      "ip": "IP adresin: bağlanırken görünür ve yaklaşık bölgeni söyleyebilir. Log'lanmaz."
     },
     "cannot": {
       "location": "Nerede olduğun: konumun telefonunda şifrelenir.",
@@ -1785,6 +1792,8 @@
       "mono": "Siyah beyaz",
       "vivid": "Canlı",
       "fade": "Solgun"
-    }
+    },
+    "full": "En çok {{count}} yazı ve çıkartma eklenebilir.",
+    "linesFull": "En çok {{count}} çizgi çizilebilir."
   }
 }

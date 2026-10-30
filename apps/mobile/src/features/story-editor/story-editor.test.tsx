@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import i18n from '@/i18n';
+import { useToasts } from '@/ui/toast';
 
 import type { Edit } from './edit-model';
 
@@ -99,6 +100,38 @@ describe('the story editor (the owner, 2026-10-29: "Instagram gibi")', () => {
     await fireEvent.press(screen.getByTestId('story-editor-sticker-🔥'));
     expect(screen.queryByTestId('story-editor-stickers')).toBeNull();
     expect(screen.getByLabelText('🔥')).toBeTruthy();
+  });
+
+  it('lets no more than 20 texts and stickers on, and 200 characters in one (QA-43)', async () => {
+    await editor();
+    await fireEvent.press(screen.getByTestId('story-editor-text'));
+    expect(screen.getByTestId('story-editor-input').props.maxLength).toBe(200);
+    await fireEvent.press(screen.getByTestId('story-editor-text-done'));
+    for (let i = 0; i < 20; i += 1) {
+      await fireEvent.press(screen.getByTestId('story-editor-sticker'));
+      await fireEvent.press(screen.getByTestId('story-editor-sticker-🔥'));
+    }
+    expect(screen.getAllByLabelText('🔥')).toHaveLength(20);
+    await fireEvent.press(screen.getByTestId('story-editor-sticker'));
+    expect(screen.queryByTestId('story-editor-stickers')).toBeNull();
+    expect(useToasts.getState().current).toMatchObject({
+      message: 'En çok 20 yazı ve çıkartma eklenebilir.',
+    });
+    await fireEvent.press(screen.getByTestId('story-editor-text'));
+    expect(screen.queryByTestId('story-editor-input')).toBeNull();
+  });
+
+  it('sends nothing when what it drew cannot be read as a photo (QA-43)', async () => {
+    mockCompose.mockReturnValueOnce('unreadable');
+    const { onDone } = await editor();
+    await fireEvent.press(screen.getByTestId('story-editor-sticker'));
+    await fireEvent.press(screen.getByTestId('story-editor-sticker-🔥'));
+    await fireEvent.press(screen.getByTestId('story-editor-next'));
+    await jest.runAllTimersAsync();
+    expect(onDone).not.toHaveBeenCalled();
+    expect(useToasts.getState().current).toMatchObject({
+      message: 'Fotoğraf hazırlanamadı, yeniden çek.',
+    });
   });
 
   it('opens a pen with colours and widths, undo off until something is drawn', async () => {

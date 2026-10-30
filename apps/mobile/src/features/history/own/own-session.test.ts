@@ -44,6 +44,15 @@ const mockPrepare = jest.fn((create: boolean) => {
   return Promise.resolve(create ? (mockKey.ready = true) : false);
 });
 const mockMonths = new Map<string, Map<string, string>>();
+/** Whether the files were deleted for a lost key, told once (own-files.ts takeKeyLost). */
+const mockLost = {
+  pending: false,
+  take() {
+    const was = this.pending;
+    this.pending = false;
+    return was;
+  },
+};
 jest.mock('./own-files', () => ({
   createMonthFiles: () => ({
     months: () => [...mockMonths.keys()],
@@ -76,11 +85,16 @@ jest.mock('./own-files', () => ({
     mockKey.ready = false;
   },
   prepareTrailKey: (create: boolean) => mockPrepare(create),
+  takeKeyLost: () => mockLost.take(),
   trailKeyReady: () => mockKey.ready,
 }));
 
 // What it does once package D turns it on (own-off.test.ts: what it does before).
 jest.mock('./own-flag', () => ({ OWN_HISTORY_ENABLED: true }));
+
+import { Alert } from 'react-native';
+
+import i18n from '@/i18n';
 
 import { ownEntitled, ownTrail, ownTrailTick, rememberEntitlement } from './own-session';
 
@@ -160,6 +174,21 @@ describe('the turn that keeps it tidy', () => {
     await ownTrailTick(NOW);
     expect(mockMonths.size).toBe(0);
     expect(ownTrail.days()).toHaveLength(1);
+  });
+
+  it('says once, in an alert, that a history whose key was lost was deleted (QA-43)', async () => {
+    await i18n.changeLanguage('tr');
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    ownTrail.setSettings({ on: true, keep: 30 });
+    mockLost.pending = true;
+    await ownTrailTick(NOW);
+    await ownTrailTick(NOW + DAY);
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith(
+      'Konum geçmişim',
+      'Konum geçmişin bu telefonda okunamadı ve silindi.',
+    );
+    alert.mockRestore();
   });
 
   it('forgets old days once a day, not at every turn', async () => {
