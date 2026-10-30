@@ -50,7 +50,9 @@ lock_script="$(dirname "${BASH_SOURCE[0]}")/with-test-lock.sh"
     # dropped the container ("error waiting for container: unexpected EOF").
     turbo_ok=1
     pnpm exec turbo run typecheck lint build --continue --concurrency=1 --ui=stream > /tmp/turbo.log 2>&1 || turbo_ok=0
-    pnpm exec turbo run test --continue --concurrency=1 --ui=stream >> /tmp/turbo.log 2>&1 || turbo_ok=0
+    pnpm exec turbo run test --continue --concurrency=1 --ui=stream --filter=!@bargu/mobile >> /tmp/turbo.log 2>&1 || turbo_ok=0
+    # The mobile jest with six workers, not one per core: twenty of them outgrew the VM by themselves.
+    (cd apps/mobile && pnpm exec jest --maxWorkers=6) >> /tmp/turbo.log 2>&1 || turbo_ok=0
     if [ "$turbo_ok" = 0 ]; then
       grep -nE "ERROR|FAIL|error TS|✖|●" /tmp/turbo.log | head -80
       echo "ci-linux: typecheck, lint, test or build failed"
