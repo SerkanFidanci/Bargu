@@ -14,6 +14,7 @@ import {
 import { usePushState } from '@/features/notifications/push';
 import { askForPush } from '@/features/notifications/use-push';
 import { usePlaces } from '@/features/places/places';
+import { RollcallSettingToggle } from '@/features/rollcall/rollcall-setting';
 import { radius, space, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
@@ -72,6 +73,8 @@ export default function NotificationsScreen() {
           />
         )}
       </View>
+
+      <RollcallSettingToggle />
 
       <SectionTitle>{t('notificationPrefs.people')}</SectionTitle>
       {people.length === 0 && silencedPlaces.length === 0 ? (

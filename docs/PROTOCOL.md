@@ -297,6 +297,13 @@ dosya      = head ‖ ChaCha20-Poly1305(blobKey, nonce, aad = "bargu/v1/blob\0" 
   hücreden geldiyse yalnız "yakınlarda" der). İçerikteki `id` başlıktaki `id` olmalıdır. Bildirim
   gövdesi `near` (`circleId?, ts`) yalnız kimden geldiğini söyler; "Geliyorum" ve "Şimdi olmaz"
   düğmeleri sıradan `text` öğesi gönderir.
+- **Etkinlik yoklaması (ADR 0040):** `rollcall` (`id, closesAt, ts`; `id` yoklamanın kimliği) ve
+  `here` (`id, rollcallId, ts`; "Buradayım", **konum yok**, şema katı) aynı çember sohbet anahtarıyla
+  mühürlenir ama sohbete girmez: kendi uçlarından gider (`/v1/circles/:id/rollcalls`), sunucu türü
+  ve kimin cevap verdiğini görür (kuralları o denetler). Telefon soruyu yalnız bir yöneticinin
+  cihazından, cevabı yalnız o üyenin kendi cihazından kabul eder; sohbete gelen böyle bir öğeyi
+  göstermez. Bildirim gövdesi `rollcall` (`circleId, ts`), sahibin cihazıyla imzalı, "Buradayım"
+  düğmeli.
 - **Anahtar bağlılığı (`commit`):** ChaCha20-Poly1305 bir şifreli metni tek bir anahtara bağlamaz;
   imzanın kapsadığı bu özet bağlar. Anahtar bağlılığı içermeyen temel başlıktan türetilir (yoksa
   döngü olurdu). Alıcı çözmeden önce denetler; uymayan öğe gösterilmez. Bildirimde (`revealChatItem`,

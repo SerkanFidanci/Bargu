@@ -65,6 +65,8 @@ export class MessagesSweeper implements OnApplicationBootstrap, OnApplicationShu
       if (removed < BATCH) break;
     }
     await this.database.db.execute(sql`SELECT app.expire_reports()`);
+    // Event roll calls 24 hours after they began, with their answers (docs/ADR/0040).
+    await this.database.db.execute(sql`SELECT app.expire_rollcalls()`);
     await this.watchSpace();
     return total;
   }

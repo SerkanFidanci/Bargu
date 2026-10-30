@@ -50,6 +50,7 @@ import { usePlaces } from '@/features/places/places';
 import { SettingsGroup, SettingsRow } from '@/ui/settings-row';
 import { MeetingCard } from '@/features/plan/meeting-card';
 import { MeetingRow } from '@/features/plan/meeting-row';
+import { RollcallCard } from '@/features/rollcall/rollcall-card';
 import { isValidDisplayName } from '@/features/profile/profile-form';
 import { radius, space, touchTarget, useTheme } from '@/theme';
 import { feedback } from '@/theme/haptics';
@@ -313,6 +314,12 @@ function CircleDetail({ circle, me }: { circle: Circle; me: string | null }) {
       {active && circle.kind === 'event' ? (
         <Appear index={2}>
           <MeetingCard circle={circle} />
+        </Appear>
+      ) : null}
+
+      {active && circle.kind === 'event' ? (
+        <Appear index={2}>
+          <RollcallCard circle={circle} />
         </Appear>
       ) : null}
 

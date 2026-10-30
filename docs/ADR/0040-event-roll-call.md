@@ -160,3 +160,30 @@ listede adıyla değil sayıyla görünür.
    15–17'nin neden katılmadığını gizler)?
 4. "Sahip" **bütün yöneticiler** mi (öneri; ADR 0020'de etkinlikte birden çok yönetici olabilir), yoksa
    yalnız çemberi kuran kişi mi?
+
+## Uygulama notları (kodlama oturumu, 2026-10-30)
+
+Kod bu ADR'yi izler; üç yerde metinden ayrılır:
+
+1. **Kapanış işi yok.** Yoklama zamanıyla kapanır (`closes_at`). "Bitir" bu zamanı öne çeker ve
+   `closed_at`'ı yazar. Telefonlar `closesAt`'ta yoklamayı kendileri kapatır (ekrandaki saat;
+   sunucuya sorma yok). Böylece pg-boss işi ve onun hata yolları gerekmez. Sunucu kapanmış yoklamaya
+   cevabı yine reddeder. Telefon, sorunun kendi imzalı `closesAt`'ından daha uzun açık tutmaz.
+2. **Eski uygulama dışarıda sayılmaz.** Sunucu üyelerin uygulama sürümünü saklamıyor. Bu yüzden
+   eski uygulamalı üye "cevap vermedi" görünür, "yoklamada olmayan" sayılmaz. Uçlar 7'den eski
+   uygulamayı 426 ile geri çevirir (`CLIENT_LEVEL_FOR.rollcalls`). 15–17'yi gizleyen şey herkesin
+   kapatabildiği ayardır; o yerinde.
+3. **Bildirim kapanınca kalkmaz.** Kapalı uygulamada bildirim durur. "Buradayım" düğmesine kapanıştan
+   sonra basılırsa telefon "Yoklama bitti." der; uygulama açıkken ekran zaten kapanmış yoklamayı
+   gösterir.
+
+Ayrıca:
+
+- Kurallar veritabanında, `SECURITY DEFINER` işlevlerdedir (migration 0044): `start_rollcall`,
+  `answer_rollcall`, `close_rollcall`. Tablolara uygulama rolü yalnız okur. Okumayı satır güvenliği
+  sınırlar: yalnız çemberin yöneticileri ve cevap verebilecek üyeler okur.
+- Telefon soruyu ve her cevabı açıp denetler (`rollcall-model.ts`). Soru bir yöneticinin cihazından,
+  bu yoklama için mühürlenmiş olmalı. Cevap, o üyenin kendi `here` öğesi olmalı. Sunucu bir cevabı
+  saklayabilir ama uyduramaz.
+- Bildirim tıklanınca etkinliğin ekranı açılır; "Buradayım" düğmesi uygulamayı açar ve cevaplar.
+  Çemberin sohbeti sessize alındıysa bildirim de susar.

@@ -82,9 +82,12 @@ export function pushOf(payload: ChatPayload, circleId: string | undefined): Push
       return { kind: 'shot', ts: payload.ts };
     case 'near':
       return { kind: 'near', ...(circleId === undefined ? {} : { circleId }), ts: payload.ts };
+    // A roll call's notification is made where it is asked (features/rollcall), never here.
     case 'del':
     case 'view':
     case 'react':
+    case 'rollcall':
+    case 'here':
       return null;
   }
 }

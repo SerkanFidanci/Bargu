@@ -52,6 +52,8 @@ export const LIVE_EVENTS = [
   // Messages and moments (docs/ADR/0035): a new item, and one taken back.
   'chat',
   'chat.gone',
+  // An event's roll call (docs/ADR/0040): begun, answered or closed; the whole roll call with it.
+  'rollcall',
 ] as const;
 export type LiveEvent = (typeof LIVE_EVENTS)[number];
 

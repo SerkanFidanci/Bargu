@@ -4,14 +4,22 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 
 import i18n, { resolveLanguage } from '@/i18n';
+import { toast } from '@/ui/toast';
 
 import { api } from '../auth/auth-store';
 import { sendText } from '../messages/outbox';
+import { answerCurrent } from '../rollcall/rollcall-session';
 import { pokeFromTap } from '../social/poke';
 import { openSpot } from '../social/safe-spot';
 import { isVaultOpen, vault } from '../storage/vault';
 import { registerPushTask } from './background-push';
-import { NEAR_CATEGORY, NEAR_REPLIES, type NearReply } from './channels';
+import {
+  NEAR_CATEGORY,
+  NEAR_REPLIES,
+  type NearReply,
+  ROLLCALL_CATEGORY,
+  ROLLCALL_HERE,
+} from './channels';
 import {
   circleOfResponse,
   enablePush,
@@ -47,7 +55,28 @@ function registerNearReplies(): Promise<unknown> {
   );
 }
 
+/** An event's roll call comes with "Buradayım" (docs/ADR/0040): it opens the app and answers. */
+function registerRollcallHere(): Promise<unknown> {
+  return Notifications.setNotificationCategoryAsync(ROLLCALL_CATEGORY, [
+    { identifier: ROLLCALL_HERE, buttonTitle: i18n.t('rollcall.here') },
+  ]);
+}
+
 function open(response: Notifications.NotificationResponse): void {
+  // "Buradayım" under a roll call: answered if it is still open, then its circle opens.
+  if (response.actionIdentifier === ROLLCALL_HERE) {
+    const circleId = circleOfResponse(response);
+    if (circleId === null) return;
+    void answerCurrent(circleId).then((result) => {
+      if (result === 'ok') toast.success(i18n.t('rollcall.saidHere'));
+      else
+        toast.error(
+          i18n.t(result === 'CLOSED' ? 'rollcall.refused.CLOSED' : 'rollcall.refused.failed'),
+        );
+    });
+    router.push({ pathname: '/circle/[id]', params: { id: circleId } });
+    return;
+  }
   // "Geliyorum" or "Şimdi olmaz": sent as a text, and the conversation opens with it in place (a
   // failure shows there, to be tried again).
   const near = nearReplyOfResponse(response);
@@ -106,6 +135,7 @@ export function usePushNotifications(ready: boolean): void {
     // Notifications arrive sealed and data-only (docs/ADR/0016): this task opens and shows them.
     if (Platform.OS === 'android') void registerPushTask().catch(() => undefined);
     void registerNearReplies().catch(() => undefined);
+    void registerRollcallHere().catch(() => undefined);
     const tokens = Notifications.addPushTokenListener((token) => {
       const data: unknown = token.data;
       if (typeof data === 'string') void register(data).catch(() => undefined);

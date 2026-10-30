@@ -51,6 +51,8 @@ export const users = app.table('users', {
   ageSetAt: timestamptz('age_set_at'),
   /** docs/ADR/0023: found by username; always false for 15-17 (migration 0022). */
   findable: boolean('findable').notNull().default(true),
+  /** docs/ADR/0040 §6: takes part in event roll calls (migration 0044). */
+  rollcalls: boolean('rollcalls').notNull().default(true),
   createdAt: timestamptz('created_at').notNull().defaultNow(),
   deletedAt: timestamptz('deleted_at'),
 });
@@ -310,6 +312,30 @@ export const reports = app.table('reports', {
   closedAt: timestamptz('closed_at'),
 });
 
+/** Event roll calls (docs/ADR/0040, migration 0044): written only through app.*_rollcall(). */
+export const rollcalls = app.table('rollcalls', {
+  id: uuid('id').primaryKey(),
+  circleId: uuid('circle_id').notNull(),
+  startedBy: uuid('started_by').notNull(),
+  startedAt: timestamptz('started_at').notNull().defaultNow(),
+  closesAt: timestamptz('closes_at').notNull(),
+  closedAt: timestamptz('closed_at'),
+  eligible: uuid('eligible').array().notNull(),
+  outCount: smallint('out_count').notNull(),
+  envelope: jsonb('envelope').notNull(),
+});
+
+export const rollcallAnswers = app.table(
+  'rollcall_answers',
+  {
+    rollcallId: uuid('rollcall_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    answeredAt: timestamptz('answered_at').notNull().defaultNow(),
+    envelope: jsonb('envelope').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.rollcallId, table.userId] })],
+);
+
 export const schema = {
   users,
   devices,
@@ -330,4 +356,6 @@ export const schema = {
   chatItems,
   blocks,
   reports,
+  rollcalls,
+  rollcallAnswers,
 };

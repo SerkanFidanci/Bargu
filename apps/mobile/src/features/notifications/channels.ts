@@ -20,5 +20,8 @@ export const ACCOUNT_CHANNEL = 'account';
  * (docs/ADR/0037, the PM's decision 4). Each sends a plain text message.
  */
 export const NEAR_CATEGORY = 'near';
+/** An event's roll call (docs/ADR/0040) comes with "Buradayım", answered without opening the app. */
+export const ROLLCALL_CATEGORY = 'rollcall';
+export const ROLLCALL_HERE = 'here';
 export const NEAR_REPLIES = ['coming', 'notNow'] as const;
 export type NearReply = (typeof NEAR_REPLIES)[number];

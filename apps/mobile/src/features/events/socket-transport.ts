@@ -35,6 +35,8 @@ export const LIVE_MESSAGES = [
   'place',
   // A friend's new quarter hour of history: an open history screen fetches again.
   'history',
+  // An event's roll call (docs/ADR/0040): begun, answered or ended, the whole of it.
+  'rollcall',
 ] as const satisfies readonly LiveEvent[];
 
 /**

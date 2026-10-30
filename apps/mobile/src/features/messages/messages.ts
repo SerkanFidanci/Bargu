@@ -279,6 +279,8 @@ export function applyPayload<T extends Saved>(
     );
     return { ...saved, items, seen };
   }
+  // Roll calls go their own way (docs/ADR/0040): one that came as a chat item is not shown.
+  if (payload.kind === 'rollcall' || payload.kind === 'here') return { ...saved, seen };
   const item: ChatItem = {
     id: payload.id,
     conversation,

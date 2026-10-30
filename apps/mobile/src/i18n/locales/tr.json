@@ -594,7 +594,8 @@
     "near": {
       "alone": "Yakında, gelir misin?",
       "inCircle": "{{name}}: yakında, gelir misin?"
-    }
+    },
+    "rollcall": "{{name}}: Herkes yerinde mi? Buradayım de."
   },
   "location": {
     "service": {
@@ -1745,7 +1746,7 @@
       "circles": "Çemberlerin ve üyelikler: hangi çemberlerde olduğun, çemberlerin adları, kimin yönetici olduğu, bir çemberde kaç yer kayıtlı olduğu ve kimin kaydettiği, davet bağlantılarının ne zaman açıldığı.",
       "messages": "Mesajların üst verisi: kim kime ya da hangi çembere ne zaman yazdı, kısa mı uzun mu, fotoğraf dosyasının boyutu. İçeriği değil.",
       "events": "Olayların zamanı: Güvendeyim, bir yere varış ya da ayrılış, geç kalacağım ve çemberdeki değişikliklerin ne zaman olduğu. Ne yazdığı ya da nerede olduğu değil.",
-      "votes": "Etkinlik ve oylar: buluşma ya da oylama olduğu, kimin hangi oylamada oy verdiği. Neye verdiği değil.",
+      "votes": "Etkinlik, oylar ve yoklamalar: buluşma ya da oylama olduğu, kimin hangi oylamada oy verdiği, yoklamada kimin ne zaman \"Buradayım\" dediği. Neye oy verdiği ya da nerede olduğu değil.",
       "sharing": "Konum zarfları: hangi çembere ne zaman ve ne sıklıkta konum gittiği, paylaşımın ne zaman durduğu, konumunun neden eski olduğunun ne zaman değiştiği ve geçmiş açıksa hangi saatlerde izin olduğu. Zarfın içi değil.",
       "watch": "Kim kime bakıyor: haritada birinin kime baktığı. Bakınca arkadaşının konumu canlı güncellenir; nereye baktığı değil.",
       "plan": "Abonelik: kimde Bargu+ ya da deneme olduğu, hangi süslerin alındığı ve hangi çemberin açık olduğu. Kart bilgin mağazada kalır.",
@@ -1795,5 +1796,29 @@
     },
     "full": "En çok {{count}} yazı ve çıkartma eklenebilir.",
     "linesFull": "En çok {{count}} çizgi çizilebilir."
+  },
+  "rollcall": {
+    "title": "Yoklama",
+    "ask": "Herkes yerinde mi?",
+    "askHint": "Üyelere sorar; 10 dakika açık kalır. Cevapta konum yok.",
+    "asking": "{{name}} soruyor: Herkes yerinde mi?",
+    "here": "Buradayım",
+    "saidHere": "Buradayım dedin ✓",
+    "noLocation": "\"Buradayım\" konum göndermez.",
+    "count": "{{here}}/{{all}} burada",
+    "left": "{{minutes}} dk kaldı",
+    "notAnswered": "Cevap vermeyenler: {{names}}",
+    "out": "Yoklamada olmayan: {{count}} kişi",
+    "end": "Bitir",
+    "ended": "Son yoklama: {{here}}/{{all}} burada",
+    "refused": {
+      "ALREADY_OPEN": "Şu an açık bir yoklama var.",
+      "RATE_LIMITED": "Bir saatte en çok 6 yoklama yapılabilir.",
+      "CLOSED": "Yoklama bitti.",
+      "NOT_OWNER": "Yoklamayı yalnız etkinliğin yöneticileri başlatır.",
+      "failed": "Gönderilemedi. Bağlantını kontrol et."
+    },
+    "setting": "Etkinlik yoklamaları",
+    "settingHint": "Kapalıyken etkinliklerde \"Herkes yerinde mi?\" sorusu sana gelmez. 8 kişiden büyük etkinliklerde 18 yaşından küçükler için kapalıdır."
   }
 }

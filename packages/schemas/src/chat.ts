@@ -150,6 +150,19 @@ export const chatNearSchema = z
   .object({ kind: z.literal('near'), id: itemId, ts: timestamp })
   .strict();
 
+/**
+ * "Herkes yerinde mi?" (docs/ADR/0040): an event owner's roll call, its id the roll call's. No words:
+ * the phone writes the question. Sent through the roll call routes, never the chat.
+ */
+export const chatRollcallSchema = z
+  .object({ kind: z.literal('rollcall'), id: itemId, closesAt: timestamp, ts: timestamp })
+  .strict();
+
+/** "Buradayım" to a roll call: who said it and when, and nothing of where (docs/ADR/0040 §2). */
+export const chatHereSchema = z
+  .object({ kind: z.literal('here'), id: itemId, rollcallId: z.uuid(), ts: timestamp })
+  .strict();
+
 export const chatPayloadSchema = z.discriminatedUnion('kind', [
   chatTextSchema,
   chatPhotoSchema,
@@ -158,6 +171,8 @@ export const chatPayloadSchema = z.discriminatedUnion('kind', [
   chatViewSchema,
   chatReactSchema,
   chatNearSchema,
+  chatRollcallSchema,
+  chatHereSchema,
 ]);
 export type ChatPayload = z.infer<typeof chatPayloadSchema>;
 export type ChatPhoto = z.infer<typeof chatPhotoSchema>;

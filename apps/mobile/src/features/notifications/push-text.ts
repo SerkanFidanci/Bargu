@@ -6,7 +6,13 @@ import type { SeenThere } from '../location/sharing';
 import { safeWords } from '../social/safe';
 import type { SafeSpot } from '../social/safe-spot';
 
-import { MEETINGS_CHANNEL, NEAR_CATEGORY, PLACES_CHANNEL, SOCIAL_CHANNEL } from './channels';
+import {
+  MEETINGS_CHANNEL,
+  NEAR_CATEGORY,
+  PLACES_CHANNEL,
+  ROLLCALL_CATEGORY,
+  SOCIAL_CHANNEL,
+} from './channels';
 import type { PushContacts } from './push-contacts';
 
 export interface ShownPush {
@@ -31,7 +37,7 @@ export interface ShownPush {
   /** A poke with a feeling or a question (docs/ADR/0031): tapping plays it on screen. */
   poke?: { style: PokeStyle; say?: PokeSaying | undefined; ts: number };
   /** Buttons under it: "Geliyorum" and "Şimdi olmaz" for "Yakındayım" (docs/ADR/0037). */
-  category?: typeof NEAR_CATEGORY;
+  category?: typeof NEAR_CATEGORY | typeof ROLLCALL_CATEGORY;
 }
 
 const GUARDIAN_NOTICES: ReadonlySet<string> = new Set([
@@ -280,6 +286,17 @@ export function pushText(
       circleId: body.circleId,
       channel: MEETINGS_CHANNEL,
       fromUserId: sender.userId,
+    };
+  }
+  if (body.kind === 'rollcall') {
+    // "Herkes yerinde mi?" from an owner of the event (docs/ADR/0040), with "Buradayım" under it.
+    return {
+      title: contacts.circles[body.circleId]?.name ?? 'Bargu',
+      body: i18n.t('notifications.rollcall', { name: sender.name }),
+      circleId: body.circleId,
+      channel: MEETINGS_CHANNEL,
+      fromUserId: sender.userId,
+      category: ROLLCALL_CATEGORY,
     };
   }
   return {

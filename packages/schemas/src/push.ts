@@ -160,6 +160,9 @@ export const pushBodySchema = z.discriminatedUnion('kind', [
   // "Yakındayım, gelir misin?" (docs/ADR/0037): to a circle, or to a friend alone (then without a
   // circle). The receiving phone writes it, with how far from what it already has.
   z.object({ kind: z.literal('near'), circleId: z.uuid().optional(), ts: timestamp }).strict(),
+  // An event's roll call (docs/ADR/0040): "Herkes yerinde mi?", from an owner. The phone writes it
+  // and answers "Buradayım" from the notification.
+  z.object({ kind: z.literal('rollcall'), circleId: z.uuid(), ts: timestamp }).strict(),
   // Someone took a screenshot of this phone's photo (Android 14+, §12); sealed to its sender only.
   z.object({ kind: z.literal('shot'), ts: timestamp }).strict(),
   z

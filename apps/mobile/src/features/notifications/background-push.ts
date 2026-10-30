@@ -243,11 +243,16 @@ export async function showPush(sealed: string, now = Date.now()): Promise<Shown>
                 : body.kind === 'chat' ||
                     body.kind === 'moment' ||
                     body.kind === 'shot' ||
-                    body.kind === 'near'
+                    body.kind === 'near' ||
+                    body.kind === 'rollcall'
                   ? 'message'
                   : 'bump',
-            // A circle's conversation can be muted as a whole (QA-39), "Yakındayım" with it.
-            ...((body.kind === 'chat' || body.kind === 'moment' || body.kind === 'near') &&
+            // A circle's conversation can be muted as a whole (QA-39), "Yakındayım" and an event's
+            // roll call with it (docs/ADR/0040 §7).
+            ...((body.kind === 'chat' ||
+              body.kind === 'moment' ||
+              body.kind === 'near' ||
+              body.kind === 'rollcall') &&
             body.circleId !== undefined
               ? { circleId: body.circleId }
               : {}),

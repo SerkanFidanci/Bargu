@@ -594,7 +594,8 @@
     "near": {
       "alone": "Nearby, can you come?",
       "inCircle": "{{name}}: nearby, can you come?"
-    }
+    },
+    "rollcall": "{{name}}: Is everyone here? Say you are here."
   },
   "location": {
     "service": {
@@ -1745,7 +1746,7 @@
       "circles": "Your circles and memberships: which circles you are in, their names, who runs them, how many places a circle has and who saved them, when invite links are opened.",
       "messages": "Message metadata: who wrote to whom or to which circle and when, whether short or long, a photo file’s size. Not what it says.",
       "events": "When things happen: I'm safe, arriving at or leaving a place, running late, and when a circle changes. Not what was said or where.",
-      "votes": "Events and votes: that there is a meeting or a poll, who voted in which poll. Not for what.",
+      "votes": "Events, votes and roll calls: that there is a meeting or a poll, who voted in which poll, who said \"I'm here\" to a roll call and when. Not for what, or where they are.",
       "sharing": "Location envelopes: which circles get your location, when and how often, when sharing stops, when the reason your location is old changes, and with history on, which hours you have a trail. Not what is inside.",
       "watch": "Who is looking at whom: who looks at whom on the map. Looking makes your friend's location update live; not where they look.",
       "plan": "Your plan: who has Bargu+ or a trial, which cosmetics were bought and which circles are unlocked. Your card stays with the store.",
@@ -1795,5 +1796,29 @@
     },
     "full": "At most {{count}} texts and stickers.",
     "linesFull": "At most {{count}} lines."
+  },
+  "rollcall": {
+    "title": "Roll call",
+    "ask": "Is everyone here?",
+    "askHint": "Asks the members; open for 10 minutes. The answer has no location.",
+    "asking": "{{name}} asks: Is everyone here?",
+    "here": "I'm here",
+    "saidHere": "You said you're here ✓",
+    "noLocation": "\"I'm here\" sends no location.",
+    "count": "{{here}}/{{all}} here",
+    "left": "{{minutes}} min left",
+    "notAnswered": "Not answered: {{names}}",
+    "out": "Not in this roll call: {{count}}",
+    "end": "End",
+    "ended": "Last roll call: {{here}}/{{all}} here",
+    "refused": {
+      "ALREADY_OPEN": "A roll call is open right now.",
+      "RATE_LIMITED": "At most 6 roll calls an hour.",
+      "CLOSED": "The roll call is over.",
+      "NOT_OWNER": "Only the event's admins start a roll call.",
+      "failed": "Could not send. Check your connection."
+    },
+    "setting": "Event roll calls",
+    "settingHint": "When off, \"Is everyone here?\" does not come to you at events. In events of more than 8 people it is off for under-18s."
   }
 }

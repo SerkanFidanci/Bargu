@@ -28,7 +28,7 @@ export const SERVER_SEES = {
     '"Geç kalacak" olayları',
     'Olay zamanları (canlı kanal)',
   ],
-  votes: ['Etkinlik belgeleri (sunucuda)', 'Çember içi buluşma'],
+  votes: ['Etkinlik belgeleri (sunucuda)', 'Çember içi buluşma', 'Etkinlik yoklamaları'],
   sharing: [
     'Gönderim zamanları ve sıklığı',
     'Zarf boyutu',
