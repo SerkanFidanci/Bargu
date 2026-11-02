@@ -182,7 +182,9 @@ PM kararları:
 - Gizlilik politikası ve /gizlilik bu metinle güncellendi; aydınlatma sürümü aynı (veri yalnız
   telefonda, Bargu işlemiyor).
 
-## Ek 2 (2026-11-02, taslak, PM onayı bekliyor): Keşif haritası
+## Ek 2 (2026-11-02): Keşif haritası
+
+**Durum:** Kabul edildi (PM, 2026-11-02). Dört soruda da öneri geçerli; PM şartı aşağıda.
 
 **Bağlam.** Bu ADR keşif haritasını Faz 11'e bırakmıştı. PM'in sektör kararları (2026-10-29) onu
 paket D'ye aldı ("Ö7 kendi konum geçmişin ve kazıma haritası"); mağaza metninde "yarışsız kazıma
@@ -218,10 +220,24 @@ haritası" var. D'nin geri kalanı (Ö7'nin temel görünümü, Ö12, N2, N3) ya
    birleşmesi (ortak kenarlar kalkar, delikler doğru), süre dolunca düşme, modülün ağ ve log
    modüllerini import etmemesi (statik test), ekran ve sade mod.
 
-**PM'e sorular (öneriler ilk seçenek):**
+**PM kararları (2026-11-02):**
 
-1. Süre Ö7 ile aynı mı (öneri), yoksa ayrı ve ömür boyu mu?
-2. Ekranda sayı ("N yer") olmasın mı (öneri), yoksa yalnız kişiye bir sayı mı?
-3. Kare yaklaşık 230 m mi (öneri), yoksa daha kaba yaklaşık 460 m mi?
-4. PM kararı 4'teki boşluk nedeni ("Hayalet · 14:00–16:30") D'ye girmesin mi (öneri: girmesin;
-   koordinatsız yeni bir olay kaydı ister, ayrı karar)?
+1. Süre Ö7 ile aynı; ayrı, ömür boyu bir kayıt yok.
+2. Ekranda sayı yok.
+3. Kare yaklaşık 230 m (zoom 17).
+4. PM kararı 4'teki boşluk nedeni ("Hayalet · 14:00–16:30") D'ye girmez.
+
+**PM şartı: hesap ekranı dondurmaz.** Bir yıllık Ö7 on binlerce nokta olabilir.
+
+- Hesap gün gün, parça parça yapılır ve parçalar arasında JS iş parçacığına yer verilir. Bir parça
+  en çok **8 ms** sürer (60 fps'te bir karenin yarısı). Hesap sürerken ekranda "Hazırlanıyor"
+  yazar; harita bu sırada dokunmaya cevap verir. Ekrandan çıkılınca hesap durur.
+- **Bütçe**, 365 günlük yapay ve dağınık bir yılla (günde 300 nokta, yaklaşık 110 bin nokta)
+  ölçülür ve testlidir:
+  - test makinesinde iki ara arasında en çok 50 ms (CI'daki yavaş makine payıyla; telefonda hedef
+    8 ms);
+  - toplamda en çok 3 sn.
+- **Sisin çokgeni** birleştirilmiş tek bir çokgendir: ortak kenarlar kalkar, düz kenarlar tek
+  kenar olur. Köşe sayısı en çok **20 000**. Çok dağınık bir yılda bu aşılırsa kareler bir kat
+  kabalaştırılır (dört kare bir, yaklaşık 460 m), sınırın altına inene kadar. Açılan alan biraz
+  büyür, hiçbir gidilen yer kapanmaz.

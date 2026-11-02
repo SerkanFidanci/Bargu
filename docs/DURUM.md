@@ -98,6 +98,12 @@ Güvenlik paketi: ADR 0039 (eve vardım kontrolü ve N1 pil), ADR 0040 (etkinlik
 
 **APK (2026-11-02): `8d06a5d`**, paket C: yoklama, eve vardım kontrolü, N1 pil, QA-43'ün 7 düşük bulgusu; bağımlılık denetimi için node-forge 1.4.2 (beş yeni yüksek uyarı, yalnız Expo'nun geliştirme aracında). Linux CI (1560 test), GitHub CI ve güvenlik yeşil; staging güncellendi (migration 0044, 0045). https://api.46-62-162-70.sslip.io/apk/bargu-8d06a5d-415c77c8d2130f3a.apk. /gizlilik'in C metni (06509c5) ve bağlantı kaydı cümlesi (b493deb) sonraki push'la staging'e gider; APK'yı etkilemez.
 
+| QA    | Commit    | Sonuç                                                                                  | Rapor                  |
+| ----- | --------- | -------------------------------------------------------------------------------------- | ---------------------- |
+| QA-44 | `8d06a5d` | Yüksek yok; Orta 3 (kalıcı bildirimde alıcılar, izinsiz uyarı, yetim kontrol); Düşük 8 | QA-RAPOR-44-paket-c.md |
+
+QA-44'ün düzeltmeleri D APK'sıyla çıkar; QA-45 ikisini birlikte kapsar (PM). Düşük 6 kabul edilen sapma: sunucu üyelerin uygulama sürümünü bilmediği için eski uygulamalı üye yoklamada "cevap vermedi" görünür (güvenli taraf). Düşük 8 ("İyi misin?" bildiriminin gecikmesi): sahip telefonda ölçene kadar kod değişmez, yeni izin istenmez.
+
 ## Faz 9C — Paket D (sürüyor)
 
 PM sırası (2026-10-29): B → C → D → E → F; C'nin ADR'leri ayrı oturumda. Beklerken D'nin ADR
