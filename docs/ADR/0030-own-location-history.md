@@ -181,3 +181,47 @@ PM kararları:
   doğrular.
 - Gizlilik politikası ve /gizlilik bu metinle güncellendi; aydınlatma sürümü aynı (veri yalnız
   telefonda, Bargu işlemiyor).
+
+## Ek 2 (2026-11-02, taslak, PM onayı bekliyor): Keşif haritası
+
+**Bağlam.** Bu ADR keşif haritasını Faz 11'e bırakmıştı. PM'in sektör kararları (2026-10-29) onu
+paket D'ye aldı ("Ö7 kendi konum geçmişin ve kazıma haritası"); mağaza metninde "yarışsız kazıma
+haritası" var. D'nin geri kalanı (Ö7'nin temel görünümü, Ö12, N2, N3) yayında; açık kalan bu.
+
+**Öneri:**
+
+1. **Yeni veri yok, yeni saklama yok.** Harita, Ö7'nin zaten sakladığı günlerden (30 gün ya da 1
+   yıl) telefonda, ekran açılınca hesaplanır ve yalnız bellekte durur; diske yazılmaz. Gün silinince
+   (süre dolunca, "Sil ve kapat"ta, çıkışta) haritadan da düşer. Bu yüzden gizlilik politikası, Play
+   veri güvenliği formu, THREAT_MODEL, sunucu ve protokol değişmez. Politikadaki "gezdiğin yerler"
+   bunu zaten anlatıyor.
+   - Reddedilen: "gittiğin her yer, ömür boyu" ayrı kaydı. Seçilen süreyi aşan yeni bir saklama
+     olur, politika değişir; kilidi açık telefonda yıllarca gidilen yerler görünür.
+2. **Izgara.** Harita karelerine bölünür: Web Mercator zoom 17 karosu, Türkiye'de kenarı yaklaşık
+   230 m. Bir kare, içine düşen bir noktayla açılır.
+   - Hassasiyeti 250 m'den kötü olan nokta kare açmaz (yaklaşık paylaşanın kaba izi yanlış yer
+     açmasın).
+   - Yolculukta art arda iki nokta arası, en çok 1,5 km'yse düz çizgiyle doldurulur. "Kayıt yok"
+     boşlukları doldurulmaz.
+3. **Görünüm.** "Konum geçmişim" ekranında "Gün / Keşif" seçimi. Keşifte harita yumuşak bir sisle
+   örtülür, gidilen kareler açıktır; kamera açılan yerlerin hepsini çerçeveler. Altında tek satır:
+   "Son 30 günde gittiğin yerler" (ya da "son 1 yılda").
+   - **Yarışsız:** sıralama, arkadaşla karşılaştırma, paylaş düğmesi, yüzde, seri ve "yeni yer
+     açtın" bildirimi yok.
+   - Sis haritanın kendi katmanı (MapLibre), JS'de animasyon yok; sade modda geçişsiz.
+   - Ekran okuyucu: "Keşif haritası, son 30 günde gittiğin yerler açık."
+4. **Karo istekleri.** Keşif görünümü, gün görünümü gibi geçmiş bölgelerin karolarını kendi
+   sunucumuzdan ister. Bu, THREAT_MODEL'deki "görüntülenen bölge = konum" satırının kabul edilen
+   riski; yeni bir şey değil.
+5. **15–17, hak, kilit:** Ö7 ile aynı. Bargu+ biterse harita kalan günlerden çizilmeye devam eder.
+6. **Testler:** kare hesabı, hassasiyet eşiği, doldurma sınırı, boşlukta doldurmama, karelerin
+   birleşmesi (ortak kenarlar kalkar, delikler doğru), süre dolunca düşme, modülün ağ ve log
+   modüllerini import etmemesi (statik test), ekran ve sade mod.
+
+**PM'e sorular (öneriler ilk seçenek):**
+
+1. Süre Ö7 ile aynı mı (öneri), yoksa ayrı ve ömür boyu mu?
+2. Ekranda sayı ("N yer") olmasın mı (öneri), yoksa yalnız kişiye bir sayı mı?
+3. Kare yaklaşık 230 m mi (öneri), yoksa daha kaba yaklaşık 460 m mi?
+4. PM kararı 4'teki boşluk nedeni ("Hayalet · 14:00–16:30") D'ye girmesin mi (öneri: girmesin;
+   koordinatsız yeni bir olay kaydı ister, ayrı karar)?
