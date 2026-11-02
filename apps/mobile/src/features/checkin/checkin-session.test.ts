@@ -43,6 +43,11 @@ jest.mock('../live/live-session', () => ({
 }));
 jest.mock('../storage/vault', () => ({ isVaultOpen: () => true, vault: () => mockPhone.store }));
 jest.mock('../location/engine', () => ({ useMyFix: { getState: () => ({ fix: null }) } }));
+// The battery's native module is not there on Linux (CI): half full, not charging.
+jest.mock('expo-battery', () => ({
+  getPowerStateAsync: () => Promise.resolve({ batteryLevel: 0.5, batteryState: 1 }),
+  BatteryState: { UNPLUGGED: 1, CHARGING: 2, FULL: 3 },
+}));
 
 const HOUR = 3_600_000;
 const lost = () => Promise.reject(new Error('timeout'));

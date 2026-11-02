@@ -52,6 +52,10 @@ jest.mock('@/features/auth/auth-store', () => ({
   useAuth: (select: (state: { userId: string }) => unknown) =>
     select({ userId: '0190f7a4-1111-7111-8111-000000000001' }),
 }));
+// The arrival checks load the battery; its native module is not there on Linux (CI) either.
+jest.mock('@/features/checkin/checkin-session', () => ({
+  closeChecksBeforeSignOut: jest.fn(() => Promise.resolve(true)),
+}));
 jest.mock('@/features/auth/passkeys', () => ({
   addPasskey: jest.fn(),
   passkeyDiagnostic: () => '',
