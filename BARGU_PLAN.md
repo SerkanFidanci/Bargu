@@ -693,6 +693,26 @@ Kurallar:
   - GitHub CI'da bağımlılık taraması (pnpm audit) kırmızıydı. Nedeni node-forge ≤1.4.0'daki 5 yeni yüksek uyarıydı; paket yalnız geliştirme araçlarından (@expo/cli) geliyor, uygulamaya girmiyor. `8d06a5d`'de node-forge 1.4.2'ye sabitlendi; istisna gerekmedi, eski GHSA-86w9 istisnası da kalktı. C APK'sı `8d06a5d`'den çıkar ve CI yeşil olmadan yayımlanmaz.
   - Gizlilik politikası ve veri güvenliği belgesi C için güncellendi (PM). /gizlilik bunlara ve IP/5651 cümlesine eşitlendi (`7e62b92`, `46dd812`).
   - **C APK'sı `8d06a5d` (2026-11-02) yayında.** Linux CI'da 1560 test geçti; GitHub CI ve güvenlik taraması yeşil; staging `8d06a5d`'de (migration 0044 ve 0045). QA-44 açıldı; klavye düzeltmesi `1108f18` de bu turda. Sırada D var.
+- **QA-44 (`8d06a5d`, 2026-11-02):** yüksek bulgu yok.
+  - Doğrulananlar: Ö5'in PM şartları 1–4, sunucu (RLS, `search_path`, sınırlar), N1, N4, QA-43'ün 7/7'si, N2 ve /gizlilik. Migration'lar yalnız ekleme yapıyor.
+  - Mobil 1560, API 177 birim ve 376 entegrasyon testi geçti.
+  - **Orta 3, PM kararlarıyla.** Hepsi D'ye geçmeden önce düzelir, D APK'sıyla çıkar ve QA-45'te doğrulanır. C, ancak o zaman bitmiş sayılır.
+    1. Kalıcı bildirim alıcıları yazmıyor; "Seni görenler" ekranında adlar yalnız ekran okuyucuda. Karar: iki yerde de adlar görünür. Bu, zorlamaya karşı verdiğimiz sözdür.
+    2. Konum izni kapalıyken uyarı yok. Karar: kurulumda ve kalıcı bildirimde "Konum izni kapalı: varınca 'Vardım'a dokun" yazar.
+    3. Kurulumun cevabı kaybolursa sunucuda telefonun bilmediği bir kontrol kalıyor; bu sahte alarma yol açabilir. Karar:
+       - Kurulum aynı kimlikle yeniden denenir. Sunucu aynı sahibin aynı kimliğine "tamam" der.
+       - Tekrarlı planda o günün kimliği telefonda bir kez üretilip saklanır.
+       - Telefon açılışta `GET /v1/checkins` ile karşılaştırır ve tanımadığı kontrolü iptal eder.
+  - **Düşük 8, PM kararlarıyla (D APK'sına):**
+    1. Hayalette pil düşünce emanet de hemen yenilenir.
+    2. "Çemberlerin seni görmez" yazısı yalnız hayaletteyken çıkar.
+    3. Bekleyen iptal açılışta da denenir. Çıkış yaparken önce açık kontroller iptal edilir. İnternet yoksa kişiye "Açık bir eve vardım kontrolün var; çıkarsan uyarı gidebilir" diye sorulur.
+    4. Günlük 10 sınırı kurulumları sayar, açık kontrolleri değil. İptal edilen kimlik 24 saat yeniden kullanılamaz; yalnız kimlik tutulur, içerik tutulmaz.
+    5. Aynı kimlikle yoklama başlatılırsa 500 değil, 4xx döner.
+    6. Eski uygulamalı üyenin "cevap vermedi" görünmesi kabul edilen sapmadır.
+    7. Klavye: lint kuralı Platform.select biçimini de yakalar; durum yazma çekmecesi ve hikaye yazı katmanı düzelir.
+    8. "İyi misin?" bildirimi birkaç dakika gecikebilir. Yeni izin yok; sahip telefonda ölçer. Gecikme 3 dakikayı aşarsa bildirim, kişiye en az 5 dakika kalacak kadar erkene alınır.
+
   - Sonraki adıma kalanlar: "Dünkü kontrol kurulamadı" uyarısı; KADES düğmesi şimdilik Play'de KADES aramasını açıyor.
 - **Ara APK (2026-10-30, `1108f18`):** Sahip sohbette yazdığını göremiyordu; yazı kutusu klavyenin altında kalıyordu. Düzeltme, sahip mesajlaşmayı kullanabilsin diye küçük bir APK olarak verildi. Ayrı QA turu yok; düzeltme C APK'sının QA'sına girer.
 
