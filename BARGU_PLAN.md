@@ -888,6 +888,7 @@ Kurallar:
   - **5809 OTT:** Mesajlaşma "şebekeler üstü hizmet" sayılabilir. md. 9/14, Türkiye'de şirket olan bir temsilci ve yetkilendirme istiyor; küçük uygulamalar için kullanıcı eşiği taslakta, son hali doğrulanamadı. Bireysel geliştirici için bu, şirket kurma kararını etkileyebilir (vergi kararıyla birlikte).
   - Politika şimdiden dürüst yazıldı: IP bugün kaydedilmiyor; yasa isterse yalnız istenen kadarı, önceden haber verilerek tutulur.
   - Sahibin kararı: açık yayından önce avukata 9 soruluk listeyle danışılması (araştırmanın sonunda).
+  - **Sahip, 2026-11-02:** "Şimdilik hayır." Riski biliyor; konu kapalı testten sonra yeniden açılır. Kapalı test bunu beklemez. O zamana kadar kodda değişiklik yok.
 - **Kendi geçmişinin uzun yedeği:** çember geçmişi sunucuda en çok 14 gün kalır; telefon değişince daha eski kendi izin kaybolur. Yalnızca dışa aktarma mı, yoksa şifreli uzun yedek mi? Uzun yedek ADR ister.
 
 ## 8. v2 Fikirleri
