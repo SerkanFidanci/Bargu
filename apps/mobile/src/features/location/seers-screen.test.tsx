@@ -19,6 +19,8 @@ jest.mock('expo-router', () => ({
   },
 }));
 jest.mock('@/features/storage/vault', () => ({ isVaultOpen: () => false }));
+// Open arrival checks have their own line and tests (features/checkin); none here.
+jest.mock('@/features/checkin/open-checks-note', () => ({ OpenChecksNote: () => null }));
 jest.mock('@/features/location/location-session', () => ({
   forgetAllHistory: jest.fn(),
   resumeSharing: jest.fn(),

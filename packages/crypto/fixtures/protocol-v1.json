@@ -121,6 +121,10 @@
   },
   "serverNotices": [
     {
+      "notice": "checkin",
+      "sealed": "AVq2L9qN6RhI3vMwuj_ZtcH0SwtWcSR2iJJEPfu5TOtznFAOPQt_LXUGf22QiWml0NWggON2cYdnfrlT5MgVYrnVsG1_l9OgK-vl2IMI-be-okaTpS9tS9b7NAMJ5XgvBCCi5dct6dobVHjgDEEMHr1PpDLSIkXyy-AL3ZUd-6kJEramRqIoSuLqPTJ_heKeS-_imuQZvNCNq3IfyEHPHhdC7c11UccPoikZ-Y-IcZ3speph5CZiBGR8__sx9HPX-bjexwKuszb8yl45FTXfAb7VVlb60gF08lif643TACjvgCP-RDnV4ynwn2i8Xq1AXDt1Q_vHz6Bn2y4ppdJYKhIsFjoQmM36diMl4VyiKT86-CrSjF9t0L-3dHVAUNKCXUsAmCxU-gGoB3x57nOVB5g"
+    },
+    {
       "notice": "friendRequest",
       "sealed": "AYHsDy8MIXozYYYDBCOnLz3Xl4L8qbnwBlTQNYitTk0XLYUltDX5xpsWTdLZ0JsT_wmL-85oTinKlpz6GukL9RBB9SDZNp3TcdGmzHAldswRNd2n3AdTeELG6KbfKCV0nWTt_v6uQOrT2S-Cftjw1dpovEmBjeDEfGftLhFddqhKvutCDA7yBctInP0iXiMXQpU5xfbeZfqpfjMg17hRD7uv4d1VQkClq46CZoRREvSLLzx-L9Cxl4cWTnSZ3eJvsoQOINv-pyTrOlGrqokasFyuxs-sqJYCXdoxx7aJXe7O2_L--gTqxArHMkDvWW7rxwCO4tzkwIJVxgfWp0F5nD5oTVH1w6d29FK28K8csclKsoVFUMi3gL81oCe-EgAFBp3xFLVttluddRGVOlmOtJ4"
     },
