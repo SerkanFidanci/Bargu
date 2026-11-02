@@ -691,7 +691,8 @@ Kurallar:
   - **Belgeler:** THREAT_MODEL ve N2 kodla birlikte kod oturumunda güncellenir, çünkü N2 testi THREAT_MODEL'i okur. Gizlilik politikası ve Play belgeleri, paketin APK'sı çıkmadan önce PM'de güncellenir.
 - **Durum (2026-11-02):** C kodlandı (`a7098ae` QA-43'ün 7 düşük bulgusu, `75a2e4f` N4, `6d7dcf1` Ö5 ve N1, `34c6e5f`) ve push edildi. Linux CI'da 1560 mobil test geçti.
   - GitHub CI'da bağımlılık taraması (pnpm audit) kırmızıydı. Nedeni node-forge ≤1.4.0'daki 5 yeni yüksek uyarıydı; paket yalnız geliştirme araçlarından (@expo/cli) geliyor, uygulamaya girmiyor. `8d06a5d`'de node-forge 1.4.2'ye sabitlendi; istisna gerekmedi, eski GHSA-86w9 istisnası da kalktı. C APK'sı `8d06a5d`'den çıkar ve CI yeşil olmadan yayımlanmaz.
-  - Gizlilik politikası ve veri güvenliği belgesi C için güncellendi (PM). /gizlilik sayfası (`privacy-page.ts`) bunlara eşitlenecek.
+  - Gizlilik politikası ve veri güvenliği belgesi C için güncellendi (PM). /gizlilik bunlara ve IP/5651 cümlesine eşitlendi (`7e62b92`, `46dd812`).
+  - **C APK'sı `8d06a5d` (2026-11-02) yayında.** Linux CI'da 1560 test geçti; GitHub CI ve güvenlik taraması yeşil; staging `8d06a5d`'de (migration 0044 ve 0045). QA-44 açıldı; klavye düzeltmesi `1108f18` de bu turda. Sırada D var.
   - Sonraki adıma kalanlar: "Dünkü kontrol kurulamadı" uyarısı; KADES düğmesi şimdilik Play'de KADES aramasını açıyor.
 - **Ara APK (2026-10-30, `1108f18`):** Sahip sohbette yazdığını göremiyordu; yazı kutusu klavyenin altında kalıyordu. Düzeltme, sahip mesajlaşmayı kullanabilsin diye küçük bir APK olarak verildi. Ayrı QA turu yok; düzeltme C APK'sının QA'sına girer.
 
