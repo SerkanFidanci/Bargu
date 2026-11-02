@@ -61,7 +61,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li><strong>Bulunabilirlik ayarın:</strong> başkalarının seni kullanıcı adınla bulup bulamayacağı. 18 yaş ve üstünde açık başlar, kapatabilirsin; 15–17 yaşında hep kapalıdır.</li>
 <li><strong>Ebeveyn bağlantıları (isteğe bağlı, 15–17):</strong> kimin kimin ebeveyni olduğu, bağlantının ne zaman kurulduğu ve bitirme isteği; ebeveynin ayarları (yeni kişiler için onay, günlük süre sınırı), onay bekleyen istekler (en çok 7 gün) ve uygulamanın günde kaç dakika açık kaldığı (son 7 gün). Son bağlantı bitince hepsi silinir.</li>
 </ul>
-<p>Kullanmadığımız şeyler: rehber, telefon numarası, mikrofon, fotoğraf galerin, reklam kimliği, analitik ya da izleme kitaplığı, kesin adres bilgisi. IP adresi hız sınırı için anlık işlenir, kayda geçmez.</p>
+<p>Kullanmadığımız şeyler: rehber, telefon numarası, mikrofon, fotoğraf galerin, reklam kimliği, analitik ya da izleme kitaplığı, kesin adres bilgisi. IP adresi hız sınırı için anlık işlenir ve bugün kayda geçmez. Yasa bağlantı kaydı tutmamızı isterse (5651 sayılı Kanun), yalnızca yasanın istediğini (hesap, IP adresi, zaman) ayrı ve korumalı olarak yasal süre kadar tutarız ve bunu önceden bu metinde yazarız; mesaj ve konum içeriği yine şifreli kalır.</p>
 
 <h2>3. İşleme amacı ve hukuki sebep</h2>
 <ul>
@@ -145,7 +145,7 @@ export const PRIVACY_PAGE_HTML = `<!doctype html>
 <li><strong>Your findability setting:</strong> whether others can find you by username. On for 18 and older until you turn it off; always off for 15–17.</li>
 <li><strong>Parent links (optional, 15–17):</strong> who is whose parent, when the link was made, and a request to end it; the parent's settings (a yes for new people, a daily limit), requests waiting for a yes (at most 7 days) and how many minutes a day the app was open (last 7 days). All of it is deleted when the last link ends.</li>
 </ul>
-<p>What we do not use: contacts, phone number, microphone, your photo gallery, advertising ID, analytics or tracking libraries, street addresses. Your IP address is used briefly for rate limiting and is not logged.</p>
+<p>What we do not use: contacts, phone number, microphone, your photo gallery, advertising ID, analytics or tracking libraries, street addresses. Your IP address is used briefly for rate limiting and is not logged today. If the law requires us to keep connection records (Turkish Law No. 5651), we will keep only what it requires (account, IP address, time), separately and protected, for the legal period, and we will say so in this notice first; message and location content stays encrypted.</p>
 
 <h2>3. Purposes and legal basis</h2>
 <ul>

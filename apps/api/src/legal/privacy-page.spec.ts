@@ -60,6 +60,11 @@ describe('the privacy page (/gizlilik, docs/play-store/GIZLILIK-POLITIKASI.md)',
       'the parent link does not show your checks',
       'en çok 8 kişilik etkinliklerde',
       'events of at most 8 people',
+      // Connection records (the PM, b493deb): none today; if Law 5651 asks, said here first.
+      'IP adresi hız sınırı için anlık işlenir ve bugün kayda geçmez',
+      'yasal süre kadar tutarız ve bunu önceden bu metinde yazarız',
+      'is used briefly for rate limiting and is not logged today',
+      'for the legal period, and we will say so in this notice first',
     ]) {
       expect(PRIVACY_PAGE_HTML).toContain(words);
     }
