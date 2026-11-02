@@ -698,6 +698,14 @@ Kurallar:
 
 **Paket D: kendi dünyan**
 - Ö7 kendi konum geçmişin ve kazıma haritası (ADR 0030, onaylı): gün gün iz, duraklar, gezilen yerlerin açılması. Hepsi telefonda.
+  - **Keşif (kazıma) haritası, ADR 0030 Ek 2 (PM, 2026-11-02):** şartlarla kabul edildi.
+    - Yeni veri ve yeni saklama yok. Harita, Ö7'nin sakladığı günlerden telefonda hesaplanır ve yalnız bellekte durur.
+    - PM cevapları:
+      - süre Ö7 ile aynı;
+      - ekranda sayı yok;
+      - kare yaklaşık 230 m;
+      - boşluk nedeni ("Hayalet · 14:00–16:30") D'ye girmez.
+    - **PM şartı:** hesap ekranı dondurmaz. Bir yıllık veri parça parça ya da arka planda hesaplanır; 365 günlük yapay veriyle süre testi olur. Sisin çokgeni birleştirilir ve köşe sayısı sınırlıdır.
 - Ö12 varış tahmini: "eve 12 dk", "4 dk'ya orada". Telefonda, mesafe ve hızdan hesaplanır ve "yaklaşık" yazar. Yol tarifi motoru eklenmez.
   - Kodlandı (`d4ad547`): buluşmada "Yaklaşık 4 dk"; duran kişi için "Henüz yola çıkmadı"; kişi kartında eve doğru giderken "Bizim ev: yaklaşık 12 dk".
 - Güvenlik notu (2026-10-29): `pnpm audit` decode-uri-component'te yüksek bir DoS bulgusu verdi (GHSA-qr28-fpjm-wq7f; expo-router > query-string 7).
