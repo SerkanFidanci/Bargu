@@ -13,11 +13,13 @@ import { memberName } from '@/features/circles/names';
 import { useCircles } from '@/features/circles/queries';
 import { useNow } from '@/features/location/clock';
 import { clockOf } from '@/features/location/person-share';
+import { useLocationPermission } from '@/features/location/tracker';
 import { usePlaces } from '@/features/places/places';
 import { radius, space, useTheme } from '@/theme';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
 import { Card } from '@/ui/card';
+import { Hint } from '@/ui/hint';
 import { ListRow } from '@/ui/list-row';
 import { PressableScale } from '@/ui/pressable-scale';
 import { Screen } from '@/ui/screen';
@@ -63,6 +65,9 @@ export default function NewCheckScreen() {
   const [note, setNote] = useState('');
   const [repeat, setRepeat] = useState(false);
   const [busy, setBusy] = useState(false);
+  const located = useLocationPermission(
+    (state) => state.state !== 'blocked' && state.state !== 'undetermined',
+  );
 
   // Everyone in a circle with the user, once; the ones whose app can be reached (a device).
   const people = useMemo(() => {
@@ -121,7 +126,8 @@ export default function NewCheckScreen() {
       : await startCheck({ ...common, due });
     setBusy(false);
     if (result === 'ok') {
-      toast.success(t('checkin.started'));
+      // Without location the phone cannot tell it arrived: "Vardım" by hand (QA-44 Orta 2).
+      toast.success(t(located ? 'checkin.started' : 'checkin.startedNoLocation'));
       router.back();
       return;
     }
@@ -254,6 +260,7 @@ export default function NewCheckScreen() {
           {t('checkin.summary', { time: clockOf(due, i18n.language), names })}
         </Text>
       )}
+      {located ? null : <Hint testID="checkin-no-location">{t('checkin.noPermission')}</Hint>}
       <Emergency />
     </Screen>
   );

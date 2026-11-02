@@ -57,6 +57,28 @@ export interface CheckPlan {
   /** The due time of the last check this plan set (one per day), and days to skip ("Bugün atla"). */
   lastDue: number | null;
   skip: number[];
+  /**
+   * The check being set for a day, made once and kept before it is sent: a lost answer is asked
+   * again with the same id, never a new one (QA-44 Orta 3).
+   */
+  day?: { due: number; id: string };
+}
+
+/** A plan's id for the check of `due`: the one already made for it, or a new one. */
+export function dayIdOf(plan: Pick<CheckPlan, 'day'>, due: number, fresh: () => string): string {
+  return plan.day?.due === due ? plan.day.id : fresh();
+}
+
+/**
+ * The server's open checks this phone does not know (an answer that never came, a check set before
+ * the app was put on again): to be cancelled, so none fires unknown (QA-44 Orta 3). A fired one
+ * cannot be taken back; ids still on their way are left alone.
+ */
+export function strayChecks(
+  server: readonly { id: string; firedAt: number | null }[],
+  known: ReadonlySet<string>,
+): string[] {
+  return server.filter((check) => check.firedAt === null && !known.has(check.id)).map((c) => c.id);
 }
 
 export const ARRIVAL = {

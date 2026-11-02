@@ -133,6 +133,10 @@ describe('an event roll call (docs/ADR/0040)', () => {
     expect(await close(owner, event, id)).toMatchObject({ ok: true });
     expect(await here(ece, event, id)).toEqual({ refused: 'CLOSED' });
     expect((await current(ece, event))?.closedAt).not.toBeNull();
+
+    // Its id again, here or in another event: a refusal, not a server error (QA-44 Düşük 5).
+    expect(await ask(owner, event, id)).toEqual({ refused: 'INVALID' });
+    expect(await ask(owner, await eventWith(ali), id)).toEqual({ refused: 'INVALID' });
   });
 
   it('is never asked outside an event', async () => {

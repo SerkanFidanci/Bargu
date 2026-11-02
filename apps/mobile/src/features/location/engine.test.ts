@@ -1,7 +1,14 @@
 import { applyPrecision } from '@bargu/crypto';
 import type { MessageEnvelope, PublishReply } from '@bargu/schemas';
 
-import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix } from './engine';
+import {
+  createLocationEngine,
+  type EngineDeps,
+  LIVE_MS,
+  type SendCircle,
+  toSendCircle,
+  useMyFix,
+} from './engine';
 import { FIX_RULES } from './fix-filter';
 import { type LocationProbe, probe } from './probe';
 import { createReceiver, useLocations } from './receive';
@@ -11,7 +18,7 @@ import { circleOf, exchangeKeys, GALATA, moved, nth, type Person, somebody } fro
 
 const START = 1_800_000_000_000;
 
-function setup(circleCount = 2) {
+function setup(circleCount = 2, extra: Partial<EngineDeps> = {}) {
   const me: Person = somebody();
   const friend = somebody();
   const full = Array.from({ length: circleCount }, () => circleOf([me, friend]));
@@ -47,6 +54,7 @@ function setup(circleCount = 2) {
       outdated.push(circleIds);
     },
     now: () => now,
+    ...extra,
   });
   return {
     engine,
@@ -141,6 +149,23 @@ describe('location engine', () => {
     expect(t.engine.active()).toBe(false);
   });
 
+  it('takes an ended timed share back at once while another circle goes on, battery check or not', async () => {
+    const t = setup(2, { lastCall: () => false });
+    const [timed, other] = [nth(t.circles), nth(t.circles, 1)];
+    t.set({
+      ghost: 'off',
+      circles: {
+        [timed.id]: { sharing: true, precision: 'exact', until: START + 60_000 },
+        [other.id]: { sharing: true, precision: 'exact', until: null },
+      },
+    });
+    await t.engine.fix(fixAt(0));
+    // A minute on, too soon for the frequency table to send: the ended share still goes back.
+    t.at(60_000);
+    await t.engine.fix(fixAt(60_000));
+    expect(t.withdrawn).toEqual([[timed.id]]);
+  });
+
   it('as a frozen ghost sends nothing and leaves the last location in place', async () => {
     const t = setup();
     await t.engine.fix(fixAt(0));
@@ -151,6 +176,21 @@ describe('location engine', () => {
     expect(t.published).toHaveLength(1);
     expect(t.withdrawn).toEqual([]);
     expect(t.engine.active()).toBe(false);
+  });
+
+  it('as a ghost with an arrival check open, still tells the check when the battery runs out (QA-44)', async () => {
+    const lastCall = jest.fn(() => true);
+    const t = setup(2, {
+      alsoWanted: () => true,
+      lastCall,
+      battery: () => Promise.resolve({ level: 4, charging: false }),
+    });
+    t.set({ ...DEFAULT_SHARING, ghost: 'hide' });
+    await t.engine.changed();
+    await t.engine.fix(fixAt(0));
+    expect(lastCall).toHaveBeenCalledTimes(1);
+    // The circles still get nothing.
+    expect(t.published).toEqual([]);
   });
 
   it('frozen for one circle alone: nothing new to it, its last location left, the others go on (ADR 0038)', async () => {

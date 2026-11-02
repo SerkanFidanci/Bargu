@@ -71,6 +71,11 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet(
       backgroundStyle={{ backgroundColor: colors.surfaceRaised, borderRadius: radius.xl }}
       handleIndicatorStyle={{ backgroundColor: colors.border }}
       topInset={insets.top}
+      // A field inside (TextField inSheet) lifts the sheet above the keyboard, edge to edge on
+      // Android too, and it settles back when the keyboard goes (QA-44 Düşük 7).
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
       {...(onDismiss === undefined ? {} : { onDismiss })}
       onChange={(index) => {
         const y = scrollTo?.() ?? 0;

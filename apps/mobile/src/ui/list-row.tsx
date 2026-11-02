@@ -13,6 +13,8 @@ export interface ListRowProps {
   /** How many lines the title may take (a long one next to buttons); one by default. */
   titleLines?: number;
   subtitle?: string | undefined;
+  /** How many lines the subtitle may take; two by default. */
+  subtitleLines?: number;
   /** Badge, buttons or a chevron on the right. */
   trailing?: ReactNode;
   onPress?: (() => void) | undefined;
@@ -32,6 +34,7 @@ export function ListRow({
   title,
   titleLines = 1,
   subtitle,
+  subtitleLines = 2,
   trailing,
   onPress,
   accessibilityLabel,
@@ -47,7 +50,7 @@ export function ListRow({
           {title}
         </Text>
         {subtitle === undefined ? null : (
-          <Text variant="footnote" color="textMuted" numberOfLines={2}>
+          <Text variant="footnote" color="textMuted" numberOfLines={subtitleLines}>
             {subtitle}
           </Text>
         )}

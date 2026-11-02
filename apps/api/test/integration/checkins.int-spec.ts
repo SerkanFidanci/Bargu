@@ -7,6 +7,7 @@ import {
   type CheckinList,
   type CheckinReply,
 } from '@bargu/schemas';
+import { Pool } from 'pg';
 import type { PgBoss } from 'pg-boss';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -285,6 +286,73 @@ describe('an arrival check, the sealed escrow (docs/ADR/0039)', () => {
       await as(test, can, 'DELETE', `/v1/blocks/${owner.userId}`);
     }
     await as(test, ayse, 'POST', `/v1/checkins/${id}/ack`);
+  });
+
+  it('counts the checks set in a day, cancelled or not, and never sets a cancelled one again (QA-44)', async () => {
+    // Ayşe's own day (Ali's checks in this file count towards his).
+    const setBy = async (id = randomUuid()) => {
+      const due = Date.now() + HOUR;
+      const reply = await create(ayse, {
+        id,
+        openAt: due + 10 * 60_000,
+        boxes: boxesFor(ayse, id, due, [can]),
+      });
+      return { id, reply };
+    };
+    const first = await setBy();
+    expect(first.reply).toEqual({ ok: true });
+    // The answer was lost and the phone asks again with the same id: the same check, once.
+    expect((await setBy(first.id)).reply).toEqual({ ok: true });
+    expect((await mine(ayse)).filter((check) => check.id === first.id)).toHaveLength(1);
+    expect(await cancel(ayse, first.id)).toEqual({ ok: true });
+    // A late copy of that request, after the cancel: not set again.
+    expect((await setBy(first.id)).reply).toEqual({ refused: 'NOT_FOUND' });
+    expect(await mine(ayse)).toEqual([]);
+    // Someone else with that id: refused like any other.
+    const due = Date.now() + HOUR;
+    expect(
+      await create(can, {
+        id: first.id,
+        openAt: due + 10 * 60_000,
+        boxes: boxesFor(can, first.id, due, [ayse]),
+      }),
+    ).toEqual({ refused: 'INVALID' });
+    // Set and cancelled, again and again: the day's limit still holds.
+    for (let n = 1; n < CHECKIN_LIMITS.perDay; n += 1) {
+      const next = await setBy();
+      expect(next.reply).toEqual({ ok: true });
+      await cancel(ayse, next.id);
+    }
+    expect((await setBy()).reply).toEqual({ refused: 'DAILY_LIMIT' });
+    // Only the id, its owner and when, and for a day.
+    const { rows } = await test.admin.query<Record<string, unknown>>(
+      `SELECT * FROM app.checkin_setups WHERE owner_id = $1`,
+      [ayse.userId],
+    );
+    expect(rows).toHaveLength(CHECKIN_LIMITS.perDay);
+    expect(Object.keys(rows[0] ?? {}).sort()).toEqual(['created_at', 'id', 'owner_id']);
+    await test.admin.query(
+      `UPDATE app.checkin_setups SET created_at = now() - interval '25 hours' WHERE owner_id = $1`,
+      [ayse.userId],
+    );
+    await new MessagesSweeper(
+      test.app.get(DatabaseService),
+      test.app.get<RedisClient>(REDIS),
+      test.app.get(EmailJobs),
+      test.env,
+    ).sweep();
+    const left = await test.admin.query(
+      `SELECT count(*) AS n FROM app.checkin_setups WHERE owner_id = $1`,
+      [ayse.userId],
+    );
+    expect(left.rows[0]).toEqual({ n: '0' });
+    // The app's own role reads none of it.
+    const app = new Pool({ connectionString: test.env.DATABASE_URL, max: 1 });
+    try {
+      await expect(app.query(`SELECT * FROM app.checkin_setups`)).rejects.toThrow(/permission/);
+    } finally {
+      await app.end();
+    }
   });
 
   it('is fired by the next round when no job did, and deleted a day after it fired', async () => {

@@ -1863,7 +1863,7 @@
     "needsPhone": "Tekrarlı kontrol, telefonunun o gün en az bir kez açık olmasını ister.",
     "noPermission": "Konum izni kapalı: varınca \"Vardım\"a dokun.",
     "ghostNote": "Eve vardım kontrolün açık: çemberlerin seni görmez; uyarı giderse seçtiğin kişiler görür.",
-    "service": "Eve vardım kontrolü açık · {{time}}",
+    "service": "Eve vardım kontrolü açık · {{time}} · {{names}}",
     "dueTitle": "Varış saatin geldi ({{place}}). İyi misin?",
     "dueBody": "{{minutes}} dk içinde cevap vermezsen seçtiğin kişiler haber alır.",
     "noRecipients": "Önce bir kişi seç.",
@@ -1900,6 +1900,11 @@
       "none": "Açık bir güvenlik uyarın yok.",
       "arrivedBefore": "{{name}} bu kontrolde varmıştı.",
       "onMap": "Haritada gör"
-    }
+    },
+    "startedNoLocation": "Kontrol açık. Konum izni kapalı: varınca \"Vardım\"a dokun.",
+    "seers": "Uyarı giderse son konumunu görür: {{names}}",
+    "signOutTitle": "Açık bir eve vardım kontrolün var",
+    "signOutBody": "Şu an iptal edilemedi; çıkarsan uyarı gidebilir.",
+    "signOutAnyway": "Yine de çık"
   }
 }

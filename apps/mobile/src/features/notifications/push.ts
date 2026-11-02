@@ -140,6 +140,7 @@ export function routeOfResponse(
   | '/guardians'
   | '/store?shelf=plus'
   | '/checkin/alerts'
+  | '/checkin'
   | '/messages'
   | `/messages/${string}`
   | null {
@@ -159,6 +160,8 @@ export function routeOfResponse(
   if (route === 'plus') return '/store?shelf=plus';
   // An arrival check's alert (docs/ADR/0039): the screen that opens and shows it.
   if (route === 'checkin') return '/checkin/alerts';
+  // One's own open checks, from the lasting notice shown without location permission (QA-44).
+  if (route === 'ownChecks') return '/checkin';
   return null;
 }
 

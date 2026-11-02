@@ -1863,7 +1863,7 @@
     "needsPhone": "A repeated check needs your phone to be on at least once that day.",
     "noPermission": "Location is off: tap \"I have arrived\" when you are there.",
     "ghostNote": "Your arrival check is on: your circles do not see you; if the alert goes, the people you chose do.",
-    "service": "Arrival check on · {{time}}",
+    "service": "Arrival check on · {{time}} · {{names}}",
     "dueTitle": "Time to be there ({{place}}). Are you OK?",
     "dueBody": "If you do not answer in {{minutes}} min, the people you chose are told.",
     "noRecipients": "Choose someone first.",
@@ -1900,6 +1900,11 @@
       "none": "You have no open safety alert.",
       "arrivedBefore": "{{name}} had arrived in this check.",
       "onMap": "Show on the map"
-    }
+    },
+    "startedNoLocation": "The check is on. Location is off: tap \"I have arrived\" when you are there.",
+    "seers": "If the alert goes, they see your last location: {{names}}",
+    "signOutTitle": "You have an arrival check on",
+    "signOutBody": "It could not be cancelled just now; if you sign out, the alert may still go.",
+    "signOutAnyway": "Sign out anyway"
   }
 }

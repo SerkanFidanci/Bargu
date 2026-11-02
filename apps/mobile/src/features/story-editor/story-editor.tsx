@@ -20,7 +20,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -36,6 +35,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { editorFx, mediaColors, radius, space, touchTarget } from '@/theme';
 import { useMotion } from '@/theme/use-motion';
 import { Button } from '@/ui/button';
+import { KEYBOARD_BEHAVIOR } from '@/ui/keyboard';
 import { PressableScale } from '@/ui/pressable-scale';
 import { toast } from '@/ui/toast';
 
@@ -469,71 +469,73 @@ export function StoryEditor({
       ) : null}
 
       {mode === 'text' ? (
-        <KeyboardAvoidingView
-          style={[styles.layer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={styles.textTop}>
-            <PressableScale
-              testID="story-editor-boxed"
-              haptic="select"
-              accessibilityRole="switch"
-              accessibilityState={{ checked: draft.boxed }}
-              accessibilityLabel={t('storyEditor.boxed')}
-              onPress={() => {
-                setDraft((current) => ({ ...current, boxed: !current.boxed }));
-              }}
-              style={[
-                styles.boxedToggle,
-                draft.boxed
-                  ? { backgroundColor: mediaColors.onBackdrop }
-                  : { borderColor: mediaColors.onBackdrop },
-              ]}
-            >
-              <Text
+        // The insets outside, the keyboard's room inside: as every screen (src/ui/keyboard.ts, QA-44).
+        <View style={[styles.layer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <KeyboardAvoidingView style={styles.textLayer} behavior={KEYBOARD_BEHAVIOR}>
+            <View style={styles.textTop}>
+              <PressableScale
+                testID="story-editor-boxed"
+                haptic="select"
+                accessibilityRole="switch"
+                accessibilityState={{ checked: draft.boxed }}
+                accessibilityLabel={t('storyEditor.boxed')}
+                onPress={() => {
+                  setDraft((current) => ({ ...current, boxed: !current.boxed }));
+                }}
                 style={[
-                  styles.boxedA,
-                  { color: draft.boxed ? mediaColors.backdrop : mediaColors.onBackdrop },
+                  styles.boxedToggle,
+                  draft.boxed
+                    ? { backgroundColor: mediaColors.onBackdrop }
+                    : { borderColor: mediaColors.onBackdrop },
                 ]}
               >
-                A
-              </Text>
-            </PressableScale>
-            <Tool
-              testID="story-editor-text-done"
-              icon={Check}
-              label={t('storyEditor.done')}
-              onPress={closeText}
-            />
-          </View>
-          <View style={styles.writing}>
-            <View
-              style={draft.boxed ? [styles.draftBox, { backgroundColor: draft.color }] : undefined}
-            >
-              <TextInput
-                testID="story-editor-input"
-                value={draft.text}
-                maxLength={EDIT_LIMITS.textChars}
-                onChangeText={(text) => {
-                  setDraft((current) => ({ ...current, text }));
-                }}
-                autoFocus
-                multiline
-                placeholder={t('storyEditor.placeholder')}
-                placeholderTextColor={mediaColors.track}
-                accessibilityLabel={t('storyEditor.text')}
-                allowFontScaling={false}
-                style={[styles.input, { color: draft.boxed ? inkOn(draft.color) : draft.color }]}
+                <Text
+                  style={[
+                    styles.boxedA,
+                    { color: draft.boxed ? mediaColors.backdrop : mediaColors.onBackdrop },
+                  ]}
+                >
+                  A
+                </Text>
+              </PressableScale>
+              <Tool
+                testID="story-editor-text-done"
+                icon={Check}
+                label={t('storyEditor.done')}
+                onPress={closeText}
               />
             </View>
-          </View>
-          <Swatches
-            chosen={draft.color}
-            onChoose={(color) => {
-              setDraft((current) => ({ ...current, color }));
-            }}
-          />
-        </KeyboardAvoidingView>
+            <View style={styles.writing}>
+              <View
+                style={
+                  draft.boxed ? [styles.draftBox, { backgroundColor: draft.color }] : undefined
+                }
+              >
+                <TextInput
+                  testID="story-editor-input"
+                  value={draft.text}
+                  maxLength={EDIT_LIMITS.textChars}
+                  onChangeText={(text) => {
+                    setDraft((current) => ({ ...current, text }));
+                  }}
+                  autoFocus
+                  multiline
+                  placeholder={t('storyEditor.placeholder')}
+                  placeholderTextColor={mediaColors.track}
+                  accessibilityLabel={t('storyEditor.text')}
+                  allowFontScaling={false}
+                  style={[styles.input, { color: draft.boxed ? inkOn(draft.color) : draft.color }]}
+                />
+              </View>
+            </View>
+            <Swatches
+              chosen={draft.color}
+              onChoose={(color) => {
+                setDraft((current) => ({ ...current, color }));
+              }}
+            />
+          </KeyboardAvoidingView>
+        </View>
       ) : null}
 
       {mode === 'sticker' ? (
@@ -694,6 +696,7 @@ const styles = StyleSheet.create({
     borderColor: mediaColors.onBackdrop,
   },
   layer: { ...StyleSheet.absoluteFill, backgroundColor: mediaColors.shade, gap: space.md },
+  textLayer: { flex: 1, gap: space.md },
   textTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',

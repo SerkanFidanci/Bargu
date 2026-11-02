@@ -153,6 +153,20 @@ export function useLocationSession(ready: boolean): void {
     // The language is a dependency so the restart notice is rewritten when it changes.
   }, [ready, active, permission, circles, sharing, expiry, language, checks]);
 
+  // An open arrival check without location permission: the service cannot run to say so, so a
+  // lasting notice of its own does, and tells to tap "Vardım" (QA-44 Orta 2).
+  useEffect(() => {
+    if (!ready || permission === 'unknown') return;
+    const line = permission === 'granted' ? null : serviceLine(language);
+    void import('../checkin/checkin-reminders')
+      .then((notes) =>
+        line === null
+          ? notes.hideOpenNotice()
+          : notes.showOpenNotice({ title: line, body: i18n.t('checkin.noPermission') }),
+      )
+      .catch(() => undefined);
+  }, [ready, permission, checks, language]);
+
   useEffect(() => {
     const remaining = liveUntil - Date.now();
     const watched = remaining > 0;

@@ -72,9 +72,11 @@ config.push({
       },
       // Edge to edge on Android, the window does not shrink for the keyboard: a view with no
       // behavior leaves the text field under it (the owner, 2026-10-30; src/ui/keyboard.ts).
+      // Only the shared behavior: undefined, a platform switch (Platform.select, a condition) or
+      // another value all leave Android without one (QA-44 Düşük 7).
       {
         selector:
-          "JSXOpeningElement[name.name='KeyboardAvoidingView'] JSXAttribute[name.name='behavior'] Identifier[name='undefined']",
+          "JSXOpeningElement[name.name='KeyboardAvoidingView'] > JSXAttribute[name.name='behavior']:not([value.expression.name='KEYBOARD_BEHAVIOR'])",
         message:
           'Use KEYBOARD_BEHAVIOR from @/ui/keyboard: with no behavior Android hides the field.',
       },

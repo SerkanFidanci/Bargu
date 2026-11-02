@@ -3,10 +3,12 @@ import {
   type ChatPayload,
   type CheckinBox,
   type CheckinRefusal,
+  type CheckinReply,
   type Circle,
   type ServerEvent,
 } from '@bargu/schemas';
 import * as Battery from 'expo-battery';
+import { AppState } from 'react-native';
 import { z } from 'zod';
 import { create } from 'zustand';
 
@@ -24,10 +26,12 @@ import type { Fix } from '../location/send';
 import { queryClient } from '../query-client';
 import { isVaultOpen, vault } from '../storage/vault';
 import { checkinApi } from './checkin-api';
+import { cancelAllDue, cancelDue, hideOpenNotice, scheduleDue } from './checkin-reminders';
 import {
   alertOf,
   type CheckPlace,
   type CheckPlan,
+  dayIdOf,
   EXTEND_MS,
   type Grace,
   hasArrived,
@@ -37,6 +41,7 @@ import {
   type ReceivedAlert,
   receivedOf,
   refreshDue,
+  strayChecks,
 } from './checkin-model';
 
 /**
@@ -57,8 +62,16 @@ export interface OwnState {
   plans: CheckPlan[];
   /** Cancellations the server has yet to take (offline), with whether to say "late". */
   pending: { checkinId: string; recipients: string[] }[];
+  /**
+   * One-time checks sent whose answer never came (QA-44 Orta 3), kept until their time: if the
+   * server took one after all (or a late copy of the request lands), the next sync cancels it.
+   */
+  unsure: { id: string; openAt: number }[];
 }
-const EMPTY_OWN: OwnState = { checks: [], plans: [], pending: [] };
+const EMPTY_OWN: OwnState = { checks: [], plans: [], pending: [], unsure: [] };
+
+/** Ids being set right now: never taken for strays. */
+const sending = new Set<string>();
 
 export interface AlertsState {
   alerts: ReceivedAlert[];
@@ -144,6 +157,8 @@ export function nameOf(userId: string): string {
 async function battery(): Promise<{ level: number; charging: boolean } | null> {
   try {
     const state = await Battery.getPowerStateAsync();
+    // A level the phone cannot read is not sent as a number (the sealed alert would be refused).
+    if (!Number.isFinite(state.batteryLevel)) return null;
     return {
       level: state.batteryLevel < 0 ? 100 : state.batteryLevel * 100,
       charging:
@@ -173,7 +188,6 @@ async function boxesOf(check: OwnCheck, now: number): Promise<CheckinBox[] | nul
 
 export type CheckinResult = 'ok' | CheckinRefusal | 'failed';
 
-const reminders = () => import('./checkin-reminders');
 /**
  * The lines to recipients go through the messages' outbox, loaded only when one is sent: the
  * location service loads this module, and the outbox brings the photo tools with it.
@@ -188,14 +202,10 @@ function tellLine(userId: string, line: Line): void {
 async function remind(check: OwnCheck): Promise<void> {
   const place =
     check.place === null ? i18n.t('checkin.title') : `${check.place.emoji} ${check.place.name}`;
-  await (
-    await reminders()
-  )
-    .scheduleDue(check.id, check.due, {
-      title: i18n.t('checkin.dueTitle', { place }),
-      body: i18n.t('checkin.dueBody', { minutes: check.grace }),
-    })
-    .catch(() => undefined);
+  await scheduleDue(check.id, check.due, {
+    title: i18n.t('checkin.dueTitle', { place }),
+    body: i18n.t('checkin.dueBody', { minutes: check.grace }),
+  }).catch(() => undefined);
 }
 
 export interface NewCheck {
@@ -205,6 +215,32 @@ export interface NewCheck {
   recipients: string[];
   note?: string;
   planId?: string;
+  /** A plan's id for its day (made once, kept on the plan); a one-time check gets a new one. */
+  id?: string;
+}
+
+/** Waits before asking again, with the same id, when an answer does not come (QA-44 Orta 3). */
+const RETRY_MS = [1_000, 3_000] as const;
+
+/** The server sets the check; asked again with the same id on a lost answer (it says 'ok' twice). */
+async function created(id: string, openAt: number, boxes: CheckinBox[]): Promise<CheckinReply> {
+  let lost: unknown;
+  for (const wait of [0, ...RETRY_MS]) {
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    try {
+      return await checkinApi.create(id, openAt, boxes);
+    } catch (error) {
+      lost = error;
+    }
+  }
+  throw lost;
+}
+
+function dropUnsure(id: string): void {
+  useOwnChecks.setState((state) => ({
+    ...state,
+    unsure: state.unsure.filter((each) => each.id !== id),
+  }));
 }
 
 /** Sets a check: its sealed alerts go to the server, "İyi misin?" is set for its time. */
@@ -212,7 +248,7 @@ export async function startCheck(input: NewCheck, tell = true): Promise<CheckinR
   load();
   const now = Date.now();
   const check: OwnCheck = {
-    id: randomUuid(),
+    id: input.id ?? randomUuid(),
     due: input.due,
     grace: input.grace,
     place: input.place,
@@ -225,15 +261,42 @@ export async function startCheck(input: NewCheck, tell = true): Promise<CheckinR
     state: 'armed',
     ...(input.planId === undefined ? {} : { planId: input.planId }),
   };
+  const openAt = openAtOf(check.due, check.grace);
+  // Kept before it is sent (a plan keeps its day's id itself): an answer that never comes leaves
+  // nothing on the server this phone does not know of (QA-44 Orta 3).
+  const oneTime = input.planId === undefined;
+  if (oneTime) {
+    useOwnChecks.setState((state) => ({
+      ...state,
+      unsure: [...state.unsure, { id: check.id, openAt }],
+    }));
+  }
+  sending.add(check.id);
   try {
     const boxes = await boxesOf(check, now);
-    if (boxes === null) return 'RECIPIENT';
-    const reply = await checkinApi.create(check.id, openAtOf(check.due, check.grace), boxes);
-    if ('refused' in reply) return reply.refused;
+    if (boxes === null) {
+      dropUnsure(check.id);
+      return 'RECIPIENT';
+    }
+    const reply = await created(check.id, openAt, boxes);
+    if ('refused' in reply) {
+      dropUnsure(check.id);
+      return reply.refused;
+    }
   } catch {
+    // Still unsure: the next sync cancels it if the server took it after all.
+    syncLater();
     return 'failed';
+  } finally {
+    sending.delete(check.id);
   }
-  useOwnChecks.setState((state) => ({ ...state, checks: [...state.checks, check] }));
+  useOwnChecks.setState((state) => ({
+    ...state,
+    checks: state.checks.some((each) => each.id === check.id)
+      ? state.checks
+      : [...state.checks, check],
+    unsure: state.unsure.filter((each) => each.id !== check.id),
+  }));
   await remind(check);
   // A one-time check is told as it is set; a repeated one only when its plan is (the PM, 3).
   if (tell) {
@@ -288,12 +351,35 @@ export async function skipNext(planId: string): Promise<void> {
   if (set !== undefined) await settle(set, 'skipped');
 }
 
-/** Each plan's next check, set ahead when its time is within reach (docs/ADR/0039 §2). */
-export async function planTick(now = Date.now()): Promise<void> {
+function setPlan(planId: string, change: Partial<CheckPlan>): void {
+  useOwnChecks.setState((state) => ({
+    ...state,
+    plans: state.plans.map((each) => (each.id === planId ? { ...each, ...change } : each)),
+  }));
+}
+
+let ticking: Promise<void> | null = null;
+
+/**
+ * Each plan's next check, set ahead when its time is within reach (docs/ADR/0039 §2). The day's
+ * id is made once and kept on the plan before it is sent, so every try that day asks with it
+ * (QA-44 Orta 3). One round at a time.
+ */
+export function planTick(now = Date.now()): Promise<void> {
+  // Cleared once the round is over, never before it is taken (a round with no plan ends at once).
+  ticking ??= tickPlans(now).finally(() => {
+    ticking = null;
+  });
+  return ticking;
+}
+
+async function tickPlans(now: number): Promise<void> {
   load();
   for (const plan of useOwnChecks.getState().plans) {
     const due = nextDue(plan, now);
     if (due === null) continue;
+    const id = dayIdOf(plan, due, randomUuid);
+    if (plan.day?.id !== id) setPlan(plan.id, { day: { due, id } });
     const result = await startCheck(
       {
         due,
@@ -302,15 +388,11 @@ export async function planTick(now = Date.now()): Promise<void> {
         recipients: plan.recipients,
         ...(plan.note === undefined ? {} : { note: plan.note }),
         planId: plan.id,
+        id,
       },
       false,
     );
-    if (result === 'ok') {
-      useOwnChecks.setState((state) => ({
-        ...state,
-        plans: state.plans.map((each) => (each.id === plan.id ? { ...each, lastDue: due } : each)),
-      }));
-    }
+    if (result === 'ok') setPlan(plan.id, { lastDue: due });
   }
 }
 
@@ -321,7 +403,8 @@ export async function planTick(now = Date.now()): Promise<void> {
  */
 async function settle(check: OwnCheck, how: 'arrived' | 'ok' | 'skipped'): Promise<CheckinResult> {
   update({ ...check, state: 'done' });
-  void (await reminders()).cancelDue(check.id).catch(() => undefined);
+  void cancelDue(check.id).catch(() => undefined);
+  if (!wantsLocation()) void hideOpenNotice().catch(() => undefined);
   let late = check.state === 'fired';
   try {
     const reply = await checkinApi.cancel(check.id);
@@ -387,12 +470,16 @@ export function wantsLocation(): boolean {
   return ownChecks().checks.some((check) => check.state === 'armed');
 }
 
-/** The service's line while a check is open: "Eve vardım kontrolü açık · 23:30". */
+/**
+ * The service's line while a check is open: "Eve vardım kontrolü açık · 23:30 · Ayşe, Can". Who
+ * gets the alert is on it, where anyone holding the phone sees it (QA-44 Orta 1, coercion).
+ */
 export function serviceLine(language: string): string | null {
   const armed = ownChecks().checks.filter((check) => check.state === 'armed');
   if (armed.length === 0) return null;
   const soonest = Math.min(...armed.map((check) => check.due));
-  return i18n.t('checkin.service', { time: clockOf(soonest, language) });
+  const names = [...new Set(armed.flatMap((check) => check.recipients))].map(nameOf).join(', ');
+  return i18n.t('checkin.service', { time: clockOf(soonest, language), names });
 }
 
 /** A new position: arrived somewhere, or time for a refresh with it. */
@@ -490,41 +577,105 @@ onServerEvents((events) => {
   }
 });
 
-// Back online: what waited goes, what fired meanwhile is learnt, the plans set their next day.
-onOnline(() => {
-  void (async () => {
-    load();
-    for (const waiting of useOwnChecks.getState().pending) {
-      try {
-        const reply = await checkinApi.cancel(waiting.checkinId);
-        const late = 'refused' in reply && reply.refused === 'FIRED';
-        for (const userId of waiting.recipients) {
-          tellLine(userId, { kind: 'checkinOk', checkinId: waiting.checkinId, late });
-        }
-        useOwnChecks.setState((state) => ({
-          ...state,
-          pending: state.pending.filter((each) => each.checkinId !== waiting.checkinId),
-        }));
-      } catch {
-        return;
-      }
+/** How often the app's return may sync, and how soon a failed set is looked at again. */
+const SYNC_GAP_MS = 30_000;
+let lastSync = 0;
+
+/**
+ * The phone and the server in step: what waited to be cancelled goes, what fired meanwhile is
+ * learnt, the plans set their next day, checks the server holds that this phone does not know are
+ * cancelled (QA-44 Orta 3), and alerts handed over are fetched. Throws when the server cannot be
+ * reached (nothing after that point is done).
+ */
+export async function syncChecks(): Promise<void> {
+  load();
+  lastSync = Date.now();
+  for (const waiting of useOwnChecks.getState().pending) {
+    const reply = await checkinApi.cancel(waiting.checkinId);
+    const late = 'refused' in reply && reply.refused === 'FIRED';
+    for (const userId of waiting.recipients) {
+      tellLine(userId, { kind: 'checkinOk', checkinId: waiting.checkinId, late });
     }
-    const { checkins } = await checkinApi.list();
-    for (const check of useOwnChecks.getState().checks) {
-      const there = checkins.find((each) => each.id === check.id);
-      if (check.state === 'armed' && there?.firedAt !== null && there !== undefined) {
-        update({ ...check, state: 'fired' });
-      }
-    }
-    // Done and fired checks are kept a day for the screen, then forgotten.
-    const dayAgo = Date.now() - 24 * 3_600_000;
     useOwnChecks.setState((state) => ({
       ...state,
-      checks: state.checks.filter((check) => check.state === 'armed' || check.due > dayAgo),
+      pending: state.pending.filter((each) => each.checkinId !== waiting.checkinId),
     }));
-    await planTick();
-    await fetchAlerts();
-  })().catch(() => undefined);
+  }
+  const { checkins } = await checkinApi.list();
+  for (const check of useOwnChecks.getState().checks) {
+    const there = checkins.find((each) => each.id === check.id);
+    if (check.state === 'armed' && there?.firedAt !== null && there !== undefined) {
+      update({ ...check, state: 'fired' });
+    }
+  }
+  // Done and fired checks are kept a day for the screen, then forgotten.
+  const dayAgo = Date.now() - 24 * 3_600_000;
+  useOwnChecks.setState((state) => ({
+    ...state,
+    checks: state.checks.filter((check) => check.state === 'armed' || check.due > dayAgo),
+  }));
+  await planTick();
+  const state = useOwnChecks.getState();
+  const known = new Set([
+    ...state.checks.map((check) => check.id),
+    ...state.plans.flatMap((plan) => (plan.day === undefined ? [] : [plan.day.id])),
+    ...sending,
+  ]);
+  for (const id of strayChecks(checkins, known)) await checkinApi.cancel(id);
+  // The unsure ones are settled now; each is kept till its time, for a late copy to be caught.
+  const now = Date.now();
+  useOwnChecks.setState((current) => ({
+    ...current,
+    unsure: current.unsure.filter((each) => each.openAt > now),
+  }));
+  await fetchAlerts();
+}
+
+let later: ReturnType<typeof setTimeout> | null = null;
+/** A set that got no answer: the server is asked again soon, and again while it cannot be reached. */
+function syncLater(): void {
+  if (later !== null) return;
+  later = setTimeout(() => {
+    later = null;
+    syncChecks().catch(() => {
+      syncLater();
+    });
+  }, SYNC_GAP_MS);
+}
+
+/**
+ * Before signing out (QA-44 Düşük 3): every check not yet fired ends on the server first, with
+ * what waited to be cancelled and what was unsure. False when the server could not be reached for
+ * one of them: the caller asks whether to sign out anyway (its alert could still go).
+ */
+export async function closeChecksBeforeSignOut(): Promise<boolean> {
+  load();
+  const state = useOwnChecks.getState();
+  const ids = new Set([
+    ...state.checks.filter((check) => check.state === 'armed').map((check) => check.id),
+    ...state.pending.map((each) => each.checkinId),
+    ...state.unsure.map((each) => each.id),
+    ...state.plans.flatMap((plan) => (plan.day === undefined ? [] : [plan.day.id])),
+  ]);
+  let reached = true;
+  for (const id of ids) {
+    try {
+      await checkinApi.cancel(id);
+    } catch {
+      reached = false;
+    }
+  }
+  return reached;
+}
+
+// Back online, and back in the app (QA-44 Düşük 3): the same sync.
+onOnline(() => {
+  void syncChecks().catch(() => undefined);
+});
+AppState.addEventListener('change', (next) => {
+  if (next !== 'active' || !isVaultOpen() || useAuth.getState().userId === null) return;
+  if (Date.now() - lastSync < SYNC_GAP_MS) return;
+  void syncChecks().catch(() => undefined);
 });
 
 // Nothing of one account may stay for the next: checks, plans, alerts and reminders go.
@@ -532,7 +683,8 @@ onSignedOut(() => {
   useOwnChecks.setState(EMPTY_OWN);
   useAlerts.setState(EMPTY_ALERTS);
   loaded = false;
-  void reminders()
-    .then((module) => module.cancelAllDue())
-    .catch(() => undefined);
+  if (later !== null) clearTimeout(later);
+  later = null;
+  void hideOpenNotice().catch(() => undefined);
+  void cancelAllDue().catch(() => undefined);
 });

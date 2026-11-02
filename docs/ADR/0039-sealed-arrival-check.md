@@ -353,3 +353,26 @@ Kod bu ADR'yi ve PM şartlarını izler. Metinden ayrıldığı ya da metni netl
    kurmaz; yalnız %15'in üstü kurar. Alan telefon "Pili bitmek üzereydi" yazar.
 8. **Tekrarlı kontrol.** Hafta içi her gün, seçilen saat. "Dünkü kontrol kurulamadı" uyarısı bu
    pakette yok (sonraki adım).
+
+## QA-44 düzeltmeleri (kodlama oturumu, 2026-11-02)
+
+1. **Alıcılar görünür.** Konum servisinin kalıcı bildirimi alıcıların adlarını yazar: "Eve vardım
+   kontrolü açık · 23:30 · Ayşe, Can". "Seni görenler"de adlar ekranda yazar; "çemberlerin seni
+   görmez" yalnız hayalette.
+2. **Konum izni yokken.** Kurulum ekranı "Konum izni kapalı: varınca Vardım'a dokun" der ve "varınca
+   kendiliğinden kapanır" demez. İzin yokken konum servisi çalışamaz, bu yüzden açık kontrol için
+   kendi kalıcı bildirimi çıkar (aynı satır, aynı uyarı); dokununca kontroller açılır.
+3. **Yetim kontrol yok.** Kimlik gönderimden önce üretilip saklanır; cevap gelmezse aynı kimlikle
+   iki kez daha sorulur (sunucu aynı sahibin aynı kimliğine "tamam" der). Cevabı hiç gelmeyen
+   kimlik "belirsiz" olarak saati gelene kadar tutulur. Tekrarlı planda günün kimliği bir kez
+   üretilip planda durur. Uygulama açılınca, ön plana gelince ve bağlantı gelince telefon
+   `GET /v1/checkins` ile karşılaştırır; tanımadığı, ateşlenmemiş kontrolü iptal eder.
+4. **Sunucu bir gün kimlik tutar** (migration 0046, `app.checkin_setups`): yalnız kimlik, sahip ve
+   kurulma anı. Günlük 10 sınırı bunları sayar, açık satırları değil; iptal edilen bir kimlik bir
+   gün içinde yeniden kurulamaz (gecikmiş bir isteğin kopyası hayalet kontrol kuramaz). Uygulamanın
+   rolü tabloyu okuyamaz; yalnız işlevler kullanır. Süpürme bir günü geçenleri siler.
+5. **Çıkış.** Önce açık kontroller sunucuda iptal edilir. Sunucuya ulaşılamazsa sorulur: "Açık bir
+   eve vardım kontrolün var; çıkarsan uyarı gidebilir. Yine de çık / Vazgeç".
+6. **Hayalette pil.** Bütün çemberlere hayaletken de pil %5'e inince açık kontroller hemen yenilenir.
+7. **"İyi misin?" gecikmesi.** Yeni izin yok (SCHEDULE_EXACT_ALARM ve USE_EXACT_ALARM istenmez).
+   Sahip gecikmeyi telefonda ölçecek; 3 dakikadan fazlaysa hatırlatma erkene alınır (PM).

@@ -16,6 +16,7 @@ import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError, HTTP_UPGRADE_REQUIRED } from '../common/api-error.js';
 import { circleMembers, circles, rollcallAnswers, rollcalls, users } from '../db/schema.js';
+import { isUniqueViolation } from '../devices/device-registry.js';
 import { EventsService } from '../events/events.service.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { currentDevices, Notifier } from '../push/notifier.js';
@@ -61,17 +62,25 @@ export class RollcallsService {
     pushes: DevicePushes = [],
   ): Promise<RollcallReply> {
     if (!this.signed(auth, circleId, envelope)) return { refused: 'INVALID' };
-    const outcome = await this.database.asUser(auth.userId, async (tx): Promise<Outcome> => {
-      const refusal = await this.epochRefusal(tx, circleId, envelope);
-      if (refusal !== null) return { refused: refusal };
-      const result = await this.call(
-        tx,
-        sql`SELECT app.start_rollcall(${envelope.id}::uuid, ${circleId}::uuid, ${OPEN}::interval,
-              ${ROLLCALL.perHour}::integer, ${ROLLCALL.teenMaxMembers}::integer,
-              ${JSON.stringify(envelope)}::jsonb) AS result`,
-      );
-      return result === 'ok' ? this.outcomeOf(tx, envelope.id, circleId) : { refused: result };
-    });
+    let outcome: Outcome;
+    try {
+      outcome = await this.database.asUser(auth.userId, async (tx): Promise<Outcome> => {
+        const refusal = await this.epochRefusal(tx, circleId, envelope);
+        if (refusal !== null) return { refused: refusal };
+        const result = await this.call(
+          tx,
+          sql`SELECT app.start_rollcall(${envelope.id}::uuid, ${circleId}::uuid, ${OPEN}::interval,
+                ${ROLLCALL.perHour}::integer, ${ROLLCALL.teenMaxMembers}::integer,
+                ${JSON.stringify(envelope)}::jsonb) AS result`,
+        );
+        return result === 'ok' ? this.outcomeOf(tx, envelope.id, circleId) : { refused: result };
+      });
+    } catch (error) {
+      // A roll call with this id is there already, here or in a circle the caller cannot see: a
+      // refusal like any other, not a server error (QA-44 Düşük 5).
+      if (isUniqueViolation(error)) return { refused: 'INVALID' };
+      throw error;
+    }
     if ('refused' in outcome) return { refused: outcome.refused };
     const { rollcall, owners } = outcome;
     this.tell(rollcall, owners);

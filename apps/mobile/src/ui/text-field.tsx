@@ -1,3 +1,4 @@
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { forwardRef, type ReactNode, useState } from 'react';
 import { StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
 
@@ -16,16 +17,50 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style' | 'placehol
   prefix?: string;
   /** Element at the end of the field (e.g. a live status icon). */
   trailing?: ReactNode;
+  /**
+   * Inside a bottom sheet: the sheet's own input, so the sheet rises above the keyboard (with a
+   * plain one it stays under it; QA-44 Düşük 7).
+   */
+  inSheet?: boolean;
 }
 
 export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
-  { label, error, helper, helperTone = 'muted', prefix, trailing, onFocus, onBlur, ...props },
+  {
+    label,
+    error,
+    helper,
+    helperTone = 'muted',
+    prefix,
+    trailing,
+    inSheet = false,
+    onFocus,
+    onBlur,
+    ...props
+  },
   ref,
 ) {
   const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
   const message = error ?? helper ?? null;
   const borderColor = error ? colors.danger : focused ? colors.primary : colors.border;
+  const input: TextInputProps = {
+    accessibilityLabel: label,
+    accessibilityLabelledBy: `${label}-label`,
+    accessibilityHint: message ?? undefined,
+    placeholderTextColor: colors.textMuted,
+    selectionColor: colors.primary,
+    maxFontSizeMultiplier: typography.body.maxScale,
+    onFocus: (event) => {
+      setFocused(true);
+      onFocus?.(event);
+    },
+    onBlur: (event) => {
+      setFocused(false);
+      onBlur?.(event);
+    },
+    ...props,
+    style: [typography.body.style, styles.input, { color: colors.text }],
+  };
 
   return (
     <View style={styles.container}>
@@ -38,25 +73,18 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
             {prefix}
           </Text>
         )}
-        <TextInput
-          ref={ref}
-          accessibilityLabel={label}
-          accessibilityLabelledBy={`${label}-label`}
-          accessibilityHint={message ?? undefined}
-          placeholderTextColor={colors.textMuted}
-          selectionColor={colors.primary}
-          maxFontSizeMultiplier={typography.body.maxScale}
-          onFocus={(event) => {
-            setFocused(true);
-            onFocus?.(event);
-          }}
-          onBlur={(event) => {
-            setFocused(false);
-            onBlur?.(event);
-          }}
-          {...props}
-          style={[typography.body.style, styles.input, { color: colors.text }]}
-        />
+        {inSheet ? (
+          <BottomSheetTextInput
+            // It hands over `undefined` where a plain input hands over null.
+            ref={(instance: TextInput | null | undefined) => {
+              if (typeof ref === 'function') ref(instance ?? null);
+              else if (ref !== null) ref.current = instance ?? null;
+            }}
+            {...input}
+          />
+        ) : (
+          <TextInput ref={ref} {...input} />
+        )}
         {trailing}
       </View>
       {message === null ? null : (

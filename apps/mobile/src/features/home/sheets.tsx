@@ -21,6 +21,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { env } from '@/config/env';
 import { signOut, useAuth } from '@/features/auth/auth-store';
 import { usePlan } from '@/features/billing/plan';
+import { closeChecksBeforeSignOut } from '@/features/checkin/checkin-session';
 import { daysLeft } from '@/features/billing/plan-model';
 import { useCircles } from '@/features/circles/queries';
 import { useNow } from '@/features/location/clock';
@@ -90,8 +91,26 @@ export const MeSheet = forwardRef<
         text: t('sheets.me.logout'),
         style: 'destructive',
         onPress: () => {
-          onClose();
-          void signOut();
+          void (async () => {
+            // Open arrival checks end on the server first; one left there would alert later. If
+            // that cannot be done now, the person decides (QA-44 Düşük 3).
+            if (!(await closeChecksBeforeSignOut())) {
+              Alert.alert(t('checkin.signOutTitle'), t('checkin.signOutBody'), [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('checkin.signOutAnyway'),
+                  style: 'destructive',
+                  onPress: () => {
+                    onClose();
+                    void signOut();
+                  },
+                },
+              ]);
+              return;
+            }
+            onClose();
+            void signOut();
+          })();
         },
       },
     ]);

@@ -238,19 +238,26 @@ export function createLocationEngine(deps: EngineDeps) {
     stay = nextStay(stay, next, next.ts);
     useMyFix.setState({ fix: next, since: stay.since });
     void deps.onFix?.(next).catch(() => undefined);
-    if (shouldSend(last, next, now(), live(), deps.background?.() === true)) {
+    const sending = shared().length > 0;
+    if (sending && shouldSend(last, next, now(), live(), deps.background?.() === true)) {
       pending = next;
       return pump();
     }
-    if (deps.lastCall !== undefined && shared().length > 0) {
+    // Also as a ghost to every circle while an arrival check is open: the check is refreshed with
+    // this position even though no circle gets it (QA-44 Düşük 1).
+    if (deps.lastCall !== undefined && (sending || deps.alsoWanted?.() === true)) {
       const lastCall = deps.lastCall;
       return deps.battery().then((battery) => {
-        if (!lastCall(battery)) return running ?? Promise.resolve();
+        if (!lastCall(battery) || shared().length === 0) return quiet();
         pending = next;
         return pump();
       });
     }
-    // Nothing to send, but a timed share may just have ended: take it back without waiting.
+    return quiet();
+  }
+
+  /** Nothing to send, but a timed share may just have ended: take it back without waiting. */
+  function quiet(): Promise<void> {
     if (toWithdraw().length > 0) return pump();
     return running ?? Promise.resolve();
   }

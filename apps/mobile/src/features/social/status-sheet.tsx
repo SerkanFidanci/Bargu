@@ -125,6 +125,7 @@ export const StatusSheet = forwardRef<SheetRef, { onClose: () => void }>(functio
         })}
       </View>
       <TextField
+        inSheet
         label={t('status.text')}
         value={text}
         onChangeText={setText}
