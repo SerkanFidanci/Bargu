@@ -8,7 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlan } from '@/features/billing/plan';
 import { useCircles } from '@/features/circles/queries';
 import { boundsOf, DaySegments, placeOf } from '@/features/history/day-segments';
+import { ExploreLayer } from '@/features/history/explore-layer';
 import { HistoryLayer } from '@/features/history/history-layer';
+import { useExplore } from '@/features/history/own/explore-session';
 import {
   dayKey,
   dayStartOf,
@@ -80,6 +82,9 @@ function MyHistory() {
   // every redraw, which would open a month file each time and refit the camera.
   const [view, setView] = useState(() => load(today));
   const [version, setVersion] = useState(0);
+  // A day, or every day kept as the discovery map (docs/ADR/0030 Ek 2).
+  const [mode, setMode] = useState<'day' | 'explore'>('day');
+  const explored = useExplore(mode === 'explore', version);
   const day = view.day;
   const reload = () => {
     setView((current) => load(current.day));
@@ -119,6 +124,7 @@ function MyHistory() {
   const key = `${day}:${String(version)}`;
   const names = named.key === key ? named.names : {};
   const nameUnplaced = () => {
+    if (mode !== 'day') return;
     const handle = map.current;
     const stays = timeline.flatMap((segment) =>
       segment.kind === 'stay' && placeOf(segment, places) === undefined ? [segment] : [],
@@ -133,9 +139,14 @@ function MyHistory() {
   };
   const [panel, setPanel] = useState(0);
   useEffect(() => {
-    const bounds = boundsOf(points);
+    const bounds =
+      mode === 'day'
+        ? boundsOf(points)
+        : explored.kind === 'ready'
+          ? explored.explored.bounds
+          : null;
     if (bounds !== null) map.current?.fitTo(bounds, panel);
-  }, [points, panel]);
+  }, [points, panel, mode, explored]);
 
   const change = (next: OwnSettings) => {
     ownTrail.setSettings(next);
@@ -272,12 +283,19 @@ function MyHistory() {
   };
   const viewers = Object.values(sharing.circles).filter((circle) => circle.history === true).length;
   const approximate = points.length > 0 && points.every((point) => point.acc > 100);
+  const exploreNote = t(
+    settings.keep === 365 ? 'history.mine.explore365' : 'history.mine.explore30',
+  );
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="my-history">
       <View style={styles.map}>
         <BarguMap ref={map} overlay insets={{ top: insets.top }} onSettle={nameUnplaced}>
-          <HistoryLayer points={points} timeline={timeline} />
+          {mode === 'day' ? (
+            <HistoryLayer points={points} timeline={timeline} />
+          ) : explored.kind === 'ready' ? (
+            <ExploreLayer fog={explored.explored.fog} />
+          ) : null}
         </BarguMap>
         <View style={[styles.close, { top: insets.top + space.sm }]}>
           <IconButton
@@ -313,50 +331,91 @@ function MyHistory() {
             <Hint testID="mine-ended">{t('history.mine.planEnded')}</Hint>
           ) : null}
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.days}
-          >
-            {strip.map((key) => {
-              const has = recorded.includes(key);
-              const on = key === day;
-              return (
-                <PressableScale
-                  key={key}
-                  testID={`mine-day-${key}`}
-                  haptic="select"
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                  accessibilityLabel={`${dayLabel(key)}${has ? '' : `, ${t('history.mine.noRecord')}`}`}
-                  onPress={() => {
-                    setView(load(key));
-                  }}
-                  style={[
-                    styles.day,
-                    { backgroundColor: on ? colors.primary : colors.surfaceRaised },
-                    has || on ? null : styles.faded,
-                  ]}
-                >
-                  <Text variant="subhead" style={{ color: on ? colors.onPrimary : colors.text }}>
-                    {dayLabel(key)}
-                  </Text>
-                </PressableScale>
-              );
-            })}
-          </ScrollView>
+          <Segmented
+            testID="mine-mode"
+            label={t('history.mine.mode')}
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'day', label: t('history.mine.modeDay') },
+              { value: 'explore', label: t('history.mine.modeExplore') },
+            ]}
+          />
 
-          {timeline.length === 0 ? (
-            <EmptyState
-              icon={HistoryIcon}
-              title={t('history.mine.noRecord')}
-              body={settings.on ? t('history.mine.emptyOn') : t('history.mine.emptyOff')}
-            />
-          ) : (
-            <View testID="mine-timeline">
-              {approximate ? <Hint>{t('history.mine.approximate')}</Hint> : null}
-              <DaySegments timeline={timeline} places={places} names={names} />
+          {mode === 'explore' ? (
+            // No numbers, no ranking, nothing to share: only where one has been (the PM).
+            <View
+              testID="mine-explore"
+              accessible
+              accessibilityLabel={`${t('history.mine.exploreTitle')}, ${exploreNote}`}
+              style={styles.explore}
+            >
+              {explored.kind === 'busy' ? (
+                <Hint testID="mine-explore-busy">{t('history.mine.exploreBusy')}</Hint>
+              ) : null}
+              {recorded.length === 0 ? (
+                <EmptyState
+                  icon={HistoryIcon}
+                  title={t('history.mine.noRecord')}
+                  body={settings.on ? t('history.mine.emptyOn') : t('history.mine.emptyOff')}
+                />
+              ) : (
+                <Text variant="body">{exploreNote}</Text>
+              )}
             </View>
+          ) : null}
+
+          {mode === 'explore' ? null : (
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.days}
+              >
+                {strip.map((key) => {
+                  const has = recorded.includes(key);
+                  const on = key === day;
+                  return (
+                    <PressableScale
+                      key={key}
+                      testID={`mine-day-${key}`}
+                      haptic="select"
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: on }}
+                      accessibilityLabel={`${dayLabel(key)}${has ? '' : `, ${t('history.mine.noRecord')}`}`}
+                      onPress={() => {
+                        setView(load(key));
+                      }}
+                      style={[
+                        styles.day,
+                        { backgroundColor: on ? colors.primary : colors.surfaceRaised },
+                        has || on ? null : styles.faded,
+                      ]}
+                    >
+                      <Text
+                        variant="subhead"
+                        style={{ color: on ? colors.onPrimary : colors.text }}
+                      >
+                        {dayLabel(key)}
+                      </Text>
+                    </PressableScale>
+                  );
+                })}
+              </ScrollView>
+
+              {timeline.length === 0 ? (
+                <EmptyState
+                  icon={HistoryIcon}
+                  title={t('history.mine.noRecord')}
+                  body={settings.on ? t('history.mine.emptyOn') : t('history.mine.emptyOff')}
+                />
+              ) : (
+                <View testID="mine-timeline">
+                  {approximate ? <Hint>{t('history.mine.approximate')}</Hint> : null}
+                  <DaySegments timeline={timeline} places={places} names={names} />
+                </View>
+              )}
+            </>
           )}
 
           <Text variant="subhead" color="textMuted">
@@ -426,4 +485,5 @@ const styles = StyleSheet.create({
   day: { paddingHorizontal: space.lg, paddingVertical: space.sm, borderRadius: radius.pill },
   faded: { opacity: 0.5 },
   buttons: { gap: space.sm },
+  explore: { gap: space.sm },
 });

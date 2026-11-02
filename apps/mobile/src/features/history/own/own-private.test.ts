@@ -6,7 +6,7 @@ import { join } from 'node:path';
  * nothing that reaches a network, a notification or a log, so nothing of it can be sent by
  * mistake. Read as text, so a later import cannot slip in unseen.
  */
-const HOLDERS = ['own-model.ts', 'own-trail.ts', 'own-files.ts'] as const;
+const HOLDERS = ['own-model.ts', 'own-trail.ts', 'own-files.ts', 'explore-model.ts'] as const;
 
 /** What would let a trail leave: the API, the live connection, pushes, logs, analytics, sharing. */
 const FORBIDDEN = [

@@ -140,7 +140,7 @@ export type Segment =
   | { kind: 'gap'; from: number; to: number };
 
 /** Reading a day's points into stays and trips. */
-const SEGMENTS = {
+export const SEGMENTS = {
   /** Within this of where they stopped… */
   stayRadiusM: 150,
   /** …for at least this long is a stay. */

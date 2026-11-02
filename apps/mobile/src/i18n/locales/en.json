@@ -1058,7 +1058,14 @@
       "offBody": "Turned off, your history is deleted from this phone. Export it first?",
       "offExport": "Export",
       "offDelete": "Delete and turn off",
-      "lost": "Your location history could not be read on this phone and was deleted."
+      "lost": "Your location history could not be read on this phone and was deleted.",
+      "mode": "View",
+      "modeDay": "Day",
+      "modeExplore": "Discover",
+      "exploreTitle": "Discovery map",
+      "exploreBusy": "Getting it ready…",
+      "explore30": "Places you went in the last 30 days",
+      "explore365": "Places you went in the last year"
     }
   },
   "security": {

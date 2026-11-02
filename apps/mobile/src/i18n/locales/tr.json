@@ -1058,7 +1058,14 @@
       "offBody": "Kapatınca geçmişin bu telefondan silinir. Önce dışa aktarmak ister misin?",
       "offExport": "Dışa aktar",
       "offDelete": "Sil ve kapat",
-      "lost": "Konum geçmişin bu telefonda okunamadı ve silindi."
+      "lost": "Konum geçmişin bu telefonda okunamadı ve silindi.",
+      "mode": "Görünüm",
+      "modeDay": "Gün",
+      "modeExplore": "Keşif",
+      "exploreTitle": "Keşif haritası",
+      "exploreBusy": "Hazırlanıyor…",
+      "explore30": "Son 30 günde gittiğin yerler",
+      "explore365": "Son 1 yılda gittiğin yerler"
     }
   },
   "security": {

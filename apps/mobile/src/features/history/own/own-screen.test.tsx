@@ -33,8 +33,17 @@ jest.mock('@/features/history/own/own-flag', () => ({
   },
 }));
 // The map and its layer are native; the screen's own parts are what is tested here.
-jest.mock('@/features/map/bargu-map', () => ({ BarguMap: () => null }));
+jest.mock('@/features/map/bargu-map', () => ({
+  BarguMap: ({ children }: { children?: import('react').ReactNode }) => children,
+}));
 jest.mock('@/features/history/history-layer', () => ({ HistoryLayer: () => null }));
+const mockFog = jest.fn<undefined, [{ type: string; coordinates: unknown[][] }]>();
+jest.mock('@/features/history/explore-layer', () => ({
+  ExploreLayer: ({ fog }: { fog: { type: string; coordinates: unknown[][] } }) => {
+    mockFog(fog);
+    return null;
+  },
+}));
 const mockPlan: { current: Plan | undefined } = { current: undefined };
 jest.mock('@/features/billing/plan', () => ({
   usePlan: () => ({ data: mockPlan.current }),
@@ -120,6 +129,7 @@ jest.mock('@/features/history/own/own-session', () => {
 
 import MyHistoryScreen from '@/app/(app)/history/mine';
 import { saveExport } from '@/features/account/export';
+import * as exploreModel from '@/features/history/own/explore-model';
 import { ownTrail } from '@/features/history/own/own-session';
 
 const NOW = Date.now();
@@ -312,6 +322,58 @@ describe('"Konum geçmişim" (docs/ADR/0030 §4)', () => {
     expect(ownTrail.settings().keep).toBe(365);
     await fireEvent.press(screen.getByText('30 gün'));
     expect(ownTrail.settings().keep).toBe(30);
+  });
+
+  it('shows where one has been as a discovery map: getting ready, then no numbers (ADR 0030 Ek 2)', async () => {
+    mockPlan.current = plan({ plan: 'plus' });
+    ownTrail.setSettings({ on: true, keep: 30 });
+    const today = new Date();
+    today.setHours(9, 0, 0, 0);
+    for (let step = 0; step <= 12; step++) {
+      ownTrail.record(
+        {
+          lat: 41.0256 + step * 0.002,
+          lng: 28.9742,
+          acc: 10,
+          ts: today.getTime() + step * 5 * 60_000,
+        },
+        { entitled: true, ghost: 'off', sharing: true },
+      );
+    }
+    // The work is held until the screen is looked at while it runs.
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const real = exploreModel.explore;
+    const spy = jest.spyOn(exploreModel, 'explore').mockImplementation(async (...args) => {
+      await held;
+      return real(...args);
+    });
+    await render(<MyHistoryScreen />);
+    await fireEvent.press(screen.getByText('Keşif'));
+    expect(screen.getByTestId('mine-explore-busy')).toHaveTextContent('Hazırlanıyor…');
+    await act(async () => {
+      release();
+      await held;
+    });
+    spy.mockRestore();
+    // The day's strip and stays give way to one line, with nothing to count.
+    expect(screen.queryByTestId('mine-timeline')).toBeNull();
+    await waitFor(() => {
+      expect(screen.queryByTestId('mine-explore-busy')).toBeNull();
+    });
+    expect(screen.getByText('Son 30 günde gittiğin yerler')).toBeTruthy();
+    expect(screen.getByTestId('mine-explore').props.accessibilityLabel).toBe(
+      'Keşif haritası, Son 30 günde gittiğin yerler',
+    );
+    expect(screen.queryByText(/\d+ (yer|kare)/)).toBeNull();
+    // The map's fog has the walk open in it: the world, with a hole.
+    const fog = mockFog.mock.lastCall?.[0];
+    expect(fog?.type).toBe('MultiPolygon');
+    expect(fog?.coordinates[0]?.length).toBeGreaterThan(1);
+    await fireEvent.press(screen.getByText('Gün'));
+    expect(await screen.findByTestId('mine-timeline')).toBeTruthy();
   });
 
   it("has the circles' history one row away and a note about where it stays", async () => {
