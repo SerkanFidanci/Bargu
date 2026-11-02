@@ -883,6 +883,11 @@ Kurallar:
 - **Yaş sınırı ve doğrulama:** hukuki görüşe bağlı (Faz 9).
 - **Güvendeyim SMS yedeği:** şebeke çökünce işe yarar ama SMS düz metindir; konumsuz "iyiyim" SMS'i mi, hiç SMS yok mu?
 - **Gelirin vergi yapısı:** bireysel (20/B istisnası) ya da şirket; mali müşavirle.
+- **Saklama ve hukuk (PM, 2026-11-02; [ön araştırma](docs/arastirma/saklama-ve-hukuk.md)):** 24 saatte silmenin ve E2EE'nin bilinen bir hukuki engeli yok; içerik saklama zorunluluğu bulunmadı. İki açık soru açık yayını (kapalı testi değil) bekletir:
+  - **5651 trafik bilgisi:** Bargu büyük ihtimalle yer sağlayıcı. Yer sağlayıcı "trafik bilgisini" (IP dahil) 1–2 yıl saklar; bizim kuralımız ise IP'yi kaydetmemek. Gerekirse en küçük kayıt: hesap, IP, zaman ve olay türü; ayrı, kısıtlı ve bütünlüğü korunan bir tabloda, yasal süre kadar. İçerik ve E2EE etkilenmez. Kod, avukat ya da yönetmelik netleşince değişir (ADR ile).
+  - **5809 OTT:** Mesajlaşma "şebekeler üstü hizmet" sayılabilir. md. 9/14, Türkiye'de şirket olan bir temsilci ve yetkilendirme istiyor; küçük uygulamalar için kullanıcı eşiği taslakta, son hali doğrulanamadı. Bireysel geliştirici için bu, şirket kurma kararını etkileyebilir (vergi kararıyla birlikte).
+  - Politika şimdiden dürüst yazıldı: IP bugün kaydedilmiyor; yasa isterse yalnız istenen kadarı, önceden haber verilerek tutulur.
+  - Sahibin kararı: açık yayından önce avukata 9 soruluk listeyle danışılması (araştırmanın sonunda).
 - **Kendi geçmişinin uzun yedeği:** çember geçmişi sunucuda en çok 14 gün kalır; telefon değişince daha eski kendi izin kaybolur. Yalnızca dışa aktarma mı, yoksa şifreli uzun yedek mi? Uzun yedek ADR ister.
 
 ## 8. v2 Fikirleri
