@@ -685,9 +685,14 @@ Kurallar:
   - **0039, şart 3:** Tekrarlı kontrolde alıcıya kurulum haberi yalnız plan kurulunca ya da değişince gider, her gün gitmez. "Vardı ✓" sessiz bir öğedir; ses ya da bildirim çıkarmaz.
   - **0039, şart 4:** Yeni izin yok. Tam ekran bildirim (USE_FULL_SCREEN_INTENT) ve "Rahatsız etme"yi aşma izni istenmez; Play bunları kısıtlıyor. Uyarı "Güvenlik uyarıları" kanalında yüksek öncelikli bildirimdir; tam ekran görünüm bildirime dokununca açılır.
   - **0040, şart:** Sahip "Yoklamada olmayan: N kişi" görür, ama adlar listesinden kimin dışarıda kaldığını çıkarabilir. Bu THREAT_MODEL'e dürüstçe yazılır: kimin dışarıda kaldığı çıkarılabilir; nedeni (eski uygulama, ayar kapalı ya da 15–17) görünmez. "Sahip", rolü `owner` olan bütün yöneticilerdir.
-  - **0041, şart 1:** "Açık kaynak" ve "SRI" azaltma olarak yazılmaz. Depo açık değil (N5 sahibin kararı). Sayfayı kendi sunucumuz verdiği için SRI bu riske karşı korumaz. Kabul edilen risk olduğu gibi yazılır.
+  - **0041, şart 1:** SRI bu riske karşı azaltma olarak yazılmaz, çünkü sayfayı kendi sunucumuz verdiği için SRI korumaz. Kabul edilen risk olduğu gibi yazılır.
+    - **Düzeltme (PM, 2026-11-02):** "Depo açık değil" yanlıştı; depo herkese açık (ADR 0003). Kaynak incelenebilir, ama sunucu depodakinden farklı kod verebilir. N5'te karar verilecek olan lisans ve bağımsız denetim.
   - **0041, şart 2:** Çıkış yapınca da kişinin açık linkleri silinir. Sayfa ilk yayından önce test oturumunun ayrı bir güvenlik incelemesinden geçer (CSP, başlıklar, betik).
   - **Belgeler:** THREAT_MODEL ve N2 kodla birlikte kod oturumunda güncellenir, çünkü N2 testi THREAT_MODEL'i okur. Gizlilik politikası ve Play belgeleri, paketin APK'sı çıkmadan önce PM'de güncellenir.
+- **Durum (2026-11-02):** C kodlandı (`a7098ae` QA-43'ün 7 düşük bulgusu, `75a2e4f` N4, `6d7dcf1` Ö5 ve N1, `34c6e5f`) ve push edildi. Linux CI'da 1560 mobil test geçti.
+  - GitHub CI'da bağımlılık taraması (pnpm audit) kırmızı. Bu yüzden staging güncellenmedi. Kod oturumu inceliyor; CI yeşil olmadan APK yayımlanmaz.
+  - Gizlilik politikası ve veri güvenliği belgesi C için güncellendi (PM). /gizlilik sayfası (`privacy-page.ts`) bunlara eşitlenecek.
+  - Sonraki adıma kalanlar: "Dünkü kontrol kurulamadı" uyarısı; KADES düğmesi şimdilik Play'de KADES aramasını açıyor.
 - **Ara APK (2026-10-30, `1108f18`):** Sahip sohbette yazdığını göremiyordu; yazı kutusu klavyenin altında kalıyordu. Düzeltme, sahip mesajlaşmayı kullanabilsin diye küçük bir APK olarak verildi. Ayrı QA turu yok; düzeltme C APK'sının QA'sına girer.
 
 **Paket D: kendi dünyan**
