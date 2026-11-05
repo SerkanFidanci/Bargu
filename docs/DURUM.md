@@ -164,9 +164,11 @@ işaretinin hiçbiri yok; bayraklı pakette 97'si de doğrulandı. Tam mobil Jes
 iki açık handle, bu değişikliklerin dışındaki `poke.test.ts` ve `safe-session.test.ts` React Query
 GC zamanlayıcıları; değişen testler `detectOpenHandles` ile temiz.
 
-**Kapanış durumu:** Kod çalışma ağacında; commit yok. Linux CI, GitHub CI, staging migration 0047,
-D APK'sı ve sahibin telefon testi yapılmadı. Derleme ve Linux CI betikleri kaydedilmemiş
-değişiklikleri bilinçli olarak dışarıda bırakıyor.
+**APK (2026-11-05): `68fa49c`**, QA-45 düzeltmeleri ve keşif haritasıyla D paketi. Linux CI
+(mobil 1622 test), GitHub CI ve güvenlik yeşil; staging `68fa49c`'de, migration 0047 uygulandı ve
+sağlık kontrolü geçti. https://api.46-62-162-70.sslip.io/apk/bargu-68fa49c-ab5b09e3349edb9b.apk
+APK 86 188 142 bayt; SHA-256 `0004cca3e7e0803421b8763e03afa2384106fffb8681acaff29ffdb21eaa63f1`.
+Sahibin telefon testi ve kabulü açık.
 
 **PM kararları (2026-11-05):** İptal edilen kimliğin yeniden kullanım yasağı kurulum anından
 itibaren 24 saat. İptalden itibaren ayrı bir süre için `cancelled_at` ya da başka yeni metadata

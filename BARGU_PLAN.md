@@ -736,9 +736,10 @@ Kurallar:
   idempotency, hesap/async yarışı, alıcı replay/sayfalama ve keşif iptal/köşe sınırı bulguları
   düzeltildi; hedefli bağımsız kapanış incelemelerinde bloklayıcı kalmadı. Mobil 1622, API 177 birim
   ve 382 entegrasyon, crypto 286 + 1, şema 126 test geçti. Ayrıntı ve cihaz turu `docs/DURUM.md`'de.
-  Kod henüz çalışma ağacında; Linux CI, GitHub CI, staging migration 0047 ve D APK'sı commit sonrası.
-  PM, 2026-11-05: kimlik yasağı kurulum anından 24 saat; yinelenen yoklama HTTP 200 + kontrollü
-  `INVALID` (ADR 0039/0040 Ek 1). İki sözleşme de böylece kapandı.
+  D APK'sı `68fa49c` (2026-11-05) yayında; Linux CI, GitHub CI ve güvenlik yeşil, staging migration
+  0047 uygulandı. Sahibin telefon testi ve kabulü açık. PM, 2026-11-05: kimlik yasağı kurulum anından
+  24 saat; yinelenen yoklama HTTP 200 + kontrollü `INVALID` (ADR 0039/0040 Ek 1). İki sözleşme de
+  böylece kapandı.
 
 **Paket E: dışarıya açılan**
 - Ö9 uygulamasız şifreli konum linki (Faz 11'den). Yeni ADR ve THREAT_MODEL gerekir.
