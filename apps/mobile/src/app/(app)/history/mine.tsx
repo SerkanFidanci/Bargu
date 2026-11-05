@@ -138,15 +138,13 @@ function MyHistory() {
     });
   };
   const [panel, setPanel] = useState(0);
+  // The clock redraws this screen every 30 seconds. Only a new result, not its new wrapper, may
+  // frame the camera again after the user has moved it.
+  const exploredResult = explored.kind === 'ready' ? explored.explored : null;
   useEffect(() => {
-    const bounds =
-      mode === 'day'
-        ? boundsOf(points)
-        : explored.kind === 'ready'
-          ? explored.explored.bounds
-          : null;
+    const bounds = mode === 'day' ? boundsOf(points) : (exploredResult?.bounds ?? null);
     if (bounds !== null) map.current?.fitTo(bounds, panel);
-  }, [points, panel, mode, explored]);
+  }, [points, panel, mode, exploredResult]);
 
   const change = (next: OwnSettings) => {
     ownTrail.setSettings(next);
@@ -347,7 +345,11 @@ function MyHistory() {
             <View
               testID="mine-explore"
               accessible
-              accessibilityLabel={`${t('history.mine.exploreTitle')}, ${exploreNote}`}
+              accessibilityLabel={t(
+                settings.keep === 365
+                  ? 'history.mine.exploreLabel365'
+                  : 'history.mine.exploreLabel30',
+              )}
               style={styles.explore}
             >
               {explored.kind === 'busy' ? (

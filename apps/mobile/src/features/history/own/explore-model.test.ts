@@ -183,6 +183,85 @@ describe('the fog over the map', () => {
       expect(await cornersOf(cells, EXPLORE.zoom)).toBe(drawnCorners(fog));
     }
   });
+
+  it('stops inside adversarial nested frames without returning a partial fog', async () => {
+    const frames = new Set<number>();
+    for (let inset = 0; inset < 36; inset += 3) {
+      const low = 500 + inset;
+      const high = 700 - inset;
+      for (let n = low; n <= high; n += 1) {
+        frames.add(cell(n, low));
+        frames.add(cell(n, high));
+        frames.add(cell(low, n));
+        frames.add(cell(high, n));
+      }
+    }
+    // Count operations, not wall time: the fake clock always reads zero and every checkpoint
+    // breathes. Cancel after the same outline work plus two checkpoints in fog construction.
+    let outlinePauses = 0;
+    await outlines(
+      frames,
+      EXPLORE.zoom,
+      slicer(
+        0,
+        () => 0,
+        () => {
+          outlinePauses += 1;
+          return Promise.resolve();
+        },
+      ),
+    );
+    const cancelAfter = outlinePauses + 2;
+    let pauses = 0;
+    const breath = slicer(
+      0,
+      () => 0,
+      () => {
+        pauses += 1;
+        return Promise.resolve();
+      },
+    );
+    await expect(fogOf(frames, EXPLORE.zoom, breath, () => pauses >= cancelAfter)).rejects.toThrow(
+      'Discovery map work cancelled',
+    );
+    expect(pauses).toBe(cancelAfter);
+    expect(pauses).toBeGreaterThan(outlinePauses);
+  });
+});
+
+describe('the discovery map corner budget', () => {
+  it('coarsens below minZoom when 6000 separate squares still have too many corners', async () => {
+    const tiles = 2 ** EXPLORE.minZoom;
+    const points: TracePoint[] = [];
+    for (let row = 0; row < 80; row += 1) {
+      for (let column = 0; column < 75; column += 1) {
+        // At zoom 12 there is an empty square between points. At zoom 11 they form one block.
+        const x = 100 + column * 2 + 0.5;
+        const y = 100 + row * 2 + 0.5;
+        points.push({
+          at: points.length * MIN,
+          lat: (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / tiles))) * 180) / Math.PI,
+          lng: (x / tiles) * 360 - 180,
+          acc: 10,
+        });
+      }
+    }
+    const atMinimum = new Set(points.map((point) => cellOf(point.lat, point.lng, EXPLORE.minZoom)));
+    expect(atMinimum.size).toBe(6_000);
+    expect(await cornersOf(atMinimum, EXPLORE.minZoom)).toBe(24_004);
+
+    const explored = await explore(
+      ['day'],
+      () => points,
+      () => Promise.resolve(),
+      () => false,
+    );
+    expect(explored).not.toBeNull();
+    expect(explored?.zoom).toBeLessThan(EXPLORE.minZoom);
+    expect(
+      drawnCorners(explored?.fog ?? { type: 'MultiPolygon', coordinates: [] }),
+    ).toBeLessThanOrEqual(EXPLORE.maxCorners);
+  });
 });
 
 describe('the discovery map of a whole year (the PM, 2026-11-02)', () => {

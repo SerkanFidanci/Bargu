@@ -135,6 +135,50 @@ gerektirmeyen işleri ve PM'in B sonrası iki kararı. Ö7 bayrakla kapalı; D A
 | Ö7 keşif haritası (ADR 0030 Ek 2) | "Konum geçmişim"de "Gün / Keşif": harita yumuşak bir sisle örtülür, gidilen yerler açık (yaklaşık 230 m kareler). Yeni veri ve saklama yok: Ö7'nin sakladığı günlerden (30 gün ya da 1 yıl) telefonda hesaplanır, yalnız bellekte durur. Hassasiyeti 250 m'den kötü nokta kare açmaz; yolda 1,5 km'ye kadar iki nokta düz çizgiyle birleşir, "Kayıt yok" doldurulmaz. Sayı, sıralama, paylaşım yok. PM şartı: hesap parça parça (8 ms), sürerken "Hazırlanıyor…", ekrandan çıkılınca durur; sisin köşesi en çok 20 000, aşılırsa kareler kabalaşır. Bütçe testi: 365 günlük dağınık yıl (110 bin nokta) test makinesinde yaklaşık 0,9 sn, en uzun parça 11 ms (sınır 50 ms ve 3 sn). Testli                                                                                                                                                                                                   |
 | QA-44 düzeltmeleri (C)            | Orta 1: kalıcı bildirimde ve "Seni görenler"de alıcıların adları; "çemberlerin seni görmez" yalnız hayalette. Orta 2: konum izni yokken kurulum ekranı "Vardım'a dokun" der, açık kontrolün kendi kalıcı bildirimi çıkar. Orta 3: kimlik gönderimden önce saklanır, aynı kimlikle yeniden sorulur, plan günün kimliğini tutar; açılışta, ön plana gelince ve bağlantı gelince sunucuda tanınmayan kontrol iptal edilir. Düşükler: hayalette pil bitince kontrol yenilenir (süresi biten paylaşım da yine hemen geri alınır); çıkışta önce kontroller iptal, internet yoksa sorulur; günlük 10 sınırı kurulumları sayar, iptal edilen kimlik bir gün yeniden kurulamaz (migration 0046, yalnız kimlik); aynı kimlikle yoklama 500 değil ret; durum çekmecesi klavyenin üstüne çıkar, hikaye yazı katmanı ortak davranışta, lint başka davranışa izin vermez. Testli (API entegrasyon, telefon) |
 
+### QA-45 ön inceleme ve düzeltmeler (2026-11-04, çalışma ağacı)
+
+Backend, mobil/frontend ve güvenlik ayrı oturumlarda incelendi; bulgular düzeltildikten sonra aynı
+bağımsız oturumlar hedefli kapanış incelemesi yaptı. Son incelemede kapsam içinde APK bloklayıcı
+bulgu kalmadı. Bu henüz D APK'sının veya sahibin telefon onayının yerine geçmez.
+
+- **Backend:** Aynı kontrolün farklı `openAt` ile tekrarı kuyrukta yeni iş açmıyor; kanonik saat
+  transaction'daki satırdan okunuyor. Farklı kullanıcıların aynı UUID yarışı 500 yerine kontrollü
+  `INVALID`. Inbox en yeni 50 uyarıyı veriyor; yabancı/sahip `ack` testleri eklendi. Migration 0047
+  ile 5000'lik süpürme parçaları kalan bitene kadar sürüyor.
+- **Mobil check-in:** Hesap generation'ı ve kullanıcı/cihaz bağlamı olmayan async cevapları yeni
+  hesaba yazamıyor. Belirsiz kurulumlar yeniden eşitleniyor; refresh/extend/settle ve plan skip/stop
+  yarışları, başarısız iptalin pending'e girmesi, çevrimdışı skip sessizliği ve çıkışta geç/normal
+  varış mesajları düzeltildi. Native hatırlatıcı revision'ı eski bildirimin geri gelmesini engelliyor.
+- **Alıcı güvenliği:** En yüksek `seq`, görünür listeden bağımsız ve sahip+kontrol kimliğiyle
+  `due + grace + 24 saat` boyunca vault'ta; boş sayfa, sayfa dışı kalma ve restart eski kutuyu geri
+  getiremiyor. Doğrulanmış `checkinOk` 48 saat `arrived` olarak tutuluyor. Dolu 50'lik sayfada `ack`
+  sonrası kalan uyarılar hemen yükleniyor.
+- **Keşif:** Focus/blur ve bütün iç geometri döngülerinde cooperative iptal; 20 000 köşe sınırına
+  kadar kabalaşma (zoom 12 taban değil), kamera yalnız yeni sonuçla kadrajlanıyor,
+  Keşif→Gün→Keşif eski sonucu göstermeden `Hazırlanıyor…` diyor. TR/EN erişilebilirlik metinleri ayrı.
+
+Testler: mobil 190 suite / 1622 test, API 177 birim + 382 entegrasyon, crypto 286 + 1 performans,
+şema 126; hepsi geçti. Değişen dosyalarda TypeScript, ESLint, Prettier, migration 0047 dahil 47
+migration sözleşmesi ve şema/kripto/API derlemeleri temiz. Üretim JS paketinde 97 geliştirici aracı
+işaretinin hiçbiri yok; bayraklı pakette 97'si de doğrulandı. Tam mobil Jest'in kapanışını geciktiren
+iki açık handle, bu değişikliklerin dışındaki `poke.test.ts` ve `safe-session.test.ts` React Query
+GC zamanlayıcıları; değişen testler `detectOpenHandles` ile temiz.
+
+**Kapanış durumu:** Kod çalışma ağacında; commit yok. Linux CI, GitHub CI, staging migration 0047,
+D APK'sı ve sahibin telefon testi yapılmadı. Derleme ve Linux CI betikleri kaydedilmemiş
+değişiklikleri bilinçli olarak dışarıda bırakıyor.
+
+**PM kararları (2026-11-05):** İptal edilen kimliğin yeniden kullanım yasağı kurulum anından
+itibaren 24 saat. İptalden itibaren ayrı bir süre için `cancelled_at` ya da başka yeni metadata
+tutulmayacak; veri minimizasyonu ve gecikmiş isteğin kontrolü yeniden kurmaması korunuyor (ADR 0039
+Ek 1). Yinelenen yoklama kimliği genel domain-red sözleşmesiyle HTTP 200 + `{ refused: 'INVALID' }`
+döner; 500, canlı olay ve push yok (ADR 0040 Ek 1). Böylece iki sözleşme kararı da kapandı.
+
+**Sahibin telefon turu:** Uçak modunda skip/stop → FIRED → bağlantı ve tek geç mesaj; native
+hatırlatıcı settle/signout yarışı; 60 uyarı → `ack` → kalan 10; vault restart sonrası eski `seq`;
+izinsiz kontrolde kalıcı bildirim; Keşif'in blur'da durması ve mod geçişi. Alt seviye Android'de 110
+bin nokta ile 8 ms parça süresi ayrıca ölçülecek.
+
 **APK (2026-10-30): `60563a5`**, paket G: hikaye düzenleyici (PM'in 6 şartıyla), Ö7 "Konum geçmişim" açık, QA-42 düzeltmeleri, fiyat kuralı. Linux CI (1523 test), GitHub CI ve güvenlik yeşil. https://api.46-62-162-70.sslip.io/apk/bargu-60563a5-b0487380353b2082.apk. Sıradaki: PM'in QA-43 turu; sahip düzenleyiciyi gerçek telefonda denemeli (çizim, filtre, ön kamera aynası, dosya boyutu).
 
 **QA-43 (`60563a5`):** Yüksek/Orta yok; Düşük 7 (EXIF yalnız APP1 ve açık başarısızlık, anahtar kaybı, dışa aktarda açık kalır, İzle/abonelik N2'de yok, Yakındayım ifadesi, bildirim yeniden kurulmaz, ölü priceText). Rapor: QA-RAPOR-43-paket-g.md (PM oturumunun notları). Hepsi C APK'sına girer (PM kararları 1–7).

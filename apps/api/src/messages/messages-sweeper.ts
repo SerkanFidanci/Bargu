@@ -67,8 +67,13 @@ export class MessagesSweeper implements OnApplicationBootstrap, OnApplicationShu
     await this.database.db.execute(sql`SELECT app.expire_reports()`);
     // Event roll calls 24 hours after they began, with their answers (docs/ADR/0040).
     await this.database.db.execute(sql`SELECT app.expire_rollcalls()`);
-    // Fired arrival check alerts a day after they fired, seen or not (docs/ADR/0039 §5).
-    await this.database.db.execute(sql`SELECT app.expire_checkins()`);
+    // Fired arrival checks and their setup tombstones, until both have less than a full batch.
+    for (;;) {
+      const result = await this.database.db.execute<{ removed: number }>(
+        sql`SELECT app.expire_checkins() AS removed`,
+      );
+      if ((result.rows[0]?.removed ?? 0) < BATCH) break;
+    }
     await this.watchSpace();
     return total;
   }

@@ -18,11 +18,16 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('expo-router', () => {
-  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  const { createElement, useEffect } = jest.requireActual<typeof import('react')>('react');
   const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
     router: { back: jest.fn(), push: jest.fn() },
     Redirect: ({ href }: { href: string }) => createElement(Text, { testID: 'redirect' }, href),
+    useFocusEffect: (effect: () => (() => void) | undefined) => {
+      useEffect(() => {
+        effect();
+      }, [effect]);
+    },
   };
 });
 // On here, as in package D; off as in this build, a link here leads back (QA-41).
@@ -32,10 +37,29 @@ jest.mock('@/features/history/own/own-flag', () => ({
     return mockFlag.on;
   },
 }));
-// The map and its layer are native; the screen's own parts are what is tested here.
-jest.mock('@/features/map/bargu-map', () => ({
-  BarguMap: ({ children }: { children?: import('react').ReactNode }) => children,
-}));
+// The map and its layer are native; the screen's own parts and camera calls are what is tested here.
+const mockFitTo = jest.fn();
+jest.mock('@/features/map/bargu-map', () => {
+  const { useImperativeHandle } = jest.requireActual<typeof import('react')>('react');
+  return {
+    BarguMap: (props: {
+      children?: import('react').ReactNode;
+      ref?: import('react').Ref<unknown>;
+    }) => {
+      useImperativeHandle(
+        props.ref,
+        () => ({
+          fitTo: mockFitTo,
+          focusOn: () => undefined,
+          placeName: () => Promise.resolve(null),
+          townName: () => Promise.resolve(null),
+        }),
+        [],
+      );
+      return props.children ?? null;
+    },
+  };
+});
 jest.mock('@/features/history/history-layer', () => ({ HistoryLayer: () => null }));
 const mockFog = jest.fn<undefined, [{ type: string; coordinates: unknown[][] }]>();
 jest.mock('@/features/history/explore-layer', () => ({
@@ -131,6 +155,7 @@ import MyHistoryScreen from '@/app/(app)/history/mine';
 import { saveExport } from '@/features/account/export';
 import * as exploreModel from '@/features/history/own/explore-model';
 import { ownTrail } from '@/features/history/own/own-session';
+import { catchUp } from '@/features/location/clock';
 
 const NOW = Date.now();
 const plan = (overrides: Partial<Plan>): Plan => ({
@@ -365,15 +390,43 @@ describe('"Konum geçmişim" (docs/ADR/0030 §4)', () => {
     });
     expect(screen.getByText('Son 30 günde gittiğin yerler')).toBeTruthy();
     expect(screen.getByTestId('mine-explore').props.accessibilityLabel).toBe(
-      'Keşif haritası, Son 30 günde gittiğin yerler',
+      'Keşif haritası, son 30 günde gittiğin yerler açık.',
     );
     expect(screen.queryByText(/\d+ (yer|kare)/)).toBeNull();
     // The map's fog has the walk open in it: the world, with a hole.
     const fog = mockFog.mock.lastCall?.[0];
     expect(fog?.type).toBe('MultiPolygon');
     expect(fog?.coordinates[0]?.length).toBeGreaterThan(1);
+    const fitted = mockFitTo.mock.calls.length;
+    expect(fitted).toBeGreaterThan(0);
+    // QA-45: the 30-second clock redraw has the same Explored object, so it must not refit.
+    const later = Date.now() + 30_000;
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(later);
+    await act(() => {
+      catchUp();
+    });
+    clock.mockRestore();
+    expect(mockFitTo).toHaveBeenCalledTimes(fitted);
     await fireEvent.press(screen.getByText('Gün'));
     expect(await screen.findByTestId('mine-timeline')).toBeTruthy();
+  });
+
+  it('uses the full English discovery-map label for a screen reader', async () => {
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+    try {
+      ownTrail.setSettings({ on: false, keep: 30 });
+      await render(<MyHistoryScreen />);
+      await fireEvent.press(screen.getByText('Discover'));
+      expect(screen.getByTestId('mine-explore').props.accessibilityLabel).toBe(
+        'Discovery map, places you went in the last 30 days are open.',
+      );
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('tr');
+      });
+    }
   });
 
   it("has the circles' history one row away and a note about where it stays", async () => {

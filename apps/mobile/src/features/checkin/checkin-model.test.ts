@@ -6,6 +6,7 @@ import type { KeyValueStore } from '../storage/vault';
 import { whyShown } from '../location/why';
 import {
   alertOf,
+  automaticArrivalEnabled,
   type CheckPlan,
   hasArrived,
   nextDue,
@@ -42,6 +43,13 @@ const fix = (over: Partial<Fix> = {}): Fix => ({
 });
 
 describe('an arrival check on the phone (docs/ADR/0039)', () => {
+  it('promises automatic arrival only after location permission is granted', () => {
+    expect(automaticArrivalEnabled('unknown')).toBe(false);
+    expect(automaticArrivalEnabled('undetermined')).toBe(false);
+    expect(automaticArrivalEnabled('blocked')).toBe(false);
+    expect(automaticArrivalEnabled('granted')).toBe(true);
+  });
+
   it('arrives only with a fresh, sharp position inside the place', () => {
     expect(hasArrived(check, fix(), NOW)).toBe(true);
     // Old, coarse, or 300 m away: not arrived (and never "did not arrive").

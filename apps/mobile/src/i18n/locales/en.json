@@ -1065,7 +1065,9 @@
       "exploreTitle": "Discovery map",
       "exploreBusy": "Getting it ready…",
       "explore30": "Places you went in the last 30 days",
-      "explore365": "Places you went in the last year"
+      "explore365": "Places you went in the last year",
+      "exploreLabel30": "Discovery map, places you went in the last 30 days are open.",
+      "exploreLabel365": "Discovery map, places you went in the last year are open."
     }
   },
   "security": {

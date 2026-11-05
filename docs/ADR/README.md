@@ -44,8 +44,8 @@ ve eskisi "yerini aldı" olarak işaretlenir.
 | [0036](0036-battery-background-location.md)          | Pil: uygulama kapalıyken konum; GPS 30 sn, kapalıyken dakikada bir toplu teslim, bakılınca canlı                               | Kabul edildi (PM, 2026-10-29)                                            |
 | [0037](0037-nearby-invite.md)                        | "Yakındayım, gelir misin?": tek dokunuşluk davet, koordinatsız, mesafeyi alıcı hesaplar                                        | Kabul edildi (PM, 2026-10-29)                                            |
 | [0038](0038-per-person-sharing.md)                   | Kişiye süreli paylaşım ve tek kişiye sessiz dondurma (arkadaşlıklar; gruplar için kapsam PM kararı)                            | Kabul edildi (PM, 2026-10-29)                                            |
-| [0039](0039-sealed-arrival-check.md)                 | Eve vardım kontrolü (mühürlü emanet) ve pil bitmeden son konum: uyarı telefonda şifrelenir, sunucu saatinde iletir             | Kabul edildi (PM, 2026-10-30), PM şartlarıyla                            |
-| [0040](0040-event-roll-call.md)                      | Etkinlik yoklaması "Herkes yerinde mi?": sahip sorar, "Buradayım" konumsuz, 10 dakika                                          | Kabul edildi (PM, 2026-10-30), PM şartlarıyla                            |
+| [0039](0039-sealed-arrival-check.md)                 | Eve vardım kontrolü (mühürlü emanet) ve pil bitmeden son konum: uyarı telefonda şifrelenir, sunucu saatinde iletir             | Kabul edildi (PM, 2026-10-30), PM şartlarıyla; Ek 1 (PM, 2026-11-05)     |
+| [0040](0040-event-roll-call.md)                      | Etkinlik yoklaması "Herkes yerinde mi?": sahip sorar, "Buradayım" konumsuz, 10 dakika                                          | Kabul edildi (PM, 2026-10-30), PM şartlarıyla; Ek 1 (PM, 2026-11-05)     |
 | [0041](0041-app-free-location-link.md)               | Uygulamasız şifreli konum linki: anahtar # kısmında, süreli, tek dokunuşla iptal                                               | Kabul edildi (PM, 2026-10-30), PM şartlarıyla                            |
 
 ## Şablon

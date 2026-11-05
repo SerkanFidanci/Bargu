@@ -134,8 +134,18 @@ describe('an event roll call (docs/ADR/0040)', () => {
     expect(await here(ece, event, id)).toEqual({ refused: 'CLOSED' });
     expect((await current(ece, event))?.closedAt).not.toBeNull();
 
-    // Its id again, here or in another event: a refusal, not a server error (QA-44 Düşük 5).
-    expect(await ask(owner, event, id)).toEqual({ refused: 'INVALID' });
+    // Its id again, here or in another event: the domain refusal is HTTP 200, never a server error
+    // or a new event/push (QA-44 Düşük 5; ADR 0040 Ek 1, PM 2026-11-05).
+    const repeated = await as(test, owner, 'POST', `/v1/circles/${event.id}/rollcalls`, {
+      envelope: item(owner, event, {
+        kind: 'rollcall',
+        id,
+        closesAt: Date.now() + ROLLCALL.openMs,
+        ts: Date.now(),
+      }),
+    });
+    expect(repeated.statusCode).toBe(200);
+    expect(repeated.json<RollcallReply>()).toEqual({ refused: 'INVALID' });
     expect(await ask(owner, await eventWith(ali), id)).toEqual({ refused: 'INVALID' });
   });
 

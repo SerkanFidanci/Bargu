@@ -1065,7 +1065,9 @@
       "exploreTitle": "Keşif haritası",
       "exploreBusy": "Hazırlanıyor…",
       "explore30": "Son 30 günde gittiğin yerler",
-      "explore365": "Son 1 yılda gittiğin yerler"
+      "explore365": "Son 1 yılda gittiğin yerler",
+      "exploreLabel30": "Keşif haritası, son 30 günde gittiğin yerler açık.",
+      "exploreLabel365": "Keşif haritası, son 1 yılda gittiğin yerler açık."
     }
   },
   "security": {

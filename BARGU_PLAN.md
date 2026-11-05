@@ -707,8 +707,8 @@ Kurallar:
     1. Hayalette pil düşünce emanet de hemen yenilenir.
     2. "Çemberlerin seni görmez" yazısı yalnız hayaletteyken çıkar.
     3. Bekleyen iptal açılışta da denenir. Çıkış yaparken önce açık kontroller iptal edilir. İnternet yoksa kişiye "Açık bir eve vardım kontrolün var; çıkarsan uyarı gidebilir" diye sorulur.
-    4. Günlük 10 sınırı kurulumları sayar, açık kontrolleri değil. İptal edilen kimlik 24 saat yeniden kullanılamaz; yalnız kimlik tutulur, içerik tutulmaz.
-    5. Aynı kimlikle yoklama başlatılırsa 500 değil, 4xx döner.
+    4. Günlük 10 sınırı kurulumları sayar, açık kontrolleri değil. İptal edilen kimlik, kurulum anından itibaren 24 saat yeniden kullanılamaz; yalnız kimlik, sahip ve kurulum anı tutulur, iptal anı ya da içerik tutulmaz (PM, 2026-11-05).
+    5. Aynı kimlikle yoklama başlatılırsa 500 değil, genel domain-red sözleşmesiyle HTTP 200 + `{ refused: 'INVALID' }` döner; canlı olay ve push yok (PM, 2026-11-05).
     6. Eski uygulamalı üyenin "cevap vermedi" görünmesi kabul edilen sapmadır.
     7. Klavye: lint kuralı Platform.select biçimini de yakalar; durum yazma çekmecesi ve hikaye yazı katmanı düzelir.
     8. "İyi misin?" bildirimi birkaç dakika gecikebilir. Yeni izin yok; sahip telefonda ölçer. Gecikme 3 dakikayı aşarsa bildirim, kişiye en az 5 dakika kalacak kadar erkene alınır.
@@ -731,6 +731,14 @@ Kurallar:
 - Güvenlik notu (2026-10-29): `pnpm audit` decode-uri-component'te yüksek bir DoS bulgusu verdi (GHSA-qr28-fpjm-wq7f; expo-router > query-string 7).
   - Gerekçeli istisna `1d270a1`'de. Kötü niyetli bir bağlantı uygulamayı dondurabilir; veri gitmez.
   - PM şartı: istisna Expo SDK 58'e ya da en geç 2026-12-31'e kadar geçerli. Mümkünse bağlantılar yönlendirilmeden önce uzunluk ve biçim kontrolünden geçer.
+
+- **QA-45 ön turu (2026-11-04):** Backend, mobil/frontend ve güvenlik oturumlarında bulunan
+  idempotency, hesap/async yarışı, alıcı replay/sayfalama ve keşif iptal/köşe sınırı bulguları
+  düzeltildi; hedefli bağımsız kapanış incelemelerinde bloklayıcı kalmadı. Mobil 1622, API 177 birim
+  ve 382 entegrasyon, crypto 286 + 1, şema 126 test geçti. Ayrıntı ve cihaz turu `docs/DURUM.md`'de.
+  Kod henüz çalışma ağacında; Linux CI, GitHub CI, staging migration 0047 ve D APK'sı commit sonrası.
+  PM, 2026-11-05: kimlik yasağı kurulum anından 24 saat; yinelenen yoklama HTTP 200 + kontrollü
+  `INVALID` (ADR 0039/0040 Ek 1). İki sözleşme de böylece kapandı.
 
 **Paket E: dışarıya açılan**
 - Ö9 uygulamasız şifreli konum linki (Faz 11'den). Yeni ADR ve THREAT_MODEL gerekir.

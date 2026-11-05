@@ -1,6 +1,7 @@
 import { CHECKIN, type ChatPayload } from '@bargu/schemas';
 
 import { distanceM, type Fix } from '../location/send';
+import type { LocationPermission } from '../location/tracker';
 
 /**
  * "Eve vardım kontrolü" on this phone (docs/ADR/0039): the rules that need no network, kept apart
@@ -89,6 +90,11 @@ export const ARRIVAL = {
   pointRadiusM: 150,
 } as const;
 
+/** Unknown permission is not consent to promise automatic arrival; only granted can do it. */
+export function automaticArrivalEnabled(permission: LocationPermission): boolean {
+  return permission === 'granted';
+}
+
 export const REFRESH = { movingMs: 5 * 60_000, stillMs: 15 * 60_000 } as const;
 /** When the alert is said to be early: before its time by more than this (two clocks differ). */
 export const EARLY_SLACK_MS = 2 * 60_000;
@@ -166,11 +172,37 @@ export function nextDue(plan: CheckPlan, now: number): number | null {
   return null;
 }
 
+/** A verified "Vardı" line, kept for late alerts of this owner and check only (ADR 0039 §10). */
+export interface ArrivedCheck {
+  ownerId: string;
+  checkinId: string;
+  receivedAt: number;
+}
+
+export const ARRIVED_FOR_MS = 48 * 3_600_000;
+
+export function pruneArrived(arrived: readonly ArrivedCheck[], now: number): ArrivedCheck[] {
+  return arrived.filter((each) => now - each.receivedAt < ARRIVED_FOR_MS);
+}
+
+export function arrivedBefore(
+  arrived: readonly ArrivedCheck[],
+  ownerId: string,
+  checkinId: string,
+  now: number,
+): boolean {
+  return pruneArrived(arrived, now).some(
+    (each) => each.ownerId === ownerId && each.checkinId === checkinId,
+  );
+}
+
 /** A recipient's view of an alert they opened. */
 export interface ReceivedAlert {
   checkinId: string;
   ownerId: string;
   firedAt: number;
+  /** The sealed payload's revision: an older replay never replaces a newer opened box. */
+  seq: number;
   due: number;
   grace: Grace;
   place: { name: string; emoji: string } | null;
@@ -182,6 +214,33 @@ export interface ReceivedAlert {
   early: boolean;
 }
 
+/** Highest opened payload revision, retained even after the alert leaves the visible inbox. */
+export interface AlertRevision {
+  ownerId: string;
+  checkinId: string;
+  seq: number;
+  /** The same end of life as the sealed box: due + grace + 24 hours. */
+  validUntil: number;
+}
+
+const ALERT_AFTER_OPEN_MS = 24 * 3_600_000;
+
+export function alertRevisionOf(alert: ReceivedAlert): AlertRevision {
+  return {
+    ownerId: alert.ownerId,
+    checkinId: alert.checkinId,
+    seq: alert.seq,
+    validUntil: openAtOf(alert.due, alert.grace) + ALERT_AFTER_OPEN_MS,
+  };
+}
+
+export function pruneAlertRevisions(
+  revisions: readonly AlertRevision[],
+  now: number,
+): AlertRevision[] {
+  return revisions.filter((each) => each.validUntil > now);
+}
+
 export function receivedOf(
   opened: Extract<ChatPayload, { kind: 'checkin' }>,
   meta: { checkinId: string; ownerId: string; firedAt: number },
@@ -189,6 +248,7 @@ export function receivedOf(
 ): ReceivedAlert {
   return {
     ...meta,
+    seq: opened.seq,
     due: opened.due,
     grace: opened.grace,
     place: opened.place,
@@ -198,6 +258,18 @@ export function receivedOf(
     ...(opened.note === undefined ? {} : { note: opened.note }),
     early: now < openAtOf(opened.due, opened.grace) - EARLY_SLACK_MS,
   };
+}
+
+/** Newer revisions win; an equal revision is already known and is never replaced by a replay. */
+export function mergeReceivedAlerts(
+  previous: readonly ReceivedAlert[],
+  opened: readonly ReceivedAlert[],
+): ReceivedAlert[] {
+  const kept = new Map(previous.map((alert) => [`${alert.ownerId}:${alert.checkinId}`, alert]));
+  return opened.map((alert) => {
+    const before = kept.get(`${alert.ownerId}:${alert.checkinId}`);
+    return before !== undefined && before.seq >= alert.seq ? before : alert;
+  });
 }
 
 /** How long ago, in whole minutes, the last location was (on this phone's clock). */

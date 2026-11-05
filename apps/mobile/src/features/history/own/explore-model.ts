@@ -11,7 +11,7 @@ import { SEGMENTS, type TracePoint } from '../trail-model';
 export const EXPLORE = {
   /** Web Mercator tiles of this zoom are the squares: about 230 m a side in Türkiye. */
   zoom: 17,
-  /** The coarsest the squares get for a very scattered year (about 7 km). */
+  /** A coarse year often reaches this zoom, but it is not a floor: the corner budget wins. */
   minZoom: 12,
   /** A point vaguer than this opens no square (a coarse trail would open the wrong ones). */
   maxAccM: 250,
@@ -31,6 +31,7 @@ const tilesAt = (zoom: number) => 2 ** zoom;
  * below, it pauses only when `sliceMs` has passed since the last pause.
  */
 export type Breath = () => Promise<void>;
+type Cancelled = () => boolean;
 
 export function slicer(
   sliceMs: number = EXPLORE.sliceMs,
@@ -52,6 +53,42 @@ export function slicer(
 const STEP = 256;
 /** The same for a day's points, each of which may open a line of squares. */
 const DAY_STEP = 32;
+
+class ExploreCancelled extends Error {
+  constructor() {
+    super('Discovery map work cancelled');
+  }
+}
+
+/** Cooperative work: cancellation is cheap to check; the clock is read only once a slice. */
+class Work {
+  private steps = 0;
+
+  constructor(
+    private readonly breath: Breath,
+    private readonly cancelled: Cancelled,
+  ) {}
+
+  check(): void {
+    if (this.cancelled()) throw new ExploreCancelled();
+  }
+
+  /** Whether this operation completes a slice. Every loop calls this, including nested ones. */
+  tick(): boolean {
+    this.check();
+    this.steps += 1;
+    return this.steps % STEP === 0;
+  }
+
+  async pause(): Promise<void> {
+    this.check();
+    await this.breath();
+    // A blur while the thread is free must stop the next slice, not resume old work.
+    this.check();
+  }
+}
+
+const notCancelled: Cancelled = () => false;
 
 /** The square a place falls in, as one number (x · 2^zoom + y). */
 export function cellOf(lat: number, lng: number, zoom: number = EXPLORE.zoom): number {
@@ -117,16 +154,18 @@ export async function coarser(
   cells: ReadonlySet<number>,
   zoom: number,
   breath: Breath = noBreath,
+  cancelled: Cancelled = notCancelled,
 ): Promise<Set<number>> {
+  const work = new Work(breath, cancelled);
   const tiles = tilesAt(zoom);
   const next = new Set<number>();
-  let step = 0;
   for (const cell of cells) {
     const x = Math.floor(cell / tiles);
     const y = cell % tiles;
     next.add(Math.floor(x / 2) * (tiles / 2) + Math.floor(y / 2));
-    if (++step % STEP === 0) await breath();
+    if (work.tick()) await work.pause();
   }
+  work.check();
   return next;
 }
 
@@ -141,13 +180,14 @@ export async function cornersOf(
   cells: ReadonlySet<number>,
   zoom: number,
   breath: Breath = noBreath,
+  cancelled: Cancelled = notCancelled,
 ): Promise<number> {
+  const work = new Work(breath, cancelled);
   const tiles = tilesAt(zoom);
   const has = (x: number, y: number) =>
     x >= 0 && y >= 0 && x < tiles && y < tiles && cells.has(x * tiles + y);
   const seen = new Set<number>();
   let corners = 0;
-  let step = 0;
   for (const cell of cells) {
     const cx = Math.floor(cell / tiles);
     const cy = cell % tiles;
@@ -168,8 +208,9 @@ export async function cornersOf(
       if (count === 1 || count === 3) corners += 1;
       else if (count === 2 && nw === se) corners += 2;
     }
-    if (++step % STEP === 0) await breath();
+    if (work.tick()) await work.pause();
   }
+  work.check();
   // The world's own four.
   return corners + 4;
 }
@@ -181,7 +222,9 @@ export async function outlines(
   cells: ReadonlySet<number>,
   zoom: number = EXPLORE.zoom,
   breath: Breath = noBreath,
+  cancelled: Cancelled = notCancelled,
 ): Promise<Vertex[][]> {
+  const work = new Work(breath, cancelled);
   const tiles = tilesAt(zoom);
   const has = (x: number, y: number) =>
     x >= 0 && y >= 0 && x < tiles && y < tiles && cells.has(x * tiles + y);
@@ -193,7 +236,6 @@ export async function outlines(
     list.push(to);
     out.set(key(from[0], from[1]), list);
   };
-  let step = 0;
   for (const cell of cells) {
     const x = Math.floor(cell / tiles);
     const y = cell % tiles;
@@ -201,7 +243,7 @@ export async function outlines(
     if (!has(x + 1, y)) edge([x + 1, y], [x + 1, y + 1]);
     if (!has(x, y + 1)) edge([x + 1, y + 1], [x, y + 1]);
     if (!has(x - 1, y)) edge([x, y + 1], [x, y]);
-    if (++step % STEP === 0) await breath();
+    if (work.tick()) await work.pause();
   }
   const rings: Vertex[][] = [];
   for (const [startKey, starts] of out) {
@@ -220,11 +262,12 @@ export async function outlines(
         const right = next.findIndex(([vx, vy]) => vx - tx === -dy && vy - ty === dx);
         [to] = next.splice(right >= 0 ? right : next.length - 1, 1);
         from = [tx, ty];
-        if (++step % STEP === 0) await breath();
+        if (work.tick()) await work.pause();
       }
-      rings.push(straighten(ring));
+      rings.push(await straighten(ring, work));
     }
   }
+  work.check();
   return rings;
 }
 
@@ -233,33 +276,46 @@ function corner(ring: readonly Vertex[], index: number): Vertex {
   return ring[((index % ring.length) + ring.length) % ring.length] ?? [0, 0];
 }
 
-/** Drops the corners in the middle of straight runs. */
-function straighten(ring: readonly Vertex[]): Vertex[] {
-  return ring.filter((point, index) => {
+/** Drops the corners in the middle of straight runs, without holding the thread for a long ring. */
+async function straighten(ring: readonly Vertex[], work: Work): Promise<Vertex[]> {
+  const result: Vertex[] = [];
+  for (const [index, point] of ring.entries()) {
     const prev = corner(ring, index - 1);
     const next = corner(ring, index + 1);
-    return (
-      (point[0] - prev[0]) * (next[1] - point[1]) !== (point[1] - prev[1]) * (next[0] - point[0])
-    );
-  });
+    if (
+      (point[0] - prev[0]) * (next[1] - point[1]) !==
+      (point[1] - prev[1]) * (next[0] - point[0])
+    ) {
+      result.push(point);
+    }
+    if (work.tick()) await work.pause();
+  }
+  return result;
 }
 
 /** Twice the signed area on screen: above zero for a clockwise ring (a region's outer edge). */
-function area2(ring: readonly Vertex[]): number {
+async function area2(ring: readonly Vertex[], work: Work): Promise<number> {
   let sum = 0;
   for (const [index, [x, y]] of ring.entries()) {
     const [nx, ny] = corner(ring, index + 1);
     sum += x * ny - nx * y;
+    if (work.tick()) await work.pause();
   }
   return sum;
 }
 
 /** Whether a point (not on any corner's row) is inside a ring: a ray to the east. */
-function inside(px: number, py: number, ring: readonly Vertex[]): boolean {
+async function inside(
+  px: number,
+  py: number,
+  ring: readonly Vertex[],
+  work: Work,
+): Promise<boolean> {
   let hit = false;
   for (const [index, [x1, y1]] of ring.entries()) {
     const [x2, y2] = corner(ring, index + 1);
     if (y1 > py !== y2 > py && px < x1 + ((py - y1) * (x2 - x1)) / (y2 - y1)) hit = !hit;
+    if (work.tick()) await work.pause();
   }
   return hit;
 }
@@ -274,13 +330,17 @@ function pointIn(ring: readonly Vertex[]): [number, number] {
 }
 
 /** A ring's box, to skip the rings a point cannot be in. */
-function boxOf(ring: readonly Vertex[]): [number, number, number, number] {
+async function boxOf(
+  ring: readonly Vertex[],
+  work: Work,
+): Promise<[number, number, number, number]> {
   let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
   for (const [x, y] of ring) {
     minX = Math.min(minX, x);
     minY = Math.min(minY, y);
     maxX = Math.max(maxX, x);
     maxY = Math.max(maxY, y);
+    if (work.tick()) await work.pause();
   }
   return [minX, minY, maxX, maxY];
 }
@@ -292,8 +352,16 @@ function toLngLat([x, y]: Vertex, zoom: number): [number, number] {
   return [lng, lat];
 }
 
-function closed(ring: readonly Vertex[], zoom: number): [number, number][] {
-  const points = ring.map((vertex) => toLngLat(vertex, zoom));
+async function closed(
+  ring: readonly Vertex[],
+  zoom: number,
+  work: Work,
+): Promise<[number, number][]> {
+  const points: [number, number][] = [];
+  for (const vertex of ring) {
+    points.push(toLngLat(vertex, zoom));
+    if (work.tick()) await work.pause();
+  }
   const first = points[0];
   return first === undefined ? [] : [...points, first];
 }
@@ -312,11 +380,18 @@ export async function fogOf(
   cells: ReadonlySet<number>,
   zoom: number = EXPLORE.zoom,
   breath: Breath = noBreath,
+  cancelled: Cancelled = notCancelled,
 ): Promise<Fog> {
+  const work = new Work(breath, cancelled);
   const tiles = tilesAt(zoom);
-  const rings = await outlines(cells, zoom, breath);
-  const regions = rings.filter((ring) => area2(ring) > 0);
-  const holes = rings.filter((ring) => area2(ring) < 0);
+  const rings = await outlines(cells, zoom, breath, cancelled);
+  const regions: Vertex[][] = [];
+  const holes: Vertex[][] = [];
+  for (const ring of rings) {
+    const area = await area2(ring, work);
+    if (area > 0) regions.push(ring);
+    else if (area < 0) holes.push(ring);
+  }
   // Tile rows run south, so a ring clockwise on screen is clockwise on the globe too: region
   // edges are already holes and holes in regions already outer rings; the world goes the other way.
   const world: Vertex[] = [
@@ -328,33 +403,39 @@ export async function fogOf(
   // The fog's outer rings: the world, and every hole in a region. Each region sits in the
   // smallest of them around it.
   const outers = [world, ...holes];
-  const boxes = outers.map(boxOf);
-  const sizes = outers.map((ring) => Math.abs(area2(ring)));
-  const within = outers.map(() => [] as Vertex[][]);
-  let step = 0;
+  const boxes: [number, number, number, number][] = [];
+  const sizes: number[] = [];
+  const within: Vertex[][][] = [];
+  for (const outer of outers) {
+    boxes.push(await boxOf(outer, work));
+    sizes.push(Math.abs(await area2(outer, work)));
+    within.push([]);
+  }
   for (const region of regions) {
     const [px, py] = pointIn(region);
     let best = 0;
     let bestArea = Infinity;
     for (let index = 1; index < outers.length; index += 1) {
+      if (work.tick()) await work.pause();
       const [minX, minY, maxX, maxY] = boxes[index] ?? [0, 0, 0, 0];
       const size = sizes[index] ?? Infinity;
       if (px < minX || px > maxX || py < minY || py > maxY || size >= bestArea) continue;
-      if (inside(px, py, outers[index] ?? [])) {
+      if (await inside(px, py, outers[index] ?? [], work)) {
         best = index;
         bestArea = size;
       }
     }
     within[best]?.push(region);
-    if (++step % STEP === 0) await breath();
+    if (work.tick()) await work.pause();
   }
-  return {
-    type: 'MultiPolygon',
-    coordinates: outers.map((outer, index) => [
-      closed(outer, zoom),
-      ...(within[index] ?? []).map((ring) => closed(ring, zoom)),
-    ]),
-  };
+  const coordinates: [number, number][][][] = [];
+  for (const [index, outer] of outers.entries()) {
+    const polygon = [await closed(outer, zoom, work)];
+    for (const ring of within[index] ?? []) polygon.push(await closed(ring, zoom, work));
+    coordinates.push(polygon);
+  }
+  work.check();
+  return { type: 'MultiPolygon', coordinates };
 }
 
 /** The area the visited squares cover, for the camera: [west, south, east, north]. */
@@ -395,25 +476,34 @@ export async function explore(
   breath: Breath,
   cancelled: () => boolean,
 ): Promise<Explored | null> {
-  let cells = new Set<number>();
-  for (const day of days) {
-    if (cancelled()) return null;
-    const walk = dayWalker(cells, EXPLORE.zoom);
-    const points = [...read(day)].sort((a, b) => a.at - b.at);
-    // A breath inside the day too: a long day of joined lines is much work on a slow phone.
-    for (const [index, point] of points.entries()) {
-      walk(point);
-      if (index % DAY_STEP === DAY_STEP - 1) await breath();
+  const work = new Work(breath, cancelled);
+  try {
+    let cells = new Set<number>();
+    for (const day of days) {
+      work.check();
+      const walk = dayWalker(cells, EXPLORE.zoom);
+      const points = [...read(day)].sort((a, b) => a.at - b.at);
+      work.check();
+      // A breath inside the day too: a long day of joined lines is much work on a slow phone.
+      for (const [index, point] of points.entries()) {
+        work.check();
+        walk(point);
+        if (index % DAY_STEP === DAY_STEP - 1) await work.pause();
+      }
+      await work.pause();
     }
-    await breath();
+    let zoom: number = EXPLORE.zoom;
+    // minZoom is not a stop: even there, too many corners means another coarsening.
+    while ((await cornersOf(cells, zoom, breath, cancelled)) > EXPLORE.maxCorners) {
+      cells = await coarser(cells, zoom, breath, cancelled);
+      zoom -= 1;
+    }
+    const fog = await fogOf(cells, zoom, breath, cancelled);
+    const bounds = boundsOfCells(cells, zoom);
+    work.check();
+    return { fog, bounds, zoom };
+  } catch (error) {
+    if (error instanceof ExploreCancelled) return null;
+    throw error;
   }
-  let zoom: number = EXPLORE.zoom;
-  while (zoom > EXPLORE.minZoom && (await cornersOf(cells, zoom, breath)) > EXPLORE.maxCorners) {
-    if (cancelled()) return null;
-    cells = await coarser(cells, zoom, breath);
-    zoom -= 1;
-  }
-  if (cancelled()) return null;
-  const fog = await fogOf(cells, zoom, breath);
-  return cancelled() ? null : { fog, bounds: boundsOfCells(cells, zoom), zoom };
 }

@@ -11,6 +11,7 @@ import {
 import { z } from 'zod';
 import { create } from 'zustand';
 
+import { announceCheckinOk } from '../checkin/checkin-events';
 import type { KeyValueStore } from '../storage/vault';
 
 /**
@@ -302,6 +303,7 @@ export function applyPayload<T extends Saved>(
     return { ...saved, seen };
   }
   if (payload.kind === 'checkinSet' || payload.kind === 'checkinOk') {
+    const fresh = saved.seen[payload.id] === undefined;
     const line: ChatItem = {
       id: payload.id,
       conversation,
@@ -319,7 +321,11 @@ export function applyPayload<T extends Saved>(
           : { checkinId: payload.checkinId, late: payload.late },
       ...(envelope === undefined ? {} : { envelope }),
     };
-    return { ...withItem(saved, line), seen };
+    const next = { ...withItem(saved, line), seen };
+    if (fresh && payload.kind === 'checkinOk') {
+      announceCheckinOk({ ownerId: from, checkinId: payload.checkinId });
+    }
+    return next;
   }
   const item: ChatItem = {
     id: payload.id,

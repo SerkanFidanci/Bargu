@@ -6,7 +6,11 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/features/auth/auth-store';
-import type { CheckPlace, Grace } from '@/features/checkin/checkin-model';
+import {
+  automaticArrivalEnabled,
+  type CheckPlace,
+  type Grace,
+} from '@/features/checkin/checkin-model';
 import { type CheckinResult, startCheck, startPlan } from '@/features/checkin/checkin-session';
 import { Emergency } from '@/features/checkin/emergency';
 import { memberName } from '@/features/circles/names';
@@ -65,9 +69,8 @@ export default function NewCheckScreen() {
   const [note, setNote] = useState('');
   const [repeat, setRepeat] = useState(false);
   const [busy, setBusy] = useState(false);
-  const located = useLocationPermission(
-    (state) => state.state !== 'blocked' && state.state !== 'undetermined',
-  );
+  // Unknown is not granted: until the native check finishes, promise manual arrival only.
+  const located = useLocationPermission((state) => automaticArrivalEnabled(state.state));
 
   // Everyone in a circle with the user, once; the ones whose app can be reached (a device).
   const people = useMemo(() => {

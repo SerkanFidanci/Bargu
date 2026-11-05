@@ -6,6 +6,21 @@ Ana referans: [BARGU_PLAN.md](BARGU_PLAN.md). Fazları sırayla uygula; mimari, 
 
 Güncel durum, açık riskler ve tarihli takip işleri: [docs/DURUM.md](docs/DURUM.md) — her faz sonunda güncelle.
 
+## Kalıcı çalışma düzeni (sahip, 2026-11-05)
+
+- **PM rolü ana Kimi oturumunda.** Ürün sırası, kapsam, QA kabulü ve sözleşme netleştirmeleri PM'de;
+  kod veya güvenlik bulgusu kanıt ve regresyon testi olmadan kapanmış sayılmaz. Yayın, dağıtım ve dış
+  sistem etkisi olan işlemlerde sahibin açık onayı ayrıca gerekir.
+- Backend, mobil/frontend ve güvenlik için **aynı kalıcı uzman oturumları** kullanılır. Yeni ve bağımsız
+  işlerde mevcut oturum yeniden açılmak yerine `resume` edilir; yeni oturum yalnız gerçekten yeni bir
+  uzmanlık veya bağımsız inceleme gerekirse açılır.
+- Her çalışma başlangıcında `git status`, bu dosya, `BARGU_PLAN.md` ve `docs/DURUM.md` okunur. Güncel
+  iş ve kararlar DURUM'dan alınır; tarihli taramalar ancak güncel kodda yeniden doğrulanınca bulgu olur.
+- Kod yazan oturumlar yalnız kendi kapsamındaki dosyaları değiştirir; aynı dosyada iki oturum paralel
+  çalışmaz. Salt okunur QA oturumları kod değiştirmez. PM, bulguları önceliklendirip kabulü koordine eder.
+- Her işin sonunda değişiklikler, test sonuçları ve kalan riskler DURUM'a; kalıcı mimari/sözleşme
+  kararları ilgili ADR'ye yazılır. Böylece oturum belleği kaybolsa bile proje kaldığı yerden sürdürülür.
+
 ## Kurallar (BARGU_PLAN.md Bölüm 6)
 
 - Sunucuya **ASLA** düz koordinat gitmez. Her konum `packages/crypto` üzerinden şifrelenir.

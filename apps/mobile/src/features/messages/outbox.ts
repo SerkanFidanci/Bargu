@@ -216,6 +216,17 @@ function reachOf(conversation: Conversation, circles: readonly Circle[], me: str
 async function sendItem(item: ChatItem): Promise<SendResult> {
   const payload = payloadOf(item);
   if (payload === null) return 'failed';
+  const auth = useAuth.getState();
+  const session = { userId: auth.userId, deviceId: auth.device?.deviceId ?? null };
+  const stillCurrent = () => {
+    const current = useAuth.getState();
+    return (
+      current.userId === session.userId && (current.device?.deviceId ?? null) === session.deviceId
+    );
+  };
+  if (session.userId === null || session.deviceId === null || item.from !== session.userId) {
+    return 'failed';
+  }
   const reached =
     item.photo?.story === true ? reachOf(item.conversation, cachedCircles(), item.from) : [];
   useMessages.setState((state) =>
@@ -228,7 +239,9 @@ async function sendItem(item: ChatItem): Promise<SendResult> {
     ),
   );
   const uploaded = payload.kind === 'photo' ? await upload(payload.blobId) : 'sent';
+  if (!stillCurrent()) return 'failed';
   const result = uploaded === 'sent' ? await deliver(item.conversation, payload) : uploaded;
+  if (!stillCurrent()) return 'failed';
   useMessages.setState((state) => withState(state, item.id, result === 'sent' ? 'sent' : 'failed'));
   return result;
 }

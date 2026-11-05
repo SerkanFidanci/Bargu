@@ -11,18 +11,23 @@ import {
   CLIENT_LEVEL_FOR,
   directEnvelopeSchema,
 } from '@bargu/schemas';
-import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { PgBoss } from 'pg-boss';
 
 import type { AuthContext } from '../auth/request-context.js';
 import { ApiError, HTTP_UPGRADE_REQUIRED } from '../common/api-error.js';
 import { checkinBoxes, checkins } from '../db/schema.js';
+import { isUniqueViolation } from '../devices/device-registry.js';
 import { DatabaseService, type Tx } from '../infra/database/database.service.js';
 import { QUEUES } from '../jobs/queues.js';
 import { JOB_QUEUE } from '../jobs/tokens.js';
 
 /** As Postgres reads an interval. */
 const seconds = (ms: number) => `${String(Math.round(ms / 1000))} seconds`;
+/** The response schema holds at most one inbox page. */
+const INBOX_SIZE = 50;
+
+type CreateOutcome = { result: 'ok'; openAt: number } | { result: CheckinRefusal };
 
 /**
  * Arrival checks, the sealed escrow (docs/ADR/0039 §5). The server keeps one sealed alert per
@@ -53,17 +58,33 @@ export class CheckinsService {
     boxes: readonly CheckinBox[],
   ): Promise<CheckinReply> {
     if (!this.signed(auth, boxes)) return { refused: 'INVALID' };
-    const result = await this.database.asUser(auth.userId, (tx) =>
-      this.call(
-        tx,
-        sql`SELECT app.create_checkin(${id}::uuid, ${new Date(openAt).toISOString()}::timestamptz,
-              ${seconds(CHECKIN.minAheadMs)}::interval, ${seconds(CHECKIN.maxAheadMs)}::interval,
-              ${CHECKIN_LIMITS.maxActive}::integer, ${CHECKIN_LIMITS.perDay}::integer,
-              ${CHECKIN.maxRecipients}::integer, ${JSON.stringify(boxes)}::jsonb) AS result`,
-      ),
-    );
-    if (result !== 'ok') return { refused: result };
-    await this.schedule(id, openAt);
+    let outcome: CreateOutcome;
+    try {
+      outcome = await this.database.asUser(auth.userId, async (tx): Promise<CreateOutcome> => {
+        const result = await this.call(
+          tx,
+          sql`SELECT app.create_checkin(${id}::uuid, ${new Date(openAt).toISOString()}::timestamptz,
+                ${seconds(CHECKIN.minAheadMs)}::interval, ${seconds(CHECKIN.maxAheadMs)}::interval,
+                ${CHECKIN_LIMITS.maxActive}::integer, ${CHECKIN_LIMITS.perDay}::integer,
+                ${CHECKIN.maxRecipients}::integer, ${JSON.stringify(boxes)}::jsonb) AS result`,
+        );
+        if (result !== 'ok') return { result };
+        // A retry keeps the row's original time, not the possibly different time in its request.
+        const [row] = await tx
+          .select({ openAt: checkins.openAt })
+          .from(checkins)
+          .where(and(eq(checkins.id, id), eq(checkins.ownerId, auth.userId)))
+          .limit(1);
+        if (row === undefined) throw new Error('create_checkin returned ok without its row');
+        return { result, openAt: row.openAt.getTime() };
+      });
+    } catch (error) {
+      // Another owner can win the insert of this globally unique id between the check and insert.
+      if (isUniqueViolation(error)) return { refused: 'INVALID' };
+      throw error;
+    }
+    if (outcome.result !== 'ok') return { refused: outcome.result };
+    await this.schedule(id, outcome.openAt);
     return { ok: true };
   }
 
@@ -150,7 +171,8 @@ export class CheckinsService {
         .from(checkinBoxes)
         .innerJoin(checkins, eq(checkins.id, checkinBoxes.checkinId))
         .where(and(eq(checkinBoxes.recipientId, auth.userId), isNotNull(checkins.firedAt)))
-        .orderBy(asc(checkins.firedAt));
+        .orderBy(desc(checkins.firedAt), desc(checkins.id))
+        .limit(INBOX_SIZE);
       return {
         alerts: rows.flatMap((row) => {
           const box = directEnvelopeSchema.safeParse(row.box);

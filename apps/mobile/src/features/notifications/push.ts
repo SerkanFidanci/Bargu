@@ -32,16 +32,38 @@ export type PushState = 'unknown' | 'undetermined' | 'enabled' | 'denied' | 'una
 
 export const usePushState = create<{ state: PushState }>(() => ({ state: 'unknown' }));
 
-// While the app is open, in-app notices tell what happened: no system banner on top of them.
+function ownChecksNotice(notification: Notifications.Notification): boolean {
+  const data: unknown = notification.request.content.data;
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    (data as Record<string, unknown>).route === 'ownChecks'
+  );
+}
+
+// While the app is open, in-app notices tell what happened: no system banner on top of them. The
+// persistent own-check notice stays in the list because there is no location-service notice then.
 Notifications.setNotificationHandler({
-  handleNotification: () =>
+  handleNotification: (notification) =>
     Promise.resolve({
       shouldShowBanner: false,
-      shouldShowList: false,
+      shouldShowList: ownChecksNotice(notification),
       shouldPlaySound: false,
       shouldSetBadge: false,
     }),
 });
+
+/** Foreground clears transient notices as before, never the persistent own-check warning. */
+export async function dismissTransientNotifications(): Promise<void> {
+  const presented = await Notifications.getPresentedNotificationsAsync();
+  await Promise.all(
+    presented
+      .filter((notification) => !ownChecksNotice(notification))
+      .map((notification) =>
+        Notifications.dismissNotificationAsync(notification.request.identifier),
+      ),
+  );
+}
 
 export interface PushRegistration {
   /** Sends the phone's push token to the server (signed request). */

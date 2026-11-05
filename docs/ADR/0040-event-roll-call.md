@@ -187,3 +187,11 @@ Ayrıca:
   saklayabilir ama uyduramaz.
 - Bildirim tıklanınca etkinliğin ekranı açılır; "Buradayım" düğmesi uygulamayı açar ve cevaplar.
   Çemberin sohbeti sessize alındıysa bildirim de susar.
+
+## Ek 1 — Yinelenen kimlik cevabı (PM, 2026-11-05)
+
+Aynı yoklama kimliğiyle aynı ya da başka etkinlikte yeniden kurulum, **HTTP 200 ve
+`{ refused: 'INVALID' }`** döndüren kontrollü bir domain reddidir. HTTP 500 değildir; canlı olay ve
+push gönderilmez. Bu, API'nin öteki iş kurallarında kullandığı cevap sözleşmesini korur ve mobilin
+mevcut `RollcallReply` ayrıştırmasını değiştirmez. Entegrasyon testi hem durum kodunu hem cevabı
+sabitler.

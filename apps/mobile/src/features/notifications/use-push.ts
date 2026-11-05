@@ -29,6 +29,7 @@ import {
 } from './channels';
 import {
   circleOfResponse,
+  dismissTransientNotifications,
   enablePush,
   nearReplyOfResponse,
   pokeOfResponse,
@@ -177,9 +178,9 @@ export function usePushNotifications(ready: boolean): void {
       open(launch);
       Notifications.clearLastNotificationResponse();
     }
-    void Notifications.dismissAllNotificationsAsync();
+    void dismissTransientNotifications();
     const foreground = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void Notifications.dismissAllNotificationsAsync();
+      if (state === 'active') void dismissTransientNotifications();
     });
     return () => {
       tokens.remove();

@@ -34,7 +34,9 @@ export default function CheckinScreen() {
   const { t, i18n } = useTranslation();
   const checks = useOwnChecks((state) => state.checks);
   const plans = useOwnChecks((state) => state.plans);
-  const alerts = useAlerts((state) => state.alerts.length + state.unreadable.length);
+  const alerts = useAlerts(
+    (state) => state.alerts.length + state.unreadable.length + state.resolved.length,
+  );
   const [busy, setBusy] = useState<string | null>(null);
   const open = checks.filter((check) => check.state !== 'done');
 

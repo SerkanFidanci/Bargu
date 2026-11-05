@@ -1,6 +1,7 @@
 import { randomUuid } from '@bargu/crypto';
 import { CHAT_LIFETIME_MS, type ChatReaction } from '@bargu/schemas';
 
+import { onCheckinOk } from '../checkin/checkin-events';
 import type { KeyValueStore } from '../storage/vault';
 import {
   applyPayload,
@@ -192,6 +193,26 @@ describe('items', () => {
 });
 
 describe('what an opened item does', () => {
+  it('announces a verified checkinOk once with its owner and check id', () => {
+    const events: { ownerId: string; checkinId: string }[] = [];
+    const stop = onCheckinOk((event) => events.push(event));
+    const payload = {
+      kind: 'checkinOk' as const,
+      id: randomUuid(),
+      checkinId: randomUuid(),
+      late: true,
+      ts: NOW,
+    };
+    try {
+      const first = applyPayload(EMPTY_MESSAGES, payload, ALI, withAli, undefined);
+      const replayed = applyPayload(first, payload, ALI, withAli, undefined);
+      expect(replayed.items).toHaveLength(1);
+      expect(events).toEqual([{ ownerId: ALI, checkinId: payload.checkinId }]);
+    } finally {
+      stop();
+    }
+  });
+
   it('adds a text with what it answers and keeps its envelope only when given', () => {
     const answered = randomUuid();
     const id = randomUuid();

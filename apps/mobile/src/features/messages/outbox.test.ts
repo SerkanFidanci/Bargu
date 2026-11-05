@@ -54,6 +54,7 @@ import { type ChatItem } from './messages';
 import {
   pushOf,
   react,
+  sendCheckinLine,
   sendHeldNotices,
   shareStory,
   storyTargets,
@@ -232,6 +233,59 @@ describe('a story', () => {
     expect(items.every((item) => item.photo?.caption === 'deniz')).toBe(true);
     // Each item keeps whom it went to: only they can say they saw it (docs/ADR/0035 Ek 1).
     expect(items.map((item) => item.sentTo)).toEqual([[ALI], [AYSE]]);
+  });
+});
+
+describe('check-in outbox account isolation (QA-45)', () => {
+  it('does not write a delayed send result into the next account messages', async () => {
+    const device = generateDeviceKeys(randomUuid());
+    useAuth.setState({ userId: ME, device });
+    useMessages.setState({ ...EMPTY_MESSAGES, loaded: true }, true);
+    const recipient = { userId: randomUuid(), device: generateDeviceKeys(randomUuid()) };
+    const circle: Circle = {
+      id: randomUuid(),
+      kind: 'family',
+      name: 'Aile',
+      epoch: 1,
+      epochStartedAt: 0,
+      myRole: 'member',
+      myStatus: 'active',
+      members: [
+        {
+          userId: recipient.userId,
+          role: 'member',
+          status: 'active',
+          username: null,
+          displayName: 'Ali',
+          avatar: null,
+          device: { platform: 'android', bundle: exportDeviceKeyBundle(recipient.device) },
+        },
+      ],
+    };
+    queryClient.setQueryData(circlesKey, [circle]);
+    let answer!: (reply: { ok: true }) => void;
+    mockToPerson.mockClear();
+    mockToPerson.mockImplementationOnce(
+      () =>
+        new Promise<{ ok: true }>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const sending = sendCheckinLine(recipient.userId, {
+      kind: 'checkinOk',
+      checkinId: randomUuid(),
+      late: true,
+    });
+    await Promise.resolve();
+    expect(mockToPerson).toHaveBeenCalledTimes(1);
+
+    useAuth.setState({ userId: randomUuid(), device: generateDeviceKeys(randomUuid()) });
+    useMessages.setState({ ...EMPTY_MESSAGES, loaded: true }, true);
+    answer({ ok: true });
+    await expect(sending).resolves.toBe('failed');
+    expect(useMessages.getState().items).toEqual([]);
+    expect(mockToPerson).toHaveBeenCalledTimes(1);
+    mockToPerson.mockClear();
   });
 });
 

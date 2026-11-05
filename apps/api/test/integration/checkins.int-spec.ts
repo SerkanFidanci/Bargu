@@ -24,19 +24,23 @@ import { as, circleWith, type Person, person } from './support/people.js';
 
 let test: TestApp;
 let owner: Person;
+let qaOwner: Person;
 let ayse: Person;
 let can: Person;
 let stranger: Person;
 
 beforeAll(async () => {
   test = await createTestApp();
-  [owner, ayse, can, stranger] = await Promise.all([
+  [owner, qaOwner, ayse, can, stranger] = await Promise.all([
     person(test, 'Ali'),
+    person(test, 'QA'),
     person(test, 'Ayşe'),
     person(test, 'Can'),
     person(test, 'Yabancı'),
   ]);
   await circleWith(test, owner, ayse, can);
+  // QA-45 has its own owner, so its setups do not consume the existing tests' daily allowance.
+  await circleWith(test, qaOwner, ayse, can);
 });
 afterAll(async () => {
   await test.close();
@@ -86,12 +90,12 @@ const mine = async (who: Person) =>
   (await as(test, who, 'GET', '/v1/checkins')).json<CheckinList>().checkins;
 
 /** A check set for an hour from now, to Ayşe and Can. */
-async function setOne(due = Date.now() + HOUR) {
+async function setOne(due = Date.now() + HOUR, from = owner) {
   const id = randomUuid();
   const openAt = due + 10 * 60_000;
-  expect(await create(owner, { id, openAt, boxes: boxesFor(owner, id, due, [ayse, can]) })).toEqual(
-    { ok: true },
-  );
+  expect(await create(from, { id, openAt, boxes: boxesFor(from, id, due, [ayse, can]) })).toEqual({
+    ok: true,
+  });
   return { id, due, openAt };
 }
 
@@ -215,6 +219,49 @@ describe('an arrival check, the sealed escrow (docs/ADR/0039)', () => {
     await cancel(owner, id);
   });
 
+  it('schedules twenty retries at the one canonical time and singleton key (QA-45)', async () => {
+    const id = randomUuid();
+    const firstOpenAt = Date.now() + HOUR + 10 * 60_000;
+    const send = vi.spyOn(test.app.get<PgBoss>(JOB_QUEUE), 'send');
+    try {
+      for (let n = 0; n < 20; n += 1) {
+        const openAt = firstOpenAt + n * 60_000;
+        expect(
+          await create(qaOwner, {
+            id,
+            openAt,
+            boxes: boxesFor(qaOwner, id, openAt - 10 * 60_000, [ayse]),
+          }),
+        ).toEqual({ ok: true });
+      }
+      expect(send).toHaveBeenCalledTimes(20);
+      for (const call of send.mock.calls) {
+        expect(call[2]).toEqual({
+          startAfter: new Date(firstOpenAt),
+          singletonKey: `${id}:${String(firstOpenAt)}`,
+        });
+      }
+    } finally {
+      send.mockRestore();
+      await cancel(qaOwner, id);
+    }
+  });
+
+  it('refuses the loser when two owners race to set the same id (QA-45)', async () => {
+    const id = randomUuid();
+    const due = Date.now() + HOUR;
+    const openAt = due + 10 * 60_000;
+    const replies = await Promise.all([
+      create(qaOwner, { id, openAt, boxes: boxesFor(qaOwner, id, due, [ayse]) }),
+      create(can, { id, openAt, boxes: boxesFor(can, id, due, [ayse]) }),
+    ]);
+    expect(replies).toContainEqual({ ok: true });
+    expect(replies).toContainEqual({ refused: 'INVALID' });
+    expect(replies).toHaveLength(2);
+    const winner = 'ok' in replies[0] ? qaOwner : can;
+    expect(await cancel(winner, id)).toEqual({ ok: true });
+  });
+
   it('cancelled before its time, is gone for good and never fires', async () => {
     const { id } = await setOne();
     expect(await cancel(owner, id)).toEqual({ ok: true });
@@ -273,6 +320,68 @@ describe('an arrival check, the sealed escrow (docs/ADR/0039)', () => {
     expect(rows.rows[0]).toEqual({ n: '0' });
     notify.mockRestore();
     publish.mockRestore();
+  });
+
+  it("lets neither a stranger nor the owner acknowledge another recipient's alert", async () => {
+    const { id } = await setOne(Date.now() + HOUR, qaOwner);
+    await due(id);
+    expect(await worker().fire(id)).toBe(2);
+    expect((await as(test, stranger, 'POST', `/v1/checkins/${id}/ack`)).statusCode).toBe(204);
+    expect((await as(test, qaOwner, 'POST', `/v1/checkins/${id}/ack`)).statusCode).toBe(204);
+    expect((await inbox(ayse)).map((one) => one.checkinId)).toEqual([id]);
+    expect((await inbox(can)).map((one) => one.checkinId)).toEqual([id]);
+    expect((await as(test, ayse, 'POST', `/v1/checkins/${id}/ack`)).statusCode).toBe(204);
+    expect(await inbox(ayse)).toEqual([]);
+    expect((await inbox(can)).map((one) => one.checkinId)).toEqual([id]);
+    await as(test, can, 'POST', `/v1/checkins/${id}/ack`);
+  });
+
+  it('returns the newest fifty alerts, then the rest after ack, isolated by recipient (QA-45)', async () => {
+    const ids = Array.from({ length: 60 }, () => randomUuid());
+    const newestFirst = [...ids].sort().reverse();
+    const firedAt = new Date().toISOString();
+    // Direct fixtures go past the per-owner creation limits without weakening those limits in the API.
+    await test.admin.query(
+      `INSERT INTO app.checkins (id, owner_id, open_at, created_at, fired_at)
+       SELECT item.id, $2::uuid, now() - interval '2 hours', now() - interval '3 hours',
+              $3::timestamptz
+         FROM jsonb_to_recordset($1::jsonb) AS item(id uuid)`,
+      [JSON.stringify(ids.map((id) => ({ id }))), owner.userId, firedAt],
+    );
+    const boxes = ids.flatMap((id) =>
+      boxesFor(owner, id, Date.now(), [ayse, can]).map(({ recipientId, box }) => ({
+        checkin_id: id,
+        recipient_id: recipientId,
+        box,
+      })),
+    );
+    await test.admin.query(
+      `INSERT INTO app.checkin_boxes (checkin_id, recipient_id, device_id, box)
+       SELECT item.checkin_id, item.recipient_id, (item.box ->> 'recipientDeviceId')::uuid, item.box
+         FROM jsonb_to_recordset($1::jsonb)
+          AS item(checkin_id uuid, recipient_id uuid, box jsonb)`,
+      [JSON.stringify(boxes)],
+    );
+    try {
+      const first = await inbox(ayse);
+      expect(first.map((one) => one.checkinId)).toEqual(newestFirst.slice(0, 50));
+      expect((await inbox(can)).map((one) => one.checkinId)).toEqual(newestFirst.slice(0, 50));
+      for (const one of first) {
+        expect((await as(test, ayse, 'POST', `/v1/checkins/${one.checkinId}/ack`)).statusCode).toBe(
+          204,
+        );
+      }
+      const remaining = await inbox(ayse);
+      expect(remaining.map((one) => one.checkinId)).toEqual(newestFirst.slice(50));
+      expect((await inbox(can)).map((one) => one.checkinId)).toEqual(newestFirst.slice(0, 50));
+      for (const one of remaining) {
+        await as(test, ayse, 'POST', `/v1/checkins/${one.checkinId}/ack`);
+      }
+      expect(await inbox(ayse)).toEqual([]);
+      expect((await inbox(can)).map((one) => one.checkinId)).toEqual(newestFirst.slice(0, 50));
+    } finally {
+      await test.admin.query(`DELETE FROM app.checkins WHERE id = ANY ($1::uuid[])`, [ids]);
+    }
   });
 
   it('drops the box of a recipient blocked since, unseen', async () => {
@@ -353,6 +462,26 @@ describe('an arrival check, the sealed escrow (docs/ADR/0039)', () => {
     } finally {
       await app.end();
     }
+  });
+
+  it('drains 5001 expired setup tombstones in one sweep (QA-45)', async () => {
+    await test.admin.query(
+      `INSERT INTO app.checkin_setups (id, owner_id, created_at)
+       SELECT uuidv7(), $1, now() - interval '25 hours' FROM generate_series(1, 5001)`,
+      [stranger.userId],
+    );
+    await new MessagesSweeper(
+      test.app.get(DatabaseService),
+      test.app.get<RedisClient>(REDIS),
+      test.app.get(EmailJobs),
+      test.env,
+    ).sweep();
+    const left = await test.admin.query(
+      `SELECT count(*) AS n FROM app.checkin_setups
+        WHERE owner_id = $1 AND created_at <= now() - interval '24 hours'`,
+      [stranger.userId],
+    );
+    expect(left.rows[0]).toEqual({ n: '0' });
   });
 
   it('is fired by the next round when no job did, and deleted a day after it fired', async () => {

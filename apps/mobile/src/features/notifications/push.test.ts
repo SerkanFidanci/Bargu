@@ -1,7 +1,13 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { enablePush, nearReplyOfResponse, routeOfResponse, usePushState } from './push';
+import {
+  dismissTransientNotifications,
+  enablePush,
+  nearReplyOfResponse,
+  routeOfResponse,
+  usePushState,
+} from './push';
 
 interface Permission {
   granted: boolean;
@@ -10,14 +16,21 @@ interface Permission {
 const mockGetPermissions = jest.fn<Promise<Permission>, []>();
 const mockRequestPermissions = jest.fn<Promise<Permission>, []>();
 const mockToken = jest.fn<Promise<{ type: string; data: unknown }>, []>();
+const mockPresented = jest.fn<Promise<Notifications.Notification[]>, []>();
+const mockDismiss = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
 
+let mockHandlerConfig: Parameters<typeof Notifications.setNotificationHandler>[0] | undefined;
 jest.mock('expo-notifications', () => ({
-  setNotificationHandler: jest.fn(),
+  setNotificationHandler: (config: typeof mockHandlerConfig) => {
+    mockHandlerConfig = config;
+  },
   setNotificationChannelAsync: jest.fn(() => Promise.resolve(null)),
   AndroidImportance: { HIGH: 4, DEFAULT: 3, LOW: 2 },
   getPermissionsAsync: () => mockGetPermissions(),
   requestPermissionsAsync: () => mockRequestPermissions(),
   getDevicePushTokenAsync: () => mockToken(),
+  getPresentedNotificationsAsync: () => mockPresented(),
+  dismissNotificationAsync: (id: string) => mockDismiss(id),
 }));
 
 const register = jest.fn<Promise<void>, [string]>(() => Promise.resolve());
@@ -37,6 +50,42 @@ const run = (ask = true) =>
 beforeEach(() => {
   jest.clearAllMocks();
   mockToken.mockResolvedValue({ type: 'android', data: 'fcm-token' });
+  mockPresented.mockResolvedValue([]);
+});
+
+describe('foreground notification reconciliation (QA-45)', () => {
+  const notification = (identifier: string, data: Record<string, unknown>) =>
+    ({ request: { identifier, content: { data } } }) as Notifications.Notification;
+
+  it('keeps only ownChecks visible in the list, without a banner or sound', async () => {
+    const registration = mockHandlerConfig;
+    if (registration === undefined || registration === null) {
+      throw new Error('notification handler not registered');
+    }
+    const persistent = await registration.handleNotification(
+      notification('checkin-open', { route: 'ownChecks' }),
+    );
+    expect(persistent).toMatchObject({
+      shouldShowBanner: false,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    });
+    const other = await registration.handleNotification(
+      notification('chat', { route: 'messages' }),
+    );
+    expect(other).toMatchObject({ shouldShowBanner: false, shouldShowList: false });
+  });
+
+  it('clears transient presented notices but never dismisses the persistent ownChecks one', async () => {
+    mockPresented.mockResolvedValue([
+      notification('checkin-open', { route: 'ownChecks' }),
+      notification('chat', { route: 'messages' }),
+      notification('other', {}),
+    ]);
+    await dismissTransientNotifications();
+    expect(mockDismiss.mock.calls.map(([id]) => id)).toEqual(['chat', 'other']);
+  });
 });
 
 describe('enablePush', () => {

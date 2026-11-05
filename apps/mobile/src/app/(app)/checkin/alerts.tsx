@@ -41,6 +41,7 @@ export default function CheckinAlertsScreen() {
   const circles = useCircles().data ?? [];
   const alerts = useAlerts((state) => state.alerts);
   const unreadable = useAlerts((state) => state.unreadable);
+  const resolved = useAlerts((state) => state.resolved);
 
   useEffect(() => {
     void fetchAlerts().catch(() => undefined);
@@ -72,16 +73,38 @@ export default function CheckinAlertsScreen() {
 
   return (
     <Screen title={t('checkin.alert.title')} testID="checkin-alerts-screen">
-      {alerts.length === 0 && unreadable.length === 0 ? (
+      {alerts.length === 0 && unreadable.length === 0 && resolved.length === 0 ? (
         <Text variant="body" color="textMuted">
           {t('checkin.alert.none')}
         </Text>
       ) : null}
+      {resolved.map((alert) => (
+        <Card
+          key={`${alert.ownerId}:${alert.checkinId}`}
+          testID={`checkin-resolved-${alert.checkinId}`}
+        >
+          <Text variant="body">
+            {t('checkin.alert.arrivedBefore', { name: nameOf(alert.ownerId) })}
+          </Text>
+          <Button
+            testID={`checkin-alert-seen-${alert.checkinId}`}
+            label={t('checkin.alert.seen')}
+            icon={Check}
+            variant="secondary"
+            onPress={() => {
+              seen(alert.checkinId);
+            }}
+          />
+        </Card>
+      ))}
       {alerts.map((alert) => {
         const name = nameOf(alert.ownerId);
         const ago = alert.last === null ? null : minutesAgo(alert.last.ts, now);
         return (
-          <Card key={alert.checkinId} testID={`checkin-alert-${alert.checkinId}`}>
+          <Card
+            key={`${alert.ownerId}:${alert.checkinId}`}
+            testID={`checkin-alert-${alert.checkinId}`}
+          >
             <View style={styles.head}>
               <TriangleAlert color={colors.danger} size={24} strokeWidth={2.25} />
               <Text variant="headline" style={styles.flex}>

@@ -340,7 +340,8 @@ Kod bu ADR'yi ve PM şartlarını izler. Metinden ayrıldığı ya da metni netl
    `fire_checkin`. Kutuyu yalnız alıcısı, yalnız ateşlendikten sonra okur. Sahip kutuları okuyamaz;
    alıcılarını ayrı bir işlevle görür.
 3. **Kaçırılan iş.** İşçi kapalıyken zamanı geçen kontrolleri her dakika yoklayıp ateşler. Alıcı
-   uyarıyı ateşlenmeden itibaren 24 saat açabilir (PM şartı 1).
+   uyarıyı `due + grace` anından itibaren 24 saat açabilir (PM şartı 1; geç ateşleme bu süreyi
+   kısaltmaz).
 4. **Eski uygulama.** Sunucu üyelerin uygulama sürümünü saklamıyor (ADR 0040 notu gibi). Bu yüzden
    §8'deki "uygulaması bu türü biliyor" şartı kurulumda denetlenemez. Seviyesi 8'den eski uygulama
    gelen kutusunu çekemez (426); onun telefonu uyarıyı gösteremez. C APK'sından sonra kapalı test
@@ -376,3 +377,13 @@ Kod bu ADR'yi ve PM şartlarını izler. Metinden ayrıldığı ya da metni netl
 6. **Hayalette pil.** Bütün çemberlere hayaletken de pil %5'e inince açık kontroller hemen yenilenir.
 7. **"İyi misin?" gecikmesi.** Yeni izin yok (SCHEDULE_EXACT_ALARM ve USE_EXACT_ALARM istenmez).
    Sahip gecikmeyi telefonda ölçecek; 3 dakikadan fazlaysa hatırlatma erkene alınır (PM).
+
+## Ek 1 — Kimlik saklama süresi (PM, 2026-11-05)
+
+QA-45'teki "iptal edilen kimlik 24 saat yeniden kullanılamaz" cümlesinin başlangıcı netleştirildi:
+**24 saat, kontrolün kurulum anından (`checkin_setups.created_at`) başlar; iptal anından başlamaz.**
+İptalden itibaren ayrı bir süre uygulamak için `cancelled_at` veya başka yeni metadata tutulmaz.
+
+Neden: gecikmiş kurulum isteğinin kopyası iptal edilmiş kontrolü yeniden kuramasın ve günlük 10
+kurulum sınırı aşılmasın diye yalnız kimlik, sahip ve kurulum anı yeterli. Sunucuda yeni bir olay
+zamanı saklamamak veri minimizasyonunu korur. Migration 0046'daki mevcut davranış aynen kalır.
