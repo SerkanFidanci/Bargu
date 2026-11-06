@@ -11,6 +11,7 @@ import { useCircles } from '../../circles/queries';
 import { memberName } from '../../circles/names';
 import { nativeCryptoSelfTestMs } from '../../../platform/native-crypto';
 import { useFrameMeter } from '../frame-meter';
+import { resetScenarioMetrics, useScenarioMetrics } from './scenario';
 import { STALL_MS } from './stalls';
 import {
   median,
@@ -66,6 +67,7 @@ function Panel() {
   const circles = useCircles().data ?? [];
   const meter = useFrameMeter(FPS_WINDOW_SECONDS);
   const stalls = useStalls();
+  const scenario = useScenarioMetrics();
   const { running, start } = meter;
   // The kept counters of background live mode (the app may have been closed since they were counted).
   useEffect(() => {
@@ -85,6 +87,9 @@ function Panel() {
   };
   const { outcomes } = measures;
   const friends = Object.entries(measures.friends);
+  const counters = Object.entries(scenario.counters).filter(([, value]) => value !== 0);
+  const maximums = Object.entries(scenario.maximums).filter(([, value]) => value !== 0);
+  const spans = Object.entries(scenario.spans).sort(([left], [right]) => left.localeCompare(right));
   const line = (text: string) => (
     <Text variant="caption" color="textMuted" key={text}>
       {text}
@@ -230,6 +235,36 @@ function Panel() {
               ),
             ),
           ]}
+
+      <Text variant="caption" style={styles.section}>
+        {t('dev.measure.scenario')}
+      </Text>
+      {counters.map(([name, value]) => line(t('dev.measure.scenarioCounter', { name, value })))}
+      {maximums.map(([name, value]) => line(t('dev.measure.scenarioMaximum', { name, value })))}
+      {spans.map(([name, span]) =>
+        line(
+          t('dev.measure.scenarioSpan', {
+            name,
+            count: span.count,
+            total: Math.round(span.totalMs),
+            max: Math.round(span.maxMs),
+          }),
+        ),
+      )}
+      {counters.length === 0 && maximums.length === 0 && spans.length === 0
+        ? line(t('dev.measure.scenarioEmpty'))
+        : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('dev.measure.scenarioReset')}
+        testID="scenario-reset"
+        hitSlop={space.sm}
+        onPress={resetScenarioMetrics}
+      >
+        <Text variant="caption" color="primary">
+          {t('dev.measure.scenarioReset')}
+        </Text>
+      </Pressable>
     </View>
   );
 }

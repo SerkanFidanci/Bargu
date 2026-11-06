@@ -8,6 +8,7 @@ import { useMessages } from '../messages/messages';
 import { storyRingKey, storyRingsOf } from '../messages/stories';
 import { useNow } from '../location/clock';
 import { useMyFix } from '../location/engine';
+import { timed } from '../location/probe';
 import { bestPerPerson, type ReceivedLocation, useLocations } from '../location/receive';
 import { speedShown, useSharing } from '../location/sharing';
 import { newestState, STALE_AFTER_MS, useStates, whyShown } from '../location/why';
@@ -91,21 +92,23 @@ export function PeopleLayer({
   const rings = useMemo(() => storyRingsOf(ringKey), [ringKey]);
   // This phone's own pin shows a fast car, a train or a plane only while its speed is shown.
   const fastShown = useSharing((state) => speedShown(state));
-  const members: PersonOnMap[] = bestPerPerson(locations).flatMap((entry) => {
-    const card = cardOf(circles, entry.userId);
-    return card === undefined
-      ? []
-      : [
-          {
-            kind: 'member' as const,
-            id: entry.userId,
-            lat: entry.loc.lat,
-            lng: entry.loc.lng,
-            entry,
-            card,
-          },
-        ];
-  });
+  const members: PersonOnMap[] = timed('people.derive', () =>
+    bestPerPerson(locations).flatMap((entry) => {
+      const card = cardOf(circles, entry.userId);
+      return card === undefined
+        ? []
+        : [
+            {
+              kind: 'member' as const,
+              id: entry.userId,
+              lat: entry.loc.lat,
+              lng: entry.loc.lng,
+              entry,
+              card,
+            },
+          ];
+    }),
+  );
   const people: PersonOnMap[] =
     myFix === null
       ? members
@@ -120,7 +123,7 @@ export function PeopleLayer({
             acc: myFix.acc,
           },
         ];
-  const clusters = clusterPeople(people, zoom);
+  const clusters = timed('people.cluster', () => clusterPeople(people, zoom));
   // How many pins the map draws: in a crowd they hold still (crowd.ts, theme crowdFx).
   const pins = clusters.length;
   useEffect(() => {
@@ -178,16 +181,17 @@ export function PeopleLayer({
     };
   };
 
+  const uncertaintySpots = timed('people.uncertainty', () =>
+    people.map((person) => ({
+      id: person.id,
+      lat: person.lat,
+      lng: person.lng,
+      acc: person.kind === 'me' ? person.acc : person.entry.loc.acc,
+    })),
+  );
   return (
     <>
-      <UncertaintyLayer
-        spots={people.map((person) => ({
-          id: person.id,
-          lat: person.lat,
-          lng: person.lng,
-          acc: person.kind === 'me' ? person.acc : person.entry.loc.acc,
-        }))}
-      />
+      <UncertaintyLayer spots={uncertaintySpots} />
       {clusters.map((cluster) => {
         if (cluster.members.length > 1) {
           return (

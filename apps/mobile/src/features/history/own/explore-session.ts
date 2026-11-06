@@ -1,8 +1,9 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { probe, timedAsync } from '../../location/probe';
 import { explore, type Explored, slicer } from './explore-model';
-import { ownTrail } from './own-session';
+import { ownTrail, withOwnTrailMetrics } from './own-session';
 
 export type ExploreState =
   { kind: 'idle' } | { kind: 'busy' } | { kind: 'ready'; explored: Explored };
@@ -43,7 +44,20 @@ export function useExplore(on: boolean, version: number): ExploreState {
     const id = focus.id;
     let left = false;
     const stale = () => left || generation.current !== id;
-    void explore(ownTrail.days(), (day) => ownTrail.read(day), slicer(), stale).then(
+    const metrics = probe.current;
+    const days = withOwnTrailMetrics(metrics, () => ownTrail.days());
+    metrics?.count?.('own.explore.days', days.length);
+    void timedAsync(
+      'own.explore.total',
+      () =>
+        explore(
+          days,
+          (day) => withOwnTrailMetrics(metrics, () => ownTrail.read(day)),
+          slicer(),
+          stale,
+        ),
+      metrics,
+    ).then(
       (explored) => {
         if (!stale() && explored !== null) setDone({ focus: id, version, explored });
       },

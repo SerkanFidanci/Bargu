@@ -54,6 +54,10 @@ beforeEach(() => {
   queryClient.setQueryData(circlesKey, [circle]);
 });
 
+afterEach(() => {
+  queryClient.clear();
+});
+
 describe('"Güvendeyim" in the open app (docs/ADR/0029)', () => {
   it('shows a message as a line that shows its place on the map when tapped, with a haptic', () => {
     receivedSafe(circle.id, bora.userId, message(1));

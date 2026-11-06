@@ -17,6 +17,7 @@ import {
   onOnline,
   onPeopleDeparted,
 } from '../live/live-session';
+import { type LocationProbe, probe, timedAsync } from '../location/probe';
 import { queryClient } from '../query-client';
 import { isVaultOpen, vault } from '../storage/vault';
 import { ingest } from './inbox';
@@ -65,7 +66,10 @@ export function loadMessagesOnce(): boolean {
 }
 
 /** Items from the server (live or listed) into this phone's state. */
-export function receive(records: readonly ChatRecord[]): void {
+export function receive(
+  records: readonly ChatRecord[],
+  metrics: LocationProbe | null = probe.current,
+): void {
   if (!loadMessagesOnce()) return;
   const { device, userId } = useAuth.getState();
   if (device === null || userId === null) return;
@@ -76,20 +80,28 @@ export function receive(records: readonly ChatRecord[]): void {
     device,
     blocked: new Set(useBlocked.getState().blocked),
     now: Date.now(),
+    metrics,
   };
   useMessages.setState((state) => ingest(state, records, context));
 }
 
 /** What the server took while this phone was away (or since the app opened), then what waited. */
 export async function catchUp(): Promise<void> {
-  if (!loadMessagesOnce()) return;
-  const since = Math.max(useMessages.getState().cursor, Date.now() - CHAT_LIFETIME_MS);
-  try {
-    receive(await messagesApi.since(since));
-  } catch {
-    // Offline or refused: the next connection tries again.
-  }
-  receive(useMessages.getState().waitingRecords);
+  const metrics = probe.current;
+  return timedAsync(
+    'messages.inbox.total',
+    async () => {
+      if (!loadMessagesOnce()) return;
+      const since = Math.max(useMessages.getState().cursor, Date.now() - CHAT_LIFETIME_MS);
+      try {
+        receive(await messagesApi.since(since), metrics);
+      } catch {
+        // Offline or refused: the next connection tries again.
+      }
+      receive(useMessages.getState().waitingRecords, metrics);
+    },
+    metrics,
+  );
 }
 
 /** Who this user blocked, from the server (the list is theirs only). */

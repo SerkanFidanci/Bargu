@@ -8,6 +8,7 @@ import {
 import type { FixOutcome } from '../../location/fix-filter';
 import type { FixSource, LocationProbe } from '../../location/probe';
 import type { KeyValueStore } from '../../storage/vault';
+import { recordScenarioCount, recordScenarioMaximum, recordScenarioSpan } from './scenario';
 import { remember, type Span, type Stall } from './stalls';
 
 /** Intervals kept for each median: about the last ten locations. */
@@ -263,15 +264,18 @@ export const useStalls = create<{
   watching: boolean;
 }>(() => ({ list: [], spans: [], watching: false }));
 
-/** The location pipeline's listener (probe.ts) while this build has the overlay. */
-export const recorder: LocationProbe = {
+/** The full listener: lightweight test probes may omit scenario methods, the recorder never does. */
+export const recorder: LocationProbe & Required<Pick<LocationProbe, 'count' | 'max'>> = {
   span: (name, ms) => {
-    // Kept for naming stalls; only while the meter watches (after that nothing is stored).
+    // The scenario summary is independent; the bounded stall spans still exist only while watching.
+    recordScenarioSpan(name, ms);
     if (!useStalls.getState().watching) return;
     useStalls.setState((state) => ({
       spans: remember(state.spans, { name, ms, end: performance.now() }),
     }));
   },
+  count: recordScenarioCount,
+  max: recordScenarioMaximum,
   sampled: (input) => {
     useMeasures.setState((state) => sampled(state, input));
   },

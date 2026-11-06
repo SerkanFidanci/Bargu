@@ -5,6 +5,7 @@ import i18n from '@/i18n';
 
 import { onSignedOut } from '../../auth/auth-store';
 import { planKey } from '../../billing/plan';
+import { type LocationProbe, probe, timed } from '../../location/probe';
 import { queryClient } from '../../query-client';
 import { isVaultOpen, vault } from '../../storage/vault';
 import {
@@ -24,10 +25,30 @@ import { createOwnTrail } from './own-trail';
  */
 const files = createMonthFiles(() => vault());
 
+let scopedMetrics: LocationProbe | null | undefined;
+const currentMetrics = () => (scopedMetrics === undefined ? probe.current : scopedMetrics);
+
+/** Runs one synchronous trail operation with its async operation's captured account listener. */
+export function withOwnTrailMetrics<T>(listener: LocationProbe | null, work: () => T): T {
+  const previous = scopedMetrics;
+  scopedMetrics = listener;
+  try {
+    return work();
+  } finally {
+    scopedMetrics = previous;
+  }
+}
+
 export const ownTrail = createOwnTrail({
   vault: () => vault(),
   files,
   unlocked: trailKeyReady,
+  metrics: {
+    count: (name) => {
+      currentMetrics()?.count?.(name);
+    },
+    measure: (name, work) => timed(name, work, currentMetrics()),
+  },
 });
 
 const ENTITLED_KEY = 'own:entitled:v1';
@@ -61,8 +82,9 @@ export function ownEntitled(now: number): boolean {
  */
 export async function ownTrailForExport(): Promise<ReturnType<typeof ownTrail.exported>> {
   if (!OWN_HISTORY_ENABLED || !isVaultOpen()) return [];
+  const metrics = probe.current;
   await prepareTrailKey(false);
-  return ownTrail.exported();
+  return withOwnTrailMetrics(metrics, () => ownTrail.exported());
 }
 
 /**
@@ -83,17 +105,20 @@ const LAST_TICK_KEY = 'own:tick:v1';
  */
 export async function ownTrailTick(now = Date.now()): Promise<void> {
   if (!OWN_HISTORY_ENABLED || !isVaultOpen()) return;
+  const metrics = probe.current;
   const on = ownTrail.settings().on;
   if (!on && ownTrail.days().length === 0) return;
   const ready = await prepareTrailKey(on);
   tellIfTrailLost();
   if (!ready) return;
-  ownTrail.compact();
-  const last = Number(vault().get(LAST_TICK_KEY) ?? 0);
-  if (now - last >= DAY_MS) {
-    ownTrail.prune();
-    vault().set(LAST_TICK_KEY, String(now));
-  }
+  withOwnTrailMetrics(metrics, () => {
+    ownTrail.compact();
+    const last = Number(vault().get(LAST_TICK_KEY) ?? 0);
+    if (now - last >= DAY_MS) {
+      ownTrail.prune();
+      vault().set(LAST_TICK_KEY, String(now));
+    }
+  });
 }
 
 // The plan arrives or changes: remember whether it carries the history.

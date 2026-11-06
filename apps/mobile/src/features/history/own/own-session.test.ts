@@ -1,5 +1,6 @@
 import type { Plan } from '@bargu/schemas';
 
+import { type LocationProbe, probe } from '../../location/probe';
 import type { KeyValueStore } from '../../storage/vault';
 
 jest.mock('@/config/env', () => ({
@@ -113,12 +114,30 @@ const plan = (overrides: Partial<Plan>): Plan => ({
   ...overrides,
 });
 
+function listener(): LocationProbe {
+  return {
+    sampled: jest.fn(),
+    sent: jest.fn(),
+    received: jest.fn(),
+    span: jest.fn(),
+    count: jest.fn(),
+    max: jest.fn(),
+    backgroundLive: jest.fn(),
+  };
+}
+
 beforeEach(() => {
   mockVault.clear();
   mockMonths.clear();
   mockKey.ready = false;
   mockOpen.current = true;
+  probe.current = null;
   jest.clearAllMocks();
+});
+
+afterEach(() => {
+  probe.current = null;
+  jest.restoreAllMocks();
 });
 
 describe('the plan the recording asks for (docs/ADR/0030 §5)', () => {
@@ -200,5 +219,41 @@ describe('the turn that keeps it tidy', () => {
     expect(prune).toHaveBeenCalledTimes(1);
     await ownTrailTick(NOW + DAY + 60_000);
     expect(prune).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('own history measurement (M0)', () => {
+  it('injects the pending counters and whole scan span into the probe', () => {
+    const span = jest.fn();
+    const count = jest.fn();
+    probe.current = { ...listener(), span, count };
+    ownTrail.setSettings({ on: true, keep: 30 });
+    for (const offset of [0, 15, 30]) {
+      ownTrail.record(
+        { lat: 41.0256, lng: 28.9742, acc: 10, ts: NOW - DAY + offset * 60_000 },
+        { entitled: true, ghost: 'off', sharing: true },
+      );
+    }
+    jest.spyOn(performance, 'now').mockReturnValueOnce(100).mockReturnValueOnce(140);
+
+    expect(ownTrail.days()).toHaveLength(1);
+    expect(count).toHaveBeenCalledTimes(4);
+    expect(count).toHaveBeenNthCalledWith(1, 'own.pending.keys');
+    expect(count).toHaveBeenNthCalledWith(2, 'own.pending.get');
+    expect(count).toHaveBeenNthCalledWith(3, 'own.pending.get');
+    expect(count).toHaveBeenNthCalledWith(4, 'own.pending.get');
+    expect(span).toHaveBeenCalledWith('own.pending.scan', 40);
+  });
+
+  it('does not read a clock for pending scans while the production probe is null', () => {
+    ownTrail.setSettings({ on: true, keep: 30 });
+    ownTrail.record(
+      { lat: 41.0256, lng: 28.9742, acc: 10, ts: NOW - DAY },
+      { entitled: true, ghost: 'off', sharing: true },
+    );
+    const now = jest.spyOn(performance, 'now');
+    now.mockClear();
+    expect(ownTrail.days()).toHaveLength(1);
+    expect(now).not.toHaveBeenCalled();
   });
 });

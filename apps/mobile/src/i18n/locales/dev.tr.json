@@ -90,7 +90,13 @@
       "stallsNone": "{{ms}} ms ve üstü yok",
       "stallsCount": "{{count}} takılma · en uzunu {{ms}} ms",
       "stall": "{{at}}: {{ms}} ms · {{name}}",
-      "stallUnnamed": "adsız"
+      "stallUnnamed": "adsız",
+      "scenario": "Senaryo ölçümleri",
+      "scenarioEmpty": "Henüz senaryo ölçümü yok",
+      "scenarioCounter": "{{name}}: {{value}}",
+      "scenarioMaximum": "{{name}} (en yüksek): {{value}}",
+      "scenarioSpan": "{{name}} · {{count}} kez · toplam {{total}} ms · en uzun {{max}} ms",
+      "scenarioReset": "Senaryo sayaçlarını sıfırla"
     }
   }
 }

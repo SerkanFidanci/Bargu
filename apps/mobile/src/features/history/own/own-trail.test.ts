@@ -10,7 +10,7 @@ import {
   OWN_DEFAULT,
   type Recording,
 } from './own-model';
-import { createOwnTrail, type MonthFiles } from './own-trail';
+import { createOwnTrail, type MonthFiles, type OwnTrailMetrics } from './own-trail';
 
 function memory(): KeyValueStore {
   const map = new Map<string, string>();
@@ -65,8 +65,15 @@ const TODAY = new Date(2026, 9, 29, 12, 0).getTime();
 const YESTERDAY = TODAY - DAY;
 const ON: Recording = { entitled: true, ghost: 'off', sharing: true };
 
-function setup(options: { unlocked?: boolean; at?: number } = {}) {
-  const vault = memory();
+function setup(
+  options: {
+    unlocked?: boolean;
+    at?: number;
+    vault?: KeyValueStore;
+    metrics?: OwnTrailMetrics;
+  } = {},
+) {
+  const vault = options.vault ?? memory();
   const month = memoryFiles();
   const clock = { now: options.at ?? TODAY };
   const lock = { unlocked: options.unlocked ?? true };
@@ -75,6 +82,7 @@ function setup(options: { unlocked?: boolean; at?: number } = {}) {
     files: month.files,
     unlocked: () => lock.unlocked,
     now: () => clock.now,
+    ...(options.metrics === undefined ? {} : { metrics: options.metrics }),
   });
   return { trail, vault, ...month, clock, lock };
 }
@@ -111,6 +119,65 @@ describe('what is written (docs/ADR/0030 §1)', () => {
     expect(trail.days()).toEqual([dayKey(YESTERDAY)]);
     trail.record({ lat: 41, lng: 29, acc: 10, ts: TODAY }, { ...ON, ghost: 'hide' });
     expect(trail.days()).toEqual([dayKey(YESTERDAY)]);
+  });
+});
+
+describe('pending measurement (M0)', () => {
+  it('reports the same real vault reads on every scan, with fixed metric names only', () => {
+    const base = memory();
+    const reads = { keys: 0, get: [] as string[] };
+    const counted: KeyValueStore = {
+      ...base,
+      keys: () => {
+        reads.keys += 1;
+        return base.keys();
+      },
+      get: (key) => {
+        reads.get.push(key);
+        return base.get(key);
+      },
+    };
+    const counts = new Map<string, number>();
+    const spans: string[] = [];
+    const metrics: OwnTrailMetrics = {
+      count: (name) => {
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+      },
+      measure: (name, work) => {
+        spans.push(name);
+        return work();
+      },
+    };
+    const { trail } = setup({ unlocked: false, vault: counted, metrics });
+    trail.setSettings({ on: true, keep: 30 });
+    for (const offset of [0, 15, 30]) {
+      trail.record({ lat: 41.0256, lng: 28.9742, acc: 10, ts: YESTERDAY + offset * MIN }, ON);
+    }
+    reads.keys = 0;
+    reads.get = [];
+    counts.clear();
+
+    const first = trail.days();
+    const firstGets = [...reads.get];
+    expect(trail.days()).toEqual(first);
+    expect(reads.keys).toBe(2);
+    expect(firstGets).toHaveLength(3);
+    expect(firstGets.every((key) => key.startsWith('own:q:'))).toBe(true);
+    expect(reads.get).toEqual([...firstGets, ...firstGets]);
+    expect(counts.get('own.pending.keys')).toBe(2);
+    expect(counts.get('own.pending.get')).toBe(6);
+    expect(spans).toEqual(['own.pending.scan', 'own.pending.scan']);
+    const names = [...counts.keys(), ...spans];
+    for (const key of firstGets) expect(names).not.toContain(key);
+  });
+
+  it('uses the no-op port without reading a clock', () => {
+    const { trail } = setup({ unlocked: false });
+    const now = jest.spyOn(performance, 'now');
+    now.mockClear();
+    expect(trail.days()).toEqual([]);
+    expect(now).not.toHaveBeenCalled();
+    now.mockRestore();
   });
 });
 

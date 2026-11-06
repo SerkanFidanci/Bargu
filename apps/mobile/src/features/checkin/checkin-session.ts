@@ -22,6 +22,7 @@ import { verifiedBundle } from '../keys/bundle-cache';
 import { keys, onOnline, onServerEvents } from '../live/live-session';
 import { useMyFix } from '../location/engine';
 import { clockOf } from '../location/person-share';
+import { probe, timed, timedAsync } from '../location/probe';
 import type { Fix } from '../location/send';
 import { queryClient } from '../query-client';
 import { isVaultOpen, vault } from '../storage/vault';
@@ -715,7 +716,11 @@ export async function checkinLowBattery(): Promise<void> {
 // ---- the recipient's side ---------------------------------------------------------------------
 
 /** Alerts handed over to this person: fetched, opened here, kept until "Gördüm". */
-export async function fetchAlerts(): Promise<void> {
+export function fetchAlerts(): Promise<void> {
+  return timedAsync('checkin.inbox.total', fetchAlertsNow);
+}
+
+async function fetchAlertsNow(): Promise<void> {
   load();
   const context = sessionContext();
   const device = useAuth.getState().device;
@@ -757,7 +762,10 @@ export async function fetchAlerts(): Promise<void> {
     const sender = deviceOf(alert.ownerId);
     try {
       if (sender?.deviceId !== alert.box.senderDeviceId) throw new Error('keys');
-      const payload = openDirect({ envelope: alert.box, recipient: device, sender, now });
+      const payload = timed('checkin.inbox.decrypt', () => {
+        probe.current?.count?.('checkin.inbox.decrypt');
+        return openDirect({ envelope: alert.box, recipient: device, sender, now });
+      });
       if (payload.kind !== 'checkin' || payload.id !== alert.checkinId) throw new Error('kind');
       const received = receivedOf(payload, alert, now);
       const key = keyOf(received);

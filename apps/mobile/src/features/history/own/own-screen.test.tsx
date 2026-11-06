@@ -148,7 +148,12 @@ jest.mock('@/features/history/own/own-session', () => {
     },
     unlocked: () => true,
   });
-  return { ownTrail: trail, ownTrailTick: () => Promise.resolve(), tellIfTrailLost: jest.fn() };
+  return {
+    ownTrail: trail,
+    ownTrailTick: () => Promise.resolve(),
+    tellIfTrailLost: jest.fn(),
+    withOwnTrailMetrics: <T,>(_listener: unknown, work: () => T): T => work(),
+  };
 });
 
 import MyHistoryScreen from '@/app/(app)/history/mine';

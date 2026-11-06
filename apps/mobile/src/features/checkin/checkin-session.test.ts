@@ -3,6 +3,7 @@ import type { CheckinInbox, CheckinList, CheckinReply, ServerEvent } from '@barg
 
 import { circlesKey } from '../circles/circle-cache';
 import { verifiedBundle } from '../keys/bundle-cache';
+import { type LocationProbe, probe } from '../location/probe';
 import { circleOf, exchangeKeys, type Person, somebody } from '../location/test-support';
 import { queryClient } from '../query-client';
 import { announceCheckinOk } from './checkin-events';
@@ -135,6 +136,7 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  probe.current = null;
   jest.useRealTimers();
 });
 
@@ -805,6 +807,41 @@ describe('recipient replay and arrival memory (QA-45)', () => {
     await fetchAlerts();
     expect(useAlerts.getState().alerts[0]).toMatchObject({ seq: 2, note: 'new validity' });
     expect(useAlerts.getState().revisions[0]?.validUntil).toBeGreaterThan(Date.now());
+  });
+
+  it('measures the total inbox and every openDirect attempt, including a failure', async () => {
+    const spans: string[] = [];
+    const counts: [string, number | undefined][] = [];
+    const listener: LocationProbe = {
+      sampled: () => undefined,
+      sent: () => undefined,
+      received: () => undefined,
+      span: (name) => spans.push(name),
+      backgroundLive: () => undefined,
+      count: (name, delta) => counts.push([name, delta]),
+    };
+    probe.current = listener;
+    const valid = alertFrom(ayse, 1, randomUuid(), 'valid');
+    const brokenSource = alertFrom(ayse, 1, randomUuid(), 'broken');
+    const broken = {
+      ...brokenSource,
+      box: { ...brokenSource.box, ct: 'not-a-valid-ciphertext' },
+    };
+    mockInbox.mockResolvedValue({ alerts: [valid, broken] });
+    await fetchAlerts();
+    expect(spans).toEqual([
+      'checkin.inbox.decrypt',
+      'checkin.inbox.decrypt',
+      'checkin.inbox.total',
+    ]);
+    expect(counts).toEqual([
+      ['checkin.inbox.decrypt', undefined],
+      ['checkin.inbox.decrypt', undefined],
+    ]);
+    expect(useAlerts.getState().alerts.map((alert) => alert.note)).toEqual(['valid']);
+    expect(useAlerts.getState().unreadable.map((alert) => alert.checkinId)).toEqual([
+      broken.checkinId,
+    ]);
   });
 
   it('uses arrivedBefore for the same owner only and suppresses its fired toast', async () => {

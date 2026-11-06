@@ -18,6 +18,7 @@ import {
   type MemberCard,
 } from '@bargu/schemas';
 
+import { type LocationProbe, probe } from '../location/probe';
 import { type InboxContext, ingest, openRecord } from './inbox';
 import {
   type ChatItem,
@@ -138,6 +139,10 @@ function setup() {
   };
 }
 
+afterEach(() => {
+  probe.current = null;
+});
+
 describe('opening one item', () => {
   it('opens a member item of a circle and keeps its envelope for a report', () => {
     const { ali, circle, context, text, toCircle } = setup();
@@ -223,6 +228,30 @@ describe('taking items in', () => {
     expect(state.items.map((item) => item.text)).toEqual(['bir', 'iki']);
     expect(state.cursor).toBe(NOW - 800);
     expect(ingest(state, [first, second], context)).toMatchObject({ items: state.items });
+  });
+
+  it('counts records offered to ingest without changing dedupe or cursor behavior', () => {
+    const { ali, context, text, toCircle } = setup();
+    const counts: [string, number | undefined][] = [];
+    const listener: LocationProbe = {
+      sampled: () => undefined,
+      sent: () => undefined,
+      received: () => undefined,
+      span: () => undefined,
+      backgroundLive: () => undefined,
+      count: (name, delta) => counts.push([name, delta]),
+    };
+    probe.current = listener;
+    const first = toCircle(ali, text('bir'), NOW - 900);
+    const second = toCircle(ali, text('iki'), NOW - 800);
+    const state = ingest(EMPTY_MESSAGES, [first, second], context);
+    const replayed = ingest(state, [first], context);
+    expect(counts).toEqual([
+      ['messages.inbox.records', 2],
+      ['messages.inbox.records', 1],
+    ]);
+    expect(replayed.items.map((item) => item.text)).toEqual(['bir', 'iki']);
+    expect(replayed.cursor).toBe(NOW - 800);
   });
 
   it('remembers a dropped item so it is not tried again', () => {

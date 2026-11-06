@@ -12,7 +12,7 @@ import { create } from 'zustand';
 import type { KeyStore } from '../keys/key-store';
 import type { KeyValueStore } from '../storage/vault';
 import { filterFix, type FilterState, freshFilter } from './fix-filter';
-import { type FixSource, probe, timed } from './probe';
+import { type FixSource, type LocationProbe, probe, timed } from './probe';
 import { type Battery, buildEnvelopes, type Fix, type LastSent, shouldSend } from './send';
 import { circleSharing, isFrozenFor, type SharingSettings, sharedCircles } from './sharing';
 import { nextStay, type Stay } from './stay';
@@ -117,14 +117,20 @@ export function createLocationEngine(deps: EngineDeps) {
       now(),
     );
 
-  function published(): Set<string> {
+  function published(metrics: LocationProbe | null = probe.current): Set<string> {
+    metrics?.count?.('engine.published.read');
     const raw = deps.store().get(PUBLISHED_KEY);
     const parsed = publishedSchema.safeParse(raw === undefined ? [] : JSON.parse(raw));
     return new Set(parsed.success ? parsed.data : []);
   }
 
   /** `hadAny`: whether any circle held a location of this phone before `ids` were changed. */
-  function setPublished(ids: Set<string>, hadAny: boolean): void {
+  function setPublished(
+    ids: Set<string>,
+    hadAny: boolean,
+    metrics: LocationProbe | null = probe.current,
+  ): void {
+    metrics?.count?.('engine.published.write');
     deps.store().set(PUBLISHED_KEY, JSON.stringify([...ids]));
     // Whether any circle holds a location of this phone is what a reason for it hangs on.
     if (hadAny !== ids.size > 0) deps.settled?.();
@@ -134,26 +140,28 @@ export function createLocationEngine(deps: EngineDeps) {
    * Circles holding this phone's location that should not any more: a frozen ghost keeps all, and
    * a circle frozen alone keeps its own while its share lasts (docs/ADR/0038).
    */
-  function toWithdraw(): string[] {
+  function toWithdraw(metrics: LocationProbe | null = probe.current): string[] {
     const settings = deps.sharing();
     if (settings.ghost === 'freeze') return [];
     const current = new Set(shared().map((circle) => circle.id));
     const at = now();
-    return [...published()].filter((id) => !current.has(id) && !isFrozenFor(settings, id, at));
+    return [...published(metrics)].filter(
+      (id) => !current.has(id) && !isFrozenFor(settings, id, at),
+    );
   }
 
-  async function settle(): Promise<void> {
-    const drop = toWithdraw();
+  async function settle(metrics: LocationProbe | null): Promise<void> {
+    const drop = toWithdraw(metrics);
     if (drop.length === 0) return;
     await deps.withdraw(drop);
-    const held = published();
+    const held = published(metrics);
     const hadAny = held.size > 0;
     for (const id of drop) held.delete(id);
-    setPublished(held, hadAny);
+    setPublished(held, hadAny, metrics);
   }
 
   /** Sends one fix to every shared circle; false when it has to wait (offline, server error). */
-  async function send(fix: Fix): Promise<boolean> {
+  async function send(fix: Fix, metrics: LocationProbe | null): Promise<boolean> {
     const device = deps.device();
     const circles = shared();
     if (device === null || circles.length === 0) return true;
@@ -193,23 +201,23 @@ export function createLocationEngine(deps: EngineDeps) {
     }
     last = { fix, sentAt: at };
     probe.current?.sent({ at, live: live() });
-    const held = published();
+    const held = published(metrics);
     const hadAny = held.size > 0;
     for (const circle of circles) if (!refused.has(circle.id)) held.add(circle.id);
-    setPublished(held, hadAny);
+    setPublished(held, hadAny, metrics);
     if (outdated.length > 0) deps.outdated?.(outdated);
     return true;
   }
 
   /** Takes back what is no longer shared, then sends what is pending, one at a time. */
-  function pump(): Promise<void> {
+  function pump(metrics: LocationProbe | null = probe.current): Promise<void> {
     running ??= (async () => {
       try {
-        await settle().catch(() => undefined);
+        await settle(metrics).catch(() => undefined);
         while (pending !== null) {
           const next = pending;
           pending = null;
-          if (!(await send(next))) {
+          if (!(await send(next, metrics))) {
             // A newer fix that arrived meanwhile wins; otherwise this one waits for the network.
             pending ??= next;
             return;
@@ -233,7 +241,7 @@ export function createLocationEngine(deps: EngineDeps) {
   }
 
   /** A position this phone uses: its own marker, places, and sending by the frequency table. */
-  function adopt(next: Fix): Promise<void> {
+  function adopt(next: Fix, metrics: LocationProbe | null = probe.current): Promise<void> {
     latest = next;
     stay = nextStay(stay, next, next.ts);
     useMyFix.setState({ fix: next, since: stay.since });
@@ -241,42 +249,54 @@ export function createLocationEngine(deps: EngineDeps) {
     const sending = shared().length > 0;
     if (sending && shouldSend(last, next, now(), live(), deps.background?.() === true)) {
       pending = next;
-      return pump();
+      return pump(metrics);
     }
     // Also as a ghost to every circle while an arrival check is open: the check is refreshed with
     // this position even though no circle gets it (QA-44 Düşük 1).
     if (deps.lastCall !== undefined && (sending || deps.alsoWanted?.() === true)) {
       const lastCall = deps.lastCall;
       return deps.battery().then((battery) => {
-        if (!lastCall(battery) || shared().length === 0) return quiet();
+        if (!lastCall(battery) || shared().length === 0) return quiet(metrics);
         pending = next;
-        return pump();
+        return pump(metrics);
       });
     }
-    return quiet();
+    return quiet(metrics);
   }
 
   /** Nothing to send, but a timed share may just have ended: take it back without waiting. */
-  function quiet(): Promise<void> {
-    if (toWithdraw().length > 0) return pump();
+  function quiet(metrics: LocationProbe | null = probe.current): Promise<void> {
+    if (toWithdraw(metrics).length > 0) return pump(metrics);
     return running ?? Promise.resolve();
   }
 
   return {
     /** A new raw position from the location service or the 1-second watch. */
     fix(next: Fix, source: FixSource = 'service'): Promise<void> {
+      // One listener covers work that continues after publish, battery or withdraw awaits.
+      const metrics = probe.current;
       // Its time is what the thread spends before the first wait: once a second with the map open.
-      return timed('engine.fix', () => {
-        const at = now();
-        deps.sampled?.(at);
-        const result = filterFix(filter, next, at, gps());
-        filter = result.state;
-        probe.current?.sampled({ source, ts: next.ts, acc: next.acc, at, outcome: result.outcome });
-        if (result.take !== null) return adopt(result.take);
-        // Nothing new to use, but a timed share may just have ended: take it back without waiting.
-        if (toWithdraw().length > 0) return pump();
-        return running ?? Promise.resolve();
-      });
+      return timed(
+        'engine.fix',
+        () => {
+          const at = now();
+          deps.sampled?.(at);
+          const result = filterFix(filter, next, at, gps());
+          filter = result.state;
+          probe.current?.sampled({
+            source,
+            ts: next.ts,
+            acc: next.acc,
+            at,
+            outcome: result.outcome,
+          });
+          if (result.take !== null) return adopt(result.take, metrics);
+          // Nothing new to use, but a timed share may just have ended: take it back without waiting.
+          if (toWithdraw(metrics).length > 0) return pump(metrics);
+          return running ?? Promise.resolve();
+        },
+        metrics,
+      );
     },
 
     /** Someone looks at one of this phone's circles: live updates for a while. */

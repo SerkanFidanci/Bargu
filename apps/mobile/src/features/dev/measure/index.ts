@@ -1,11 +1,11 @@
 import { createElement } from 'react';
 
-import { onSignedOut } from '../../auth/auth-store';
-import { probe } from '../../location/probe';
+import { onSignedOut, useAuth } from '../../auth/auth-store';
 import { isVaultOpen, vault } from '../../storage/vault';
 import { useDevSlots } from '../slots';
+import { startAccountRecorder, stopAccountRecorder } from './account-recorder';
 import { MeasureOverlay } from './overlay';
-import { backgroundLiveStore, forgetBackgroundLive, recorder, useMeasures } from './store';
+import { backgroundLiveStore, forgetBackgroundLive, useMeasures } from './store';
 import { startStallWatch } from './watch';
 
 /**
@@ -15,8 +15,19 @@ import { startStallWatch } from './watch';
  * background live mode: those are kept in this phone's encrypted vault for the phone trial
  * (ADR 0028 step 3), numbers only, and never leave it.
  */
-probe.current = recorder;
+function reconcileAccountRecorder(): void {
+  const { status, userId, device } = useAuth.getState();
+  if (status !== 'signedIn' || userId === null || device === null) {
+    stopAccountRecorder();
+    return;
+  }
+  startAccountRecorder(`${userId}:${device.deviceId}`);
+}
+
 backgroundLiveStore.current = () => (isVaultOpen() ? vault() : null);
+reconcileAccountRecorder();
+useAuth.subscribe(reconcileAccountRecorder);
+// Background live has its own independent reset; scenario lifecycle must never replace it.
 onSignedOut(forgetBackgroundLive);
 useDevSlots.setState({
   mapOverlay: createElement(MeasureOverlay),

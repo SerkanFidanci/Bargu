@@ -90,7 +90,13 @@
       "stallsNone": "None of {{ms}} ms or more",
       "stallsCount": "{{count}} stalls · longest {{ms}} ms",
       "stall": "at {{at}}: {{ms}} ms · {{name}}",
-      "stallUnnamed": "unnamed"
+      "stallUnnamed": "unnamed",
+      "scenario": "Scenario measurements",
+      "scenarioEmpty": "No scenario measurements yet",
+      "scenarioCounter": "{{name}}: {{value}}",
+      "scenarioMaximum": "{{name}} (high water): {{value}}",
+      "scenarioSpan": "{{name}} · {{count}} × · total {{total}} ms · max {{max}} ms",
+      "scenarioReset": "Reset scenario counters"
     }
   }
 }

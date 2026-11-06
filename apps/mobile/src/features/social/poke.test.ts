@@ -59,6 +59,10 @@ beforeEach(() => {
   usePokeShow.setState(null, true);
 });
 
+afterEach(() => {
+  queryClient.clear();
+});
+
 describe('a poke with a feeling or a question (docs/ADR/0031)', () => {
   it('names whom it is for; only their phone gets the notification', async () => {
     expect(await pokeWith(circle.id, bora.userId, 'kiss')).toBe('sent');

@@ -37,6 +37,14 @@ export interface MonthFiles {
   destroy: () => void;
 }
 
+export type OwnPendingCounter = 'own.pending.keys' | 'own.pending.get';
+
+/** Measurement only, injected by own-session: no store, clock or probe lives in this module. */
+export interface OwnTrailMetrics {
+  count(name: OwnPendingCounter): void;
+  measure<T>(name: 'own.pending.scan', work: () => T): T;
+}
+
 export interface OwnTrailDeps {
   /** The always-open vault: settings and the points of days not yet compacted. */
   vault: () => KeyValueStore;
@@ -44,12 +52,17 @@ export interface OwnTrailDeps {
   /** Whether the phone is unlocked: month files and their key can be read only then. */
   unlocked: () => boolean;
   now?: () => number;
+  metrics?: OwnTrailMetrics;
 }
 
 const SETTINGS_KEY = 'own:settings:v1';
 const DAY_PREFIX = 'd:';
 /** Waiting days older than this many are all compacted at the first chance (docs/ADR/0030 §3). */
 const PENDING_DAYS_MAX = 3;
+const NO_METRICS: OwnTrailMetrics = {
+  count: () => undefined,
+  measure: (_name, work) => work(),
+};
 
 function readJson<T>(store: KeyValueStore, key: string, schema: z.ZodType<T>): T | null {
   const raw = store.get(key);
@@ -71,6 +84,7 @@ const pendingSchema = z.array(trailPointSchema);
  */
 export function createOwnTrail(deps: OwnTrailDeps) {
   const now = deps.now ?? Date.now;
+  const metrics = deps.metrics ?? NO_METRICS;
 
   function settings(): OwnSettings {
     return readJson(deps.vault(), SETTINGS_KEY, ownSettingsSchema) ?? OWN_DEFAULT;
@@ -82,20 +96,24 @@ export function createOwnTrail(deps: OwnTrailDeps) {
 
   /** Slots waiting, as `[slot, points]` in time order. */
   function pending(): { slot: number; points: z.infer<typeof pendingSchema> }[] {
-    const vault = deps.vault();
-    return vault
-      .keys()
-      .filter((key) => key.startsWith(PENDING_PREFIX))
-      .flatMap((key) => {
-        const slot = Number(key.slice(PENDING_PREFIX.length));
-        const points = readJson(vault, key, pendingSchema);
-        if (!Number.isFinite(slot) || points === null) {
-          vault.delete(key);
-          return [];
-        }
-        return [{ slot, points }];
-      })
-      .sort((a, b) => a.slot - b.slot);
+    return metrics.measure('own.pending.scan', () => {
+      const vault = deps.vault();
+      metrics.count('own.pending.keys');
+      return vault
+        .keys()
+        .filter((key) => key.startsWith(PENDING_PREFIX))
+        .flatMap((key) => {
+          const slot = Number(key.slice(PENDING_PREFIX.length));
+          metrics.count('own.pending.get');
+          const points = readJson(vault, key, pendingSchema);
+          if (!Number.isFinite(slot) || points === null) {
+            vault.delete(key);
+            return [];
+          }
+          return [{ slot, points }];
+        })
+        .sort((a, b) => a.slot - b.slot);
+    });
   }
 
   /** A new position, written down when the user's choice and the rules (`state`) say so. */

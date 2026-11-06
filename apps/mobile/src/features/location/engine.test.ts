@@ -388,4 +388,41 @@ describe('the positions the engine uses (docs/ADR/0028)', () => {
     ]);
     expect(JSON.stringify(heard)).not.toContain(String(first.lat).slice(0, 6));
   });
+
+  it('counts immediately before every real published MMKV read and write', async () => {
+    const events: string[] = [];
+    const listener: LocationProbe = {
+      sampled: () => undefined,
+      sent: () => undefined,
+      received: () => undefined,
+      span: () => undefined,
+      backgroundLive: () => undefined,
+      count: (name) => events.push(name),
+    };
+    probe.current = listener;
+    const t = setup(1);
+    const store = t.me.store;
+    t.me.store = {
+      ...store,
+      get: (key) => {
+        if (key === 'loc:published:v1') events.push('mmkv.get');
+        return store.get(key);
+      },
+      set: (key, value) => {
+        if (key === 'loc:published:v1') events.push('mmkv.set');
+        store.set(key, value);
+      },
+    };
+    await t.engine.fix(fixAt(0));
+    const reads = events.filter((event) => event === 'engine.published.read').length;
+    const writes = events.filter((event) => event === 'engine.published.write').length;
+    expect(reads).toBeGreaterThan(0);
+    expect(writes).toBe(1);
+    expect(reads).toBe(events.filter((event) => event === 'mmkv.get').length);
+    expect(writes).toBe(events.filter((event) => event === 'mmkv.set').length);
+    for (const [index, event] of events.entries()) {
+      if (event === 'mmkv.get') expect(events[index - 1]).toBe('engine.published.read');
+      if (event === 'mmkv.set') expect(events[index - 1]).toBe('engine.published.write');
+    }
+  });
 });

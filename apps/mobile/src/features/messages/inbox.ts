@@ -3,6 +3,7 @@ import type { ChatEnvelope, ChatPayload, ChatRecord, Circle } from '@bargu/schem
 
 import { verifiedBundle } from '../keys/bundle-cache';
 import type { KeyStore } from '../keys/key-store';
+import { type LocationProbe, probe } from '../location/probe';
 import {
   applyPayload,
   circleConversation,
@@ -20,6 +21,8 @@ export interface InboxContext {
   /** People this user blocked: what they send is never shown (docs/ADR/0035 §6). */
   blocked: ReadonlySet<string>;
   now: number;
+  /** Captured at the async operation's start; explicit null must not fall back to a new account. */
+  metrics?: LocationProbe | null;
 }
 
 export type Opened =
@@ -104,6 +107,8 @@ export function ingest(
   records: readonly ChatRecord[],
   context: InboxContext,
 ): MessagesState {
+  const metrics = context.metrics === undefined ? probe.current : context.metrics;
+  metrics?.count?.('messages.inbox.records', records.length);
   let next = state;
   const waiting = new Map(state.waitingRecords.map((record) => [record.id, record]));
   let newest = state.cursor;

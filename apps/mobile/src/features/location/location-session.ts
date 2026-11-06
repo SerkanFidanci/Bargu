@@ -86,7 +86,7 @@ import { isVaultOpen, vault } from '../storage/vault';
 import { OWN_HISTORY_ENABLED } from '../history/own/own-flag';
 import { ownEntitled, ownTrail } from '../history/own/own-session';
 import { createLocationEngine, LIVE_MS, type SendCircle, toSendCircle, useMyFix } from './engine';
-import { timed } from './probe';
+import { type LocationProbe, probe, type ScenarioCounter, timed, timedAsync } from './probe';
 import type { Fix } from './send';
 import { forgetDeparted } from './forget-person';
 import { createReceiver } from './receive';
@@ -954,23 +954,95 @@ function handleLive(name: string, payload: unknown): void {
   }
 }
 
+interface SnapshotRoute<T> {
+  name: string;
+  schema: z.ZodType<T>;
+  apply: (data: T) => Promise<void>;
+  counter: ScenarioCounter;
+}
+
+let snapshotInflight = 0;
+
+async function snapshotRoute<T>(
+  route: SnapshotRoute<T>,
+  metrics: LocationProbe | null,
+): Promise<void> {
+  snapshotInflight += 1;
+  metrics?.max?.('snapshot.inflight', snapshotInflight);
+  try {
+    const raw = await timedAsync(
+      'location.snapshot.fetch',
+      async () => liveRequest(route.name),
+      metrics,
+    );
+    const parsed = route.schema.safeParse(raw);
+    if (!parsed.success) return;
+    await timedAsync('location.snapshot.apply', () => route.apply(parsed.data), metrics);
+    metrics?.count?.(route.counter);
+  } finally {
+    snapshotInflight -= 1;
+  }
+}
+
+/** The same five sequential requests as before, split only at their measurement boundaries. */
+export async function syncLocationSnapshots(): Promise<void> {
+  // One account listener covers every route, including applies that finish after a later await.
+  const metrics = probe.current;
+  // Opened a few at a time with a moment between (receive.ts SLICE), and not at all when this
+  // phone has opened them before: the app opening or the connection returning is no moment
+  // to hold the screen for dozens of signature checks.
+  await snapshotRoute(
+    {
+      name: 'locations',
+      schema: locationSnapshotSchema,
+      apply: (data) => receiver.receiveSnapshot(data.envelopes),
+      counter: 'snapshot.locations',
+    },
+    metrics,
+  );
+  await snapshotRoute(
+    {
+      name: 'statuses',
+      schema: statusSnapshotSchema,
+      apply: (data) => receiver.receiveAll(data.envelopes, 'status'),
+      counter: 'snapshot.statuses',
+    },
+    metrics,
+  );
+  await snapshotRoute(
+    {
+      name: 'profiles',
+      schema: statusSnapshotSchema,
+      apply: (data) => receiver.receiveAll(data.envelopes, 'profile'),
+      counter: 'snapshot.profiles',
+    },
+    metrics,
+  );
+  await snapshotRoute(
+    {
+      name: 'looks',
+      schema: statusSnapshotSchema,
+      apply: (data) => receiver.receiveAll(data.envelopes, 'look'),
+      counter: 'snapshot.looks',
+    },
+    metrics,
+  );
+  await snapshotRoute(
+    {
+      name: 'states',
+      schema: statusSnapshotSchema,
+      apply: (data) => receiver.receiveAll(data.envelopes, 'state'),
+      counter: 'snapshot.states',
+    },
+    metrics,
+  );
+}
+
 /** After every (re)connection: everyone's latest location, and what waited to be sent. */
 onOnline(() => {
   void (async () => {
     try {
-      // Opened a few at a time with a moment between (receive.ts SLICE), and not at all when this
-      // phone has opened them before: the app opening or the connection returning is no moment
-      // to hold the screen for dozens of signature checks.
-      const snapshot = locationSnapshotSchema.safeParse(await liveRequest('locations'));
-      if (snapshot.success) await receiver.receiveSnapshot(snapshot.data.envelopes);
-      const statuses = statusSnapshotSchema.safeParse(await liveRequest('statuses'));
-      if (statuses.success) await receiver.receiveAll(statuses.data.envelopes, 'status');
-      const profiles = statusSnapshotSchema.safeParse(await liveRequest('profiles'));
-      if (profiles.success) await receiver.receiveAll(profiles.data.envelopes, 'profile');
-      const looks = statusSnapshotSchema.safeParse(await liveRequest('looks'));
-      if (looks.success) await receiver.receiveAll(looks.data.envelopes, 'look');
-      const states = statusSnapshotSchema.safeParse(await liveRequest('states'));
-      if (states.success) await receiver.receiveAll(states.data.envelopes, 'state');
+      await syncLocationSnapshots();
     } catch {
       // The next connection asks again; live messages keep coming meanwhile.
     }

@@ -3,6 +3,7 @@ import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import { useTheme } from '@/theme';
 
 import { circleRing } from '../places/place-model';
+import { timed } from '../location/probe';
 import { type GlidePoint, isRough } from './glide';
 
 /** Someone on the map and how precise their location is (m). */
@@ -19,17 +20,20 @@ export interface Spot extends GlidePoint {
  */
 export function UncertaintyLayer({ spots }: { spots: readonly Spot[] }) {
   const { colors } = useTheme();
-  const rough = spots.filter((spot) => isRough(spot.acc));
-  if (rough.length === 0) return null;
-  const shapes = {
-    type: 'FeatureCollection' as const,
-    features: rough.map((spot) => ({
-      type: 'Feature' as const,
-      id: spot.id,
-      properties: {},
-      geometry: { type: 'Polygon' as const, coordinates: [circleRing(spot, spot.acc)] },
-    })),
-  };
+  const shapes = timed('people.uncertainty', () => {
+    const rough = spots.filter((spot) => isRough(spot.acc));
+    if (rough.length === 0) return null;
+    return {
+      type: 'FeatureCollection' as const,
+      features: rough.map((spot) => ({
+        type: 'Feature' as const,
+        id: spot.id,
+        properties: {},
+        geometry: { type: 'Polygon' as const, coordinates: [circleRing(spot, spot.acc)] },
+      })),
+    };
+  });
+  if (shapes === null) return null;
   return (
     <GeoJSONSource id="bargu-uncertainty" data={shapes}>
       <Layer
