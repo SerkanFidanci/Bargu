@@ -22,7 +22,7 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 
 ## Performans M0 — Ölçüm altyapısı (2026-11-06)
 
-**Commit `4d1b644` (yerel):** Optimizasyon yok; P4/P2/P6 ve sonraki paketler için ölçüm-only
+**Commit `4d1b644`:** Optimizasyon yok; P4/P2/P6 ve sonraki paketler için ölçüm-only
 altyapı. `timedAsync`, sabit allow-list sayaç/high-water adları, bellek içi senaryo özeti ve ayrı
 senaryo reset'i eklendi. Konum MMKV erişimleri, harita derive/cluster/uncertainty, sıralı snapshot
 istekleri, check-in/messages inbox ve ownTrail/Keşif ölçümleri mevcut akışı değiştirmeden bağlandı.
@@ -36,9 +36,13 @@ Prettier ve production bundle kontrolü (106 marker: production'da 0, bayraklıd
 Linux kopyasında `4d1b644` CI: 12 görev ve mobil 1660 test yeşil. Windows Jest süreci testlerden
 sonra kapanmadı; `detectOpenHandles` bulgu vermedi, kesin kapanış kanıtı Linux CI.
 
-**Sıradaki:** M0 preview APK ile aynı cihaz/veri üzerinde baseline: 50/100 pin, reconnect,
-saniyelik/arka plan fix, 50 check-in alert, 60→ACK→10, 500 mesaj ve 365 günlük gerçek vault.
-P4/P2/P6 optimizasyon commitlerine henüz başlanmadı. Push, yeni APK ve cihaz A/B ölçümü yapılmadı.
+**APK (2026-11-06): `4d1b644`**, M0 ölçüm-only preview. Linux CI ve GitHub CI/Security yeşil.
+https://api.46-62-162-70.sslip.io/apk/bargu-4d1b644-2c8e3d764bc55484.apk
+APK 86 203 170 bayt; SHA-256 `3c86cb4e0be987d00bd2ec6e61dee0dd3cac1c6c96bd7f24d23391d9eee6626b`.
+
+**Sıradaki (sahip erteledi, şimdilik başlanmadı):** M0 preview ile aynı cihaz/veri üzerinde
+baseline: 50/100 pin, reconnect, saniyelik/arka plan fix, 50 check-in alert, 60→ACK→10, 500 mesaj
+ve 365 günlük gerçek vault. P4/P2/P6 optimizasyon commitlerine ve cihaz A/B ölçümüne başlanmadı.
 
 ## Faz 9C — Paket A (2026-10-29)
 
