@@ -20,6 +20,26 @@ Her faz sonunda güncellenir: ne bitti, nasıl test edildi, açık riskler, kala
 | Faz 9B — Para modeli & Bargu+    | ✅ PM onayı 2026-10-22 (kod ve testler); telefon denemeleri ve kullanılabilirlik testi sahipte; son APK `10d58b9` (seviye 5, katılım yanıtı, buluşma noktası ve Düzenle), kurulum sahipte |
 | Faz 9C — Kullanışlılık & Zenly   | Paket A kodlandı (2026-10-29): renk, + menüsü, kişi kartı, tek kart, hayalet adları, ipuçları, boş ekranlar, sorun bildir, emoji tepki, koyu tema düzeltmesi. APK ve QA turu: aşağıda     |
 
+## Performans M0 — Ölçüm altyapısı (2026-11-06)
+
+**Commit `4d1b644` (yerel):** Optimizasyon yok; P4/P2/P6 ve sonraki paketler için ölçüm-only
+altyapı. `timedAsync`, sabit allow-list sayaç/high-water adları, bellek içi senaryo özeti ve ayrı
+senaryo reset'i eklendi. Konum MMKV erişimleri, harita derive/cluster/uncertainty, sıralı snapshot
+istekleri, check-in/messages inbox ve ownTrail/Keşif ölçümleri mevcut akışı değiştirmeden bağlandı.
+
+Hesap izolasyonu `userId:deviceId` generation'lı recorder ile: sign-out eski listener'ı pasifleştirir,
+`probe.current=null` yapar ve yalnız senaryo metriklerini sıfırlar. Eski async span/count/max yeni
+hesaba yazılmaz; yeni hesabın ölçümü çalışır. Bağımsız güvenlik incelemesi bu kapanışı doğruladı.
+
+Testler: mobil 198 suite / 1660 test; hedefli ölçüm ve history testleri, TypeScript, ESLint,
+Prettier ve production bundle kontrolü (106 marker: production'da 0, bayraklıda 106) geçti. Temiz
+Linux kopyasında `4d1b644` CI: 12 görev ve mobil 1660 test yeşil. Windows Jest süreci testlerden
+sonra kapanmadı; `detectOpenHandles` bulgu vermedi, kesin kapanış kanıtı Linux CI.
+
+**Sıradaki:** M0 preview APK ile aynı cihaz/veri üzerinde baseline: 50/100 pin, reconnect,
+saniyelik/arka plan fix, 50 check-in alert, 60→ACK→10, 500 mesaj ve 365 günlük gerçek vault.
+P4/P2/P6 optimizasyon commitlerine henüz başlanmadı. Push, yeni APK ve cihaz A/B ölçümü yapılmadı.
+
 ## Faz 9C — Paket A (2026-10-29)
 
 Plan: BARGU_PLAN "Faz 9C", PM'in ürün raporu §2 ve §4. Sahip: "Lacivert turuncu renk geçişleri" ve
